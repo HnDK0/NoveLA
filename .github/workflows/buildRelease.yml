@@ -46,8 +46,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          name: NovelDokusha v${{ env.APP_VERSION }}
+          name: Novela v${{ env.APP_VERSION }}
           tag_name: v${{ env.APP_VERSION }}
           files: |
-            ${{ env.APK_FILE_PATH_full }}
-            ${{ env.APK_FILE_PATH_foss }}
+            ${{ env.APK_FILE_PATH }}

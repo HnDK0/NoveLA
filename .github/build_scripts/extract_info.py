@@ -38,9 +38,8 @@ def processAPK(path, fileName):
     else:
         # Fallback for unexpected names like app-release.apk
         print(f"Warning: Filename '{fileName}' did not match expected pattern. Using fallbacks.")
-        name = "NovelDokusha"
+        name = "Novela"
         version = "unknown"
-        flavour = "universal"
         
         # Try to at least get version from somewhere if possible, 
         # but for now we'll rely on the build system to provide it if this fails.
@@ -49,7 +48,7 @@ def processAPK(path, fileName):
         if v_match:
             version = v_match.group(1)
 
-    newFileName = f"NovelDokusha_v{version}_{flavour}.apk"
+    newFileName = f"Novela_v{version}.apk"
     newFileNamePath = os.path.join(path, newFileName)
 
     try:
@@ -61,8 +60,8 @@ def processAPK(path, fileName):
 
     setEnvValue("APP_VERSION", version)
     # We use a sanitized flavour name for the env variable key
-    safe_flavour = re.sub(r"[^a-zA-Z0-9_]", "_", flavour)
-    setEnvValue(f"APK_FILE_PATH_{safe_flavour}", newFileNamePath)
+    # safe_flavour = re.sub(r"[^a-zA-Z0-9_]", "_", flavour)
+    # setEnvValue(f"APK_FILE_PATH_{safe_flavour}", newFileNamePath)
     
     # Also set a generic path if it's the only one or a preferred one
     setEnvValue("APK_FILE_PATH", newFileNamePath)
