@@ -5,19 +5,21 @@ import androidx.compose.runtime.mutableStateListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.text_translator.domain.TranslationManager
 import my.noveldokusha.text_translator.domain.TranslationModelState
 import my.noveldokusha.text_translator.domain.TranslatorState
+import my.noveldokusha.network.interceptors.GLOBAL_USER_AGENT
+import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
-import my.noveldokusha.network.interceptors.GLOBAL_USER_AGENT
 import java.util.concurrent.TimeUnit
 
 class TranslationManagerGoogleFree(
@@ -29,135 +31,92 @@ class TranslationManagerGoogleFree(
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
+    private val json = Json { ignoreUnknownKeys = true }
+
     override val available = true
     override val isUsingOnlineTranslation = true
 
     override val models = mutableStateListOf<TranslationModelState>().apply {
-        val supportedLanguages = listOf(
-            "en", "zh", "ja", "ko", "es", "fr", "de", "it", "pt", "ru",
-            "ar", "hi", "th", "vi", "id", "tr", "pl", "nl", "sv", "da",
-            "fi", "no", "cs", "el", "he", "ro", "hu", "uk", "bg", "hr"
-        )
-        addAll(supportedLanguages.map { lang ->
-            TranslationModelState(language = lang, available = true, downloading = false, downloadingFailed = false)
+        addAll(TranslationManagerGemini.SUPPORTED_LANGUAGES.map {
+            TranslationModelState(it, available = true, downloading = false, downloadingFailed = false)
         })
     }
 
-    override suspend fun hasModelDownloaded(language: String): TranslationModelState? {
-        return models.firstOrNull { it.language == language }
-    }
+    override suspend fun hasModelDownloaded(language: String) = models.firstOrNull { it.language == language }
 
-    override fun getTranslator(source: String, target: String): TranslatorState {
-        Log.d(TAG, "getTranslator: source=$source, target=$target")
-        return TranslatorState(
-            source = source,
-            target = target,
-            translate = { input ->
-                translateWithGoogleFree(input, source, target)
-                    ?: throw IllegalStateException("Google Translate: Failed to translate. Check your internet connection.")
-            }
-        )
-    }
+    override fun getTranslator(source: String, target: String) = TranslatorState(
+        source = source,
+        target = target,
+        translate = { input ->
+            translateRaw(input, source, target)
+                ?: throw IllegalStateException("Google Translate: Failed. Check internet connection.")
+        }
+    )
 
-    private val json = Json { ignoreUnknownKeys = true }
+    // ─── Language detection ───────────────────────────────────────────────────
 
     override suspend fun detectLanguage(text: String): String? = withContext(Dispatchers.IO) {
         if (text.isBlank()) return@withContext null
-
-        try {
-            val url = "https://translate.googleapis.com/translate_a/single".toHttpUrl().newBuilder()
+        runCatching {
+            val url = BASE_URL.toHttpUrl().newBuilder()
                 .addQueryParameter("client", "gtx")
                 .addQueryParameter("sl", "auto")
                 .addQueryParameter("tl", "en")
                 .addQueryParameter("dt", "t")
                 .addQueryParameter("q", text.take(100))
                 .build()
-            val request = okhttp3.Request.Builder()
-                .url(url)
-                .header("User-Agent", GLOBAL_USER_AGENT)
-                .build()
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext null
-
-                val body = response.body?.string() ?: return@withContext null
-                val jsonArray = json.parseToJsonElement(body).jsonArray
-
-                val detectedLang = jsonArray.getOrNull(2)?.jsonPrimitive?.contentOrNull
-
-                if (detectedLang != null && detectedLang.length in 2..6) {
-                    detectedLang.substringBefore("-")
-                } else {
-                    null
+            client.newCall(Request.Builder().url(url).header("User-Agent", GLOBAL_USER_AGENT).build())
+                .execute().use { resp ->
+                    if (!resp.isSuccessful) return@runCatching null
+                    json.parseToJsonElement(resp.body.string()).jsonArray
+                        .getOrNull(2)?.jsonPrimitive?.contentOrNull
+                        ?.takeIf { it.length in 2..6 }
+                        ?.substringBefore("-")
                 }
-            }
-        } catch (e: Exception) {
-            null
-        }
+        }.getOrNull()
     }
 
-    /**
-     * Returns null on failure — callers decide whether to throw or fallback.
-     */
-    private suspend fun translateWithGoogleFree(
-        text: String,
-        sourceLanguage: String,
-        targetLanguage: String,
-        retryCount: Int = 2
-    ): String? = withContext(Dispatchers.IO) {
-        if (text.length > 13000) {
-            return@withContext translateLongText(text, sourceLanguage, targetLanguage)
-        }
+    // ─── Translation ──────────────────────────────────────────────────────────
 
-        var lastException: Exception? = null
-        repeat(retryCount) { attempt ->
-            try {
+    /** Returns null on failure; callers decide to throw or fallback. */
+    private suspend fun translateRaw(
+        text: String,
+        sl: String,
+        tl: String,
+        retries: Int = 2
+    ): String? = withContext(Dispatchers.IO) {
+        if (text.length > 13_000) return@withContext translateLongText(text, sl, tl)
+
+        var lastEx: Exception? = null
+        repeat(retries) { attempt ->
+            runCatching {
                 val request = if (text.length > 500) {
-                    val formBody = okhttp3.FormBody.Builder()
-                        .add("client", "gtx")
-                        .add("sl", sourceLanguage)
-                        .add("tl", targetLanguage)
-                        .add("dt", "t")
-                        .add("q", text)
-                        .build()
-                    okhttp3.Request.Builder()
-                        .url("https://translate.googleapis.com/translate_a/single")
-                        .post(formBody)
+                    Request.Builder()
+                        .url(BASE_URL)
+                        .post(FormBody.Builder().add("client","gtx").add("sl",sl).add("tl",tl).add("dt","t").add("q",text).build())
                         .addHeader("User-Agent", GLOBAL_USER_AGENT)
                         .build()
                 } else {
-                    val url = "https://translate.googleapis.com/translate_a/single".toHttpUrl().newBuilder()
-                        .addQueryParameter("client", "gtx")
-                        .addQueryParameter("sl", sourceLanguage)
-                        .addQueryParameter("tl", targetLanguage)
-                        .addQueryParameter("dt", "t")
-                        .addQueryParameter("q", text)
-                        .build()
-                    okhttp3.Request.Builder().url(url).addHeader("User-Agent", GLOBAL_USER_AGENT).build()
+                    val url = BASE_URL.toHttpUrl().newBuilder()
+                        .addQueryParameter("client", "gtx").addQueryParameter("sl", sl)
+                        .addQueryParameter("tl", tl).addQueryParameter("dt", "t")
+                        .addQueryParameter("q", text).build()
+                    Request.Builder().url(url).addHeader("User-Agent", GLOBAL_USER_AGENT).build()
                 }
-
-                val startTime = System.currentTimeMillis()
-                val response = client.newCall(request).execute()
-                val responseBody = response.body?.string() ?: ""
-
-                if (response.isSuccessful && responseBody.isNotEmpty()) {
-                    val jsonElement = json.parseToJsonElement(responseBody)
+                val resp = client.newCall(request).execute()
+                val body = resp.body.string()
+                if (resp.isSuccessful && body.isNotEmpty()) {
                     val result = buildString {
-                        jsonElement.jsonArray.getOrNull(0)?.jsonArray?.forEach { item ->
+                        json.parseToJsonElement(body).jsonArray.getOrNull(0)?.jsonArray?.forEach { item ->
                             append(item.jsonArray.getOrNull(0)?.jsonPrimitive?.contentOrNull ?: "")
                         }
                     }.trim()
-
-                    if (result.isNotEmpty()) {
-                        Log.d(TAG, "Translated ${text.length} chars in ${System.currentTimeMillis() - startTime}ms")
-                        return@withContext result
-                    }
+                    if (result.isNotEmpty()) return@withContext result
                 }
-            } catch (e: Exception) {
-                lastException = e
-            }
-            if (attempt < retryCount - 1) kotlinx.coroutines.delay(200L * (attempt + 1))
+            }.onFailure { lastEx = it as? Exception }
+            if (attempt < retries - 1) kotlinx.coroutines.delay(200L * (attempt + 1))
         }
-        Log.w(TAG, "translateWithGoogleFree: failed after $retryCount attempts - ${lastException?.message?.take(50)}")
+        Log.w(TAG, "translateRaw: failed — ${lastEx?.message?.take(60)}")
         null
     }
 
@@ -168,110 +127,79 @@ class TranslationManagerGoogleFree(
     ): Map<String, String> = withContext(Dispatchers.IO) {
         if (texts.isEmpty()) return@withContext emptyMap()
 
-        val translations = mutableMapOf<String, String>()
-        var totalFailed = 0
-
+        // Build chunks ≤ 8000 chars
         val chunks = mutableListOf<List<Pair<Int, String>>>()
         var currentChunk = mutableListOf<Pair<Int, String>>()
         var currentLen = 0
-        val maxChunkChars = 8000
-
-        for ((index, text) in texts.withIndex()) {
-            val estimatedLen = text.length + 10
-            if (currentLen + estimatedLen > maxChunkChars && currentChunk.isNotEmpty()) {
-                chunks.add(currentChunk)
-                currentChunk = mutableListOf()
-                currentLen = 0
+        texts.forEachIndexed { i, t ->
+            val len = t.length + 10
+            if (currentLen + len > 8_000 && currentChunk.isNotEmpty()) {
+                chunks += currentChunk; currentChunk = mutableListOf(); currentLen = 0
             }
-            currentChunk.add(index to text)
-            currentLen += estimatedLen
+            currentChunk += i to t; currentLen += len
         }
-        if (currentChunk.isNotEmpty()) chunks.add(currentChunk)
+        if (currentChunk.isNotEmpty()) chunks += currentChunk
+
+        val translations = mutableMapOf<String, String>()
+        var failed = 0
 
         coroutineScope {
             chunks.map { chunk ->
                 async {
-                    val wrappedRequest = chunk.joinToString("\n\n") { (idx, text) -> "[$idx]\n$text" }
-                    val translatedBody = translateWithGoogleFree(wrappedRequest, sourceLanguage, targetLanguage)
+                    val wrapped = chunk.joinToString("\n\n") { (idx, t) -> "[$idx]\n$t" }
+                    val body = translateRaw(wrapped, sourceLanguage, targetLanguage)
 
-                    Log.d(TAG, "translateBatch: chunk size=${chunk.size}, response length=${translatedBody?.length ?: 0}")
-
-                    if (translatedBody == null) {
-                        // Chunk failed — try each paragraph individually
-                        Log.w(TAG, "translateBatch: chunk translation failed, falling back to single translations")
+                    if (body == null) {
                         var chunkFailed = 0
-                        chunk.forEach { (_, original) ->
-                            val result = translateWithGoogleFree(original, sourceLanguage, targetLanguage)
-                            if (result != null) {
-                                translations[original] = result
-                            } else {
-                                chunkFailed++
-                            }
+                        chunk.forEach { (_, orig) ->
+                            translateRaw(orig, sourceLanguage, targetLanguage)
+                                ?.let { translations[orig] = it } ?: chunkFailed++
                         }
-                        totalFailed += chunkFailed
-                        return@async
+                        failed += chunkFailed; return@async
                     }
 
-                    chunk.forEach { (idx, original) ->
+                    chunk.forEach { (idx, orig) ->
                         val regex = Regex(
                             """^\[\s*$idx\s*\.?\]\s*\n?(.*?)(?=\n*\[\s*\d+\s*\.?\]|\z)""",
                             setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
                         )
-                        val match = regex.find(translatedBody)
-                        if (match != null) {
-                            val result = match.groupValues[1].trim()
-                            if (result.isNotEmpty()) {
-                                translations[original] = result
-                            } else {
-                                Log.w(TAG, "Marker [$idx] found but empty, falling back to single translation")
-                                val fallback = translateWithGoogleFree(original, sourceLanguage, targetLanguage)
-                                if (fallback != null) translations[original] = fallback
-                                else totalFailed++
-                            }
+                        val result = regex.find(body)?.groupValues?.get(1)?.trim()
+                        if (!result.isNullOrEmpty()) {
+                            translations[orig] = result
                         } else {
-                            Log.w(TAG, "Marker [$idx] not found in response, falling back to single translation")
-                            val fallback = translateWithGoogleFree(original, sourceLanguage, targetLanguage)
-                            if (fallback != null) translations[original] = fallback
-                            else totalFailed++
+                            translateRaw(orig, sourceLanguage, targetLanguage)
+                                ?.let { translations[orig] = it } ?: failed++
                         }
                     }
                 }
             }.awaitAll()
         }
 
-        Log.d(TAG, "translateBatch: total=${texts.size}, translated=${translations.size}, failed=$totalFailed")
+        if (translations.isEmpty() && texts.isNotEmpty())
+            throw IllegalStateException("Google Translate: Failed. Check internet connection.")
 
-        // If everything failed — throw so the user sees an error instead of untranslated text
-        if (translations.isEmpty() && texts.isNotEmpty()) {
-            throw IllegalStateException("Google Translate: Failed to translate. Check your internet connection.")
-        }
-
+        Log.d(TAG, "translateBatch: ${texts.size} total, ${translations.size} ok, $failed failed")
         translations
     }
 
-    private suspend fun translateLongText(
-        text: String,
-        sourceLanguage: String,
-        targetLanguage: String
-    ): String? = withContext(Dispatchers.IO) {
-        val sentences = text.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotEmpty() }
-        if (sentences.size <= 1) return@withContext null
-
-        val mid = sentences.size / 2
-        val firstPart = sentences.take(mid).joinToString(" ")
-        val secondPart = sentences.drop(mid).joinToString(" ")
-
-        coroutineScope {
-            val d1 = async { translateWithGoogleFree(firstPart, sourceLanguage, targetLanguage) }
-            val d2 = async { translateWithGoogleFree(secondPart, sourceLanguage, targetLanguage) }
-            val r1 = d1.await()
-            val r2 = d2.await()
-            if (r1 != null && r2 != null) "$r1 $r2" else null
+    private suspend fun translateLongText(text: String, sl: String, tl: String): String? =
+        withContext(Dispatchers.IO) {
+            val sentences = text.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotEmpty() }
+            if (sentences.size <= 1) return@withContext null
+            val mid = sentences.size / 2
+            coroutineScope {
+                val d1 = async { translateRaw(sentences.take(mid).joinToString(" "), sl, tl) }
+                val d2 = async { translateRaw(sentences.drop(mid).joinToString(" "), sl, tl) }
+                val r1 = d1.await(); val r2 = d2.await()
+                if (r1 != null && r2 != null) "$r1 $r2" else null
+            }
         }
-    }
 
     override fun downloadModel(language: String) {}
     override fun removeModel(language: String) {}
 
-    companion object { private const val TAG = "TranslationGoogleFree" }
+    companion object {
+        private const val TAG = "TranslationGoogleFree"
+        private const val BASE_URL = "https://translate.googleapis.com/translate_a/single"
+    }
 }

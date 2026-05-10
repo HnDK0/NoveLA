@@ -2,12 +2,9 @@ package my.noveldokusha.text_translator
 
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
-import com.google.gson.Gson
-import com.google.gson.JsonParser
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
@@ -21,15 +18,17 @@ import my.noveldokusha.text_translator.domain.TranslationManager
 import my.noveldokusha.text_translator.domain.TranslationModelState
 import my.noveldokusha.text_translator.domain.TranslatorState
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import java.util.concurrent.TimeUnit
 
 /**
- * Translation manager using translate-pa.googleapis.com/v1/translateHtml —
- * the same API used by WtrLab plugin. Sends HTML-wrapped paragraphs which gives
- * significantly better quality than the plain-text translate.googleapis.com endpoint.
+ * Translation via translate-pa.googleapis.com/v1/translateHtml —
+ * same endpoint as WtrLab plugin. HTML-wrapped paragraphs → better quality than plain-text endpoint.
+ *
+ * Note: replaced Gson with org.json (already available via the existing Gemini/OpenAI managers)
+ * to avoid an extra dependency.
  */
 class TranslationManagerGooglePA(
     private val coroutineScope: AppCoroutineScope,
@@ -42,367 +41,199 @@ class TranslationManagerGooglePA(
     override val available = true
     override val isUsingOnlineTranslation = true
 
-    private val translateUrl = "https://translate-pa.googleapis.com/v1/translateHtml"
-    private val KEY_CACHE_DURATION_MS = 24 * 60 * 60 * 1000L
-    private val keyHeaderRegex = Regex(""""X-Goog-API-Key"\s*:\s*"([^"]+)"""")
-
-    private val keyFetchMutex = Mutex()
-    private var keyFetchJob: Deferred<String>? = null
-
     override val models = mutableStateListOf<TranslationModelState>().apply {
-        val supportedLanguages = listOf(
-            "en", "zh", "ja", "ko", "es", "fr", "de", "it", "pt", "ru",
-            "ar", "hi", "th", "vi", "id", "tr", "pl", "nl", "sv", "da",
-            "fi", "no", "cs", "el", "he", "ro", "hu", "uk", "bg", "hr"
-        )
-        addAll(supportedLanguages.map { lang ->
-            TranslationModelState(
-                language = lang,
-                available = true,
-                downloading = false,
-                downloadingFailed = false
-            )
+        addAll(TranslationManagerGemini.SUPPORTED_LANGUAGES.map {
+            TranslationModelState(it, available = true, downloading = false, downloadingFailed = false)
         })
     }
 
-    override suspend fun hasModelDownloaded(language: String): TranslationModelState? =
-        models.firstOrNull { it.language == language }
+    override suspend fun hasModelDownloaded(language: String) = models.firstOrNull { it.language == language }
 
-    override fun getTranslator(source: String, target: String): TranslatorState {
-        Log.d(TAG, "getTranslator: source=$source, target=$target")
-        return TranslatorState(
-            source = source,
-            target = target,
-            translate = { input -> translateSingle(input, source, target) }
-        )
-    }
+    override fun getTranslator(source: String, target: String) = TranslatorState(
+        source = source,
+        target = target,
+        translate = { input -> translateSingle(input, source, target) }
+    )
 
-    // ─── Key management ────────────────────────────────────────────────────────
+    // ─── Key management ───────────────────────────────────────────────────────
+
+    private val keyFetchMutex = Mutex()
+    private var keyFetchJob: Deferred<String>? = null
+    private val keyHeaderRegex = Regex(""""X-Goog-API-Key"\s*:\s*"([^"]+)"""")
 
     private suspend fun getApiKey(): String = coroutineScope {
-        val cachedKey = appPreferences.TRANSLATION_GOOGLE_PA_CACHED_KEY.value
+        val cached = appPreferences.TRANSLATION_GOOGLE_PA_CACHED_KEY.value
         val lastChecked = appPreferences.TRANSLATION_GOOGLE_PA_KEY_LAST_CHECKED.value
-        val now = System.currentTimeMillis()
-        if (cachedKey.isNotBlank() && (now - lastChecked) < KEY_CACHE_DURATION_MS) {
-            Log.d(TAG, "getApiKey: using cached key (age=${(now - lastChecked) / 1000}s)")
-            return@coroutineScope cachedKey
-        }
+        if (cached.isNotBlank() && System.currentTimeMillis() - lastChecked < KEY_TTL_MS) return@coroutineScope cached
 
         val deferred: Deferred<String> = keyFetchMutex.withLock {
-            val freshKey = appPreferences.TRANSLATION_GOOGLE_PA_CACHED_KEY.value
-            val freshChecked = appPreferences.TRANSLATION_GOOGLE_PA_KEY_LAST_CHECKED.value
-            if (freshKey.isNotBlank() && (System.currentTimeMillis() - freshChecked) < KEY_CACHE_DURATION_MS) {
-                Log.d(TAG, "getApiKey: cache refreshed while waiting for mutex")
-                return@coroutineScope freshKey
-            }
-
-            keyFetchJob?.let { existing ->
-                Log.d(TAG, "getApiKey: joining existing fetch job")
-                return@withLock existing
-            }
-
-            Log.d(TAG, "getApiKey: starting new fetch job")
-            val job = async(Dispatchers.IO) { fetchAndCacheKey() }
-            keyFetchJob = job
-            job
+            val fresh = appPreferences.TRANSLATION_GOOGLE_PA_CACHED_KEY.value
+            val freshTs = appPreferences.TRANSLATION_GOOGLE_PA_KEY_LAST_CHECKED.value
+            if (fresh.isNotBlank() && System.currentTimeMillis() - freshTs < KEY_TTL_MS) return@coroutineScope fresh
+            keyFetchJob?.let { return@withLock it }
+            async(Dispatchers.IO) { fetchAndCacheKey() }.also { keyFetchJob = it }
         }
-
         try {
             deferred.await()
         } finally {
-            keyFetchMutex.withLock {
-                if (keyFetchJob === deferred) keyFetchJob = null
-            }
+            keyFetchMutex.withLock { if (keyFetchJob === deferred) keyFetchJob = null }
         }
     }
 
     private suspend fun fetchAndCacheKey(): String {
         val now = System.currentTimeMillis()
         val keys = appPreferences.TRANSLATION_GOOGLE_PA_API_KEYS.value
-            .split("\n")
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
+            .splitToSequence('\n').map { it.trim() }.filter { it.isNotBlank() }.toList()
 
         for (key in keys) {
-            if (checkKey(key)) {
-                Log.d(TAG, "fetchAndCacheKey: found working key from preferences")
-                cacheKey(key, now)
-                return key
-            }
+            if (checkKey(key)) { cacheKey(key, now); return key }
         }
 
-        Log.d(TAG, "fetchAndCacheKey: no working key found, fetching from wtr-lab")
-        val fetchedKey = fetchKeyFromWtrLab()
-        if (fetchedKey != null) {
-            Log.d(TAG, "fetchAndCacheKey: got key from wtr-lab, adding to list")
-            addKeyToPreferences(fetchedKey)
-            cacheKey(fetchedKey, now)
-            return fetchedKey
-        }
-
-        throw IllegalStateException("Google PA: No working API key found. Check your keys in Settings or try again later.")
+        val fetched = fetchKeyFromWtrLab()
+            ?: throw IllegalStateException("Google PA: No working API key. Check Settings or retry.")
+        addKeyToPreferences(fetched)
+        cacheKey(fetched, now)
+        return fetched
     }
 
     private suspend fun checkKey(key: String): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val payload = listOf(listOf("<p>test</p>", "en", "en"), "wt_lib")
-            val body = Gson().toJson(payload).toRequestBody("application/json+protobuf".toMediaType())
-            val request = Request.Builder()
-                .url(translateUrl)
-                .addHeader("X-Goog-Api-Key", key)
-                .addHeader("Origin", "https://translate.google.com")
-                .post(body)
-                .build()
-            val response = client.newCall(request).execute()
-            val ok = response.isSuccessful
-            response.body?.close()
-            Log.d(TAG, "checkKey: ${key.take(12)}… → HTTP ${response.code}")
+        runCatching {
+            val body = buildPayload("<p>test</p>", "en", "en")
+            val resp = client.newCall(
+                Request.Builder().url(TRANSLATE_URL)
+                    .addHeader("X-Goog-Api-Key", key)
+                    .addHeader("Origin", "https://translate.google.com")
+                    .post(body).build()
+            ).execute()
+            val ok = resp.isSuccessful
+            resp.body.close()
+            Log.d(TAG, "checkKey: ${key.take(12)}… → HTTP ${resp.code}")
             ok
-        } catch (e: Exception) {
-            Log.w(TAG, "checkKey failed: ${e.message}")
-            false
-        }
+        }.getOrDefault(false)
     }
 
-    private fun cacheKey(key: String, timestamp: Long) {
+    private fun cacheKey(key: String, ts: Long) {
         appPreferences.TRANSLATION_GOOGLE_PA_CACHED_KEY.value = key
-        appPreferences.TRANSLATION_GOOGLE_PA_KEY_LAST_CHECKED.value = timestamp
+        appPreferences.TRANSLATION_GOOGLE_PA_KEY_LAST_CHECKED.value = ts
     }
 
     private fun addKeyToPreferences(key: String) {
         val existing = appPreferences.TRANSLATION_GOOGLE_PA_API_KEYS.value
-            .split("\n")
-            .map { it.trim() }
-            .filter { it.isNotBlank() && it != key }
-        appPreferences.TRANSLATION_GOOGLE_PA_API_KEYS.value =
-            (listOf(key) + existing).joinToString("\n")
+            .splitToSequence('\n').map { it.trim() }.filter { it.isNotBlank() && it != key }.toList()
+        appPreferences.TRANSLATION_GOOGLE_PA_API_KEYS.value = (listOf(key) + existing).joinToString("\n")
     }
 
     private suspend fun fetchKeyFromWtrLab(): String? = withContext(Dispatchers.IO) {
-        try {
+        runCatching {
             val rankingHtml = client.newCall(
-                Request.Builder()
-                    .url("https://wtr-lab.com/en/ranking/monthly")
-                    .header("User-Agent", GLOBAL_USER_AGENT)
-                    .build()
-            ).execute().body?.string() ?: run {
-                Log.w(TAG, "fetchKeyFromWtrLab: ranking page returned null body")
-                return@withContext null
-            }
+                Request.Builder().url("https://wtr-lab.com/en/ranking/monthly")
+                    .header("User-Agent", GLOBAL_USER_AGENT).build()
+            ).execute().body.string()
 
-            Log.d(TAG, "fetchKeyFromWtrLab: ranking page length=${rankingHtml.length}")
-            val novelMatches = Regex("""href=["']([^"']*/novel/[^"']+)["']""").findAll(rankingHtml).toList()
-            Log.d(TAG, "fetchKeyFromWtrLab: /novel/ matches found=${novelMatches.size}")
-            if (novelMatches.isEmpty()) {
-                val allHrefs = Regex("""href=["']([^"']+)["']""").findAll(rankingHtml)
-                    .map { it.groupValues[1] }
-                    .take(20)
-                    .toList()
-                Log.w(TAG, "fetchKeyFromWtrLab: no /novel/ links, all hrefs sample=$allHrefs")
-            }
-
-            val novelUrl = novelMatches.map {
-                if (it.groupValues[1].startsWith("http")) it.groupValues[1]
-                else "https://wtr-lab.com${it.groupValues[1]}"
-            }.firstOrNull() ?: run {
-                Log.w(TAG, "fetchKeyFromWtrLab: no novel link found on ranking page")
-                return@withContext null
-            }
-
-            val chapterUrl = novelUrl.trimEnd('/') + "/chapter-1"
-            Log.d(TAG, "fetchKeyFromWtrLab: loading chapter page: $chapterUrl")
+            val novelUrl = Regex("""href=["']([^"']*/novel/[^"']+)["']""").findAll(rankingHtml)
+                .map { if (it.groupValues[1].startsWith("http")) it.groupValues[1] else "https://wtr-lab.com${it.groupValues[1]}" }
+                .firstOrNull() ?: return@withContext null
 
             val chapterHtml = client.newCall(
-                Request.Builder()
-                    .url(chapterUrl)
-                    .header("User-Agent", GLOBAL_USER_AGENT)
-                    .build()
-            ).execute().body?.string() ?: return@withContext null
+                Request.Builder().url("${novelUrl.trimEnd('/')}/chapter-1")
+                    .header("User-Agent", GLOBAL_USER_AGENT).build()
+            ).execute().body.string()
 
-            keyHeaderRegex.find(chapterHtml)?.groupValues?.get(1)?.let { key ->
-                Log.d(TAG, "fetchKeyFromWtrLab: found key inline in chapter HTML")
-                return@withContext key
-            }
+            keyHeaderRegex.find(chapterHtml)?.groupValues?.get(1)?.let { return@withContext it }
 
             val scriptUrls = Regex("""<script[^>]+src=["']([^"']*/_next/[^"']+\.js[^"']*)["']""")
                 .findAll(chapterHtml)
-                .map { it.groupValues[1] }
-                .map { if (it.startsWith("http")) it else "https://wtr-lab.com$it" }
-                .filter { !it.contains("_buildManifest") && !it.contains("_ssgManifest") }
-                .distinct()
-                .toList()
-
-            Log.d(TAG, "fetchKeyFromWtrLab: found ${scriptUrls.size} _next scripts on chapter page")
-
-            if (scriptUrls.isEmpty()) {
-                Log.w(TAG, "fetchKeyFromWtrLab: no _next scripts on chapter page")
-                return@withContext null
-            }
+                .map { if (it.groupValues[1].startsWith("http")) it.groupValues[1] else "https://wtr-lab.com${it.groupValues[1]}" }
+                .filter { "_buildManifest" !in it && "_ssgManifest" !in it }
+                .distinct().toList()
 
             searchKeyInScripts(scriptUrls)
-        } catch (e: Exception) {
-            Log.e(TAG, "fetchKeyFromWtrLab failed: ${e.message}")
-            null
-        }
+        }.getOrNull()
     }
 
     private suspend fun searchKeyInScripts(urls: List<String>): String? = withContext(Dispatchers.IO) {
-        Log.d(TAG, "searchKeyInScripts: searching ${urls.size} scripts (sequential)")
         for (url in urls) {
-            try {
-                val js = client.newCall(
-                    Request.Builder().url(url).build()
-                ).execute().body?.string() ?: continue
-                val key = keyHeaderRegex.find(js)?.groupValues?.get(1) ?: continue
-                Log.d(TAG, "searchKeyInScripts: found key in $url")
-                return@withContext key
-            } catch (e: Exception) {
-                Log.w(TAG, "searchKeyInScripts: failed $url: ${e.message}")
+            runCatching {
+                val js = client.newCall(Request.Builder().url(url).build()).execute().body.string()
+                keyHeaderRegex.find(js)?.groupValues?.get(1)?.let { return@withContext it }
             }
         }
-        Log.w(TAG, "searchKeyInScripts: key not found in any script")
         null
     }
 
-    // ─── Translation ────────────────────────────────────────────────────────────
+    // ─── Translation ──────────────────────────────────────────────────────────
 
-    private suspend fun translateSingle(
-        text: String,
-        sourceLanguage: String,
-        targetLanguage: String,
-    ): String = withContext(Dispatchers.IO) {
-        if (text.isBlank()) return@withContext text
-        val paragraphs = text.split("\n").filter { it.isNotBlank() }
-        if (paragraphs.isEmpty()) return@withContext text
-        val sourceLang = if (sourceLanguage == "auto") "auto" else sourceLanguage
-        // Let exceptions propagate — caller (ReaderChaptersLoader) will show error to user
-        translateChunks(paragraphs, sourceLang, targetLanguage).joinToString("\n")
-    }
+    private suspend fun translateSingle(text: String, sl: String, tl: String): String =
+        withContext(Dispatchers.IO) {
+            if (text.isBlank()) return@withContext text
+            val paragraphs = text.split("\n").filter { it.isNotBlank() }
+            if (paragraphs.isEmpty()) return@withContext text
+            translateChunks(paragraphs, sl.takeIf { it != "auto" } ?: "auto", tl).joinToString("\n")
+        }
 
-    private fun unescapeHtmlEntities(text: String): String {
-        return text
-            .replace("&quot;", "\"")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&nbsp;", " ")
-            .replace(Regex("&#(\\d+);")) {
-                it.groupValues[1].toIntOrNull()
-                    ?.toChar()
-                    ?.toString()
-                    ?: it.value
-            }
-    }
-
-    private suspend fun translateChunks(
-        paragraphs: List<String>,
-        sourceLang: String,
-        targetLang: String
-    ): List<String> {
-        val maxChunkChars = 8_000
-        val result = paragraphs.toMutableList()
-
+    private suspend fun translateChunks(paragraphs: List<String>, sl: String, tl: String): List<String> {
         data class Chunk(val indices: List<Int>, val html: String)
 
+        val result = paragraphs.toMutableList()
         val chunks = mutableListOf<Chunk>()
-        val currentIndices = mutableListOf<Int>()
-        val currentParts = mutableListOf<String>()
-        var currentLen = 0
+        val curIdx = mutableListOf<Int>(); val curParts = mutableListOf<String>(); var curLen = 0
 
         for ((i, para) in paragraphs.withIndex()) {
-            if (currentLen > 0 && currentLen + para.length + 4 > maxChunkChars) {
-                chunks.add(Chunk(currentIndices.toList(), currentParts.joinToString("<br>")))
-                currentIndices.clear()
-                currentParts.clear()
-                currentLen = 0
+            if (curLen > 0 && curLen + para.length + 4 > MAX_CHUNK_CHARS) {
+                chunks += Chunk(curIdx.toList(), curParts.joinToString("<br>")); curIdx.clear(); curParts.clear(); curLen = 0
             }
-            currentIndices.add(i)
-            currentParts.add(para)
-            currentLen += para.length + 4
+            curIdx += i; curParts += para; curLen += para.length + 4
         }
-        if (currentParts.isNotEmpty()) {
-            chunks.add(Chunk(currentIndices.toList(), currentParts.joinToString("<br>")))
-        }
-
-        Log.d(TAG, "translateChunks: ${paragraphs.size} paragraphs → ${chunks.size} chunks, $sourceLang→$targetLang")
+        if (curParts.isNotEmpty()) chunks += Chunk(curIdx.toList(), curParts.joinToString("<br>"))
 
         val apiKey = getApiKey()
         var failedChunks = 0
 
-        for ((idx, chunk) in chunks.withIndex()) {
-            if (idx > 0) delay(400L)
+        for ((i, chunk) in chunks.withIndex()) {
+            if (i > 0) delay(400L)
+            val translated = runCatching { translateHtml(chunk.html, sl, tl, apiKey) }.getOrElse { e ->
+                Log.e(TAG, "Chunk ${i + 1}/${chunks.size} failed: ${e.message}")
+                failedChunks++; return@getOrElse null
+            } ?: continue
 
-            val translated = try {
-                translateHtml(chunk.html, sourceLang, targetLang, apiKey)
-            } catch (e: Exception) {
-                Log.e(TAG, "Chunk ${idx + 1}/${chunks.size} failed: ${e.message}")
-                failedChunks++
-                continue
-            }
-
-            if (translated == chunk.html) {
-                Log.w(TAG, "Chunk ${idx + 1}: translated == original, skipping update")
-                continue
-            }
+            if (translated == chunk.html) continue
 
             val translatedParas = translated
                 .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
                 .split("\n")
-                .map { unescapeHtmlEntities(it.trim()) }
+                .map { unescapeHtml(it.trim()) }
                 .filter { it.isNotBlank() }
 
-            val minSize = minOf(translatedParas.size, chunk.indices.size)
-            for (pos in 0 until minSize) {
+            for (pos in 0 until minOf(translatedParas.size, chunk.indices.size)) {
                 result[chunk.indices[pos]] = translatedParas[pos]
             }
-
-            if (translatedParas.size != chunk.indices.size) {
-                Log.w(TAG, "Chunk ${idx + 1}: expected ${chunk.indices.size} paragraphs, got ${translatedParas.size}")
-            }
         }
 
-        // If ALL chunks failed — throw so the caller can show an error to the user
-        if (failedChunks == chunks.size && chunks.isNotEmpty()) {
-            throw IllegalStateException("Google PA: All translation chunks failed. Check your internet connection.")
-        }
+        if (failedChunks == chunks.size && chunks.isNotEmpty())
+            throw IllegalStateException("Google PA: All chunks failed. Check internet connection.")
 
         return result
     }
 
-    private suspend fun translateHtml(
-        html: String,
-        sourceLang: String,
-        targetLang: String,
-        apiKey: String
-    ): String = withContext(Dispatchers.IO) {
-        val payload = listOf(listOf(html, sourceLang, targetLang), "wt_lib")
-        val requestBody = Gson().toJson(payload)
-            .toRequestBody("application/json+protobuf".toMediaType())
-
-        val request = Request.Builder()
-            .url(translateUrl)
-            .addHeader("X-Goog-API-Key", apiKey)
-            .addHeader("Origin", "https://translate.google.com")
-            .post(requestBody)
-            .build()
-
-        val response = client.newCall(request).execute()
-        if (!response.isSuccessful) {
-            val code = response.code
-            response.body?.close()
-            Log.e(TAG, "translateHtml: HTTP $code")
-            throw IllegalStateException("Google PA: HTTP error $code")
+    private suspend fun translateHtml(html: String, sl: String, tl: String, apiKey: String): String =
+        withContext(Dispatchers.IO) {
+            val resp = client.newCall(
+                Request.Builder().url(TRANSLATE_URL)
+                    .addHeader("X-Goog-API-Key", apiKey)
+                    .addHeader("Origin", "https://translate.google.com")
+                    .post(buildPayload(html, sl, tl)).build()
+            ).execute()
+            if (!resp.isSuccessful) {
+                val code = resp.code; resp.body.close()
+                throw IllegalStateException("Google PA: HTTP $code")
+            }
+            val body = resp.body.string()
+            try {
+                JSONArray(body).getJSONArray(0).getString(0)
+            } catch (e: Exception) {
+                throw IllegalStateException("Google PA: Parse failed — ${e.message}")
+            }
         }
-
-        val body = response.body?.string() ?: throw IllegalStateException("Google PA: Empty response body")
-        try {
-            val arr = JsonParser.parseString(body).asJsonArray
-            arr.get(0).asJsonArray.get(0).asString
-        } catch (e: Exception) {
-            Log.e(TAG, "translateHtml: parse error — ${e.message}")
-            throw IllegalStateException("Google PA: Failed to parse response — ${e.message}")
-        }
-    }
 
     override suspend fun translateBatch(
         texts: List<String>,
@@ -411,44 +242,49 @@ class TranslationManagerGooglePA(
     ): Map<String, String> = withContext(Dispatchers.IO) {
         if (texts.isEmpty()) return@withContext emptyMap()
 
-        val sourceLang = if (sourceLanguage == "auto") "auto" else sourceLanguage
-
+        val sl = if (sourceLanguage == "auto") "auto" else sourceLanguage
         val boundaries = mutableListOf<IntRange>()
-        val allParagraphs = mutableListOf<String>()
+        val allParas = mutableListOf<String>()
         for (text in texts) {
             val lines = text.split("\n").filter { it.isNotBlank() }
-            val start = allParagraphs.size
-            allParagraphs.addAll(lines)
-            boundaries.add(start until start + lines.size)
+            val start = allParas.size
+            allParas += lines
+            boundaries += start until start + lines.size
         }
 
-        // Let exceptions propagate — caller (ReaderChaptersLoader) will show error to user
-        val translatedAll = translateChunks(allParagraphs, sourceLang, targetLanguage)
+        val translatedAll = translateChunks(allParas, sl, targetLanguage)
 
-        val result = mutableMapOf<String, String>()
-        for ((i, text) in texts.withIndex()) {
-            val range = boundaries[i]
-            if (range.isEmpty()) {
-                result[text] = text
-                continue
+        buildMap {
+            texts.forEachIndexed { i, text ->
+                val range = boundaries[i]
+                val safeEnd = range.last.coerceAtMost(translatedAll.size - 1)
+                put(text, if (range.isEmpty() || safeEnd < range.first) text
+                    else translatedAll.subList(range.first, safeEnd + 1).joinToString("\n").ifEmpty { text })
             }
-            val safeEnd = range.last.coerceAtMost(translatedAll.size - 1)
-            if (safeEnd < range.first) {
-                result[text] = text
-                continue
-            }
-            val translatedLines = translatedAll.subList(range.first, safeEnd + 1)
-            result[text] = if (translatedLines.isNotEmpty()) translatedLines.joinToString("\n") else text
-        }
-
-        Log.d(TAG, "translateBatch: total=${texts.size}, translated=${result.size}")
-        result
+        }.also { Log.d(TAG, "translateBatch: ${texts.size} total, ${it.size} translated") }
     }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    /** Build request body as JSON array (replaces Gson dependency). */
+    private fun buildPayload(html: String, sl: String, tl: String) =
+        JSONArray().apply {
+            put(JSONArray().apply { put(html); put(sl); put(tl) })
+            put("wt_lib")
+        }.toString().toRequestBody("application/json+protobuf".toMediaType())
+
+    private fun unescapeHtml(text: String) = text
+        .replace("&quot;", "\"").replace("&amp;", "&")
+        .replace("&lt;", "<").replace("&gt;", ">").replace("&nbsp;", " ")
+        .replace(Regex("&#(\\d+);")) { it.groupValues[1].toIntOrNull()?.toChar()?.toString() ?: it.value }
 
     override fun downloadModel(language: String) {}
     override fun removeModel(language: String) {}
 
     companion object {
         private const val TAG = "TranslationGooglePA"
+        private const val TRANSLATE_URL = "https://translate-pa.googleapis.com/v1/translateHtml"
+        private const val KEY_TTL_MS = 24 * 60 * 60 * 1000L
+        private const val MAX_CHUNK_CHARS = 8_000
     }
 }

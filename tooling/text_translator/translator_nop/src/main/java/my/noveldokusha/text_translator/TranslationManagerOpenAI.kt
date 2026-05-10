@@ -1,8 +1,5 @@
 package my.noveldokusha.text_translator
 
-import my.noveldokusha.text_translator.buildSystemPrompt
-import my.noveldokusha.text_translator.DEFAULT_TRANSLATION_PROMPT
-
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import kotlinx.coroutines.Dispatchers
@@ -23,18 +20,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Translation manager using any OpenAI-compatible API.
- * Supports custom base URL (OpenAI, OpenRouter, Mistral, DeepSeek, local Ollama, etc.)
- *
- * Key rotation strategy:
- *   - Keys are split by newline/semicolon/comma from TRANSLATION_OPENAI_API_KEYS
- *   - Round-robin via atomic counter — each request picks the next key in sequence
- *   - On 401: tries all remaining keys before throwing
- *   - On 429: tries next key, if all exhausted throws with clear message
- *   - On 5xx: throws with HTTP code in message
- *   - On timeout/network error: rethrows IOException as-is
- *
- * No silent fallback — all errors are thrown so the caller and UI can report them.
+ * Translation via any OpenAI-compatible API (OpenAI, OpenRouter, Mistral, DeepSeek, Ollama…).
+ * Key rotation: round-robin, skip on 401/429, throw on 5xx/network errors.
  */
 class TranslationManagerOpenAI(
     private val coroutineScope: AppCoroutineScope,
@@ -47,75 +34,44 @@ class TranslationManagerOpenAI(
         .writeTimeout(120, TimeUnit.SECONDS)
         .build()
 
-    // Round-robin counter shared across all calls
     private val keyIndex = AtomicInteger(0)
 
     private val apiKeys: List<String>
         get() = appPreferences.TRANSLATION_OPENAI_API_KEYS.value
-            .split("\n", ";", ",")
+            .splitToSequence('\n', ';', ',')
             .map { it.trim() }
             .filter { it.isNotBlank() }
+            .toList()
 
-    private val baseUrl: String
-        get() = appPreferences.TRANSLATION_OPENAI_BASE_URL.value
-            .trimEnd('/')
-            .ifBlank { "https://api.openai.com" }
-
-    private val model: String
-        get() = appPreferences.TRANSLATION_OPENAI_MODEL.value
-            .ifBlank { "gpt-4o-mini" }
-
-    private val systemPromptTemplate: String
-        get() = appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value
-            .ifBlank { DEFAULT_TRANSLATION_PROMPT }
-
-    private val useEnglishLocale: Boolean
-        get() = appPreferences.TRANSLATION_PROMPT_USE_ENGLISH_LOCALE.value
+    private val baseUrl: String get() = appPreferences.TRANSLATION_OPENAI_BASE_URL.value.trimEnd('/').ifBlank { "https://api.openai.com" }
+    private val model: String get() = appPreferences.TRANSLATION_OPENAI_MODEL.value.ifBlank { "gpt-4o-mini" }
+    private val systemPromptTemplate: String get() = appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value.ifBlank { DEFAULT_TRANSLATION_PROMPT }
+    private val useEnglishLocale: Boolean get() = appPreferences.TRANSLATION_PROMPT_USE_ENGLISH_LOCALE.value
 
     override val available = true
     override val isUsingOnlineTranslation = true
 
     override val models = mutableStateListOf<TranslationModelState>().apply {
-        val supportedLanguages = listOf(
-            "en", "zh", "ja", "ko", "es", "fr", "de", "it", "pt", "ru",
-            "ar", "hi", "th", "vi", "id", "tr", "pl", "nl", "sv", "da",
-            "fi", "no", "cs", "el", "he", "ro", "hu", "uk", "bg", "hr"
-        )
-        addAll(supportedLanguages.map { lang ->
-            TranslationModelState(
-                language = lang,
-                available = true,
-                downloading = false,
-                downloadingFailed = false
-            )
+        addAll(TranslationManagerGemini.SUPPORTED_LANGUAGES.map {
+            TranslationModelState(it, available = true, downloading = false, downloadingFailed = false)
         })
     }
 
-    override suspend fun hasModelDownloaded(language: String): TranslationModelState? =
-        models.firstOrNull { it.language == language }
+    override suspend fun hasModelDownloaded(language: String) = models.firstOrNull { it.language == language }
 
-    override fun getTranslator(source: String, target: String): TranslatorState {
-        Log.d(TAG, "getTranslator: source=$source, target=$target")
-        return TranslatorState(
-            source = source,
-            target = target,
-            translate = { input -> translateSingle(input, source, target) }
-        )
-    }
+    override fun getTranslator(source: String, target: String) = TranslatorState(
+        source = source,
+        target = target,
+        translate = { input -> translateSingle(input, source, target) }
+    )
 
-    // ─── Single text translation ───────────────────────────────────────────────
+    // ─── Translate ────────────────────────────────────────────────────────────
 
-    private suspend fun translateSingle(
-        text: String,
-        sourceLanguage: String,
-        targetLanguage: String
-    ): String = withContext(Dispatchers.IO) {
-        val systemPrompt = buildPrompt(sourceLanguage, targetLanguage)
-        val responseText = sendWithKeyRotation(systemPrompt, text)
-        responseText.trim().ifEmpty { text }
-    }
-
-    // ─── Batch translation ─────────────────────────────────────────────────────
+    private suspend fun translateSingle(text: String, source: String, target: String): String =
+        withContext(Dispatchers.IO) {
+            val result = sendWithKeyRotation(buildPrompt(source, target), text)
+            result.trim().ifEmpty { text }
+        }
 
     override suspend fun translateBatch(
         texts: List<String>,
@@ -123,209 +79,122 @@ class TranslationManagerOpenAI(
         targetLanguage: String
     ): Map<String, String> = withContext(Dispatchers.IO) {
         if (texts.isEmpty()) return@withContext emptyMap()
-
-        Log.d(TAG, "translateBatch: ${texts.size} paragraphs, $sourceLanguage→$targetLanguage")
-
-        val systemPrompt = buildPrompt(sourceLanguage, targetLanguage)
-
-        // All format instructions are in the system prompt.
-        // User message contains only the numbered text — clean and simple.
         val userMessage = texts.mapIndexed { i, t -> "${i + 1}. $t" }.joinToString("\n\n")
-
-        val responseText = sendWithKeyRotation(systemPrompt, userMessage)
-        parseNumberedTranslations(responseText, texts)
+        val response = sendWithKeyRotation(buildPrompt(sourceLanguage, targetLanguage), userMessage)
+        parseNumberedTranslations(response, texts)
     }
 
-    // ─── Key rotation + HTTP ───────────────────────────────────────────────────
+    // ─── HTTP + key rotation ──────────────────────────────────────────────────
 
-    /**
-     * Sends a chat completion request, rotating through all available keys on
-     * retriable errors (429). Throws a descriptive exception on permanent failures.
-     */
-    private suspend fun sendWithKeyRotation(
-        systemPrompt: String,
-        userMessage: String
-    ): String = withContext(Dispatchers.IO) {
-        val keys = apiKeys
+    private suspend fun sendWithKeyRotation(systemPrompt: String, userMessage: String): String =
+        withContext(Dispatchers.IO) {
+            val keys = apiKeys
+            if (keys.isEmpty()) throw IllegalStateException("OpenAI: No API keys configured. Add your key in Settings → Translation.")
 
-        if (keys.isEmpty()) {
-            throw IllegalStateException("OpenAI: No API keys configured. Please add your API key in Settings → Translation.")
-        }
+            val startIndex = keyIndex.getAndIncrement() % keys.size
+            var lastEx: Exception? = null
 
-        val startIndex = keyIndex.getAndIncrement() % keys.size
-        var lastException: Exception? = null
-
-        // Try each key once, starting from current round-robin position
-        for (attempt in keys.indices) {
-            val currentKey = keys[(startIndex + attempt) % keys.size]
-            val keyLabel = "key #${(startIndex + attempt) % keys.size + 1}"
-
-            try {
-                val response = sendRequest(systemPrompt, userMessage, currentKey)
-                val code = response.code
-
-                when {
-                    code == 401 -> {
-                        Log.w(TAG, "sendWithKeyRotation: 401 on $keyLabel, trying next")
-                        response.body?.close()
-                        lastException = IllegalStateException("OpenAI: Invalid API key ($keyLabel). Check your key in Settings.")
-                        continue
+            for (attempt in keys.indices) {
+                val key = keys[(startIndex + attempt) % keys.size]
+                val keyLabel = "key #${(startIndex + attempt) % keys.size + 1}"
+                try {
+                    val response = sendRequest(systemPrompt, userMessage, key)
+                    when {
+                        response.code == 401 -> { response.body.close(); lastEx = IllegalStateException("OpenAI: Invalid key ($keyLabel)."); continue }
+                        response.code == 429 -> { response.body.close(); lastEx = IllegalStateException("OpenAI: Rate limit ($keyLabel)."); continue }
+                        response.code in 500..599 -> { response.body.close(); throw IOException("OpenAI: Server error (${response.code}).") }
+                        !response.isSuccessful -> {
+                            val err = response.body.string().take(200)
+                            throw IllegalStateException("OpenAI: Error (${response.code}): $err")
+                        }
+                        else -> {
+                            keyIndex.set((startIndex + attempt + 1) % keys.size)
+                            return@withContext parseResponse(response.body.string())
+                        }
                     }
-                    code == 429 -> {
-                        Log.w(TAG, "sendWithKeyRotation: 429 on $keyLabel, trying next")
-                        response.body?.close()
-                        lastException = IllegalStateException("OpenAI: Rate limit exceeded ($keyLabel).")
-                        continue
-                    }
-                    code in 500..599 -> {
-                        response.body?.close()
-                        throw IOException("OpenAI: Server error ($code). Try again later.")
-                    }
-                    !response.isSuccessful -> {
-                        val errorBody = response.body?.string()?.take(200) ?: ""
-                        response.body?.close()
-                        throw IllegalStateException("OpenAI: Unexpected error ($code): $errorBody")
-                    }
-                    else -> {
-                        keyIndex.set((startIndex + attempt + 1) % keys.size)
-                        val body = response.body?.string()
-                            ?: throw IllegalStateException("OpenAI: Empty response body")
-                        return@withContext parseResponse(body)
-                    }
-                }
-            } catch (e: IOException) {
-                Log.e(TAG, "sendWithKeyRotation: network error — ${e.message}")
-                throw e
+                } catch (e: IOException) { throw e }
             }
+            throw lastEx ?: IllegalStateException("OpenAI: All keys failed.")
         }
 
-        throw lastException
-            ?: IllegalStateException("OpenAI: All API keys failed. Check your keys in Settings.")
-    }
-
-    private fun sendRequest(
-        systemPrompt: String,
-        userMessage: String,
-        apiKey: String
-    ): okhttp3.Response {
-        val requestBody = JSONObject().apply {
+    private fun sendRequest(systemPrompt: String, userMessage: String, apiKey: String): okhttp3.Response {
+        val body = JSONObject().apply {
             put("model", model)
             put("messages", JSONArray().apply {
-                put(JSONObject().apply {
-                    put("role", "system")
-                    put("content", systemPrompt)
-                })
-                put(JSONObject().apply {
-                    put("role", "user")
-                    put("content", userMessage)
-                })
+                put(JSONObject().apply { put("role", "system"); put("content", systemPrompt) })
+                put(JSONObject().apply { put("role", "user"); put("content", userMessage) })
             })
             put("temperature", 0.3)
             put("top_p", 1.0)
             put("stream", false)
         }.toString().toRequestBody("application/json".toMediaType())
 
-        val request = Request.Builder()
-            .url("$baseUrl/v1/chat/completions")
-            .addHeader("Authorization", "Bearer $apiKey")
-            .addHeader("Content-Type", "application/json")
-            .post(requestBody)
-            .build()
-
-        return client.newCall(request).execute()
+        return client.newCall(
+            Request.Builder()
+                .url("$baseUrl/v1/chat/completions")
+                .addHeader("Authorization", "Bearer $apiKey")
+                .addHeader("Content-Type", "application/json")
+                .post(body)
+                .build()
+        ).execute()
     }
 
-    private fun parseResponse(responseBody: String): String {
+    private fun parseResponse(body: String): String {
         return try {
-            val json = JSONObject(responseBody)
-            val choices = json.getJSONArray("choices")
-            if (choices.length() > 0) {
-                choices.getJSONObject(0)
-                    .getJSONObject("message")
-                    .getString("content")
-                    .trim()
-            } else {
-                throw IllegalStateException("OpenAI: No choices in response")
-            }
+            JSONObject(body)
+                .getJSONArray("choices")
+                .getJSONObject(0)
+                .getJSONObject("message")
+                .getString("content")
+                .trim()
         } catch (e: Exception) {
-            Log.e(TAG, "parseResponse: failed to parse — ${e.message}")
             throw IllegalStateException("OpenAI: Failed to parse response — ${e.message}")
         }
     }
 
-    // ─── Prompt building ───────────────────────────────────────────────────────
+    // ─── Numbered output parser ───────────────────────────────────────────────
 
-    private fun buildPrompt(sourceLanguage: String, targetLanguage: String): String =
-        buildSystemPrompt(systemPromptTemplate, sourceLanguage, targetLanguage, useEnglishLocale)
-
-    // ─── Response parsing ──────────────────────────────────────────────────────
-
-    /**
-     * Parses a numbered translation response back to a map of original → translated.
-     * Uses index-based matching to correctly handle duplicate paragraphs.
-     *
-     * Tolerates:
-     *  - Preamble before the first numbered item (silently discarded)
-     *  - Alternate numbering formats: "1)", "**1.**", "№1.", "1 ."
-     *  - Missing items (falls back to original text)
-     */
-    private fun parseNumberedTranslations(
-        translatedText: String,
-        originalTexts: List<String>
-    ): Map<String, String> {
-        // Index-based map: key = 0-based index, value = translated text
+    private fun parseNumberedTranslations(text: String, originals: List<String>): Map<String, String> {
         val byIndex = mutableMapOf<Int, String>()
-
-        // Matches: "1.", "1)", "**1.**", "№1.", "#1.", "1 ." at start of line
-        val numberPattern = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
-
-        val lines = translatedText.split("\n")
-        var currentIndex = -1  // -1 = before first numbered item (preamble)
-        var currentText = StringBuilder()
+        val pattern = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
+        var currentIdx = -1
+        var current = StringBuilder()
 
         fun flush() {
-            if (currentIndex >= 0 && currentText.isNotBlank()) {
-                byIndex[currentIndex] = currentText.toString().trim()
-            }
-            currentText.clear()
+            if (currentIdx >= 0 && current.isNotBlank()) byIndex[currentIdx] = current.toString().trim()
+            current.clear()
         }
 
-        for (line in lines) {
-            val match = numberPattern.find(line)
+        for (line in text.split("\n")) {
+            val match = pattern.find(line)
             if (match != null) {
                 flush()
-                val num = match.groupValues[1].toIntOrNull() ?: continue
-                currentIndex = num - 1  // convert to 0-based
+                currentIdx = (match.groupValues[1].toIntOrNull() ?: continue) - 1
                 val rest = line.substring(match.value.length)
-                if (rest.isNotBlank()) currentText.append(rest)
+                if (rest.isNotBlank()) current.append(rest)
             } else {
-                if (currentIndex == -1) continue  // preamble before "1." — discard
-                val trimmed = line.trim()
-                if (currentText.isNotEmpty()) currentText.append("\n")
-                currentText.append(trimmed)
+                if (currentIdx == -1) continue
+                if (current.isNotEmpty()) current.append("\n")
+                current.append(line.trim())
             }
         }
         flush()
 
-        // Build final result by index — handles duplicate original texts correctly
-        val result = mutableMapOf<String, String>()
-        originalTexts.forEachIndexed { index, originalText ->
-            val translation = byIndex[index]
-            if (translation != null) {
-                result[originalText] = translation
-            } else {
-                Log.w(TAG, "parseNumberedTranslations: missing index $index, using original")
-                result[originalText] = originalText
+        return buildMap {
+            originals.forEachIndexed { i, orig ->
+                put(orig, byIndex[i] ?: run {
+                    Log.w(TAG, "parseNumberedTranslations: missing index $i, using original")
+                    orig
+                })
             }
         }
-
-        Log.d(TAG, "parseNumberedTranslations: ${byIndex.size}/${originalTexts.size} parsed")
-        return result
     }
+
+    private fun buildPrompt(source: String, target: String) =
+        buildSystemPrompt(systemPromptTemplate, source, target, useEnglishLocale)
 
     override fun downloadModel(language: String) {}
     override fun removeModel(language: String) {}
-
     override suspend fun detectLanguage(text: String): String? = null
 
     companion object {

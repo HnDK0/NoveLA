@@ -11,15 +11,13 @@ import my.noveldokusha.text_translator.domain.TranslationModelState
 import my.noveldokusha.text_translator.domain.TranslatorState
 
 /**
- * Composite translation manager.
- * Active backend is determined by appPreferences.TRANSLATION_PROVIDER:
- *   "GOOGLE_PA"   — translate-pa.googleapis.com (HTML chunks, best quality, default)
- *   "GOOGLE_FREE" — translate.googleapis.com/translate_a/single (plain text)
- *   "GEMINI"      — Google Gemini API (requires user API key; throws if key absent)
- *   "OPENAI"      — Any OpenAI-compatible API (OpenAI, OpenRouter, Mistral, DeepSeek, etc.)
+ * Routes translation to the active backend selected by [AppPreferences.TRANSLATION_PROVIDER]:
+ *   GOOGLE_PA   — translate-pa.googleapis.com (HTML chunks, highest quality, default)
+ *   GOOGLE_FREE — translate.googleapis.com/translate_a/single (plain text)
+ *   GEMINI      — Google Gemini API (requires API key)
+ *   OPENAI      — Any OpenAI-compatible API
  *
- * No silent fallback for any provider — errors are thrown with descriptive messages
- * so the user always knows what went wrong.
+ * No silent fallback — errors propagate so the user sees what went wrong.
  */
 class TranslationManagerComposite(
     private val coroutineScope: AppCoroutineScope,
@@ -30,33 +28,24 @@ class TranslationManagerComposite(
     private val appPreferences: AppPreferences
 ) : TranslationManager {
 
-    override val available: Boolean = true
-    override val isUsingOnlineTranslation: Boolean = true
+    override val available = true
+    override val isUsingOnlineTranslation = true
 
-    override val models = mutableStateListOf<TranslationModelState>()
-
-    init {
-        val allLanguages = mutableSetOf<String>()
-        allLanguages.addAll(geminiManager.models.map { it.language })
-        allLanguages.addAll(googleFreeManager.models.map { it.language })
-        allLanguages.addAll(googlePAManager.models.map { it.language })
-        allLanguages.addAll(openAiManager.models.map { it.language })
-        models.addAll(allLanguages.map { lang ->
-            TranslationModelState(
-                language = lang,
-                available = true,
-                downloading = false,
-                downloadingFailed = false
-            )
-        })
+    override val models = mutableStateListOf<TranslationModelState>().also { list ->
+        val langs = buildSet {
+            addAll(geminiManager.models.map { it.language })
+            addAll(googleFreeManager.models.map { it.language })
+            addAll(googlePAManager.models.map { it.language })
+            addAll(openAiManager.models.map { it.language })
+        }
+        list.addAll(langs.map { TranslationModelState(it, available = true, downloading = false, downloadingFailed = false) })
     }
 
-    override suspend fun hasModelDownloaded(language: String): TranslationModelState? =
-        models.firstOrNull { it.language == language }
+    override suspend fun hasModelDownloaded(language: String) = models.firstOrNull { it.language == language }
 
-    private fun activeProvider(): String = appPreferences.TRANSLATION_PROVIDER.value
+    private fun provider(): String = appPreferences.TRANSLATION_PROVIDER.value
 
-    fun getActiveTranslatorName(): String = when (activeProvider()) {
+    fun getActiveTranslatorName() = when (provider()) {
         "GEMINI"      -> "Google Gemini API"
         "GOOGLE_FREE" -> "Google Translate (Free)"
         "OPENAI"      -> "OpenAI-compatible API"
@@ -64,43 +53,32 @@ class TranslationManagerComposite(
     }
 
     override fun getTranslator(source: String, target: String): TranslatorState {
-        val provider = activeProvider()
-        Log.d(TAG, "getTranslator: source=$source, target=$target, provider=$provider")
+        Log.d(TAG, "getTranslator: source=$source target=$target provider=${provider()}")
         return when {
-            provider == "OPENAI"      -> openAiManager.getTranslator(source, target)
-            provider == "GEMINI"      -> buildGeminiTranslator(source, target)
-            provider == "GOOGLE_FREE" -> googleFreeManager.getTranslator(source, target)
-            source == "auto"          -> googleFreeManager.getTranslator(source, target)
-            else                      -> googlePAManager.getTranslator(source, target)
+            provider() == "OPENAI"      -> openAiManager.getTranslator(source, target)
+            provider() == "GEMINI"      -> geminiWithRetry(source, target)
+            provider() == "GOOGLE_FREE" -> googleFreeManager.getTranslator(source, target)
+            source == "auto"            -> googleFreeManager.getTranslator(source, target)
+            else                        -> googlePAManager.getTranslator(source, target)
         }
     }
 
-    /**
-     * Gemini translator with retry — no fallback to other providers.
-     * If Gemini fails (no key, rate limit, API error), the exception propagates
-     * to ReaderChaptersLoader which shows it as a ReaderItem.Error.
-     */
-    private fun buildGeminiTranslator(source: String, target: String): TranslatorState {
-        val geminiTranslator = geminiManager.getTranslator(source, target)
-
-        return TranslatorState(
-            source = source,
-            target = target,
-            translate = { input ->
-                var lastException: Exception? = null
-                repeat(2) { attempt ->
-                    try {
-                        Log.d(TAG, "Gemini attempt ${attempt + 1}/2")
-                        return@TranslatorState geminiTranslator.translate(input)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Gemini attempt ${attempt + 1} failed: ${e.message}")
-                        lastException = e
-                        if (attempt < 1) kotlinx.coroutines.delay(1000L)
-                    }
+    /** Gemini translator with 2 retries, no silent fallback. */
+    private fun geminiWithRetry(source: String, target: String): TranslatorState {
+        val delegate = geminiManager.getTranslator(source, target)
+        return TranslatorState(source, target) { input ->
+            var lastEx: Exception? = null
+            repeat(2) { attempt ->
+                try {
+                    return@TranslatorState delegate.translate(input)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Gemini attempt ${attempt + 1}/2 failed: ${e.message}")
+                    lastEx = e
+                    if (attempt == 0) kotlinx.coroutines.delay(1000L)
                 }
-                throw lastException ?: IllegalStateException("Gemini: Translation failed.")
             }
-        )
+            throw lastEx ?: IllegalStateException("Gemini: Translation failed.")
+        }
     }
 
     override suspend fun translateBatch(
@@ -110,44 +88,24 @@ class TranslationManagerComposite(
     ): Map<String, String> = withContext(Dispatchers.IO) {
         if (texts.isEmpty()) return@withContext emptyMap()
 
-        val resolvedSource = if (sourceLanguage == "auto") {
+        val source = if (sourceLanguage == "auto") {
             val sample = texts.firstOrNull { it.isNotBlank() }?.take(200) ?: ""
-            val detected = googleFreeManager.detectLanguage(sample)
-            Log.d(TAG, "translateBatch: detected language=$detected")
-            detected ?: sourceLanguage
-        } else {
-            sourceLanguage
-        }
+            googleFreeManager.detectLanguage(sample).also { Log.d(TAG, "detected language=$it") }
+                ?: sourceLanguage
+        } else sourceLanguage
 
-        when (activeProvider()) {
-            "OPENAI" -> {
-                Log.d(TAG, "translateBatch: using OpenAI-compatible API")
-                openAiManager.translateBatch(texts, resolvedSource, targetLanguage)
-            }
-            "GEMINI" -> {
-                Log.d(TAG, "translateBatch: using Gemini")
-                // No fallback — let exception propagate with descriptive message
-                geminiManager.translateBatch(texts, resolvedSource, targetLanguage)
-            }
-            "GOOGLE_FREE" -> {
-                Log.d(TAG, "translateBatch: using Google Free")
-                googleFreeManager.translateBatch(texts, resolvedSource, targetLanguage)
-            }
-            else -> {
-                Log.d(TAG, "translateBatch: using Google PA")
-                googlePAManager.translateBatch(texts, resolvedSource, targetLanguage)
-            }
+        when (provider()) {
+            "OPENAI"      -> openAiManager.translateBatch(texts, source, targetLanguage)
+            "GEMINI"      -> geminiManager.translateBatch(texts, source, targetLanguage)
+            "GOOGLE_FREE" -> googleFreeManager.translateBatch(texts, source, targetLanguage)
+            else          -> googlePAManager.translateBatch(texts, source, targetLanguage)
         }
     }
 
-    override suspend fun detectLanguage(text: String): String? {
-        return googleFreeManager.detectLanguage(text)
-    }
+    override suspend fun detectLanguage(text: String) = googleFreeManager.detectLanguage(text)
 
     override fun downloadModel(language: String) {}
     override fun removeModel(language: String) {}
 
-    companion object {
-        private const val TAG = "TranslationComposite"
-    }
+    companion object { private const val TAG = "TranslationComposite" }
 }
