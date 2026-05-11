@@ -570,21 +570,33 @@ internal class ReaderChaptersLoader(
                                         }
                                     } else {
                                         android.util.Log.d(TAG, "DB cache partial: ${dbTranslations.size}/${allTextsToTranslate.size}, translating ${missingFromDb.size} missing")
-                                        val extraTranslations = withContext(Dispatchers.IO) {
-                                            batchTranslator.invoke(missingFromDb)
-                                        }
-                                        launch(Dispatchers.IO) {
-                                            val entities = missingFromDb.map { original ->
-                                                ChapterTranslation(
-                                                    chapterUrl = chapter.url,
-                                                    sourceLang = sourceLang,
-                                                    targetLang = targetLang,
-                                                    originalText = original,
-                                                    translatedText = extraTranslations[original] ?: original
-                                                )
+                                        
+                                        val extraTranslations = mutableMapOf<String, String>()
+                                        val uniqueMissing = missingFromDb.distinct()
+                                        uniqueMissing.chunked(25).forEach { chunk ->
+                                            try {
+                                                val chunkResults = batchTranslator.invoke(chunk)
+                                                extraTranslations.putAll(chunkResults)
+                                            } catch (e: Exception) {
+                                                android.util.Log.e(TAG, "Partial chunk translation failed: ${e.message}")
                                             }
-                                            chapterTranslationDao.insertReplace(entities)
                                         }
+
+                                        if (extraTranslations.isNotEmpty()) {
+                                            launch(Dispatchers.IO) {
+                                                val entities = extraTranslations.map { (original, translated) ->
+                                                    ChapterTranslation(
+                                                        chapterUrl = chapter.url,
+                                                        sourceLang = sourceLang,
+                                                        targetLang = targetLang,
+                                                        originalText = original,
+                                                        translatedText = translated
+                                                    )
+                                                }
+                                                chapterTranslationDao.insertReplace(entities)
+                                            }
+                                        }
+
                                         val fullTranslations = dbTranslations + extraTranslations
                                         titleTranslated = fullTranslations[titleOriginal] ?: titleOriginal
                                         itemsOriginal.map {
@@ -740,23 +752,34 @@ internal class ReaderChaptersLoader(
         val allTexts = buildList {
             add(titleOriginal)
             addAll(bodyTexts)
+        }.distinct() // Avoid translating identical strings multiple times
+
+        android.util.Log.d(TAG, "translateAndCacheWithTitle: ${allTexts.size} unique texts (from 1 title + ${bodyTexts.size} paragraphs)")
+        
+        val translations = mutableMapOf<String, String>()
+        allTexts.chunked(25).forEach { chunk ->
+            try {
+                val chunkResults = batchTranslator.invoke(chunk)
+                translations.putAll(chunkResults)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Chunk translation failed: ${e.message}")
+            }
         }
 
-        android.util.Log.d(TAG, "translateAndCacheWithTitle: ${allTexts.size} texts (1 title + ${bodyTexts.size} paragraphs)")
-        val translations = batchTranslator.invoke(allTexts)
-
-        withContext(Dispatchers.IO) {
-            val entities = allTexts.map { original ->
-                ChapterTranslation(
-                    chapterUrl = chapterUrl,
-                    sourceLang = sourceLang,
-                    targetLang = targetLang,
-                    originalText = original,
-                    translatedText = translations[original] ?: original
-                )
+        if (translations.isNotEmpty()) {
+            withContext(Dispatchers.IO) {
+                val entities = translations.map { (original, translated) ->
+                    ChapterTranslation(
+                        chapterUrl = chapterUrl,
+                        sourceLang = sourceLang,
+                        targetLang = targetLang,
+                        originalText = original,
+                        translatedText = translated
+                    )
+                }
+                chapterTranslationDao.insertReplace(entities)
+                android.util.Log.d(TAG, "translateAndCacheWithTitle: saved ${entities.size} translations to DB")
             }
-            chapterTranslationDao.insertReplace(entities)
-            android.util.Log.d(TAG, "translateAndCacheWithTitle: saved ${entities.size} translations to DB")
         }
 
         val translatedItems = itemsOriginal.map {

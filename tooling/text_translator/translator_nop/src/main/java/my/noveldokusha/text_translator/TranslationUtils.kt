@@ -170,13 +170,16 @@ fun sanitizeChapterForBatch(chapterText: String): List<String> =
  * Parses an LLM batch response and builds an original→translation mapping.
  *
  * The response is expected to contain one translated paragraph per original,
- * delimited by [BATCH_SEPARATOR]. When the LLM returns fewer segments than
- * there are originals (e.g. due to merging), the missing entries fall back to
- * the original text so the caller always receives a complete map.
+ * delimited by [BATCH_SEPARATOR].
+ *
+ * NOTE: This function only returns successfully translated items. If the LLM
+ * returns fewer segments than requested, the missing entries are NOT included
+ * in the map. This allows the caller to detect partial failures and avoid
+ * saving original text as "translation" in the database.
  *
  * @param response           Raw LLM response string.
  * @param originalParagraphs Source paragraphs used as map keys.
- * @return Map of original paragraph → translated paragraph (or original on error).
+ * @return Map of original paragraph → translated paragraph.
  */
 fun parseBatchTranslationResponse(
     response: String,
@@ -189,8 +192,12 @@ fun parseBatchTranslationResponse(
 
     return buildMap {
         originalParagraphs.forEachIndexed { index, original ->
-            val translated = parts.getOrNull(index)?.takeIf { it.isNotBlank() } ?: original
-            put(original, translated)
+            parts.getOrNull(index)?.takeIf { it.isNotBlank() }?.let { translated ->
+                // Avoid mapping back to the same text if the LLM just echoed the original.
+                if (translated != original) {
+                    put(original, translated)
+                }
+            }
         }
     }
 }
