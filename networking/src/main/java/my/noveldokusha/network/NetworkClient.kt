@@ -35,7 +35,7 @@ class ScraperNetworkClient @Inject constructor(
 ) : NetworkClient {
 
     private val cacheDir = File(appContext.cacheDir, "network_cache")
-    private val cacheSize = 5L * 1024 * 1024
+    private val cacheSize = 50L * 1024 * 1024 // 50MB cache size
 
     override val cookieJar = ScraperCookieJar()
 

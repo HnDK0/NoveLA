@@ -101,7 +101,6 @@ internal class CloudFareVerificationInterceptor(
         "requireTurnstile",
         "Security Check Required",
         "__cf_chl_",
-        "Ray ID",
         "but-captcha"
     )
 
@@ -131,7 +130,7 @@ internal class CloudFareVerificationInterceptor(
             return response
         }
 
-        Log.d(TAG, "CF: Challenge detected. URL: ${bufferedRequest.url}")
+        Log.d(TAG, "CF: Challenge detected (code=${response.code}). URL: ${bufferedRequest.url}")
 
         return lock.withLock {
             response.close()
@@ -155,7 +154,7 @@ internal class CloudFareVerificationInterceptor(
                 }
                 retryResponse.close()
                 resolvedDomains.remove(host)
-                clearCookiesForDomain(siteUrl, cookieManager)
+                // We keep cookies unless it's a hard failure to avoid frequent resets
             }
 
             proceedWithBypass(chain, bufferedRequest, siteUrl, host, cookieManager, userAgent)
