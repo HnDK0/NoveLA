@@ -9,6 +9,7 @@ import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.text_translator.domain.TranslationManager
 import my.noveldokusha.text_translator.domain.TranslationModelState
 import my.noveldokusha.text_translator.domain.TranslatorState
+import my.noveldokusha.network.ScraperNetworkClient
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -32,9 +33,10 @@ import java.util.concurrent.atomic.AtomicInteger
 class TranslationManagerOpenAI(
     private val coroutineScope: AppCoroutineScope,
     private val appPreferences: AppPreferences,
+    networkClient: ScraperNetworkClient,
 ) : TranslationManager {
 
-    private val client = OkHttpClient.Builder()
+    private val client = networkClient.client.newBuilder()
         .connectTimeout(120, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(120, TimeUnit.SECONDS)

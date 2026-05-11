@@ -12,6 +12,7 @@ import my.noveldokusha.network.interceptors.GLOBAL_USER_AGENT
 import my.noveldokusha.text_translator.domain.TranslationManager
 import my.noveldokusha.text_translator.domain.TranslationModelState
 import my.noveldokusha.text_translator.domain.TranslatorState
+import my.noveldokusha.network.ScraperNetworkClient
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -31,9 +32,10 @@ import java.util.concurrent.TimeUnit
  */
 class TranslationManagerGoogleFree(
     private val coroutineScope: AppCoroutineScope,
+    networkClient: ScraperNetworkClient,
 ) : TranslationManager {
 
-    private val client = OkHttpClient.Builder()
+    private val client = networkClient.client.newBuilder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
@@ -81,7 +83,7 @@ class TranslationManagerGoogleFree(
                 .addQueryParameter("q", text.take(100))
                 .build()
             client.newCall(
-                Request.Builder().url(url).header("User-Agent", GLOBAL_USER_AGENT).build()
+                Request.Builder().url(url).build()
             ).execute().use { resp ->
                 if (!resp.isSuccessful) return@runCatching null
                 json.parseToJsonElement(resp.body.string()).jsonArray
@@ -122,7 +124,6 @@ class TranslationManagerGoogleFree(
                                 .add("tl", tl).add("dt", "t").add("q", text)
                                 .build()
                         )
-                        .addHeader("User-Agent", GLOBAL_USER_AGENT)
                         .build()
                 } else {
                     // Short text: GET request.
@@ -131,7 +132,7 @@ class TranslationManagerGoogleFree(
                         .addQueryParameter("tl", tl).addQueryParameter("dt", "t")
                         .addQueryParameter("q", text)
                         .build()
-                    Request.Builder().url(url).addHeader("User-Agent", GLOBAL_USER_AGENT).build()
+                    Request.Builder().url(url).build()
                 }
 
                 val resp = client.newCall(request).execute()

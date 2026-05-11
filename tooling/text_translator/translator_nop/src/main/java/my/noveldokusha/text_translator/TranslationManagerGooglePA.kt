@@ -169,7 +169,6 @@ class TranslationManagerGooglePA(
             val rankingHtml = client.newCall(
                 Request.Builder()
                     .url("https://wtr-lab.com/en/ranking/monthly")
-                    .header("User-Agent", GLOBAL_USER_AGENT)
                     .build()
             ).execute().body.string()
 
@@ -185,7 +184,6 @@ class TranslationManagerGooglePA(
             val chapterHtml = client.newCall(
                 Request.Builder()
                     .url("${novelUrl.trimEnd('/')}/chapter-1")
-                    .header("User-Agent", GLOBAL_USER_AGENT)
                     .build()
             ).execute().body.string()
 

@@ -32,10 +32,10 @@ object FossModule {
         networkClient: ScraperNetworkClient,
     ): TranslationManager = TranslationManagerComposite(
         coroutineScope    = appCoroutineScope,
-        geminiManager     = TranslationManagerGemini(appCoroutineScope, appPreferences),
-        googleFreeManager = TranslationManagerGoogleFree(appCoroutineScope),
+        geminiManager     = TranslationManagerGemini(appCoroutineScope, appPreferences, networkClient),
+        googleFreeManager = TranslationManagerGoogleFree(appCoroutineScope, networkClient),
         googlePAManager   = TranslationManagerGooglePA(appCoroutineScope, appPreferences, networkClient),
-        openAiManager     = TranslationManagerOpenAI(appCoroutineScope, appPreferences),
+        openAiManager     = TranslationManagerOpenAI(appCoroutineScope, appPreferences, networkClient),
         appPreferences    = appPreferences,
     )
 }

@@ -514,7 +514,16 @@ internal class ReaderChaptersLoader(
                     chapterItemPositionDisplacement = chapterItemPosition,
                     text = res.data,
                     userRegexRules = regexRulesProvider(),
-                )
+                ).let { list ->
+                    // Remove duplicate title from the beginning of the body if it matches chapter.title
+                    if (list.isNotEmpty() && list[0] is ReaderItem.Body) {
+                        val firstBodyText = (list[0] as ReaderItem.Body).text.trim()
+                        if (firstBodyText.equals(titleOriginal.trim(), ignoreCase = true)) {
+                            android.util.Log.d(TAG, "Removing duplicate title from body: $firstBodyText")
+                            list.drop(1)
+                        } else list
+                    } else list
+                }
                 chapterItemPosition += itemsOriginal.size
 
                 val itemTranslationAttribution = if (translatorIsActive()) {
@@ -553,17 +562,14 @@ internal class ReaderChaptersLoader(
                                 }
 
                                 val bodyTexts = itemsOriginal.filterIsInstance<ReaderItem.Body>().map { it.text }
-                                val allTextsToTranslate = buildList {
-                                    if (!dbTranslations.containsKey(titleOriginal)) add(titleOriginal)
-                                    addAll(bodyTexts)
-                                }
+                                val allTextsToTranslate = bodyTexts
 
                                 val result = if (dbTranslations.isNotEmpty()) {
                                     val missingFromDb = allTextsToTranslate.filter { !dbTranslations.containsKey(it) }
 
                                     if (missingFromDb.isEmpty()) {
                                         android.util.Log.d(TAG, "Using full DB cache for chapter ${chapter.title} (${dbTranslations.size} translations)")
-                                        titleTranslated = dbTranslations[titleOriginal] ?: titleOriginal
+                                        titleTranslated = titleOriginal
                                         itemsOriginal.map {
                                             if (it is ReaderItem.Body) it.copy(textTranslated = dbTranslations[it.text] ?: it.text)
                                             else it
@@ -598,7 +604,7 @@ internal class ReaderChaptersLoader(
                                         }
 
                                         val fullTranslations = dbTranslations + extraTranslations
-                                        titleTranslated = fullTranslations[titleOriginal] ?: titleOriginal
+                                        titleTranslated = titleOriginal
                                         itemsOriginal.map {
                                             if (it is ReaderItem.Body) it.copy(textTranslated = fullTranslations[it.text] ?: it.text)
                                             else it
@@ -749,12 +755,9 @@ internal class ReaderChaptersLoader(
         targetLang: String,
     ): Pair<List<ReaderItem>, String> {
         val bodyTexts = itemsOriginal.filterIsInstance<ReaderItem.Body>().map { it.text }
-        val allTexts = buildList {
-            add(titleOriginal)
-            addAll(bodyTexts)
-        }.distinct() // Avoid translating identical strings multiple times
+        val allTexts = bodyTexts.distinct() // Avoid translating identical strings multiple times
 
-        android.util.Log.d(TAG, "translateAndCacheWithTitle: ${allTexts.size} unique texts (from 1 title + ${bodyTexts.size} paragraphs)")
+        android.util.Log.d(TAG, "translateAndCacheWithTitle: ${allTexts.size} unique texts from body")
         
         val translations = mutableMapOf<String, String>()
         allTexts.chunked(25).forEach { chunk ->
@@ -786,7 +789,7 @@ internal class ReaderChaptersLoader(
             if (it is ReaderItem.Body) it.copy(textTranslated = translations[it.text] ?: it.text)
             else it
         }
-        val translatedTitle = translations[titleOriginal] ?: titleOriginal
+        val translatedTitle = titleOriginal
         return Pair(translatedItems, translatedTitle)
     }
 

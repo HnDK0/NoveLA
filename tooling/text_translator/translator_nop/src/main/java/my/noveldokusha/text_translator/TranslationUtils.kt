@@ -190,6 +190,18 @@ fun parseBatchTranslationResponse(
         .map { it.trim() }
         .filter { it.isNotBlank() }
 
+    // If the LLM failed to separate the response (e.g. returned one big block),
+    // we must not map it to the first item (usually the title) as it would be incorrect.
+    if (originalParagraphs.size > 1 && parts.size == 1) {
+        android.util.Log.w("TranslationUtils", "Batch parser: size mismatch (expected ${originalParagraphs.size}, got 1). Rejecting to avoid incorrect mapping.")
+        return emptyMap()
+    }
+
+    // If there's a minor mismatch, we still map what we can, but log a warning.
+    if (parts.size != originalParagraphs.size) {
+        android.util.Log.w("TranslationUtils", "Batch parser: partial mismatch (expected ${originalParagraphs.size}, got ${parts.size})")
+    }
+
     return buildMap {
         originalParagraphs.forEachIndexed { index, original ->
             parts.getOrNull(index)?.takeIf { it.isNotBlank() }?.let { translated ->

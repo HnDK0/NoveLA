@@ -1,15 +1,16 @@
-package my.noveldokusha.text_translator
+package noveldokusha.text_translator
 
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import my.noveldokusha.core.AppCoroutineScope
-import my.noveldokusha.core.appPreferences.AppPreferences
-import my.noveldokusha.text_translator.domain.TranslationManager
-import my.noveldokusha.text_translator.domain.TranslationModelState
-import my.noveldokusha.text_translator.domain.TranslatorState
+import noveldokusha.core.AppCoroutineScope
+import noveldokusha.core.appPreferences.AppPreferences
+import noveldokusha.text_translator.domain.TranslationManager
+import noveldokusha.text_translator.domain.TranslationModelState
+import noveldokusha.text_translator.domain.TranslatorState
+import noveldokusha.network.ScraperNetworkClient
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -34,9 +35,10 @@ import java.util.concurrent.atomic.AtomicInteger
 class TranslationManagerGemini(
     private val coroutineScope: AppCoroutineScope,
     private val appPreferences: AppPreferences,
+    networkClient: ScraperNetworkClient,
 ) : TranslationManager {
 
-    private val client = OkHttpClient.Builder()
+    private val client = networkClient.client.newBuilder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
@@ -157,7 +159,7 @@ class TranslationManagerGemini(
 
         // Sanitize each paragraph; use originals as map keys after parsing.
         val sanitizedTexts = texts.map { sanitizeParagraph(it) }
-        val userText = sanitizedTexts.joinToString("$BATCH_SEPARATOR\n")
+        val userText = sanitizedTexts.joinToString("\n$BATCH_SEPARATOR\n")
 
         val systemPrompt = buildPrompt(sourceLanguage, targetLanguage, isBatch = true)
         val retries = 3
