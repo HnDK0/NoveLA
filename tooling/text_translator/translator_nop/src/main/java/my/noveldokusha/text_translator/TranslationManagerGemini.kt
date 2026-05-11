@@ -1,16 +1,16 @@
-package noveldokusha.text_translator
+package my.noveldokusha.text_translator
 
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import noveldokusha.core.AppCoroutineScope
-import noveldokusha.core.appPreferences.AppPreferences
-import noveldokusha.text_translator.domain.TranslationManager
-import noveldokusha.text_translator.domain.TranslationModelState
-import noveldokusha.text_translator.domain.TranslatorState
-import noveldokusha.network.ScraperNetworkClient
+import my.noveldokusha.core.AppCoroutineScope
+import my.noveldokusha.core.appPreferences.AppPreferences
+import my.noveldokusha.text_translator.domain.TranslationManager
+import my.noveldokusha.text_translator.domain.TranslationModelState
+import my.noveldokusha.text_translator.domain.TranslatorState
+import my.noveldokusha.network.ScraperNetworkClient
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
