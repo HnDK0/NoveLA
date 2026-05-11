@@ -3,10 +3,15 @@ package my.noveldokusha.text_translator
 import kotlinx.serialization.Serializable
 
 /**
- * Пресет системного промпта. Используется обоими LLM-провайдерами (Gemini и OpenAI-compatible).
+ * Represents a named system-prompt preset.
  *
- * @param name    Отображаемое название пресета
- * @param prompt  Текст промпта. Поддерживает плейсхолдеры {source_language}, {target_language}
+ * Used by both LLM-backed translation managers (Gemini and OpenAI-compatible).
+ * The [prompt] field may include `{source_language}` and `{target_language}` placeholders,
+ * which are resolved at call time by [buildSystemPrompt].
+ *
+ * @property name   Display name shown in the Settings UI (e.g. "Balanced (Default)").
+ * @property prompt Raw prompt template. May or may not include a format suffix;
+ *                  [buildSystemPrompt] normalises it before use.
  */
 @Serializable
 data class PromptPreset(

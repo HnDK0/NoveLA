@@ -5,18 +5,23 @@ import my.noveldokusha.text_translator.domain.TranslationManager
 import my.noveldokusha.text_translator.domain.TranslationModelState
 import my.noveldokusha.text_translator.domain.TranslatorState
 
+/**
+ * No-op [TranslationManager] used when no translation backend is available
+ * (e.g. flavor builds that exclude all translation modules).
+ *
+ * Every operation is a safe, empty default — no exceptions are thrown.
+ */
 class TranslationManagerEmpty : TranslationManager {
 
     override val available = false
     override val models = mutableStateListOf<TranslationModelState>()
-    override suspend fun hasModelDownloaded(language: String) = null
-    override fun getTranslator(
-        source: String,
-        target: String
-    ): TranslatorState = TranslatorState(
+
+    override suspend fun hasModelDownloaded(language: String): TranslationModelState? = null
+
+    override fun getTranslator(source: String, target: String) = TranslatorState(
         source = source,
         target = target,
-        translate = { _ -> "" },
+        translate = { "" },
     )
 
     override fun downloadModel(language: String) = Unit
@@ -25,8 +30,6 @@ class TranslationManagerEmpty : TranslationManager {
     override suspend fun translateBatch(
         texts: List<String>,
         sourceLanguage: String,
-        targetLanguage: String
-    ): Map<String, String> {
-        return emptyMap()
-    }
+        targetLanguage: String,
+    ): Map<String, String> = emptyMap()
 }
