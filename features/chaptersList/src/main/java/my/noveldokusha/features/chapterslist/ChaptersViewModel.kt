@@ -184,12 +184,12 @@ internal class ChaptersViewModel @Inject constructor(
                 .flatMapLatest { targetLang ->
                     chapterTranslationDao.getTranslatedTitlesFlow(bookUrl, targetLang)
                 }
+                @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
                 .collectLatest { list ->
                     state.translatedChapterTitles.value = list.associate {
                         it.chapterUrl to it.translatedText
                     }
-                }
-        }
+                }        }
     }
 
     fun toggleBookmark() {
