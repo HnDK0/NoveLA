@@ -39,6 +39,7 @@ internal class ReaderItemAdapter(
     private val currentSpeakerActiveItem: () -> TextSynthesis,
     private val currentTextSelectability: () -> Boolean,
     private val currentFontSize: () -> Float,
+    private val currentLineSpacing: () -> Float,
     private val currentTypeface: () -> Typeface,
     private val currentTypefaceBold: () -> Typeface,
     private val onChapterStartVisible: (chapterUrl: String) -> Unit,
@@ -124,6 +125,7 @@ internal class ReaderItemAdapter(
         val paragraph = item.textToDisplay + "\n"
         bind.body.text = paragraph
         bind.body.textSize = currentFontSize()
+        bind.body.setLineSpacing(0f, currentLineSpacing())
         bind.body.typeface = currentTypeface()
 
         when (item.location) {
@@ -243,6 +245,7 @@ internal class ReaderItemAdapter(
         bind.title.updateTextSelectability()
         bind.root.background = getItemReadingStateBackground(item)
         bind.title.text = item.textToDisplay
+        bind.title.setLineSpacing(0f, currentLineSpacing())
         bind.title.typeface = currentTypefaceBold()
         return bind.root
     }

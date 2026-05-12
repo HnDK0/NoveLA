@@ -34,6 +34,7 @@ internal data class ReaderScreenState(
             val currentTheme: State<Themes>,
             val textFont: State<String>,
             val textSize: State<Float>,
+            val lineSpacing: State<Float>,
         )
 
         enum class Type {

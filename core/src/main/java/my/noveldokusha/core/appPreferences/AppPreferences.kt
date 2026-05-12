@@ -61,6 +61,9 @@ class AppPreferences @Inject constructor(
     val READER_FONT_FAMILY = object : Preference<String>("READER_FONT_FAMILY") {
         override var value by SharedPreference_String(name, preferences, "serif")
     }
+    val READER_LINE_SPACING = object : Preference<Float>("READER_LINE_SPACING") {
+        override var value by SharedPreference_Float(name, preferences, 1.4f)
+    }
     val READER_TEXT_TO_SPEECH_VOICE_ID =
         object : Preference<String>("READER_TEXT_TO_SPEECH_VOICE_ID") {
             override var value by SharedPreference_String(name, preferences, "")

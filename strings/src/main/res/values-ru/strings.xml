@@ -150,6 +150,7 @@
     <string name="chapter_x_over_n">Глава: %1$d/%2$d</string>
     <string name="progress_x_percentage">Прогресс: %1$.0f%%</string>
     <string name="text_size">Размер текста</string>
+    <string name="line_spacing">Межстрочный интервал</string>
     <string name="name">Имя</string>
     <string name="save_current_voice">Сохранить текущий голос</string>
     <string name="save_current_voice_parameters">Сохранить текущий голос и параметры</string>

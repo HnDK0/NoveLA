@@ -54,6 +54,7 @@ internal fun StyleSettingDialog(
     state: ReaderScreenState.Settings.StyleSettingsData,
     onTextSizeChange: (Float) -> Unit,
     onTextFontChange: (String) -> Unit,
+    onLineSpacingChange: (Float) -> Unit,
     onFollowSystemChange: (Boolean) -> Unit,
     onThemeChange: (Themes) -> Unit,
 ) {
@@ -73,6 +74,7 @@ internal fun StyleSettingDialog(
             modifier = Modifier.padding(16.dp)
         )
         // Text font
+        val ctx = androidx.compose.ui.platform.LocalContext.current
         Box {
             var showFontsDropdown by rememberSaveable { mutableStateOf(false) }
             val fontLoader = remember { FontsLoader() }
@@ -84,7 +86,7 @@ internal fun StyleSettingDialog(
                 headlineContent = {
                     Text(
                         text = state.textFont.value,
-                        fontFamily = fontLoader.getFontFamily(state.textFont.value),
+                        fontFamily = fontLoader.getFontFamily(ctx, state.textFont.value),
                     )
                 },
                 leadingContent = { Icon(Icons.Filled.TextFields, null) },
@@ -106,7 +108,7 @@ internal fun StyleSettingDialog(
                         text = {
                             Text(
                                 text = item,
-                                fontFamily = fontLoader.getFontFamily(item),
+                                fontFamily = fontLoader.getFontFamily(ctx, item),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -115,6 +117,19 @@ internal fun StyleSettingDialog(
                 }
             }
         }
+
+        // Line spacing
+        var currentLineSpacing by remember { mutableFloatStateOf(state.lineSpacing.value) }
+        MySlider(
+            value = currentLineSpacing,
+            valueRange = 1.0f..2.5f,
+            onValueChange = {
+                currentLineSpacing = it
+                onLineSpacingChange(currentLineSpacing)
+            },
+            text = stringResource(R.string.line_spacing) + ": %.2f".format(currentLineSpacing),
+            modifier = Modifier.padding(16.dp)
+        )
         // Follow system theme
         ListItem(
             modifier = Modifier

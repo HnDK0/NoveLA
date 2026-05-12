@@ -107,8 +107,9 @@ class ReaderActivity : BaseActivity() {
                 viewModel.bookUrl,
                 currentTextSelectability = { appPreferences.READER_SELECTABLE_TEXT.value },
                 currentFontSize = { appPreferences.READER_FONT_SIZE.value },
-                currentTypeface = { fontsLoader.getTypeFaceNORMAL(appPreferences.READER_FONT_FAMILY.value) },
-                currentTypefaceBold = { fontsLoader.getTypeFaceBOLD(appPreferences.READER_FONT_FAMILY.value) },
+                currentLineSpacing = { appPreferences.READER_LINE_SPACING.value },
+                currentTypeface = { fontsLoader.getTypeFaceNORMAL(this@ReaderActivity, appPreferences.READER_FONT_FAMILY.value) },
+                currentTypefaceBold = { fontsLoader.getTypeFaceBOLD(this@ReaderActivity, appPreferences.READER_FONT_FAMILY.value) },
                 currentSpeakerActiveItem = { viewModel.readerSpeaker.currentTextPlaying.value },
                 onChapterStartVisible = viewModel::markChapterStartAsSeen,
                 onChapterEndVisible = viewModel::markChapterEndAsSeen,
@@ -278,6 +279,11 @@ class ReaderActivity : BaseActivity() {
             .asLiveData()
             .observe(this) { viewAdapter.listView.notifyDataSetChanged() }
 
+        // Notify manually text line spacing changed for list view
+        snapshotFlow { viewModel.state.settings.style.lineSpacing.value }.drop(1)
+            .asLiveData()
+            .observe(this) { viewAdapter.listView.notifyDataSetChanged() }
+
         // Set current screen to be kept bright always or not
         snapshotFlow { viewModel.state.settings.keepScreenOn.value }
             .asLiveData()
@@ -295,6 +301,7 @@ class ReaderActivity : BaseActivity() {
                     state = viewModel.state,
                     onTextFontChanged = { appPreferences.READER_FONT_FAMILY.value = it },
                     onTextSizeChanged = { appPreferences.READER_FONT_SIZE.value = it },
+                    onLineSpacingChanged = { appPreferences.READER_LINE_SPACING.value = it },
                     onSelectableTextChange = { appPreferences.READER_SELECTABLE_TEXT.value = it },
                     onKeepScreenOn = { appPreferences.READER_KEEP_SCREEN_ON.value = it },
                     onFollowSystem = { appPreferences.THEME_FOLLOW_SYSTEM.value = it },
