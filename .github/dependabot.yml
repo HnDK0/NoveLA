@@ -1,12 +1,42 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
+
+# Dependabot configuration
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
 updates:
-  - package-ecosystem: "gradle # See documentation for possible values
-    directory: "/" # Location of package manifests
-    schedule:
-      interval: "weekly"
+    # Gradle dependencies (declared in gradle/libs.versions.toml + build.gradle.kts)
+    -   package-ecosystem: "gradle"
+        directory: "/"
+        schedule:
+            interval: "weekly"
+            day: "monday"
+        open-pull-requests-limit: 5
+        labels:
+            - "dependencies"
+        commit-message:
+            prefix: "chore(deps)"
+        ignore:
+            # Dependabot serialises the gradle-wrapper jar as Base64 text, producing
+            # a wrapper that fails with "Invalid or corrupt jarfile" (see PRs #302, #309).
+            # Wrapper bumps must be done manually via `./gradlew wrapper --gradle-version X`.
+            -   dependency-name: "gradle-wrapper"
+            # Major-version bumps for Kotlin / KSP / JUnit / etc. need coordinated testing
+            # (Kotlin+KSP must move together, JUnit 6 forces JVM 17, etc.). Keep them
+            # out of the auto-PR queue; open them manually when we're ready to validate.
+            -   dependency-name: "*"
+                update-types: [ "version-update:semver-major" ]
+            -   dependency-name: "org.jsoup:jsoup"
 
+    # GitHub Actions used by workflows in .github/workflows
+    -   package-ecosystem: "github-actions"
+        directory: "/"
+        schedule:
+            interval: "weekly"
+            day: "monday"
+        open-pull-requests-limit: 5
+        labels:
+            - "dependencies"
+            - "github-actions"
+        commit-message:
+            prefix: "chore(deps)"
+            
