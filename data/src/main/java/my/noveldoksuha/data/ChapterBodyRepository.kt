@@ -38,6 +38,18 @@ class ChapterBodyRepository @Inject constructor(
         insertReplace(chapterBody)
     }
 
+    suspend fun clearAllCache(): Int {
+        val count = chapterBodyDao.deleteAll()
+        chapterTranslationDao.deleteAllTranslations()
+        return count
+    }
+
+    suspend fun getCacheSizeBytes(): Long = chapterBodyDao.getCacheSizeBytes()
+
+    suspend fun getCachedBody(urlChapter: String): String? {
+        return chapterBodyDao.get(urlChapter)?.body?.takeIf { it.isNotBlank() }
+    }
+
     suspend fun fetchBody(urlChapter: String, tryCache: Boolean = true): Response<String> {
         if (tryCache) chapterBodyDao.get(urlChapter)?.let {
             // Не возвращать пустое тело из кэша — оно могло быть сохранено при ошибке

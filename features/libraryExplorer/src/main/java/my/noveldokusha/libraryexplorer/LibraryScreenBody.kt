@@ -81,6 +81,7 @@ internal fun LibraryScreenBody(
             // Category filter chips (like LanguageFilterChips in Finder)
             if (showCategories) {
                 val selectedCategories by viewModel.selectedCategories.collectAsState()
+                val catCounts by viewModel.categoryCounts
                 val allCategories = buildList {
                     add("" to stringResource(R.string.reading))
                     add("Completed" to stringResource(R.string.completed))
@@ -88,6 +89,7 @@ internal fun LibraryScreenBody(
                         add(cat to cat)
                     }
                 }
+                val totalCount = catCounts.values.sum()
 
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -107,7 +109,7 @@ internal fun LibraryScreenBody(
                         onClick = { viewModel.clearCategoryFilters() },
                         label = {
                             Text(
-                                text = stringResource(R.string.all_categories),
+                                text = "${stringResource(R.string.all_categories)} ($totalCount)",
                                 style = MaterialTheme.typography.labelMedium
                             )
                         },
@@ -123,13 +125,14 @@ internal fun LibraryScreenBody(
                     )
                     // Category chips
                     allCategories.forEach { (category, label) ->
+                        val count = catCounts[category] ?: 0
                         val isSelected = category in selectedCategories
                         FilterChip(
                             selected = isSelected,
                             onClick = { viewModel.toggleCategory(category) },
                             label = {
                                 Text(
-                                    text = label,
+                                    text = "$label ($count)",
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             },

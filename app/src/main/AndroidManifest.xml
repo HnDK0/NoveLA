@@ -57,6 +57,16 @@
 				tools:node="remove" />
 		</provider>
 
+		<receiver
+			android:name="my.noveldokusha.data.DownloadNotificationReceiver"
+			android:exported="false">
+			<intent-filter>
+				<action android:name="my.noveldokusha.action.DOWNLOAD_PAUSE" />
+				<action android:name="my.noveldokusha.action.DOWNLOAD_RESUME" />
+				<action android:name="my.noveldokusha.action.DOWNLOAD_CANCEL" />
+			</intent-filter>
+		</receiver>
+
 	</application>
 
 </manifest>

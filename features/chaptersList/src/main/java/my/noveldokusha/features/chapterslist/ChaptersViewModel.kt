@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import my.noveldokusha.core.Response
 import my.noveldokusha.coreui.BaseViewModel
 import my.noveldokusha.data.AppRepository
+import my.noveldokusha.data.DownloadManager
 import my.noveldokusha.data.DownloaderRepository
 import my.noveldokusha.data.EpubImporterRepository
 import my.noveldokusha.chapterslist.R
@@ -27,12 +28,12 @@ import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.isContentUri
 import my.noveldokusha.core.isLocalUri
+import my.noveldokusha.core.utils.GenreUtils
 import my.noveldokusha.core.utils.StateExtra_String
 import my.noveldokusha.core.utils.toState
 import my.noveldokusha.feature.local_database.ChapterWithContext
-import my.noveldokusha.feature.local_database.DAOs.BookGenreDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
-import my.noveldokusha.feature.local_database.tables.BookGenre
+import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.feature.local_database.tables.Chapter
 import my.noveldokusha.scraper.Scraper
 import my.noveldokusha.text_translator.domain.TranslationManager
@@ -53,9 +54,10 @@ internal class ChaptersViewModel @Inject constructor(
     private val appPreferences: AppPreferences,
     appFileResolver: AppFileResolver,
     private val downloaderRepository: DownloaderRepository,
+    val downloadManager: DownloadManager,
     private val chaptersRepository: ChaptersRepository,
     private val epubImporterRepository: EpubImporterRepository,
-    private val bookGenreDao: BookGenreDao,
+    private val libraryDao: LibraryDao,
     private val chapterTranslationDao: ChapterTranslationDao,
     private val translationManager: TranslationManager,
     stateHandle: SavedStateHandle,
@@ -177,8 +179,8 @@ internal class ChaptersViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            bookGenreDao.getGenresFlow(bookUrl).collect {
-                state.genres.value = it
+            libraryDao.getFlow(bookUrl).collect { book ->
+                state.genres.value = if (book != null) GenreUtils.parse(book.genres) else emptyList()
             }
         }
 
@@ -226,8 +228,8 @@ internal class ChaptersViewModel @Inject constructor(
         if (state.isLocalSource.value) return@launch
         downloaderRepository.bookGenres(bookUrl = bookUrl).onSuccess { genres ->
             if (genres.isEmpty()) return@onSuccess
-            bookGenreDao.deleteByBook(bookUrl)
-            bookGenreDao.insert(genres.map { BookGenre(bookUrl = bookUrl, genre = it) })
+            val normalized = GenreUtils.normalize(genres)
+            libraryDao.updateGenres(bookUrl, normalized)
         }
     }
 
@@ -424,26 +426,14 @@ internal class ChaptersViewModel @Inject constructor(
             .filter { selectedUrls.contains(it.chapter.url) }
             .sortedBy { it.chapter.position }
 
-        appScope.launch(Dispatchers.Default) {
-            var successCount = 0
-            var errorCount = 0
-            sortedChapters.forEach { chapter ->
-                appRepository.chapterBody.fetchBody(chapter.chapter.url).onSuccess {
-                    successCount++
-                }.onError {
-                    errorCount++
-                    android.util.Log.w(TAG, "downloadSelected: failed for ${chapter.chapter.title}: ${it.message}")
-                }
-            }
-            if (errorCount > 0) {
-                val msg = if (successCount > 0) {
-                    "Downloaded: $successCount, errors: $errorCount"
-                } else {
-                    "Download error: $errorCount chapters"
-                }
-                toasty.show(msg)
-            }
-        }
+        // Фильтруем уже загруженные главы
+        val chapterUrls = sortedChapters.map { it.chapter.url }
+        downloadManager.enqueue(
+            bookTitle = bookTitle,
+            bookUrl = bookUrl,
+            chapterUrls = chapterUrls
+        )
+        toasty.show(R.string.download_added_to_queue)
     }
 
     fun deleteDownloadsSelected() {
@@ -500,14 +490,12 @@ internal class ChaptersViewModel @Inject constructor(
 
     fun onChapterDownload(chapter: ChapterWithContext) {
         if (state.isLocalSource.value) return
-        appScope.launch {
-            appRepository.chapterBody.fetchBody(chapter.chapter.url).onSuccess {
-                toasty.show(R.string.chapter_downloaded)
-            }.onError {
-                toasty.show("Download error: ${chapter.chapter.title}")
-                android.util.Log.w(TAG, "onChapterDownload: failed for ${chapter.chapter.title}: ${it.message}")
-            }
-        }
+        downloadManager.enqueue(
+            bookTitle = bookTitle,
+            bookUrl = bookUrl,
+            chapterUrls = listOf(chapter.chapter.url)
+        )
+        toasty.show(R.string.download_added_to_queue)
     }
 
     fun unselectAll() {

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DataArray
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -23,10 +24,13 @@ import my.noveldokusha.settings.R
 internal fun SettingsData(
     databaseSize: String,
     imagesFolderSize: String,
+    chapterCacheSize: String,
     isCleaningDatabase: Boolean,
     isCleaningImages: Boolean,
+    isCleaningChapterCache: Boolean,
     onCleanDatabase: () -> Unit,
-    onCleanImageFolder: () -> Unit
+    onCleanImageFolder: () -> Unit,
+    onCleanChapterCache: () -> Unit,
 ) {
     Column {
         Text(
@@ -76,6 +80,27 @@ internal fun SettingsData(
                 }
             },
             modifier = Modifier.clickable(enabled = !isCleaningImages) { onCleanImageFolder() }
+        )
+        SlimListItem(
+            headlineContent = {
+                Text(text = stringResource(R.string.clean_chapter_cache))
+            },
+            supportingContent = {
+                Column {
+                    Text(text = stringResource(id = R.string.size) + " " + chapterCacheSize)
+                }
+            },
+            leadingContent = {
+                if (isCleaningChapterCache) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(Icons.Outlined.DeleteSweep, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            modifier = Modifier.clickable(enabled = !isCleaningChapterCache) { onCleanChapterCache() }
         )
     }
 }

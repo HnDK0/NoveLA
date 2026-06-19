@@ -1,140 +1,31 @@
 <!--
-  SEO ключевые слова: читалка новелл android, приложение для ранобэ, читать веб-новеллы,
-  epub читалка android, перевод новелл, jaomix, ranobelib, wuxiaworld, бесплатная читалка,
-  open source ридер новелл, читать ранобэ на телефоне
+  android novel reader, web novel app, light novel reader android, epub reader android, ranobe reader, wuxiaworld, royal road, scribble hub, free novel reader, open source novel app
+  андроид читалка ранобэ, читалка веб новелл андроид, ранобэ приложение, epub читалка андроид, бесплатная читалка новелл, jaomix, ranobelib
+  安卓小说阅读器, 网络小说APP, 轻小说阅读器, 免费小说阅读, epub阅读器安卓, 开源小说应用
 -->
-
 <div align="center">
-
-<img src="https://github.com/HnDK0/NoveLA/raw/default/screenshots/NoveLA.jpg" width="96" height="96" alt="Иконка приложения NoveLA — читалка новелл для Android"/>
+<img src="https://github.com/HnDK0/NoveLA/raw/default/screenshots/NoveLA.jpg" width="88" height="88" alt="NoveLA"/>
 
 # NoveLA
 
-### Бесплатный open source Android-ридер для веб-новелл, ранобэ и EPUB
+Бесплатная читалка веб-новелл с открытым исходным кодом для Android.
 
-**25+ источников &nbsp;·&nbsp; Встроенный переводчик &nbsp;·&nbsp; Озвучка &nbsp;·&nbsp; Оффлайн-чтение &nbsp;·&nbsp; Material 3**
+[🇬🇧 English](README.md) · 🇷🇺 Русский
 
-<br/>
-
-[![Скачать](https://img.shields.io/github/v/release/HnDK0/NoveLA?style=for-the-badge&label=%E2%AC%87%20%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C&color=4CAF50)](https://github.com/HnDK0/NoveLA/releases/latest)
-&nbsp;
-[![Загрузки](https://img.shields.io/github/downloads/HnDK0/NoveLA/total?style=for-the-badge&color=2196F3&label=%D0%97%D0%B0%D0%B3%D1%80%D1%83%D0%B7%D0%BA%D0%B8)](https://github.com/HnDK0/NoveLA/releases)
-&nbsp;
-[![Звёзды](https://img.shields.io/github/stars/HnDK0/NoveLA?style=for-the-badge&color=FFD700)](https://github.com/HnDK0/NoveLA/stargazers)
-&nbsp;
-[![Лицензия](https://img.shields.io/github/license/HnDK0/NoveLA?style=for-the-badge)](LICENSE)
-&nbsp;
-[![Android](https://img.shields.io/badge/Android-8.0%2B-brightgreen?style=for-the-badge&logo=android)](https://github.com/HnDK0/NoveLA/releases/latest)
+[![Release](https://img.shields.io/github/v/release/HnDK0/NoveLA?style=flat-square&labelColor=27303D&color=0D1117)](https://github.com/HnDK0/NoveLA/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/HnDK0/NoveLA/total?style=flat-square&labelColor=27303D&color=0D1117)](https://github.com/HnDK0/NoveLA/releases)
+[![License: GPL-3.0](https://img.shields.io/github/license/HnDK0/NoveLA?style=flat-square&labelColor=27303D&color=0D1117)](LICENSE)
+[![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-brightgreen?style=flat-square&labelColor=27303D&color=3DDC84&logo=android&logoColor=white)](https://github.com/HnDK0/NoveLA/releases/latest)
 
 <br/>
-
-<img src="preview.png" alt="NoveLA — Android читалка веб-новелл со встроенным переводчиком, 25+ источниками, TTS и поддержкой EPUB" width="100%"/>
-
-<br/><br/>
-
-> 🌍 **Language / Язык:** &nbsp; [🇬🇧 English](README.md) &nbsp;|&nbsp; **🇷🇺 Русский**
-
-<br/>
-
-[📥 Скачать APK](#-скачать) &nbsp;·&nbsp; [✨ Возможности](#-возможности) &nbsp;·&nbsp; [📚 Источники](#-источники-25) &nbsp;·&nbsp; [🖼 Скриншоты](#-скриншоты) &nbsp;·&nbsp; [🤝 Контрибьютинг](#-контрибьютинг)
-
+<img src="preview.png" alt="NoveLA preview" width="100%"/>
 </div>
 
 ---
 
-## О приложении
+## Скачать
 
-NoveLA — бесплатный Android-ридер для веб-новелл, ранобэ и EPUB. Совмещает мощный мультисорс-ридер со встроенным переводчиком: открываете любую главу и переводите в один тап, не переключая приложение.
-
-Без подписок. Без рекламы. Полностью открытый исходный код под лицензией GPL-3.0.
-
----
-
-## ✨ Возможности
-
-<table>
-<tr>
-<td valign="top" width="50%">
-
-**Чтение**
-- Бесконечная прокрутка глав
-- Настройка шрифта и размера текста
-- Светлая и тёмная темы (Material 3)
-- Оффлайн-кэширование глав
-- Чистый режим чтения
-
-**Озвучка (TTS)**
-- Фоновое воспроизведение
-- Настройка голоса, скорости и высоты тона
-
-</td>
-<td valign="top" width="50%">
-
-**Поиск и источники**
-- 25+ встроенных источников (EN, RU, ZH, ID, MTL)
-- Глобальный мультисорс-поиск
-- Добавление новелл по ссылке
-- Фильтры по жанру, рейтингу, статусу
-- Репозиторий плагинов от сообщества (Lua)
-
-**Продвинутые функции**
-- Резервное копирование и восстановление
-- Regex-очистка текста (удаление рекламы)
-- Обход Cloudflare Turnstile
-- Локальная EPUB-библиотека
-
-</td>
-</tr>
-</table>
-
----
-
-## 🌐 Встроенный переводчик
-
-Переводите главы прямо в ридере — без копирования, без переключения приложений. Поддерживается четыре движка:
-
-| Сервис | Стоимость | API-ключ | Примечание |
-|--------|-----------|----------|------------|
-| Google Translate (Enhanced) | Бесплатно | Не нужен | HTML-режим, лучше качество |
-| Google Translate (Simple) | Бесплатно | Не нужен | Текстовый режим, быстрый |
-| Google Gemini API | Есть бесплатный тир | Нужен | AI-перевод, высокое качество |
-| OpenAI-совместимый API | По тарифу | Нужен | OpenAI, OpenRouter, DeepSeek, Ollama, Mistral… |
-
-> При превышении лимита несколько API-ключей чередуются по кругу.
-
----
-
-## 📚 Источники (25+)
-
-<details>
-<summary>Показать полный список</summary>
-
-| Язык | Источники |
-|------|-----------|
-| Английские | FreeWebNovel · NovelFull · NovelBin · Royal Road · Scribble Hub · AllNovel · NoBadNovel · NovelBuddy · NovelFire · NovelHall · NovLove · ReadNovelFull · WuxiaWorld |
-| Русские | Jaomix · RanobeLib · RanobeHub · Свободный Мир Ранобэ · BookHamster |
-| Китайские | 69书吧 · Twkan · Ttkan · Novel543 · Quanben5 · Piaotia |
-| Индонезийские | BacaLightnovel |
-| MTL | WTR-LAB |
-| Локальные | EPUB-файлы |
-
-</details>
-
-**Плюс:** глобальный мультисорс-поиск · добавление любой новеллы по ссылке · репозиторий плагинов
-
-### Репозиторий плагинов
-
-NoveLA поддерживает внешние Lua-плагины — источники от сообщества, устанавливаемые прямо из приложения.
-
-Официальный репозиторий: [`HnDK0/external-sources`](https://github.com/HnDK0/external-sources)
-
-Подключить: **Finder → Extensions → Настройки (иконка шестерёнки)** → вставьте URL репозитория.
-
----
-
-## 📥 Скачать
-
-**[Получить последний APK →](https://github.com/HnDK0/NoveLA/releases/latest)**
+**[Получить последний APK](https://github.com/HnDK0/NoveLA/releases/latest)** — требуется Android 8.0+
 
 Или собрать из исходников:
 
@@ -143,35 +34,65 @@ git clone https://github.com/HnDK0/NoveLA
 # Откройте в Android Studio и запустите на устройстве или эмуляторе
 ```
 
-Требования: Android 8.0+.
+---
+
+## Возможности
+
+- 25+ встроенных источников
+- Глобальный поиск по нескольким источникам; добавление любой новеллы по URL
+- Перевод прямо в читалке — без копирования и переключения приложений
+- Бесконечная прокрутка глав с офлайн-кешированием
+- Настраиваемые шрифты, размер текста, светлая/тёмная темы (Material 3)
+- Озвучка текста с фоновым воспроизведением, управлением скоростью и тоном
+- Локальная библиотека EPUB
+- Резервное копирование и восстановление
+- Очистка текста с помощью регулярных выражений (удаление рекламы и вставленного текста)
+- Автоматический обход Cloudflare Turnstile
+- Система плагинов на Lua от сообщества
 
 ---
 
-## 🛠 Технологии
+## Перевод
 
-Kotlin · Coroutines · LiveData · Jetpack Compose · Material 3 · Room (SQLite) · Jsoup · OkHttp · Coil · Glide · Android TTS & Media APIs · Google MLKit · LuaJ
+Поддерживается четыре движка. При превышении лимита запросов API-ключи автоматически чередуются по кругу.
 
----
+| Движок | Стоимость | API-ключ |
+|---|---|---|
+| Google Translate (Улучшенный) | Бесплатно | Не требуется |
+| Google Translate (Простой) | Бесплатно | Не требуется |
+| Google Gemini | Бесплатный уровень | Требуется |
+| OpenAI-совместимый | Зависит от провайдера | Требуется |
 
-## 🤝 Контрибьютинг
-
-Приветствуется любой вклад:
-
-- Исправления парсеров существующих источников
-- Новые источники через [репозиторий плагинов](https://github.com/HnDK0/external-sources)
-- Улучшения ридера или производительности
-- Баг-репорты через [Issues](https://github.com/HnDK0/NoveLA/issues)
+OpenAI-совместимый режим поддерживает OpenAI, OpenRouter, DeepSeek, Ollama, Mistral и любые совместимые эндпоинты.
 
 ---
 
-## 📄 Лицензия
+### Плагины
 
-[GPL-3.0](LICENSE) — свободно использовать, изменять и распространять на тех же условиях.
+NoveLA поддерживает внешние плагины источников на Lua, устанавливаемые прямо из приложения.
+
+Официальный репозиторий плагинов: [`HnDK0/external-sources`](https://github.com/HnDK0/external-sources)
+
+Как добавить: **Поиск → Расширения → ⚙️ → вставьте URL репозитория**
 
 ---
 
-<div align="center">
+## Участие в разработке
 
-**[Скачать](https://github.com/HnDK0/NoveLA/releases/latest) &nbsp;·&nbsp; [Issues](https://github.com/HnDK0/NoveLA/issues) &nbsp;·&nbsp; [Плагины](https://github.com/HnDK0/external-sources)**
+Pull request'ы приветствуются. Для крупных изменений сначала откройте issue.
 
-</div>
+- Исправление или улучшение существующих парсеров источников
+- Добавление новых источников через [репозиторий плагинов](https://github.com/HnDK0/external-sources)
+- Сообщения об ошибках через [Issues](https://github.com/HnDK0/NoveLA/issues)
+
+---
+
+## Технологии
+
+Kotlin · Coroutines · Jetpack Compose · Material 3 · Room · Jsoup · OkHttp · Coil · LuaJ · Google MLKit · Android TTS & Media APIs
+
+---
+
+## Лицензия
+
+[GPL-3.0](LICENSE)

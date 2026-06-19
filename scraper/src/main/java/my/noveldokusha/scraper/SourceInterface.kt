@@ -23,7 +23,7 @@ sealed interface SourceInterface {
     val name: String? get() = null
 
     val baseUrl: String
-    val isLocalSource: Boolean get() = true
+    val isLocalSource: Boolean get() = false
     val requiresLogin: Boolean get() = false
     val charset: String get() = "UTF-8"
 

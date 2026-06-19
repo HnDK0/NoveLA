@@ -13,10 +13,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -41,11 +45,14 @@ import my.noveldokusha.settings.sections.SettingsRegexCleanup
 internal fun SettingsScreenBody(
     state: SettingsScreenState,
     modifier: Modifier = Modifier,
+    onRefreshSizes: () -> Unit,
     onAppThemeSelected: (AppTheme) -> Unit,
     onDarkModeSelected: (DarkMode) -> Unit,
     onCleanDatabase: () -> Unit,
     onCleanImageFolder: () -> Unit,
+    onCleanChapterCache: () -> Unit,
     onMassAddDelayChange: (Long) -> Unit,
+    onDownloadDelayChange: (Long) -> Unit,
     onBackupData: () -> Unit,
     onRestoreData: () -> Unit,
     onCheckForUpdatesManual: () -> Unit,
@@ -64,7 +71,27 @@ internal fun SettingsScreenBody(
     onLlmMaxOutputTokensChange: (Int) -> Unit,
     onLanguageChange: (AppLanguage) -> Unit,
     onNavigateToRegexCleanup: () -> Unit,
+    // Auto Backup
+    onAutoBackupEnabledChange: (Boolean) -> Unit,
+    onAutoBackupSelectDirectory: () -> Unit,
+    onAutoBackupMaxCountChange: (Int) -> Unit,
+    onAutoBackupIntervalMinutesChange: (Long) -> Unit,
+    onAutoBackupIncludeImagesChange: (Boolean) -> Unit,
 ) {
+    // Refresh size displays every time the user navigates to this screen
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                onRefreshSizes()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
     ) {
@@ -83,10 +110,13 @@ internal fun SettingsScreenBody(
         SettingsData(
             databaseSize = state.databaseSize.value,
             imagesFolderSize = state.imageFolderSize.value,
+            chapterCacheSize = state.chapterCacheSize.value,
             isCleaningDatabase = state.isCleaningDatabase.value,
             isCleaningImages = state.isCleaningImages.value,
+            isCleaningChapterCache = state.isCleaningChapterCache.value,
             onCleanDatabase = onCleanDatabase,
-            onCleanImageFolder = onCleanImageFolder
+            onCleanImageFolder = onCleanImageFolder,
+            onCleanChapterCache = onCleanChapterCache,
         )
         HorizontalDivider()
         SettingsNetwork(
@@ -94,12 +124,26 @@ internal fun SettingsScreenBody(
             cloudflareBypassEnabled = state.cloudflareBypassEnabled,
             cloudflareChallengeTimeoutSeconds = state.cloudflareChallengeTimeoutSeconds,
             massAddDelayMs = state.massAddDelayMs,
-            onMassAddDelayChange = onMassAddDelayChange
+            onMassAddDelayChange = onMassAddDelayChange,
+            downloadDelayMs = state.downloadDelayMs,
+            onDownloadDelayChange = onDownloadDelayChange
         )
         HorizontalDivider()
         SettingsBackup(
             onBackupData = onBackupData,
-            onRestoreData = onRestoreData
+            onRestoreData = onRestoreData,
+            autoBackupEnabled = state.autoBackupEnabled.value,
+            onAutoBackupEnabledChange = onAutoBackupEnabledChange,
+            autoBackupDirectoryUri = state.autoBackupDirectoryUri.value,
+            autoBackupDirectoryDisplayName = state.autoBackupDirectoryDisplayName.value,
+            onAutoBackupSelectDirectory = onAutoBackupSelectDirectory,
+            autoBackupMaxCount = state.autoBackupMaxCount.value,
+            onAutoBackupMaxCountChange = onAutoBackupMaxCountChange,
+            autoBackupIntervalMinutes = state.autoBackupIntervalMinutes.value,
+            onAutoBackupIntervalMinutesChange = onAutoBackupIntervalMinutesChange,
+            autoBackupIncludeImages = state.autoBackupIncludeImages.value,
+            onAutoBackupIncludeImagesChange = onAutoBackupIncludeImagesChange,
+            autoBackupLastTimestamp = state.autoBackupLastTimestamp.value,
         )
         SettingsGeminiTranslation(
                 translationProvider            = state.translationProvider.value,
@@ -170,6 +214,8 @@ private fun Preview() {
                     imageFolderSize = remember { mutableStateOf("10 MB") },
                     isCleaningDatabase = remember { mutableStateOf(false) },
                     isCleaningImages = remember { mutableStateOf(false) },
+                    chapterCacheSize = remember { mutableStateOf("5 MB") },
+                    isCleaningChapterCache = remember { mutableStateOf(false) },
                     updateAppSetting = SettingsScreenState.UpdateApp(
                         currentAppVersion = "1.0.0",
                         appUpdateCheckerEnabled = remember { mutableStateOf(true) },
@@ -181,6 +227,7 @@ private fun Preview() {
                         autoUpdateIntervalHours = remember { mutableIntStateOf(24) },
                     ),
                     massAddDelayMs = remember { derivedStateOf { 2000L } },
+                    downloadDelayMs = remember { derivedStateOf { 2000L } },
                     geminiApiKey = remember { derivedStateOf { "" } },
                     geminiModel = remember { derivedStateOf { "" } },
                     translationProvider = remember { mutableStateOf("GOOGLE_PA") },
@@ -196,10 +243,20 @@ private fun Preview() {
                     promptUseEnglishLocale = remember { derivedStateOf { true } },
                     llmBatchSize = remember { derivedStateOf { 60 } },
                     llmMaxOutputTokens = remember { derivedStateOf { 0 } },
+                    autoBackupEnabled = remember { mutableStateOf(false) },
+                    autoBackupDirectoryUri = remember { derivedStateOf { "" } },
+                    autoBackupDirectoryDisplayName = remember { mutableStateOf("") },
+                    autoBackupMaxCount = remember { derivedStateOf { 5 } },
+                    autoBackupIntervalMinutes = remember { derivedStateOf { 60L } },
+                    autoBackupIncludeImages = remember { derivedStateOf { false } },
+                    autoBackupLastTimestamp = remember { derivedStateOf { 0L } },
                 ),
+                onRefreshSizes = { },
                 onCleanDatabase = { },
                 onCleanImageFolder = { },
+                onCleanChapterCache = { },
                 onMassAddDelayChange = { },
+                onDownloadDelayChange = { },
                 onBackupData = { },
                 onRestoreData = { },
                 onCheckForUpdatesManual = { },
@@ -220,6 +277,11 @@ private fun Preview() {
                     onAppThemeSelected = { },
                     onDarkModeSelected = { },
                     onNavigateToRegexCleanup = { },
+                    onAutoBackupEnabledChange = { },
+                    onAutoBackupSelectDirectory = { },
+                    onAutoBackupMaxCountChange = { },
+                    onAutoBackupIntervalMinutesChange = { },
+                    onAutoBackupIncludeImagesChange = { },
             )
         }
     }

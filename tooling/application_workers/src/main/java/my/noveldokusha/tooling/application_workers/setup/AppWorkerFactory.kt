@@ -9,6 +9,7 @@ import androidx.work.WorkerParameters
 import my.noveldokusha.coreui.states.NotificationsCenter
 import my.noveldokusha.data.AppRemoteRepository
 import my.noveldokusha.interactor.LibraryUpdatesInteractions
+import my.noveldokusha.tooling.application_workers.AutoBackupWorker
 import my.noveldokusha.tooling.application_workers.LibraryUpdatesWorker
 import my.noveldokusha.tooling.application_workers.UpdatesCheckerWorker
 import my.noveldokusha.tooling.application_workers.notifications.LibraryUpdateNotification
@@ -26,22 +27,37 @@ class AppWorkerFactory @Inject internal constructor(
         workerClassName: String,
         workerParameters: WorkerParameters
     ): ListenableWorker? {
-        // Not using Timber as is yet no initialized at this stage
-        Log.d("AppWorkerFactory", "AppWorkerFactory: workerClassName=$workerClassName")
+        Log.d("AppWorkerFactory", "AppWorkerFactory: createWorker called for '$workerClassName'")
         return when (workerClassName) {
-            UpdatesCheckerWorker::class.java.name -> UpdatesCheckerWorker(
-                context = appContext,
-                workerParameters = workerParameters,
-                appRemoteRepository = appRemoteRepository,
-                notificationsCenter = notificationsCenter
-            )
-            LibraryUpdatesWorker::class.java.name -> LibraryUpdatesWorker(
-                context = appContext,
-                workerParameters = workerParameters,
-                libraryUpdateNotification = libraryUpdateNotification,
-                libraryUpdatesInteractions = libraryUpdatesInteractions,
-            )
-            else -> null
+            UpdatesCheckerWorker::class.java.name -> {
+                Log.d("AppWorkerFactory", "AppWorkerFactory: creating UpdatesCheckerWorker")
+                UpdatesCheckerWorker(
+                    context = appContext,
+                    workerParameters = workerParameters,
+                    appRemoteRepository = appRemoteRepository,
+                    notificationsCenter = notificationsCenter
+                )
+            }
+            LibraryUpdatesWorker::class.java.name -> {
+                Log.d("AppWorkerFactory", "AppWorkerFactory: creating LibraryUpdatesWorker")
+                LibraryUpdatesWorker(
+                    context = appContext,
+                    workerParameters = workerParameters,
+                    libraryUpdateNotification = libraryUpdateNotification,
+                    libraryUpdatesInteractions = libraryUpdatesInteractions,
+                )
+            }
+            AutoBackupWorker::class.java.name -> {
+                Log.d("AppWorkerFactory", "AppWorkerFactory: creating AutoBackupWorker")
+                AutoBackupWorker(
+                    context = appContext,
+                    workerParameters = workerParameters,
+                )
+            }
+            else -> {
+                Log.w("AppWorkerFactory", "AppWorkerFactory: unknown worker '$workerClassName', returning null")
+                null
+            }
         }
     }
 }

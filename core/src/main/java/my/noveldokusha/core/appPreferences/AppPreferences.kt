@@ -349,6 +349,16 @@ class AppPreferences @Inject constructor(
         )
     }
 
+    val DOWNLOAD_DELAY_MS = object : Preference<Long>("DOWNLOAD_DELAY_MS") {
+        override var value by SharedPreference_Serializable(
+            name = name,
+            sharedPreferences = preferences,
+            defaultValue = 2000L,
+            encode = { it.toString() },
+            decode = { it.toLongOrNull() ?: 2000L }
+        )
+    }
+
     val SCRAPER_USER_AGENT = object : Preference<String>("SCRAPER_USER_AGENT") {
         override var value by SharedPreference_String(name, preferences, "")
     }
@@ -379,6 +389,20 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_String(name, preferences, "ai")
     }
 
+    // ── Библиотека: сохранение состояния фильтров (чтобы не сбрасывалось после перезапуска) ──
+
+    val LIBRARY_SELECTED_CATEGORIES = object : Preference<Set<String>>("LIBRARY_SELECTED_CATEGORIES") {
+        override var value by SharedPreference_StringSet(name, preferences, setOf())
+    }
+
+    val LIBRARY_SELECTED_GENRES = object : Preference<Set<String>>("LIBRARY_SELECTED_GENRES") {
+        override var value by SharedPreference_StringSet(name, preferences, setOf())
+    }
+
+    val LIBRARY_SELECTED_SOURCES = object : Preference<Set<String>>("LIBRARY_SELECTED_SOURCES") {
+        override var value by SharedPreference_StringSet(name, preferences, setOf())
+    }
+
     val LIBRARY_CUSTOM_CATEGORIES = object : Preference<List<String>>("LIBRARY_CUSTOM_CATEGORIES") {
         override var value by SharedPreference_Serializable<List<String>>(
             name = name,
@@ -398,6 +422,50 @@ class AppPreferences @Inject constructor(
             defaultValue = listOf(),
             encode = { Json.encodeToString(it) },
             decode = { Json.decodeFromString(it) }
+        )
+    }
+
+    // ── Auto Backup Preferences ─────────────────────────────────────────────
+
+    // Включён ли автоматический бекап
+    val BACKUP_AUTO_ENABLED = object : Preference<Boolean>("BACKUP_AUTO_ENABLED") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    // URI папки (tree URI) для автобекапов, выбранный через SAF
+    val BACKUP_AUTO_DIRECTORY_URI = object : Preference<String>("BACKUP_AUTO_DIRECTORY_URI") {
+        override var value by SharedPreference_String(name, preferences, "")
+    }
+
+    // Максимальное количество хранимых файлов автобекапа
+    val BACKUP_AUTO_MAX_COUNT = object : Preference<Int>("BACKUP_AUTO_MAX_COUNT") {
+        override var value by SharedPreference_Int(name, preferences, 5)
+    }
+
+    // Интервал между автобекапами в минутах (по умолчанию 1440 = 1 день)
+    val BACKUP_AUTO_INTERVAL_MINUTES = object : Preference<Long>("BACKUP_AUTO_INTERVAL_MINUTES") {
+        override var value by SharedPreference_Serializable(
+            name = name,
+            sharedPreferences = preferences,
+            defaultValue = 1440L,
+            encode = { it.toString() },
+            decode = { it.toLongOrNull() ?: 1440L }
+        )
+    }
+
+    // Включать ли изображения в автобекап
+    val BACKUP_AUTO_INCLUDE_IMAGES = object : Preference<Boolean>("BACKUP_AUTO_INCLUDE_IMAGES") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    // Unix timestamp (мс) последнего успешного автобекапа
+    val BACKUP_AUTO_LAST_TIMESTAMP = object : Preference<Long>("BACKUP_AUTO_LAST_TIMESTAMP") {
+        override var value by SharedPreference_Serializable(
+            name = name,
+            sharedPreferences = preferences,
+            defaultValue = 0L,
+            encode = { it.toString() },
+            decode = { it.toLongOrNull() ?: 0L }
         )
     }
 

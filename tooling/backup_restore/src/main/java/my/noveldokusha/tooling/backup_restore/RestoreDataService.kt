@@ -18,20 +18,21 @@ import my.noveldokusha.coreui.states.NotificationsCenter
 import my.noveldokusha.coreui.states.removeProgressBar
 import my.noveldokusha.coreui.states.text
 import my.noveldokusha.coreui.states.title
+import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.BookChaptersRepository
 import my.noveldokusha.data.ChapterBodyRepository
 import my.noveldokusha.data.DownloaderRepository
 import my.noveldokusha.data.LibraryBooksRepository
-import my.noveldokusha.feature.local_database.tables.Book
-import my.noveldokusha.feature.local_database.tables.Chapter
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.tryAsResponse
+import my.noveldokusha.core.utils.Extra_Boolean
 import my.noveldokusha.core.utils.Extra_Uri
 import my.noveldokusha.core.utils.isServiceRunning
 import my.noveldokusha.feature.local_database.AppDatabase
 import okhttp3.internal.closeQuietly
+import org.json.JSONObject
 import timber.log.Timber
 import java.io.File
 import java.io.InputStream
@@ -44,6 +45,9 @@ class RestoreDataService : Service() {
     @Inject
     @ApplicationContext
     lateinit var context: Context
+
+    @Inject
+    lateinit var appDatabase: AppDatabase
 
     @Inject
     lateinit var appRepository: AppRepository
@@ -60,19 +64,24 @@ class RestoreDataService : Service() {
     @Inject
     lateinit var downloaderRepository: DownloaderRepository
 
+    @Inject
+    lateinit var appPreferences: AppPreferences
+
     private class IntentData : Intent {
         var uri by Extra_Uri()
+        var overwritePlugins by Extra_Boolean()
 
         constructor(intent: Intent) : super(intent)
-        constructor(ctx: Context, uri: Uri) : super(ctx, RestoreDataService::class.java) {
+        constructor(ctx: Context, uri: Uri, overwritePlugins: Boolean) : super(ctx, RestoreDataService::class.java) {
             this.uri = uri
+            this.overwritePlugins = overwritePlugins
         }
     }
 
     companion object {
-        fun start(ctx: Context, uri: Uri) {
+        fun start(ctx: Context, uri: Uri, overwritePlugins: Boolean = true) {
             if (!isRunning(ctx))
-                ContextCompat.startForegroundService(ctx, IntentData(ctx, uri))
+                ContextCompat.startForegroundService(ctx, IntentData(ctx, uri, overwritePlugins))
         }
 
         private fun isRunning(context: Context): Boolean =
@@ -117,7 +126,7 @@ class RestoreDataService : Service() {
         job = CoroutineScope(Dispatchers.IO).launch {
             tryAsResponse {
                 Timber.d("RestoreDataService: Starting restore from URI: ${intentData.uri}")
-                restoreData(intentData.uri)
+                restoreData(intentData.uri, intentData.overwritePlugins)
                 appRepository.eventDataRestored.emit(Unit)
                 Timber.d("RestoreDataService: Restore completed successfully")
             }.onError {
@@ -138,17 +147,11 @@ class RestoreDataService : Service() {
     }
 
     /**
-     * Restore data function. Restores the library and images data given an uri.
-     * The uri must point to a zip file where there must be a root file
-     * "database.sqlite3" and an optional "books" folder where all the images
-     * are stored (each subfolder is a book with its own structure).
-     *
-     * IMPORTANT: Only books with inLibrary=true are restored. Books that were
-     * previously deleted (inLibrary=false) are ignored even if they exist in the backup.
+     * Restore data function. Restores the library, images, plugins, and settings.
      */
-    private suspend fun restoreData(uri: Uri) = withContext(Dispatchers.IO) {
+    private suspend fun restoreData(uri: Uri, overwritePlugins: Boolean = true) = withContext(Dispatchers.IO) {
 
-        Timber.d("restoreData: Starting restore process")
+        Timber.d("restoreData: Starting restore process (overwritePlugins=$overwritePlugins)")
         notificationsCenter.modifyNotification(
             notificationBuilder,
             notificationId = notificationId
@@ -254,8 +257,7 @@ class RestoreDataService : Service() {
                     }
                 }
 
-                // KEY FIX: Only restore books that are actually IN the library (inLibrary=true).
-                // Books with inLibrary=false were previously deleted and should NOT be restored.
+                // Restore library books
                 val allBooksFromBackup = backupDatabase.libraryBooks.getAll()
                 Timber.d("mergeToDatabase: Backup contains ${allBooksFromBackup.size} total books")
 
@@ -277,7 +279,6 @@ class RestoreDataService : Service() {
                     text = getString(R.string.adding_books)
                 }
 
-                // Insert only valid library books
                 try {
                     appRepository.libraryBooks.insertReplace(validBooks)
                     Timber.d("mergeToDatabase: Inserted ${validBooks.size} books")
@@ -291,11 +292,9 @@ class RestoreDataService : Service() {
                     }
                 }
 
-                // Get URLs of the books we actually restored to filter chapters
+                // Restore chapters
                 val restoredBookUrls = validBooks.map { it.url }.toSet()
-
                 val allChapters = backupDatabase.bookChapters.getAll()
-                // Only restore chapters for books we actually restored
                 val validChapters = allChapters.filter { chapter ->
                     chapter.bookUrl in restoredBookUrls &&
                             chapter.url.matches("""^(https?|local)://.*""".toRegex())
@@ -320,9 +319,9 @@ class RestoreDataService : Service() {
                     }
                 }
 
+                // Restore chapter bodies
                 val restoredChapterUrls = validChapters.map { it.url }.toSet()
                 val allBodies = backupDatabase.chapterBody.getAll()
-                // Only restore bodies for chapters we actually restored
                 val validBodies = allBodies.filter { it.url in restoredChapterUrls }
                 Timber.d("mergeToDatabase: Restoring ${validBodies.size} chapter bodies (of ${allBodies.size} total in backup)")
 
@@ -342,6 +341,34 @@ class RestoreDataService : Service() {
                             Timber.w(bodyError, "Failed to insert chapter body")
                         }
                     }
+                }
+
+                // Restore extensions (plugins)
+                notificationsCenter.modifyNotification(
+                    notificationBuilder,
+                    notificationId = notificationId
+                ) {
+                    text = getString(R.string.restoring_plugins)
+                }
+
+                val backupExtensions = backupDatabase.newDatabase.extensionDao().getAll()
+                if (backupExtensions.isNotEmpty()) {
+                    Timber.d("mergeToDatabase: Found ${backupExtensions.size} extensions in backup, overwritePlugins=$overwritePlugins")
+                    if (overwritePlugins) {
+                        appDatabase.extensionDao().insert(backupExtensions)
+                        Timber.d("mergeToDatabase: Overwritten ${backupExtensions.size} extensions")
+                    } else {
+                        val currentExtensionIds = appDatabase.extensionDao().getAll().map { it.id }.toSet()
+                        val newExtensions = backupExtensions.filter { it.id !in currentExtensionIds }
+                        if (newExtensions.isNotEmpty()) {
+                            appDatabase.extensionDao().insert(newExtensions)
+                            Timber.d("mergeToDatabase: Added ${newExtensions.size} new extensions (kept existing)")
+                        } else {
+                            Timber.d("mergeToDatabase: No new extensions to add")
+                        }
+                    }
+                } else {
+                    Timber.d("mergeToDatabase: No extensions in backup")
                 }
 
                 backupDatabase.close()
@@ -370,6 +397,120 @@ class RestoreDataService : Service() {
             }
         }
 
+        suspend fun mergeToSettings(settingsInputStream: InputStream) {
+            tryAsResponse {
+                notificationsCenter.modifyNotification(
+                    notificationBuilder,
+                    notificationId = notificationId
+                ) {
+                    text = getString(R.string.restoring_settings)
+                }
+
+                val settingsString = settingsInputStream.bufferedReader().readText()
+                val settingsJson = JSONObject(settingsString)
+
+                // Restore API keys
+                if (settingsJson.has("TRANSLATION_GOOGLE_PA_API_KEYS")) {
+                    val backupValue = settingsJson.getString("TRANSLATION_GOOGLE_PA_API_KEYS")
+                    if (backupValue.isNotEmpty()) {
+                        val currentLines = appPreferences.TRANSLATION_GOOGLE_PA_API_KEYS.value
+                            .split("\n", "\r\n")
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .toMutableSet()
+                        val backupLines = backupValue.split("\n", "\r\n")
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                        currentLines.addAll(backupLines)
+                        appPreferences.TRANSLATION_GOOGLE_PA_API_KEYS.value = currentLines.joinToString("\n")
+                        Timber.d("mergeToSettings: Restored TRANSLATION_GOOGLE_PA_API_KEYS (merged ${backupLines.size} keys)")
+                    }
+                }
+
+                if (settingsJson.has("TRANSLATION_GEMINI_API_KEY")) {
+                    val backupValue = settingsJson.getString("TRANSLATION_GEMINI_API_KEY")
+                    if (backupValue.isNotEmpty()) {
+                        appPreferences.TRANSLATION_GEMINI_API_KEY.value = backupValue
+                        Timber.d("mergeToSettings: Restored TRANSLATION_GEMINI_API_KEY")
+                    }
+                }
+
+                if (settingsJson.has("TRANSLATION_GEMINI_MODEL")) {
+                    val backupValue = settingsJson.getString("TRANSLATION_GEMINI_MODEL")
+                    if (backupValue.isNotEmpty()) {
+                        appPreferences.TRANSLATION_GEMINI_MODEL.value = backupValue
+                        Timber.d("mergeToSettings: Restored TRANSLATION_GEMINI_MODEL")
+                    }
+                }
+
+                if (settingsJson.has("TRANSLATION_OPENAI_BASE_URL")) {
+                    val backupValue = settingsJson.getString("TRANSLATION_OPENAI_BASE_URL")
+                    if (backupValue.isNotEmpty()) {
+                        appPreferences.TRANSLATION_OPENAI_BASE_URL.value = backupValue
+                        Timber.d("mergeToSettings: Restored TRANSLATION_OPENAI_BASE_URL")
+                    }
+                }
+
+                if (settingsJson.has("TRANSLATION_OPENAI_API_KEYS")) {
+                    val backupValue = settingsJson.getString("TRANSLATION_OPENAI_API_KEYS")
+                    if (backupValue.isNotEmpty()) {
+                        val currentLines = appPreferences.TRANSLATION_OPENAI_API_KEYS.value
+                            .split("\n", "\r\n")
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .toMutableSet()
+                        val backupLines = backupValue.split("\n", "\r\n")
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                        currentLines.addAll(backupLines)
+                        appPreferences.TRANSLATION_OPENAI_API_KEYS.value = currentLines.joinToString("\n")
+                        Timber.d("mergeToSettings: Restored TRANSLATION_OPENAI_API_KEYS (merged ${backupLines.size} keys)")
+                    }
+                }
+
+                if (settingsJson.has("TRANSLATION_OPENAI_MODEL")) {
+                    val backupValue = settingsJson.getString("TRANSLATION_OPENAI_MODEL")
+                    if (backupValue.isNotEmpty()) {
+                        appPreferences.TRANSLATION_OPENAI_MODEL.value = backupValue
+                        Timber.d("mergeToSettings: Restored TRANSLATION_OPENAI_MODEL")
+                    }
+                }
+
+                // Restore categories
+                if (settingsJson.has("LIBRARY_CUSTOM_CATEGORIES")) {
+                    val categoriesArray = settingsJson.getJSONArray("LIBRARY_CUSTOM_CATEGORIES")
+                    val categoriesList = (0 until categoriesArray.length()).map { categoriesArray.getString(it) }
+                    appPreferences.LIBRARY_CUSTOM_CATEGORIES.value = categoriesList
+                    Timber.d("mergeToSettings: Restored ${categoriesList.size} categories")
+                }
+
+                // Restore system prompt
+                if (settingsJson.has("TRANSLATION_ACTIVE_SYSTEM_PROMPT")) {
+                    val backupValue = settingsJson.getString("TRANSLATION_ACTIVE_SYSTEM_PROMPT")
+                    if (backupValue.isNotEmpty()) {
+                        appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value = backupValue
+                        Timber.d("mergeToSettings: Restored TRANSLATION_ACTIVE_SYSTEM_PROMPT")
+                    }
+                }
+
+                // Restore prompt presets
+                if (settingsJson.has("TRANSLATION_PROMPT_PRESETS")) {
+                    val presetsArray = settingsJson.getJSONArray("TRANSLATION_PROMPT_PRESETS")
+                    val presetsList = (0 until presetsArray.length()).map { i ->
+                        val obj = presetsArray.getJSONObject(i)
+                        obj.getString("name") to obj.getString("prompt")
+                    }
+                    appPreferences.TRANSLATION_PROMPT_PRESETS.value = presetsList
+                    Timber.d("mergeToSettings: Restored ${presetsList.size} prompt presets")
+                }
+
+                Timber.d("mergeToSettings: Settings merge completed")
+
+            }.onError {
+                Timber.e(it.exception, "mergeToSettings: Failed to merge settings")
+            }
+        }
+
         fun mergeToBookFolder(entry: ZipEntry, entryInputStream: InputStream) {
             try {
                 val file = File(appRepository.settings.folderBooks.parentFile, entry.name)
@@ -384,6 +525,23 @@ class RestoreDataService : Service() {
                 }
             } catch (e: Exception) {
                 Timber.e(e, "mergeToBookFolder: Error processing entry: ${entry.name}")
+            }
+        }
+
+        suspend fun mergeToLuaExtensions(entry: ZipEntry, entryInputStream: InputStream) {
+            try {
+                val luaDir = File(context.filesDir, "lua_extensions")
+                luaDir.mkdirs()
+                val fileName = entry.name.removePrefix("lua_extensions/")
+                if (fileName.isNotEmpty() && !fileName.contains("/")) {
+                    val file = File(luaDir, fileName)
+                    file.outputStream().use { output ->
+                        entryInputStream.copyTo(output)
+                    }
+                    Timber.d("mergeToLuaExtensions: Restored $fileName")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "mergeToLuaExtensions: Error processing entry ${entry.name}")
             }
         }
 
@@ -405,6 +563,8 @@ class RestoreDataService : Service() {
                         try {
                             when {
                                 entry.name == "database.sqlite3" -> mergeToDatabase(zipStream)
+                                entry.name == "settings.json" -> mergeToSettings(zipStream)
+                                entry.name.startsWith("lua_extensions/") -> mergeToLuaExtensions(entry, zipStream)
                                 entry.name.startsWith("books/") -> mergeToBookFolder(entry, zipStream)
                                 else -> Timber.w("restoreData: Skipping unknown entry: ${entry.name}")
                             }
@@ -428,12 +588,36 @@ class RestoreDataService : Service() {
         }
 
         inputStream.closeQuietly()
+
+        // Clear source cache to force LuaSourceProvider to reload from restored lua_extensions/
+        try {
+            val sourceCacheFile = File(context.filesDir, "source_cache.json")
+            if (sourceCacheFile.exists()) {
+                sourceCacheFile.delete()
+                Timber.d("restoreData: Cleared source_cache.json")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "restoreData: Failed to clear source cache")
+        }
+
         notificationsCenter.modifyNotification(
             notificationBuilder,
             notificationId = notificationId
         ) {
             removeProgressBar()
             text = getString(R.string.data_restored)
+        }
+
+        // Restart Activity to apply all changes (sources, settings, preferences)
+        try {
+            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+                Timber.d("restoreData: Restarting Activity to apply changes")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "restoreData: Failed to restart Activity")
         }
     }
 }

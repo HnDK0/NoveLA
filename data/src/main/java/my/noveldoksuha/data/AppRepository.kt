@@ -4,11 +4,14 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.Response
 import my.noveldokusha.core.isContentUri
 import my.noveldokusha.feature.local_database.AppDatabase
+import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.feature.local_database.tables.Chapter
 import timber.log.Timber
@@ -24,14 +27,16 @@ class AppRepository @Inject constructor(
     val chapterBody: ChapterBodyRepository,
     private val appFileResolver: AppFileResolver,
     private val epubImporterRepository: EpubImporterRepository,
-    val downloaderRepository: DownloaderRepository
+    val downloaderRepository: DownloaderRepository,
+    private val libraryDao: LibraryDao,
+    private val appCoroutineScope: AppCoroutineScope,
 ) {
     val settings = Settings()
     val eventDataRestored = MutableSharedFlow<Unit>()
 
     suspend fun toggleBookmark(bookUrl: String, bookTitle: String): Boolean {
         val realUrl = appFileResolver.getLocalIfContentType(bookUrl, bookFolderName = bookTitle)
-        return if (bookUrl.isContentUri && libraryBooks.get(realUrl) == null) {
+        val result = if (bookUrl.isContentUri && libraryBooks.get(realUrl) == null) {
             epubImporterRepository.importEpubFromContentUri(
                 contentUri = bookUrl,
                 bookTitle = bookTitle,
@@ -40,6 +45,18 @@ class AppRepository @Inject constructor(
         } else {
             libraryBooks.toggleBookmark(bookUrl = realUrl, bookTitle = bookTitle)
         }
+        // Если книга добавлена в библиотеку — загружаем жанры в фоне
+        if (result && !realUrl.isContentUri) {
+            appCoroutineScope.launch {
+                downloaderRepository.bookGenres(bookUrl = realUrl).onSuccess { genres ->
+                    if (genres.isNotEmpty()) {
+                        val normalized = my.noveldokusha.core.utils.GenreUtils.normalize(genres)
+                        libraryDao.updateGenres(realUrl, normalized)
+                    }
+                }
+            }
+        }
+        return result
     }
 
     /**
@@ -95,6 +112,20 @@ class AppRepository @Inject constructor(
             db.chapterBodyDao().removeAllNonChapterRows()
             db.chapterTranslationDao().removeOrphanedTranslations()
         }
+
+        /**
+         * Clears all cached chapter bodies and translations.
+         * Library books, chapters, images and progress are NOT affected.
+         */
+        suspend fun clearChapterCache() = withContext(Dispatchers.IO) {
+            db.chapterBodyDao().deleteAll()
+            db.chapterTranslationDao().deleteAllTranslations()
+        }
+
+        /**
+         * Approximate size (in bytes) of all cached chapter bodies.
+         */
+        suspend fun getChapterCacheSizeBytes(): Long = db.chapterBodyDao().getCacheSizeBytes()
 
         /**
          * Folder where additional book data like images is stored.

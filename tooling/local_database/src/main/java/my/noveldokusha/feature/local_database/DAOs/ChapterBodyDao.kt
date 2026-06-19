@@ -36,4 +36,10 @@ interface ChapterBodyDao {
         )
     """)
     suspend fun removeChapterBodiesByBookUrls(bookUrls: List<String>)
+
+    @Query("SELECT COALESCE(SUM(LENGTH(body)), 0) FROM ChapterBody")
+    suspend fun getCacheSizeBytes(): Long
+
+    @Query("DELETE FROM ChapterBody")
+    suspend fun deleteAll(): Int
 }

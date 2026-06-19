@@ -9,10 +9,12 @@ android {
 
 dependencies {
     implementation(projects.core)
+    implementation(projects.coreui)
     implementation(projects.networking)
     implementation(projects.scraper)
     implementation(projects.tooling.localDatabase)
     implementation(projects.tooling.epubParser)
+    implementation(projects.tooling.textTranslator.domain)
 
     implementation(libs.jsoup)
     implementation(libs.readability4j)

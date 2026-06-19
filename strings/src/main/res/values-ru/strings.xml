@@ -224,6 +224,9 @@
     <string name="language_chinese">Китайский</string>
     <string name="language_russian">Русский</string>
     <string name="source_name_local">Локальный</string>
+    <string name="import_all_books">Импортировать все книги</string>
+    <string name="importing_books_progress">Импорт %1$d / %2$d…</string>
+    <string name="imported_books_count">Импортировано книг: %1$d</string>
     <string name="updating_library">Обновление библиотеки (%1$d/%2$d)</string>
     <string name="delete_novel">Удалить новеллу</string>
     <string name="mark_all_chapters_read">Отметить все главы как прочитанные</string>
@@ -382,4 +385,53 @@
     <string name="llm_tokens_auto">Авто</string>
     <string name="dark_mode">Тёмный режим</string>
     <string name="color_scheme">Цветовая схема</string>
+
+    <!-- Backup/Restore options -->
+    <string name="restore_options">Опции восстановления</string>
+    <string name="overwrite_plugins">Перезаписать плагины</string>
+    <string name="overwrite_plugins_description">Перезаписать установленные плагины плагинами из резервной копии. Снимьте галочку, чтобы сохранить текущие плагины.</string>
+    <string name="restore_settings">Восстановить настройки</string>
+    <string name="restore_settings_description">Восстановить API-ключи и категории библиотеки из резервной копии.</string>
+    <string name="restoring_plugins">Восстановление плагинов…</string>
+    <string name="restoring_settings">Восстановление настроек…</string>
+    <string name="plugins_restored">Плагины восстановлены (%1$d)</string>
+    <string name="settings_restored">Настройки восстановлены</string>
+    <string name="backup_saving_settings">Сохранение настроек…</string>
+
+    <!-- Auto Backup -->
+    <string name="auto_backup">Автобекап</string>
+    <string name="auto_backup_description">Автоматическое создание резервных копий по расписанию</string>
+    <string name="auto_backup_switch">Включить автобекап</string>
+    <string name="auto_backup_directory">Папка для бекапов</string>
+    <string name="auto_backup_select_directory">Выбрать папку для бекапов</string>
+    <string name="auto_backup_directory_selected">Папка выбрана</string>
+    <string name="auto_backup_max_count">Максимум файлов</string>
+    <string name="auto_backup_max_count_value">%d файлов</string>
+    <string name="auto_backup_include_images">Включая изображения</string>
+    <string name="auto_backup_include_images_description">Сохранять изображения в автобекапе</string>
+    <string name="auto_backup_enabled">Автобекап включён</string>
+    <string name="auto_backup_interval">Интервал бекапа</string>
+    <string name="auto_backup_disabled">Автобекап выключен</string>
+    <string name="auto_backup_select_directory_first">Сначала выберите папку для бекапов</string>
+    <string name="auto_backup_no_permission">Нет прав на запись в эту папку</string>
+    <string name="auto_backup_interval_updated">Интервал резервного копирования обновлён</string>
+    <string name="auto_backup_last_time">Последний бэкап</string>
+    <string name="auto_backup_never">Никогда</string>
+    <string name="clean_chapter_cache">Очистить кеш глав</string>
+    <string name="cleaning_chapter_cache">Очистка кеша глав…</string>
+    <string name="chapter_cache_cleaned">Кеш глав очищен</string>
+    <string name="chapter_cache_clean_failed">Не удалось очистить кеш глав</string>
+    <string name="reset_filters">Сбросить</string>
+
+    <!-- Download Manager -->
+    <string name="download_added_to_queue">Добавлено в очередь загрузки</string>
+    <string name="download_progress">Загрузка %1$s: %2$s</string>
+    <string name="download_pause">Пауза</string>
+    <string name="download_resume">Продолжить</string>
+    <string name="download_cancel">Отмена</string>
+    <string name="download_dismiss">Закрыть</string>
+    <string name="download_completed">Загрузка завершена</string>
+    <string name="download_error">Ошибка загрузки</string>
+    <string name="download_delay">Задержка между загрузками (мс)</string>
+    <string name="download_delay_description">Задержка между загрузкой глав для избежания блокировки</string>
 </resources>

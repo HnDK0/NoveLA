@@ -207,6 +207,41 @@ internal fun databaseMigrations() = arrayOf(
         // Index on Book.inLibrary for faster library queries (getBooksInLibraryWithContextFlow)
         it.execSQL("CREATE INDEX IF NOT EXISTS index_Book_inLibrary ON Book (inLibrary)")
     },
+    migration(19) {
+        // Перенос жанров из отдельной таблицы BookGenre в поле Book.genres (через запятую)
+        // 1. Добавляем колонку genres
+        it.addColumnIfNotExists("Book", "genres", "TEXT NOT NULL DEFAULT ''")
+        // 2. Переносим данные из BookGenre в Book.genres, группируя по bookUrl
+        it.execSQL("""
+            UPDATE Book SET genres = (
+                SELECT GROUP_CONCAT(genre, ',') FROM (
+                    SELECT DISTINCT genre FROM BookGenre WHERE BookGenre.bookUrl = Book.url ORDER BY genre
+                )
+            ) WHERE url IN (SELECT DISTINCT bookUrl FROM BookGenre)
+        """)
+        // 3. Удаляем таблицу BookGenre
+        it.execSQL("DROP TABLE IF EXISTS BookGenre")
+    },
+    migration(20) {
+        // Персистентное хранение очереди загрузок DownloadManager
+        it.execSQL("""
+            CREATE TABLE IF NOT EXISTS DownloadTask (
+                bookUrl TEXT NOT NULL PRIMARY KEY,
+                bookTitle TEXT NOT NULL,
+                chapterUrlsJson TEXT NOT NULL,
+                currentIndex INTEGER NOT NULL DEFAULT 0,
+                totalCount INTEGER NOT NULL DEFAULT 0,
+                isPaused INTEGER NOT NULL DEFAULT 0,
+                isCancelled INTEGER NOT NULL DEFAULT 0,
+                isCompleted INTEGER NOT NULL DEFAULT 0,
+                errorCount INTEGER NOT NULL DEFAULT 0,
+                successCount INTEGER NOT NULL DEFAULT 0,
+                consecutiveErrors INTEGER NOT NULL DEFAULT 0,
+                skippedCount INTEGER NOT NULL DEFAULT 0,
+                translationErrorCount INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+    },
 )
 
 internal fun migration(vi: Int, migrate: (SupportSQLiteDatabase) -> Unit) =

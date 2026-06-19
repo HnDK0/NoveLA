@@ -14,6 +14,7 @@ dependencies {
     implementation(projects.data)
     implementation(projects.navigation)
     implementation(projects.tooling.localDatabase)
+    implementation(projects.tooling.backupCreate)
 
     implementation(libs.timber)
     implementation(libs.androidx.workmanager)

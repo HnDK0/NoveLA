@@ -252,6 +252,13 @@
     <string name="done">Done</string>
     <string name="close">Close</string>
     <string name="no_directories_added_please_add_them_to_see_them_in_the_source_catalog_list">No directories added, please add them to see them in the source catalog list</string>
+    <string name="import_all_books">Import all books</string>
+    <string name="auto_import_local_books">Auto import local books</string>
+    <string name="auto_import_local_books_description">Automatically import all books from a selected directory into your library</string>
+    <string name="auto_import_select_directory">Select directory</string>
+    <string name="auto_import_directory_selected">Directory selected: %s</string>
+    <string name="importing_books_progress">Importing %1$d / %2$d…</string>
+    <string name="imported_books_count">Imported %1$d books</string>
     <string name="local">Local</string>
     <string name="invalid_source">Invalid source</string>
     <string name="language_english">English</string>
@@ -437,4 +444,54 @@
     <string name="category_delete_confirm">Delete category \"%s\"? Books will be moved to \"Reading\".</string>
     <string name="no_category">No category</string>
     <string name="enter_category_name">Enter category name</string>
+
+    <!-- Backup/Restore options -->
+    <string name="restore_options">Restore options</string>
+    <string name="overwrite_plugins">Overwrite plugins</string>
+    <string name="overwrite_plugins_description">Overwrite installed plugins with those from the backup. Uncheck to keep your current plugins.</string>
+    <string name="restore_settings">Restore settings</string>
+    <string name="restore_settings_description">Restore API keys and library categories from the backup.</string>
+    <string name="restoring_plugins">Restoring plugins…</string>
+    <string name="restoring_settings">Restoring settings…</string>
+    <string name="plugins_restored">Plugins restored (%1$d)</string>
+    <string name="settings_restored">Settings restored</string>
+    <string name="backup_saving_settings">Saving settings…</string>
+
+    <!-- Auto Backup -->
+    <string name="auto_backup">Auto backup</string>
+    <string name="auto_backup_description">Automatically backup data on schedule</string>
+    <string name="auto_backup_switch">Enable auto backup</string>
+    <string name="auto_backup_directory">Backup directory</string>
+    <string name="auto_backup_select_directory">Select backup directory</string>
+    <string name="auto_backup_directory_selected">Directory selected</string>
+    <string name="auto_backup_max_count">Max backup files</string>
+    <string name="auto_backup_max_count_value">%d files</string>
+    <string name="auto_backup_include_images">Include images</string>
+    <string name="auto_backup_include_images_description">Save images in auto backup</string>
+    <string name="auto_backup_enabled">Auto backup enabled</string>
+    <string name="auto_backup_interval">Backup interval</string>
+    <string name="auto_backup_disabled">Auto backup disabled</string>
+    <string name="auto_backup_select_directory_first">Select a backup directory first</string>
+    <string name="auto_backup_no_permission">No write permission for the selected directory</string>
+    <string name="auto_backup_interval_updated">Backup interval updated</string>
+    <string name="auto_backup_last_time">Last backup</string>
+    <string name="auto_backup_never">Never</string>
+    <string name="clean_chapter_cache">Clear chapter cache</string>
+    <string name="cleaning_chapter_cache">Clearing chapter cache…</string>
+    <string name="chapter_cache_cleaned">Chapter cache cleared</string>
+    <string name="chapter_cache_clean_failed">Failed to clear chapter cache</string>
+    <string name="all_sources">All sources</string>
+    <string name="reset_filters">Reset</string>
+
+    <!-- Download Manager -->
+    <string name="download_added_to_queue">Added to download queue</string>
+    <string name="download_progress">Downloading %1$s: %2$s</string>
+    <string name="download_pause">Pause</string>
+    <string name="download_resume">Resume</string>
+    <string name="download_cancel">Cancel</string>
+    <string name="download_dismiss">Dismiss</string>
+    <string name="download_completed">Download completed</string>
+    <string name="download_error">Download error</string>
+    <string name="download_delay">Download delay (ms)</string>
+    <string name="download_delay_description">Delay between downloading chapters to avoid rate limiting</string>
 </resources>

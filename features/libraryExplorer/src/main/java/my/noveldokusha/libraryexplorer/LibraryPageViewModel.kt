@@ -25,8 +25,9 @@ import my.noveldokusha.core.appPreferences.SortConfig
 import my.noveldokusha.core.appPreferences.SortDirection
 import my.noveldokusha.core.appPreferences.TernaryState
 import my.noveldokusha.core.domain.LibraryCategory
+import my.noveldokusha.core.utils.GenreUtils
 import my.noveldokusha.core.utils.toState
-import my.noveldokusha.feature.local_database.DAOs.BookGenreDao
+import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.interactor.WorkersInteractions
 import my.noveldokusha.scraper.Scraper
 import javax.inject.Inject
@@ -37,7 +38,7 @@ internal class LibraryPageViewModel @Inject constructor(
     private val preferences: AppPreferences,
     private val toasty: Toasty,
     private val workersInteractions: WorkersInteractions,
-    private val bookGenreDao: BookGenreDao,
+    private val libraryDao: LibraryDao,
     private val scraper: Scraper,
     @ApplicationContext private val context: Context,
 ) : BaseViewModel() {
@@ -56,22 +57,49 @@ internal class LibraryPageViewModel @Inject constructor(
     private val _selectedGenres = MutableStateFlow<Set<String>>(emptySet())
     val selectedGenres = _selectedGenres.asStateFlow()
 
-    // Все доступные жанры в библиотеке — подписываемся сразу при создании VM,
-    // чтобы к моменту открытия BottomSheet данные уже были готовы
-    val availableGenres = bookGenreDao.getAllLibraryGenresFlow()
+    // Фильтр по именам плагинов (источников) — пустой Set = все
+    private val _selectedSources = MutableStateFlow<Set<String>>(emptySet())
+    val selectedSources = _selectedSources.asStateFlow()
+
+    // Все доступные жанры в библиотеке — парсим из поля Book.genres
+    val availableGenres = libraryDao.getAllLibraryGenresRawFlow()
+        .map { rawList ->
+            rawList.flatMap { GenreUtils.parse(it) }
+                .distinct()
+                .sorted()
+        }
         .toState(viewModelScope, emptyList())
 
-    // Полная карта жанр → Set<bookUrl> — один запрос, живёт в памяти
-    // Используется для фильтрации без дополнительных запросов к БД
-    private val genreToBookUrls = bookGenreDao.getAllLibraryGenreBookUrlsFlow()
-        .map { pairs ->
-            pairs.groupBy({ it.genre }, { it.bookUrl })
-                .mapValues { it.value.toSet() }
+    // Полная карта жанр → Set<bookUrl> — парсим из Book.genres
+    private val genreToBookUrls = appRepository.libraryBooks
+        .getBooksInLibraryWithContextFlow
+        .map { list ->
+            val result = mutableMapOf<String, MutableSet<String>>()
+            list.forEach { book ->
+                val genres = GenreUtils.parse(book.book.genres)
+                genres.forEach { genre ->
+                    result.getOrPut(genre) { mutableSetOf() }.add(book.book.url)
+                }
+            }
+            result
         }
         .toState(viewModelScope, emptyMap())
 
-    // Shared base flow — only ONE Room query (JOIN Book+Chapter) instead of 4
-    private val baseLibraryFlow = appRepository.libraryBooks
+    // Доступные имена плагинов в библиотеке — определяем динамически из списка книг
+    private val availableSourcesState = appRepository.libraryBooks
+        .getBooksInLibraryWithContextFlow
+        .map { list ->
+            list.mapNotNull { book ->
+                if (book.book.url.isLocalUri) "Local"
+                else scraper.getCompatibleSource(book.book.url)?.resolveName(context)
+            }.distinct().sorted()
+        }
+        .toState(viewModelScope, emptyList<String>())
+
+    val availableSources = availableSourcesState
+
+    // Shared pre-category-filter flow — all filters EXCEPT category selection
+    private val preCategoryFilterFlow = appRepository.libraryBooks
         .getBooksInLibraryWithContextFlow
         .combine(preferences.LIBRARY_FILTER_READ.flow()) { list, filterRead ->
             when (filterRead) {
@@ -85,7 +113,10 @@ internal class LibraryPageViewModel @Inject constructor(
                 val q = query.trim()
                 val cache = genreToBookUrls.value
                 list.filter { book ->
+                    val sourceName = if (book.book.url.isLocalUri) "Local"
+                    else scraper.getCompatibleSource(book.book.url)?.resolveName(context) ?: ""
                     book.book.title.contains(q, ignoreCase = true) ||
+                            sourceName.contains(q, ignoreCase = true) ||
                             cache.any { (genre, urls) ->
                                 book.book.url in urls && genre.contains(q, ignoreCase = true)
                             }
@@ -101,7 +132,20 @@ internal class LibraryPageViewModel @Inject constructor(
                     }
                 }
             }
-        }.combine(_selectedCategories) { list, categories ->
+        }.combine(_selectedSources) { list, selectedSources ->
+            if (selectedSources.isEmpty()) list
+            else {
+                list.filter { book ->
+                    val sourceName = if (book.book.url.isLocalUri) "Local"
+                    else scraper.getCompatibleSource(book.book.url)?.resolveName(context) ?: ""
+                    sourceName in selectedSources
+                }
+            }
+        }.shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
+
+    // Base flow with category filter — used for the actual filtered list
+    private val baseLibraryFlow = preCategoryFilterFlow
+        .combine(_selectedCategories) { list, categories ->
             if (categories.isEmpty()) list // All
             else {
                 list.filter { book ->
@@ -138,16 +182,38 @@ internal class LibraryPageViewModel @Inject constructor(
         }
         .toState(viewModelScope, listOf())
 
-    // Count of items in each category for the chips
-    val categoryCounts = baseLibraryFlow
+    // Count of items in each category for the chips (category → count)
+    // Built from preCategoryFilterFlow so counts are unaffected by which category is selected
+    val categoryCounts = preCategoryFilterFlow
         .map { list ->
-            val reading = list.count { it.book.category == "" || it.book.category == null }
-            val completed = list.count { it.book.category == "Completed" }
-            reading to completed
+            list.groupBy { it.book.category ?: "" }
+                .mapValues { it.value.size }
         }
-        .toState(viewModelScope, 0 to 0)
+        .toState(viewModelScope, emptyMap<String, Int>())
 
     init {
+        // Восстанавливаем сохранённое состояние фильтров из SharedPreferences
+        _selectedCategories.value = preferences.LIBRARY_SELECTED_CATEGORIES.value
+        _selectedGenres.value = preferences.LIBRARY_SELECTED_GENRES.value
+        _selectedSources.value = preferences.LIBRARY_SELECTED_SOURCES.value
+
+        // Синхронизируем изменения фильтров с SharedPreferences
+        viewModelScope.launch {
+            _selectedCategories.collect { categories ->
+                preferences.LIBRARY_SELECTED_CATEGORIES.value = categories
+            }
+        }
+        viewModelScope.launch {
+            _selectedGenres.collect { genres ->
+                preferences.LIBRARY_SELECTED_GENRES.value = genres
+            }
+        }
+        viewModelScope.launch {
+            _selectedSources.collect { sources ->
+                preferences.LIBRARY_SELECTED_SOURCES.value = sources
+            }
+        }
+
         // Sync the mutable state with the flow
         viewModelScope.launch {
             _searchQueryFlow.collect { newQuery ->
@@ -181,6 +247,25 @@ internal class LibraryPageViewModel @Inject constructor(
         _selectedGenres.value = emptySet()
     }
 
+    fun toggleSourceFilter(sourceName: String) {
+        _selectedSources.update { current ->
+            if (sourceName in current) current - sourceName else current + sourceName
+        }
+    }
+
+    fun clearSourceFilters() {
+        _selectedSources.value = emptySet()
+    }
+
+    fun resetAllFilters() {
+        _selectedGenres.value = emptySet()
+        _selectedSources.value = emptySet()
+        updateSearchQuery("")
+        // Сбрасываем read filter в Inactive
+        if (preferences.LIBRARY_FILTER_READ.value != TernaryState.Inactive) {
+            preferences.LIBRARY_FILTER_READ.value = TernaryState.Inactive
+        }
+    }
 
     // Observes WorkManager state: true while manual update is running
     val isUpdating by workersInteractions.isManualUpdateRunning()

@@ -28,4 +28,7 @@ data class Book(
     // Последняя известная страница списка глав (для parsePage-плагинов).
     // null → плагин не поддерживает parsePage, используется старый getChapterList.
     val chaptersLastPage: Int? = null,
+    // Жанры книги, разделённые запятой. Нормализованы: без дублей, лишних пробелов, мусора.
+    // Пример: "Fantasy,Action,Romance"
+    val genres: String = "",
 ) : Parcelable

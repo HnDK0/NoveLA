@@ -19,6 +19,7 @@ dependencies {
     implementation(projects.tooling.textTranslator.translatorNop)
     implementation(projects.tooling.backupRestore)
     implementation(projects.tooling.backupCreate)
+    implementation(projects.tooling.applicationWorkers)
 
     implementation(libs.compose.androidx.activity)
     implementation(libs.compose.material3.android)

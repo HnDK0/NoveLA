@@ -194,7 +194,7 @@ fun CatalogExplorerScreen(
                             uiState.sourcesList
                         } else {
                             uiState.sourcesList.filter {
-                                it.catalog.languageTag in uiState.selectedLanguages
+                                it.catalog.isLocalSource || it.catalog.languageTag in uiState.selectedLanguages
                             }
                         }
                     }

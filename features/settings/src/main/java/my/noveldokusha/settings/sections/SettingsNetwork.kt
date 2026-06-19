@@ -36,6 +36,8 @@ internal fun SettingsNetwork(
     @Suppress("UNUSED_PARAMETER") cloudflareChallengeTimeoutSeconds: MutableState<Int>,
     massAddDelayMs: State<Long>,
     onMassAddDelayChange: (Long) -> Unit,
+    downloadDelayMs: State<Long>,
+    onDownloadDelayChange: (Long) -> Unit,
     @Suppress("UNUSED_PARAMETER") onCloudflareBypassChanged: (() -> Unit)? = null
 ) {
     Column {
@@ -237,6 +239,38 @@ internal fun SettingsNetwork(
         */
 
 
+
+        // Download delay setting
+        SlimListItem(
+            headlineContent = {
+                Text(text = stringResource(R.string.download_delay))
+            },
+            supportingContent = {
+                Column {
+                    Text(text = stringResource(R.string.download_delay_description))
+                    Text(
+                        text = "${downloadDelayMs.value / 1000}.${(downloadDelayMs.value % 1000) / 100} s",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            leadingContent = {
+                Icon(Icons.Outlined.Http, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            },
+            modifier = Modifier.clickable {
+                val currentDelay = downloadDelayMs.value
+                val newDelay = when (currentDelay) {
+                    500L -> 1000L
+                    1000L -> 2000L
+                    2000L -> 3000L
+                    3000L -> 5000L
+                    5000L -> 10000L
+                    else -> 500L
+                }
+                onDownloadDelayChange(newDelay)
+            }
+        )
 
         // Add delay setting
         SlimListItem(

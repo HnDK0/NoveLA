@@ -2,10 +2,11 @@ package my.noveldokusha.settings
 
 import android.content.Context
 import android.text.format.Formatter
+import android.util.Log
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.bumptech.glide.Glide
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +24,9 @@ import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppPreferences
-import my.noveldokusha.core.utils.asMutableStateOf
+import my.noveldokusha.tooling.application_workers.AppWorkersInteractions
+import android.net.Uri
+import android.provider.DocumentsContract
 import java.io.File
 import javax.inject.Inject
 
@@ -33,16 +36,17 @@ internal class SettingsViewModel @Inject constructor(
     private val appScope: AppCoroutineScope,
     private val appPreferences: AppPreferences,
     @ApplicationContext private val context: Context,
-    stateHandle: SavedStateHandle,
     private val appFileResolver: AppFileResolver,
     private val appRemoteRepository: AppRemoteRepository,
     private val toasty: Toasty,
+    private val appWorkersInteractions: AppWorkersInteractions,
 ) : BaseViewModel() {
 
     var onRestartApp: (() -> Unit)? = null
 
     var isCleaningDatabase = mutableStateOf(false)
     var isCleaningImages = mutableStateOf(false)
+    var isCleaningChapterCache = mutableStateOf(false)
 
     private val cloudflareBypassEnabled by appPreferences.CLOUDFLARE_BYPASS_ENABLED.state(viewModelScope)
 
@@ -50,8 +54,8 @@ internal class SettingsViewModel @Inject constructor(
     private val darkModePref = appPreferences.THEME_DARK_MODE.state(viewModelScope)
 
     val state = SettingsScreenState(
-        databaseSize = stateHandle.asMutableStateOf("databaseSize") { "" },
-        imageFolderSize = stateHandle.asMutableStateOf("imageFolderSize") { "" },
+        databaseSize = mutableStateOf(""),
+        imageFolderSize = mutableStateOf(""),
         isCleaningDatabase = isCleaningDatabase,
         isCleaningImages = isCleaningImages,
         currentLanguage = appPreferences.APP_LANGUAGE.state(viewModelScope),
@@ -80,6 +84,7 @@ internal class SettingsViewModel @Inject constructor(
             )
         ),
         massAddDelayMs = appPreferences.MASS_ADD_DELAY_MS.state(viewModelScope),
+        downloadDelayMs = appPreferences.DOWNLOAD_DELAY_MS.state(viewModelScope),
         geminiApiKey = appPreferences.TRANSLATION_GEMINI_API_KEY.state(viewModelScope),
         geminiModel = appPreferences.TRANSLATION_GEMINI_MODEL.state(viewModelScope),
         translationProvider = appPreferences.TRANSLATION_PROVIDER.state(viewModelScope),
@@ -95,11 +100,23 @@ internal class SettingsViewModel @Inject constructor(
         promptUseEnglishLocale = appPreferences.TRANSLATION_PROMPT_USE_ENGLISH_LOCALE.state(viewModelScope),
         llmBatchSize           = appPreferences.TRANSLATION_BATCH_SIZE.state(viewModelScope),
         llmMaxOutputTokens     = appPreferences.TRANSLATION_MAX_OUTPUT_TOKENS.state(viewModelScope),
+        autoBackupEnabled = appPreferences.BACKUP_AUTO_ENABLED.state(viewModelScope),
+        autoBackupDirectoryUri = appPreferences.BACKUP_AUTO_DIRECTORY_URI.state(viewModelScope),
+        autoBackupDirectoryDisplayName = mutableStateOf(
+            resolveDirectoryName(appPreferences.BACKUP_AUTO_DIRECTORY_URI.value)
+        ),
+        autoBackupMaxCount = appPreferences.BACKUP_AUTO_MAX_COUNT.state(viewModelScope),
+        autoBackupIntervalMinutes = appPreferences.BACKUP_AUTO_INTERVAL_MINUTES.state(viewModelScope),
+        autoBackupIncludeImages = appPreferences.BACKUP_AUTO_INCLUDE_IMAGES.state(viewModelScope),
+        autoBackupLastTimestamp = appPreferences.BACKUP_AUTO_LAST_TIMESTAMP.state(viewModelScope),
+        chapterCacheSize = mutableStateOf("…"),
+        isCleaningChapterCache = isCleaningChapterCache,
     )
 
     init {
         updateDatabaseSize()
         updateImagesFolderSize()
+        updateChapterCacheSize()
         viewModelScope.launch {
             appRepository.eventDataRestored.collect {
                 updateDatabaseSize()
@@ -310,6 +327,33 @@ internal class SettingsViewModel @Inject constructor(
         updateImagesFolderSizeAndWait()
     }
 
+    private fun updateChapterCacheSize() = viewModelScope.launch {
+        val size = appRepository.settings.getChapterCacheSizeBytes()
+        withContext(Dispatchers.Main) {
+            state.chapterCacheSize.value = Formatter.formatFileSize(appPreferences.context, size)
+        }
+    }
+
+    fun cleanChapterCache() = appScope.launch(Dispatchers.IO) {
+        if (isCleaningChapterCache.value) return@launch
+
+        try {
+            isCleaningChapterCache.value = true
+            toasty.show(R.string.cleaning_chapter_cache)
+
+            appRepository.settings.clearChapterCache()
+            updateChapterCacheSize()
+            kotlinx.coroutines.delay(500)
+
+            toasty.show(R.string.chapter_cache_cleaned)
+        } catch (e: Exception) {
+            toasty.show(R.string.chapter_cache_clean_failed)
+            e.printStackTrace()
+        } finally {
+            isCleaningChapterCache.value = false
+        }
+    }
+
     fun onCheckForUpdatesManual() {
         viewModelScope.launch {
             state.updateAppSetting.checkingForNewVersion.value = true
@@ -328,8 +372,22 @@ internal class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Refresh all size displays (database, images, chapter cache).
+     * Called every time the settings screen becomes visible.
+     */
+    fun refreshSizes() {
+        updateDatabaseSize()
+        updateImagesFolderSize()
+        updateChapterCacheSize()
+    }
+
     fun onMassAddDelayChange(newDelayMs: Long) {
         appPreferences.MASS_ADD_DELAY_MS.value = newDelayMs
+    }
+
+    fun onDownloadDelayChange(newDelayMs: Long) {
+        appPreferences.DOWNLOAD_DELAY_MS.value = newDelayMs
     }
 
     private suspend fun getFolderSizeBytes(file: File): Long = withContext(Dispatchers.IO) {
@@ -342,5 +400,114 @@ internal class SettingsViewModel @Inject constructor(
         val booksSize = dirSize(file)
         val coilCacheSize = dirSize(context.cacheDir.resolve("image_cache"))
         booksSize + coilCacheSize
+    }
+
+    // ── Auto Backup Methods ─────────────────────────────────────────────────
+
+    private fun resolveDirectoryName(uriString: String): String {
+        if (uriString.isEmpty()) return ""
+        return try {
+            val treeUri = Uri.parse(uriString)
+            val docUri = DocumentsContract.buildDocumentUriUsingTree(
+                treeUri,
+                DocumentsContract.getTreeDocumentId(treeUri)
+            )
+            // Try to get display name from the tree
+            val cursor = context.contentResolver.query(
+                docUri, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                null, null, null
+            )
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    it.getString(0) ?: ""
+                } else ""
+            } ?: ""
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    private fun updateDirectoryName(uri: String) {
+        val displayName = resolveDirectoryName(uri)
+        (state.autoBackupDirectoryDisplayName as? MutableState<String>)?.value = displayName
+    }
+
+    fun onAutoBackupEnabledChange(enabled: Boolean) {
+        Log.d("AutoBackup", "onAutoBackupEnabledChange: enabled=$enabled")
+        if (enabled) {
+            val uri = appPreferences.BACKUP_AUTO_DIRECTORY_URI.value
+            Log.d("AutoBackup", "onAutoBackupEnabledChange: directoryUri='$uri'")
+            if (uri.isEmpty()) {
+                toasty.show(R.string.auto_backup_select_directory_first)
+                return
+            }
+            // Check write permission by attempting to create a test file
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val treeUri = Uri.parse(uri)
+                    val docUri = DocumentsContract.buildDocumentUriUsingTree(
+                        treeUri,
+                        DocumentsContract.getTreeDocumentId(treeUri)
+                    )
+                    val testFileName = ".backup_permission_test_${System.currentTimeMillis()}"
+                    val createdUri = DocumentsContract.createDocument(
+                        context.contentResolver,
+                        docUri,
+                        "application/octet-stream",
+                        testFileName
+                    )
+                    if (createdUri != null) {
+                        DocumentsContract.deleteDocument(context.contentResolver, createdUri)
+                        Log.d("AutoBackup", "onAutoBackupEnabledChange: permission OK, enabling")
+                        appPreferences.BACKUP_AUTO_ENABLED.value = true
+                        Log.d("AutoBackup", "onAutoBackupEnabledChange: calling runAutoBackupNow")
+                        appWorkersInteractions.runAutoBackupNow()
+                        withContext(Dispatchers.Main) {
+                            toasty.show(R.string.auto_backup_enabled)
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            toasty.show(R.string.auto_backup_no_permission)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("AutoBackup", "Permission check failed", e)
+                    withContext(Dispatchers.Main) {
+                        toasty.show(R.string.auto_backup_no_permission)
+                    }
+                }
+            }
+        } else {
+            appPreferences.BACKUP_AUTO_ENABLED.value = false
+            appWorkersInteractions.cancelAutoBackup()
+            toasty.show(R.string.auto_backup_disabled)
+        }
+    }
+
+    fun onAutoBackupDirectoryUriChange(uri: String) {
+        appPreferences.BACKUP_AUTO_DIRECTORY_URI.value = uri
+        updateDirectoryName(uri)
+    }
+
+    fun onAutoBackupMaxCountChange(count: Int) {
+        appPreferences.BACKUP_AUTO_MAX_COUNT.value = count.coerceIn(1, 50)
+    }
+
+    fun onAutoBackupIntervalMinutesChange(minutes: Long) {
+        Log.d("AutoBackup", "onAutoBackupIntervalMinutesChange: minutes=$minutes")
+        appPreferences.BACKUP_AUTO_INTERVAL_MINUTES.value = minutes.coerceAtLeast(60L)
+        if (appPreferences.BACKUP_AUTO_ENABLED.value) {
+            Log.d("AutoBackup", "onAutoBackupIntervalMinutesChange: auto backup enabled, scheduling")
+            appWorkersInteractions.scheduleAutoBackup(minutes)
+            viewModelScope.launch {
+                withContext(Dispatchers.Main) {
+                    toasty.show(R.string.auto_backup_interval_updated)
+                }
+            }
+        }
+    }
+
+    fun onAutoBackupIncludeImagesChange(include: Boolean) {
+        appPreferences.BACKUP_AUTO_INCLUDE_IMAGES.value = include
     }
 }

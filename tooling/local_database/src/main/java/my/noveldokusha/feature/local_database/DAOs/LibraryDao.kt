@@ -98,4 +98,34 @@ interface LibraryDao {
     @Query("DELETE FROM Book WHERE url IN (:urls)")
     suspend fun removeBooksByUrls(urls: List<String>)
 
+    // ─── Жанры (хранятся в поле genres через запятую) ────────────────────────
+
+    /** Все уникальные жанры во всей библиотеке — для экрана фильтрации */
+    @Query("""
+        SELECT DISTINCT Book.genres 
+        FROM Book 
+        WHERE Book.inLibrary = 1 AND Book.genres != ''
+    """)
+    fun getAllLibraryGenresRawFlow(): Flow<List<String>>
+
+    /** URL книг в библиотеке с указанным жанром — для фильтрации библиотеки */
+    @Query("""
+        SELECT Book.url 
+        FROM Book 
+        WHERE Book.inLibrary = 1 AND Book.genres LIKE '%' || :genre || '%'
+    """)
+    suspend fun getBooksWithGenre(genre: String): List<String>
+
+    /** Flow-версия для реактивной фильтрации библиотеки */
+    @Query("""
+        SELECT Book.url 
+        FROM Book 
+        WHERE Book.inLibrary = 1 AND Book.genres LIKE '%' || :genre || '%'
+    """)
+    fun getBooksWithGenreFlow(genre: String): Flow<List<String>>
+
+    /** Обновить жанры книги */
+    @Query("UPDATE Book SET genres = :genres WHERE url == :bookUrl")
+    suspend fun updateGenres(bookUrl: String, genres: String)
+
 }

@@ -5,13 +5,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -25,6 +28,7 @@ import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,6 +58,8 @@ internal fun LibraryBottomSheet(
     val uiState by model.uiState.collectAsStateWithLifecycle()
     val availableGenres by pageModel.availableGenres
     val selectedGenres by pageModel.selectedGenres.collectAsState()
+    val availableSources by pageModel.availableSources
+    val selectedSources by pageModel.selectedSources.collectAsState()
     // Читаем текущее значение из общего preference
     val gridColumns = uiState.gridColumns
 
@@ -63,6 +69,33 @@ internal fun LibraryBottomSheet(
                 .padding(top = 8.dp, bottom = 64.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            // ── Хедер с кнопкой сброса ──────────────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(id = R.string.filter),
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                TextButton(onClick = { pageModel.resetAllFilters() }) {
+                    Icon(
+                        Icons.Filled.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 4.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = stringResource(id = R.string.reset_filters),
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
 
             // ── Размер сетки ──────────────────────────────────────────────────
             Text(
@@ -235,6 +268,59 @@ internal fun LibraryBottomSheet(
                             border = FilterChipDefaults.filterChipBorder(
                                 enabled = true,
                                 selected = genre in selectedGenres,
+                                selectedBorderColor = MaterialTheme.colorScheme.primary,
+                            )
+                        )
+                    }
+                }
+            }
+
+            // ── Плагины (источники) — только если их >1 ─────────────────────
+            if (availableSources.size > 1) {
+                HorizontalDivider(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .alpha(0.4f)
+                )
+                Text(
+                    text = stringResource(id = R.string.sources),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                ) {
+                    FilterChip(
+                        selected = selectedSources.isEmpty(),
+                        onClick = { pageModel.clearSourceFilters() },
+                        label = { Text(stringResource(R.string.all_sources)) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            selectedLabelColor = MaterialTheme.colorScheme.primary,
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selectedSources.isEmpty(),
+                            selectedBorderColor = MaterialTheme.colorScheme.primary,
+                        )
+                    )
+                    availableSources.forEach { sourceName ->
+                        FilterChip(
+                            selected = sourceName in selectedSources,
+                            onClick = { pageModel.toggleSourceFilter(sourceName) },
+                            label = { Text(sourceName, style = MaterialTheme.typography.labelMedium) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                selectedLabelColor = MaterialTheme.colorScheme.primary,
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = sourceName in selectedSources,
                                 selectedBorderColor = MaterialTheme.colorScheme.primary,
                             )
                         )

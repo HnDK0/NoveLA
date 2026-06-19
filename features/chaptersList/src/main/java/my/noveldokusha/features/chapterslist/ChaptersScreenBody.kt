@@ -49,6 +49,7 @@ internal fun ChaptersScreenBody(
     onCoverLongClick: () -> Unit,
     onGlobalSearchClick: (input: String) -> Unit,
     scraper: Scraper,
+    modifier: Modifier = Modifier,
 ) {
     var isRefreshingDelayed by remember { mutableStateOf(state.isRefreshing.value) }
     LaunchedEffect(Unit) {
@@ -114,6 +115,7 @@ internal fun ChaptersScreenBody(
     }
 
     PullToRefreshBox(
+        modifier = modifier,
         isRefreshing = isRefreshingDelayed,
         onRefresh = onPullRefresh,
         state = pullToRefreshState,

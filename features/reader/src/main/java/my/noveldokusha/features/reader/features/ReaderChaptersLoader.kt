@@ -492,6 +492,25 @@ internal class ReaderChaptersLoader(
         val titleOriginal = chapter.title
         var titleTranslated: String = titleOriginal
 
+        // Проверяем перевод заголовка в БД до загрузки тела главы
+        if (translatorIsActive()) {
+            val sourceLang = translatorSourceLanguageOrNull()
+            val targetLang = translatorTargetLanguageOrNull()
+            if (sourceLang != null && targetLang != null) {
+                val titleTranslation = withContext(Dispatchers.IO) {
+                    chapterTranslationDao.getTranslations(
+                        chapterUrl = chapter.url,
+                        sourceLang = sourceLang,
+                        targetLang = targetLang
+                    ).firstOrNull { it.paragraphIndex == -1 }
+                }
+                if (titleTranslation != null) {
+                    titleTranslated = titleTranslation.translatedText
+                    android.util.Log.d(TAG, "Title translation found in DB: '$titleOriginal' -> '$titleTranslated'")
+                }
+            }
+        }
+
         val itemTitle = ReaderItem.Title(
             chapterUrl = chapter.url,
             chapterIndex = chapterIndex,
@@ -598,8 +617,6 @@ internal class ReaderChaptersLoader(
 
                                     if (missingFromDb.isEmpty()) {
                                         android.util.Log.d(TAG, "Using full DB cache for chapter ${chapter.title} (${dbTranslations.size} body translations)")
-                                        // Заголовок тоже проверяем в кэше
-                                        titleTranslated = dbTranslations[titleOriginal] ?: titleOriginal
                                         itemsOriginal.map {
                                             if (it is ReaderItem.Body) it.copy(textTranslated = dbTranslations[it.text] ?: it.text)
                                             else it
@@ -625,8 +642,6 @@ internal class ReaderChaptersLoader(
                                             chapterTranslationDao.insertReplace(entities)
                                         }
                                         val fullTranslations = dbTranslations + extraTranslations
-                                        // Заголовок тоже проверяем в полном кэше
-                                        titleTranslated = fullTranslations[titleOriginal] ?: titleOriginal
                                         itemsOriginal.map {
                                             if (it is ReaderItem.Body) it.copy(textTranslated = fullTranslations[it.text] ?: it.text)
                                             else it
@@ -641,12 +656,17 @@ internal class ReaderChaptersLoader(
 
                                 // Заголовок переводим через Google PA → Free (без токенов Gemini/OpenAI).
                                 // Если в кэше БД уже был — используем его, иначе запрашиваем.
+                                // Если запрос не удался (нет интернета) — просто оставляем оригинал.
                                 if (titleTranslated == titleOriginal) {
-                                    val translated = withContext(Dispatchers.IO) {
-                                        translatorTranslateTitleOrNull(titleOriginal, sourceLang, targetLang)
-                                    }
-                                    if (translated != null) {
-                                        titleTranslated = translated
+                                    try {
+                                        val translated = withContext(Dispatchers.IO) {
+                                            translatorTranslateTitleOrNull(titleOriginal, sourceLang, targetLang)
+                                        }
+                                        if (translated != null) {
+                                            titleTranslated = translated
+                                        }
+                                    } catch (e: Exception) {
+                                        android.util.Log.w(TAG, "Title translation failed (offline?): ${e.message}")
                                     }
                                 }
 

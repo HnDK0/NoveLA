@@ -101,9 +101,7 @@ internal class CloudFareVerificationInterceptor(
         "cf-challenge",
         "turnstile",
         "requireTurnstile",
-        "Security Check Required",
         "__cf_chl_",
-        "Ray ID",
         "but-captcha"
     )
 

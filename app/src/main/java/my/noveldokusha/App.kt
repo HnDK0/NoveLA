@@ -29,7 +29,6 @@ class App : Application(), ImageLoaderFactory, Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
 
-        // Apply saved language preference or system default on first launch
         val appPreferences = EntryPoints.get(this, HiltAppEntryPoint::class.java).appPreferences()
         var language = appPreferences.APP_LANGUAGE.value
 
@@ -72,7 +71,7 @@ class App : Application(), ImageLoaderFactory, Configuration.Provider {
         }
     }
 
-    // WorkManager
+    // WorkManager — custom factory for @HiltWorker workers (LibraryUpdates, UpdatesChecker)
     override val workManagerConfiguration: Configuration by lazy {
         val appWorkerFactory = EntryPoints
             .get(this, HiltAppEntryPoint::class.java)

@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.noveldokusha.android.library)
     alias(libs.plugins.noveldokusha.android.compose)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -19,7 +21,11 @@ dependencies {
 
     implementation(libs.timber)
     implementation(libs.androidx.documentfile)
+    implementation(libs.androidx.preference.ktx)
     implementation(libs.compose.androidx.activity)
     implementation(libs.compose.material3.android)
     implementation(libs.compose.androidx.material.icons.extended)
+
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
 }
