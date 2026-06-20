@@ -1,5 +1,6 @@
 package my.noveldokusha.network.interceptors
 
+import android.content.Context
 import my.noveldokusha.core.appPreferences.AppPreferences
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -12,8 +13,18 @@ const val GLOBAL_USER_AGENT = "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro Build
 
 /**
  * Возвращает эффективный User-Agent: кастомный из настроек, если задан и валиден,
- * иначе — [GLOBAL_USER_AGENT] по умолчанию.
+ * иначе — системный по умолчанию или [GLOBAL_USER_AGENT] как резерв.
  */
+fun resolveUserAgent(context: Context, appPreferences: AppPreferences): String {
+    val custom = appPreferences.SCRAPER_USER_AGENT.value
+    if (custom.isNotBlank() && custom.isAscii()) return custom
+    return try {
+        android.webkit.WebSettings.getDefaultUserAgent(context)
+    } catch (e: Exception) {
+        GLOBAL_USER_AGENT
+    }
+}
+
 fun resolveUserAgent(appPreferences: AppPreferences): String {
     val custom = appPreferences.SCRAPER_USER_AGENT.value
     return if (custom.isNotBlank() && custom.isAscii()) custom else GLOBAL_USER_AGENT
@@ -21,10 +32,21 @@ fun resolveUserAgent(appPreferences: AppPreferences): String {
 
 private fun String.isAscii(): Boolean = all { it.code in 0..127 }
 
-class UserAgentInterceptor(private val customUserAgent: String? = null) : Interceptor {
+class UserAgentInterceptor(
+    private val context: Context,
+    private val customUserAgent: String? = null
+) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val userAgent = if (!customUserAgent.isNullOrBlank() && customUserAgent.isAscii()) customUserAgent else GLOBAL_USER_AGENT
+        val userAgent = if (!customUserAgent.isNullOrBlank() && customUserAgent.isAscii()) {
+            customUserAgent
+        } else {
+            try {
+                android.webkit.WebSettings.getDefaultUserAgent(context)
+            } catch (e: Exception) {
+                GLOBAL_USER_AGENT
+            }
+        }
         return chain.proceed(
             chain.request().newBuilder()
                 .header("User-Agent", userAgent)

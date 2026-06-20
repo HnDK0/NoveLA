@@ -41,6 +41,11 @@ class App : Application(), ImageLoaderFactory, Configuration.Provider {
 
         LocaleManager.applyLocale(this, language)
 
+        android.webkit.CookieManager.getInstance().apply {
+            setAcceptCookie(true)
+            flush()
+        }
+
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }

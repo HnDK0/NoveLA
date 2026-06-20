@@ -17,6 +17,7 @@ import kotlinx.coroutines.selects.select
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.domain.CloudfareVerificationBypassFailedException
 import my.noveldokusha.core.domain.WebViewCookieManagerInitializationFailedException
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.RequestBody
 import okhttp3.Response
@@ -140,7 +141,7 @@ internal class CloudFareVerificationInterceptor(
             val host = bufferedRequest.url.host
             val cookieManager = CookieManager.getInstance()
                 ?: throw WebViewCookieManagerInitializationFailedException()
-            val userAgent = resolveUserAgent(appPreferences)
+            val userAgent = resolveUserAgent(appContext, appPreferences)
 
             val existingCookie = cookieManager.getCookie(siteUrl) ?: ""
             if (resolvedDomains.contains(host) || existingCookie.contains("cf_clearance")) {
@@ -272,7 +273,21 @@ internal class CloudFareVerificationInterceptor(
     }
 
     private fun clearCookiesForDomain(url: String, cm: CookieManager) {
-        cm.setCookie(url, "cf_clearance=; Max-Age=0")
+        val httpUrl = url.toHttpUrlOrNull() ?: return
+        val host = httpUrl.host
+
+        // Clear for exact host
+        cm.setCookie(url, "cf_clearance=; Max-Age=0; Path=/")
+
+        // Clear for domain and parent domains
+        val parts = host.split('.')
+        for (i in 0 until parts.size - 1) {
+            val domain = parts.subList(i, parts.size).joinToString(".")
+            if (domain.contains('.')) {
+                cm.setCookie("${httpUrl.scheme}://$domain", "cf_clearance=; Max-Age=0; Domain=.$domain; Path=/")
+                cm.setCookie("${httpUrl.scheme}://$domain", "cf_clearance=; Max-Age=0; Domain=$domain; Path=/")
+            }
+        }
         cm.flush()
     }
 
@@ -286,7 +301,7 @@ internal class CloudFareVerificationInterceptor(
             webView.settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
-                userAgentString = resolveUserAgent(appPreferences)
+                userAgentString = resolveUserAgent(appContext, appPreferences)
                 cacheMode = WebSettings.LOAD_NO_CACHE
             }
             webView.webViewClient = object : WebViewClient() {

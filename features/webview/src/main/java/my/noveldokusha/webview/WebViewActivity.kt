@@ -41,7 +41,7 @@ class WebViewActivity : ComponentActivity() {
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
-                userAgentString = resolveUserAgent(appPreferences)
+                userAgentString = resolveUserAgent(this@WebViewActivity, appPreferences)
                 mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             }
         }

@@ -434,4 +434,7 @@
     <string name="download_error">Ошибка загрузки</string>
     <string name="download_delay">Задержка между загрузками (мс)</string>
     <string name="download_delay_description">Задержка между загрузкой глав для избежания блокировки</string>
+
+    <string name="settings_title_translation_models">Модели живого перевода</string>
+    <string name="settings_translations_models_main_description">Загрузите необходимые языковые модели для перевода новелл в реальном времени</string>
 </resources>

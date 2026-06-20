@@ -494,4 +494,7 @@
     <string name="download_error">Download error</string>
     <string name="download_delay">Download delay (ms)</string>
     <string name="download_delay_description">Delay between downloading chapters to avoid rate limiting</string>
+
+    <string name="settings_title_translation_models">Live translation models</string>
+    <string name="settings_translations_models_main_description">Download the desired language models to translate novels in real time</string>
 </resources>

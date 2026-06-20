@@ -46,7 +46,7 @@ class ScraperNetworkClient @Inject constructor(
     val client: OkHttpClient = OkHttpClient.Builder()
         .apply {
             if (appInternalState.isDebugMode) addInterceptor(okhttpLoggingInterceptor)
-            addInterceptor(UserAgentInterceptor(appPreferences.SCRAPER_USER_AGENT.value))
+            addInterceptor(UserAgentInterceptor(appContext, appPreferences.SCRAPER_USER_AGENT.value))
             addInterceptor(DecodeResponseInterceptor())
             if (appPreferences.CLOUDFLARE_BYPASS_ENABLED.value) {
                 addInterceptor(CloudFareVerificationInterceptor(appContext, appPreferences))
