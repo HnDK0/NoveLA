@@ -1,6 +1,6 @@
 [versions]
 
-kotlin = "2.0.21"
+kotlin = "2.4.0"
 
 plugin-agp = "8.7.3"
 plugin-autonomousapps = "1.33.0"
