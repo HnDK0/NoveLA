@@ -17,6 +17,7 @@ import kotlinx.coroutines.selects.select
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.domain.CloudfareVerificationBypassFailedException
 import my.noveldokusha.core.domain.WebViewCookieManagerInitializationFailedException
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.RequestBody
 import okhttp3.Response
@@ -272,7 +273,19 @@ internal class CloudFareVerificationInterceptor(
     }
 
     private fun clearCookiesForDomain(url: String, cm: CookieManager) {
-        cm.setCookie(url, "cf_clearance=; Max-Age=0")
+        val httpUrl = url.toHttpUrlOrNull() ?: return
+        val host = httpUrl.host
+
+        cm.setCookie(url, "cf_clearance=; Max-Age=0; Path=/")
+
+        val parts = host.split('.')
+        for (i in 0 until parts.size - 1) {
+            val domain = parts.subList(i, parts.size).joinToString(".")
+            if (domain.contains('.')) {
+                cm.setCookie("${httpUrl.scheme}://$domain", "cf_clearance=; Max-Age=0; Domain=.$domain; Path=/")
+                cm.setCookie("${httpUrl.scheme}://$domain", "cf_clearance=; Max-Age=0; Domain=$domain; Path=/")
+            }
+        }
         cm.flush()
     }
 
