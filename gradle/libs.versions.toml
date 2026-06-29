@@ -60,7 +60,7 @@ crux = "5.1.0"
 gson = "2.14.0"
 jsoup = "1.18.1"
 translate = "17.0.3"
-moshi = "1.15.1"
+moshi = "1.15.2"
 room = "2.6.1"
 junit = "4.13.2"
 
