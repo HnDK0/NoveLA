@@ -69,7 +69,7 @@ luajvm = "3.0.1"
 snakeyaml = "2.3"
 
 okhttp = "5.0.0-alpha.14"
-okhttp-interceptor-logging = "5.0.0-alpha.14"
+okhttp-interceptor-logging = "5.4.0"
 okhttp-glideIntegration = "4.16.0"
 
 glide = "4.16.0"
