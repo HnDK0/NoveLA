@@ -29,7 +29,7 @@ object FossModule {
         networkClient: ScraperNetworkClient
     ): TranslationManager {
         val geminiManager    = TranslationManagerGemini(appCoroutineScope, appPreferences)
-        val googleFreeManager= TranslationManagerGoogleFree(appCoroutineScope, appPreferences)
+        val googleFreeManager= TranslationManagerGoogleFree(appCoroutineScope, appPreferences, networkClient)
         val googlePAManager  = TranslationManagerGooglePA(appCoroutineScope, appPreferences, networkClient)
         val openAiManager    = TranslationManagerOpenAI(appCoroutineScope, appPreferences)
 

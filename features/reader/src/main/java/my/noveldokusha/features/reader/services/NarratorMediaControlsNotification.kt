@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.media.AudioManager
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -21,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -66,19 +68,50 @@ internal class NarratorMediaControlsNotification @Inject constructor(
             context,
             PlaybackStateCompat.ACTION_PLAY_PAUSE
         )
-        val mediaSession = MediaSessionCompat(
+        val session = MediaSessionCompat(
             context,
             mediaTagDebug,
             ComponentName(context, MediaButtonReceiver::class.java),
             mbrIntent
-        ).also {
+        ).apply {
             // https://stackoverflow.com/questions/59443133/disable-or-hide-seekbar-in-mediastyle-notifications
             val mediaMetadata = MediaMetadataCompat.Builder().putLong(MediaMetadataCompat.METADATA_KEY_DURATION, -1L).build()
-            it.setMetadata(mediaMetadata)
+            setMetadata(mediaMetadata)
 
-            it.setCallback(NarratorMediaControlsCallback(readerSession.readerTextToSpeech))
-            mediaSession = it
+            setCallback(NarratorMediaControlsCallback(readerSession.readerTextToSpeech))
+            setFlags(
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+            )
+            isActive = true
+            setPlaybackToLocal(AudioManager.STREAM_MUSIC)
+
+            val initialIsPlaying = readerSession.readerTextToSpeech.state.isPlaying.value
+            val playbackState = if (initialIsPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
+            val stateBuilder = PlaybackStateCompat.Builder()
+                .setActions(
+                    PlaybackStateCompat.ACTION_PLAY or
+                    PlaybackStateCompat.ACTION_PAUSE or
+                    PlaybackStateCompat.ACTION_STOP or
+                    PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                    PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                    PlaybackStateCompat.ACTION_REWIND or
+                    PlaybackStateCompat.ACTION_FAST_FORWARD
+                )
+                .setState(playbackState, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, if (initialIsPlaying) 1.0f else 0.0f)
+            setPlaybackState(stateBuilder.build())
         }
+        this.mediaSession = session
+
+        val mbrPendingIntent = PendingIntent.getBroadcast(
+            context,
+            1001,
+            Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                component = ComponentName(context, MediaButtonReceiver::class.java)
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        session.setMediaButtonReceiver(mbrPendingIntent)
 
         val cancelButton = MediaButtonReceiver.buildMediaButtonPendingIntent(
             context,
@@ -89,7 +122,7 @@ internal class NarratorMediaControlsNotification @Inject constructor(
             .setShowCancelButton(true)
             .setShowActionsInCompactView(0, 2, 4)
             .setCancelButtonIntent(cancelButton)
-            .setMediaSession(mediaSession.sessionToken)
+            .setMediaSession(session.sessionToken)
 
         val readerIntent = ReaderActivity.IntentData(
             ctx = context,
@@ -193,7 +226,7 @@ internal class NarratorMediaControlsNotification @Inject constructor(
             setOngoing(true)
             setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             priority = NotificationCompat.PRIORITY_HIGH
-            setLargeIcon(BitmapFactory.decodeResource(context.resources, R.mipmap.ic_logo))
+            setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.ic_logo))
             setStyle(mediaStyle)
             setDeleteIntent(cancelButton)
             color = Color.CYAN
@@ -210,6 +243,19 @@ internal class NarratorMediaControlsNotification @Inject constructor(
                     ) {
                         defineActions(isPlaying = isPlaying)
                     }
+                    val playbackState = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
+                    val stateBuilder = PlaybackStateCompat.Builder()
+                        .setActions(
+                            PlaybackStateCompat.ACTION_PLAY or
+                            PlaybackStateCompat.ACTION_PAUSE or
+                            PlaybackStateCompat.ACTION_STOP or
+                            PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                            PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                            PlaybackStateCompat.ACTION_REWIND or
+                            PlaybackStateCompat.ACTION_FAST_FORWARD
+                        )
+                        .setState(playbackState, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, if (isPlaying) 1.0f else 0.0f)
+                    this@NarratorMediaControlsNotification.mediaSession?.setPlaybackState(stateBuilder.build())
                 }
         }
 
@@ -247,25 +293,32 @@ internal class NarratorMediaControlsNotification @Inject constructor(
         }
 
 
-        // Update chapter progress
+        // Update chapter progress and remaining time
         scope.launch {
-            snapshotFlow { readerSession.speakerStats.value }
-                .filterNotNull()
-                .collectLatest {
+            combine(
+                snapshotFlow { readerSession.speakerStats.value },
+                snapshotFlow { readerSession.readerTextToSpeech.state.estimatedRemainingSeconds.value },
+            ) { stats, remainingSecs -> stats to remainingSecs }
+                .collectLatest { pair ->
+                    val stats = pair.first ?: return@collectLatest
+                    val remainingSecs = pair.second
                     val chapterPos = context.getString(
                         R.string.chapter_x_over_n,
-                        it.chapterIndex + 1,
-                        it.chapterCount
+                        stats.chapterIndex + 1,
+                        stats.chapterCount
                     )
                     val progress = context.getString(
                         R.string.progress_x_percentage,
-                        it.chapterReadPercentage()
+                        stats.chapterReadPercentage()
                     )
+                    val remainingStr = if (remainingSecs > 0) {
+                        "  |  ${formatDuration(remainingSecs, context.getString(R.string.tts_hours_abbr), context.getString(R.string.tts_minutes_abbr), context.getString(R.string.tts_seconds_abbr))} ${context.getString(R.string.tts_remaining)}"
+                    } else ""
                     notificationsCenter.modifyNotification(
                         builder = notificationBuilder,
                         notificationId = notificationId,
                     ) {
-                        text = "$chapterPos  $progress"
+                        text = "$chapterPos  $progress$remainingStr"
                     }
                 }
         }
@@ -294,4 +347,16 @@ internal class NarratorMediaControlsNotification @Inject constructor(
             setSmallIcon(R.drawable.ic_media_control_play)
         }.build()
     }
+}
+
+private fun formatDuration(seconds: Int, hoursLabel: String, minutesLabel: String, secondsLabel: String): String {
+    if (seconds <= 0) return "0$secondsLabel"
+    val h = seconds / 3600
+    val m = (seconds % 3600) / 60
+    val s = seconds % 60
+    return buildString {
+        if (h > 0) append("$h$hoursLabel ")
+        if (m > 0 || h > 0) append("$m$minutesLabel ")
+        if (s > 0 || (h == 0 && m == 0)) append("$s$secondsLabel")
+    }.trim()
 }

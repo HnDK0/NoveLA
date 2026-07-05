@@ -37,6 +37,12 @@ interface ChapterBodyDao {
     """)
     suspend fun removeChapterBodiesByBookUrls(bookUrls: List<String>)
 
+    @Query("SELECT COUNT(*) FROM ChapterBody")
+    suspend fun count(): Int
+
+    @Query("SELECT * FROM ChapterBody LIMIT :limit OFFSET :offset")
+    suspend fun getChunk(limit: Int, offset: Int): List<ChapterBody>
+
     @Query("SELECT COALESCE(SUM(LENGTH(body)), 0) FROM ChapterBody")
     suspend fun getCacheSizeBytes(): Long
 

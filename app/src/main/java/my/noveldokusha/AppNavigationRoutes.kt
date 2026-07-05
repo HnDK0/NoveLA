@@ -12,6 +12,7 @@ import my.noveldokusha.globalsourcesearch.GlobalSourceSearchActivity
 import my.noveldokusha.navigation.NavigationRoutes
 import my.noveldokusha.sourceexplorer.SourceCatalogActivity
 import my.noveldokusha.feature.local_database.BookMetadata
+import my.noveldokusha.tooling.novel_migration.MigrationActivity
 import my.noveldokusha.webview.WebViewActivity
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -79,14 +80,26 @@ class AppNavigationRoutes @Inject constructor() : NavigationRoutes {
     }
 
     override fun webView(context: Context, url: String): Intent {
-        // Создаем обычный Intent и кладем в него URL
         return Intent(context, WebViewActivity::class.java).apply {
             putExtra("url", url)
         }
     }
 
+    override fun novelMigration(context: Context, bookUrl: String, bookTitle: String): Intent {
+        return MigrationActivity.IntentData(context, bookUrl = bookUrl, bookTitle = bookTitle)
+    }
 
+    override fun massMigration(context: Context, sourceBaseUrl: String): Intent {
+        return Intent(context, MigrationActivity::class.java).apply {
+            putExtra("massMigrationSourceUrl", sourceBaseUrl)
+        }
+    }
 
+    override fun migrationHistory(context: Context): Intent {
+        return Intent(context, MigrationActivity::class.java).apply {
+            putExtra("showHistory", true)
+        }
+    }
 }
 
 //@Singleton

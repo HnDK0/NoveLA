@@ -30,6 +30,7 @@ internal data class ReaderScreenState(
         val isTextSelectable: State<Boolean>,
         val keepScreenOn: State<Boolean>,
         val fullScreen: State<Boolean>,
+        val isSingleTapToOpenSettings: State<Boolean>,
         val textToSpeech: TextToSpeechSettingData,
         val liveTranslation: LiveTranslationSettingData,
         val style: StyleSettingsData,

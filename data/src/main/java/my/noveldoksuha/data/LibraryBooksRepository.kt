@@ -83,6 +83,8 @@ class LibraryBooksRepository @Inject constructor(
         libraryDao.updateChaptersLastPage(bookUrl, page)
 
     suspend fun getAll() = libraryDao.getAll()
+    suspend fun count() = libraryDao.count()
+    suspend fun getChunk(limit: Int, offset: Int) = libraryDao.getChunk(limit, offset)
     suspend fun getAllInLibrary() = libraryDao.getAllInLibrary()
     suspend fun existInLibrary(url: String) = libraryDao.existInLibrary(url)
 

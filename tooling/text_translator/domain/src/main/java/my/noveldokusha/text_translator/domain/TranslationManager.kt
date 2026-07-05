@@ -35,8 +35,9 @@ interface TranslationManager {
      * Doesn't check if the model has been downloaded. Must be externally guaranteed.
      * @param source language locale
      * @param target language locale
+     * @param systemPromptOverride optional per-novel prompt override (Gemini/OpenAI only)
      */
-    fun getTranslator(source: String, target: String): TranslatorState
+    fun getTranslator(source: String, target: String, systemPromptOverride: String? = null): TranslatorState
 
     fun downloadModel(language: String)
 
@@ -45,7 +46,8 @@ interface TranslationManager {
     suspend fun translateBatch(
         texts: List<String>,
         sourceLanguage: String,
-        targetLanguage: String
+        targetLanguage: String,
+        systemPromptOverride: String? = null,
     ): Map<String, String>
 
     /**

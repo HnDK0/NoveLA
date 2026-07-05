@@ -22,7 +22,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import my.noveldokusha.core.LanguageCode
 import my.noveldokusha.core.SharedPreference_Boolean
-import my.noveldokusha.core.appPreferences.AppLanguage
 import my.noveldokusha.core.SharedPreference_Enum
 import my.noveldokusha.core.SharedPreference_Float
 import my.noveldokusha.core.SharedPreference_Int
@@ -30,8 +29,16 @@ import my.noveldokusha.core.SharedPreference_Serializable
 import my.noveldokusha.core.SharedPreference_String
 import my.noveldokusha.core.SharedPreference_StringSet
 import my.noveldokusha.core.models.RegexRule
+import kotlinx.serialization.Serializable
 import javax.inject.Inject
 import javax.inject.Singleton
+
+@Serializable
+data class NovelPromptData(
+    val title: String = "",
+    val prompt: String = "",
+    val appendMode: Boolean = false,
+)
 
 @Singleton
 class AppPreferences @Inject constructor(
@@ -41,9 +48,36 @@ class AppPreferences @Inject constructor(
     private val preferencesChangeListeners =
         mutableSetOf<SharedPreferences.OnSharedPreferenceChangeListener>()
 
-    val APP_LANGUAGE = object : Preference<AppLanguage>("APP_LANGUAGE") {
-        override var value by SharedPreference_Enum(name, preferences, AppLanguage.DEFAULT) {
-            enumValueOf(it)
+    val APP_LANGUAGE_CODE = object : Preference<String>("APP_LANGUAGE_CODE") {
+        override var value by SharedPreference_String(name, preferences, "en")
+    }
+
+    val IS_FIRST_LAUNCH_DONE = object : Preference<Boolean>("IS_FIRST_LAUNCH_DONE") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    val IS_FOLLOW_SYSTEM_LANGUAGE = object : Preference<Boolean>("IS_FOLLOW_SYSTEM_LANGUAGE") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    init {
+        migrateAppLanguage()
+    }
+
+    private fun migrateAppLanguage() {
+        if (preferences.contains("APP_LANGUAGE") && !preferences.contains("APP_LANGUAGE_CODE")) {
+            val oldValue = preferences.getString("APP_LANGUAGE", null)
+            if (oldValue != null) {
+                val code = when (oldValue) {
+                    "ENGLISH" -> "en"
+                    "RUSSIAN" -> "ru"
+                    else -> null
+                }
+                if (code != null) {
+                    APP_LANGUAGE_CODE.value = code
+                }
+            }
+            IS_FIRST_LAUNCH_DONE.value = true
         }
     }
 
@@ -106,6 +140,10 @@ class AppPreferences @Inject constructor(
 
     val READER_FULL_SCREEN = object : Preference<Boolean>("READER_FULL_SCREEN") {
         override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+
+    val READER_SINGLE_TAP_TO_OPEN_SETTINGS = object : Preference<Boolean>("READER_SINGLE_TAP_TO_OPEN_SETTINGS") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
     }
 
     val CHAPTERS_SORT_ASCENDING = object : Preference<TernaryState>("CHAPTERS_SORT_ASCENDING") {
@@ -326,6 +364,48 @@ class AppPreferences @Inject constructor(
             override var value by SharedPreference_Boolean(name, preferences, true)
         }
 
+    // Персональные промпты для новелл: Map<bookUrl, NovelPromptData>.
+    // Сериализуется как JSON-объект { "bookUrl1": {"title":"...","prompt":"..."}, ... }.
+    // Обратная совместимость: старый формат { "bookUrl1": "prompt1" } тоже читается.
+    val TRANSLATION_NOVEL_PROMPTS =
+        object : Preference<Map<String, NovelPromptData>>("TRANSLATION_NOVEL_PROMPTS") {
+            override var value by SharedPreference_Serializable<Map<String, NovelPromptData>>(
+                name = name,
+                sharedPreferences = preferences,
+                defaultValue = emptyMap(),
+                encode = { map ->
+                    val obj = org.json.JSONObject()
+                    map.forEach { (url, data) ->
+                        obj.put(url, org.json.JSONObject().apply {
+                            put("title", data.title)
+                            put("prompt", data.prompt)
+                            put("appendMode", data.appendMode)
+                        })
+                    }
+                    obj.toString()
+                },
+                decode = { raw ->
+                    try {
+                        val obj = org.json.JSONObject(raw)
+                        val result = mutableMapOf<String, NovelPromptData>()
+                        for (key in obj.keys()) {
+                            val value = obj.get(key)
+                            result[key] = when (value) {
+                                is String -> NovelPromptData(prompt = value)
+                                is org.json.JSONObject -> NovelPromptData(
+                                    title = value.optString("title", ""),
+                                    prompt = value.optString("prompt", ""),
+                                    appendMode = value.optBoolean("appendMode", false),
+                                )
+                                else -> NovelPromptData(prompt = value.toString())
+                            }
+                        }
+                        result
+                    } catch (_: Exception) { emptyMap() }
+                }
+            )
+        }
+
     // Количество параграфов в одном LLM-запросе (только Gemini и OpenAI).
     // Google PA и Free используют символьный лимит и не читают это значение.
     val TRANSLATION_BATCH_SIZE =
@@ -456,6 +536,16 @@ class AppPreferences @Inject constructor(
     // Включать ли изображения в автобекап
     val BACKUP_AUTO_INCLUDE_IMAGES = object : Preference<Boolean>("BACKUP_AUTO_INCLUDE_IMAGES") {
         override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    // Включать ли настройки в автобекап
+    val BACKUP_AUTO_INCLUDE_SETTINGS = object : Preference<Boolean>("BACKUP_AUTO_INCLUDE_SETTINGS") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+
+    // Включать ли плагины в автобекап
+    val BACKUP_AUTO_INCLUDE_PLUGINS = object : Preference<Boolean>("BACKUP_AUTO_INCLUDE_PLUGINS") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
     }
 
     // Unix timestamp (мс) последнего успешного автобекапа

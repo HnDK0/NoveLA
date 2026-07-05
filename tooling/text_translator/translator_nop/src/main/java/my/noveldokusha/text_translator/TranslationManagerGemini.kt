@@ -87,27 +87,38 @@ class TranslationManagerGemini(
         return models.firstOrNull { it.language == language }
     }
 
-    override fun getTranslator(source: String, target: String): TranslatorState {
-        Log.d(TAG, "getTranslator: source=$source, target=$target, apiKeysConfigured=${apiKeys.size}")
+    override fun getTranslator(source: String, target: String, systemPromptOverride: String?): TranslatorState {
+        Log.d(TAG, "getTranslator: source=$source, target=$target, apiKeysConfigured=${apiKeys.size}, override=${systemPromptOverride != null}")
         return TranslatorState(
             source = source,
             target = target,
-            translate = { input -> translateWithGemini(input, source, target) }
+            translate = { input -> translateWithGemini(input, source, target, systemPromptOverride = systemPromptOverride) }
         )
+    }
+
+    private fun resolveTemplatePrompt(systemPromptOverride: String?): String {
+        if (systemPromptOverride != null && systemPromptOverride.isNotBlank()) {
+            Log.d(TAG, "resolveTemplatePrompt: using override '${systemPromptOverride.take(200)}'")
+            return systemPromptOverride
+        }
+        val fallback = appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value
+            .ifBlank { DEFAULT_TRANSLATION_PROMPT }
+        Log.d(TAG, "resolveTemplatePrompt: no override, using fallback '${fallback.take(200)}'")
+        return fallback
     }
 
     private suspend fun translateWithGemini(
         text: String,
         sourceLanguage: String,
         targetLanguage: String,
-        retryCount: Int = 3
+        retryCount: Int = 3,
+        systemPromptOverride: String? = null,
     ): String = withContext(Dispatchers.IO) {
         val keys = apiKeys
         if (keys.isEmpty()) throw IllegalStateException("Gemini: No API keys configured.")
 
         val useEnglish = appPreferences.TRANSLATION_PROMPT_USE_ENGLISH_LOCALE.value
-        val templatePrompt = appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value
-            .ifBlank { DEFAULT_TRANSLATION_PROMPT }
+        val templatePrompt = resolveTemplatePrompt(systemPromptOverride)
         val systemPrompt = buildSystemPrompt(templatePrompt, sourceLanguage, targetLanguage, useEnglish)
         val builtFallbackPrompt = buildSystemPrompt(fallbackSystemPrompt, sourceLanguage, targetLanguage, useEnglish)
 
@@ -189,7 +200,8 @@ class TranslationManagerGemini(
     override suspend fun translateBatch(
         texts: List<String>,
         sourceLanguage: String,
-        targetLanguage: String
+        targetLanguage: String,
+        systemPromptOverride: String?,
     ): Map<String, String> = withContext(Dispatchers.IO) {
         if (texts.isEmpty()) return@withContext emptyMap()
 
@@ -199,19 +211,19 @@ class TranslationManagerGemini(
         if (normalizedTexts.size > maxBatchItemsPerRequest) {
             val merged = mutableMapOf<String, String>()
             normalizedTexts.chunked(maxBatchItemsPerRequest).forEach { chunk ->
-                merged.putAll(translateBatch(chunk, sourceLanguage, targetLanguage))
+                    merged.putAll(translateBatch(chunk, sourceLanguage, targetLanguage, systemPromptOverride))
             }
             return@withContext merged
         }
 
-        Log.d(TAG, "translateBatch: translating ${normalizedTexts.size} paragraphs")
+        Log.d(TAG, "translateBatch: translating ${normalizedTexts.size} paragraphs, override='${systemPromptOverride?.take(200)}'")
         val availableKeys = apiKeys
         if (availableKeys.isEmpty()) throw IllegalStateException("Gemini: No API keys configured.")
 
         val useEnglish = appPreferences.TRANSLATION_PROMPT_USE_ENGLISH_LOCALE.value
-        val templatePrompt = appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value
-            .ifBlank { DEFAULT_TRANSLATION_PROMPT }
+        val templatePrompt = resolveTemplatePrompt(systemPromptOverride)
         val systemPrompt = buildSystemPrompt(templatePrompt, sourceLanguage, targetLanguage, useEnglish)
+        Log.d(TAG, "translateBatch: systemPrompt='${systemPrompt.take(200)}'")
 
         // Numbered input keeps Gemini aligned to the existing batch parser with minimal overhead.
         val userText = normalizedTexts.mapIndexed { index, text -> "${index + 1}. $text" }.joinToString("\n")

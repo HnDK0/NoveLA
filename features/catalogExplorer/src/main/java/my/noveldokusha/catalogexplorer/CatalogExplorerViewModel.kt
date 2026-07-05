@@ -21,8 +21,8 @@ import my.noveldokusha.data.ScraperRepository
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.utils.toState
-import my.noveldokusha.feature.local_database.tables.Chapter
 import my.noveldokusha.data.CatalogItem
+import my.noveldokusha.interactor.LibraryUpdatesInteractions
 import javax.inject.Inject
 
 @Immutable
@@ -41,6 +41,7 @@ internal class CatalogExplorerViewModel @Inject constructor(
     private val appRepository: AppRepository,
     private val appScope: AppCoroutineScope,
     val scraperRepository: ScraperRepository,
+    private val libraryUpdatesInteractions: LibraryUpdatesInteractions,
 ) : BaseViewModel() {
 
     private val _uiState = MutableStateFlow(CatalogExplorerUiState(
@@ -205,74 +206,6 @@ internal class CatalogExplorerViewModel @Inject constructor(
         }
     }
 
-    private fun startBackgroundUpdate(urls: List<String>) {
-        viewModelScope.launch {
-            // Process novels sequentially with retry logic
-            urls.forEach { url ->
-                updateNovelWithRetry(url)
-                // Small delay between novels to avoid overwhelming servers
-                delay(500)
-            }
-        }
-    }
-
-    private suspend fun updateNovelWithRetry(url: String, maxRetries: Int = 3) {
-        // Skip if update is already in progress for this URL (prevents infinite loops)
-        if (isUpdateInProgress(url)) return
-
-        setUpdateInProgress(url, true)
-
-        try {
-            var retryCount = 0
-            var success = false
-
-            while (retryCount < maxRetries && !success) {
-                try {
-                    // Get current book info
-                    val book = appRepository.libraryBooks.get(url) ?: return
-
-                    // Try to update title if it's "Unknown Novel"
-                    if (book.title == "Unknown Novel") {
-                        val newTitle = getBookTitle(url)
-                        if (newTitle != null && newTitle != "Unknown Novel" && newTitle.isNotBlank()) {
-                            appRepository.libraryBooks.updateTitle(url, newTitle)
-                        }
-                    }
-
-                    // Try to update cover if it's empty
-                    if (book.coverImageUrl.isBlank()) {
-                        val coverUrl = getBookCover(url)
-                        if (coverUrl != null) {
-                            appRepository.libraryBooks.updateCover(url, coverUrl)
-                        }
-                    }
-
-                    // Try to update description if it's empty
-                    if (book.description.isBlank()) {
-                        val description = getBookDescription(url)
-                        if (description != null) {
-                            appRepository.libraryBooks.updateDescription(url, description)
-                        }
-                    }
-
-                    // Update timestamp to indicate the book was processed
-                    appRepository.libraryBooks.updateLastUpdateEpochTimeMilli(url)
-                    success = true
-
-                } catch (e: Exception) {
-                    retryCount++
-                    if (retryCount < maxRetries) {
-                        // Exponential backoff: 1s, 2s, 4s
-                        delay(1000L * (1 shl (retryCount - 1)))
-                    }
-                }
-            }
-
-        } finally {
-            setUpdateInProgress(url, false)
-        }
-    }
-
     private suspend fun getBookCover(bookUrl: String): String? {
         return try {
             appRepository.downloaderRepository.bookCoverImageUrl(bookUrl).toSuccessOrNull()?.data
@@ -289,7 +222,7 @@ internal class CatalogExplorerViewModel @Inject constructor(
         }
     }
 
-    private suspend fun getBookChapters(bookUrl: String): List<Chapter> {
+    private suspend fun getBookChapters(bookUrl: String): List<my.noveldokusha.feature.local_database.tables.Chapter> {
         return try {
             appRepository.downloaderRepository.bookChaptersList(bookUrl).toSuccessOrNull()?.data ?: emptyList()
         } catch (e: Exception) {
@@ -297,16 +230,12 @@ internal class CatalogExplorerViewModel @Inject constructor(
         }
     }
 
-    // Simple in-memory tracking to prevent duplicate updates
-    private val updatesInProgress = mutableSetOf<String>()
-
-    private fun isUpdateInProgress(url: String): Boolean = updatesInProgress.contains(url)
-
-    private fun setUpdateInProgress(url: String, inProgress: Boolean) {
-        if (inProgress) {
-            updatesInProgress.add(url)
-        } else {
-            updatesInProgress.remove(url)
+    private fun startBackgroundUpdate(urls: List<String>) {
+        viewModelScope.launch {
+            urls.forEach { url ->
+                libraryUpdatesInteractions.updateSingleBookMetadata(url)
+                delay(500)
+            }
         }
     }
 }

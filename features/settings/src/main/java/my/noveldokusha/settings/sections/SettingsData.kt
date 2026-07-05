@@ -28,9 +28,9 @@ internal fun SettingsData(
     isCleaningDatabase: Boolean,
     isCleaningImages: Boolean,
     isCleaningChapterCache: Boolean,
-    onCleanDatabase: () -> Unit,
-    onCleanImageFolder: () -> Unit,
-    onCleanChapterCache: () -> Unit,
+    onRequestCleanDatabase: () -> Unit,
+    onRequestCleanImageFolder: () -> Unit,
+    onRequestCleanChapterCache: () -> Unit,
 ) {
     Column {
         Text(
@@ -58,29 +58,30 @@ internal fun SettingsData(
                     Icon(Icons.Outlined.DataArray, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
-            modifier = Modifier.clickable(enabled = !isCleaningDatabase) { onCleanDatabase() }
+            modifier = Modifier.clickable(enabled = !isCleaningDatabase) { onRequestCleanDatabase() }
         )
-        SlimListItem(
-            headlineContent = {
-                Text(text = stringResource(R.string.clean_images_folder))
-            },
-            supportingContent = {
-                Column {
-                    Text(text = stringResource(id = R.string.size) + " " + imagesFolderSize)
-                }
-            },
-            leadingContent = {
-                if (isCleaningImages) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(Icons.Outlined.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            },
-            modifier = Modifier.clickable(enabled = !isCleaningImages) { onCleanImageFolder() }
-        )
+        // TODO: properly implement images saving
+        // SlimListItem(
+        //     headlineContent = {
+        //         Text(text = stringResource(R.string.clean_images_folder))
+        //     },
+        //     supportingContent = {
+        //         Column {
+        //             Text(text = stringResource(id = R.string.size) + " " + imagesFolderSize)
+        //         }
+        //     },
+        //     leadingContent = {
+        //         if (isCleaningImages) {
+        //             CircularProgressIndicator(
+        //                 modifier = Modifier.size(24.dp),
+        //                 strokeWidth = 2.dp
+        //             )
+        //         } else {
+        //             Icon(Icons.Outlined.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        //         }
+        //     },
+        //     modifier = Modifier.clickable(enabled = !isCleaningImages) { onRequestCleanImageFolder() }
+        // )
         SlimListItem(
             headlineContent = {
                 Text(text = stringResource(R.string.clean_chapter_cache))
@@ -100,7 +101,7 @@ internal fun SettingsData(
                     Icon(Icons.Outlined.DeleteSweep, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
-            modifier = Modifier.clickable(enabled = !isCleaningChapterCache) { onCleanChapterCache() }
+            modifier = Modifier.clickable(enabled = !isCleaningChapterCache) { onRequestCleanChapterCache() }
         )
     }
 }

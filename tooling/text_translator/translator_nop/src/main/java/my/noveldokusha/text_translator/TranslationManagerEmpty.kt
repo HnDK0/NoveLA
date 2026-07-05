@@ -12,7 +12,8 @@ class TranslationManagerEmpty : TranslationManager {
     override suspend fun hasModelDownloaded(language: String) = null
     override fun getTranslator(
         source: String,
-        target: String
+        target: String,
+        systemPromptOverride: String?,
     ): TranslatorState = TranslatorState(
         source = source,
         target = target,
@@ -25,7 +26,8 @@ class TranslationManagerEmpty : TranslationManager {
     override suspend fun translateBatch(
         texts: List<String>,
         sourceLanguage: String,
-        targetLanguage: String
+        targetLanguage: String,
+        systemPromptOverride: String?,
     ): Map<String, String> {
         return emptyMap()
     }

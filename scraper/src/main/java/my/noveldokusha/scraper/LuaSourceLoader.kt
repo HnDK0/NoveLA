@@ -53,25 +53,26 @@ class LuaEngine @Inject constructor(
     suspend fun loadScript(luaCode: String): LuaValue = withContext(Dispatchers.IO) {
         val globals = JsePlatform.standardGlobals()
         registerApi(globals)
-        globals.load(luaCode).call()
-        // Возвращаем globals — именно там живут все функции и переменные скрипта
-        globals
+        val result = globals.load(luaCode).call()
+        // Если скрипт вернул таблицу (return { ... }) — используем её,
+        // иначе — функции объявлены как глобальные (function name() ... end)
+        if (result.istable()) result else globals
     }
 
     suspend fun loadFromScript(scriptContent: String, iconUrl: String? = null): SourceInterface.Catalog {
         val globals = JsePlatform.standardGlobals()
         registerApi(globals)
-        globals.load(scriptContent).call()
-        // Передаём globals в адаптер, а не результат call()
-        return createLuaSourceAdapter(context, globals, this, iconUrl, null)
+        val result = globals.load(scriptContent).call()
+        val luaScript = if (result.istable()) result else globals
+        return createLuaSourceAdapter(context, luaScript, this, iconUrl, null)
     }
 
     suspend fun loadFromScriptWithFileName(scriptContent: String, fileName: String, iconUrl: String? = null): SourceInterface.Catalog {
         val globals = JsePlatform.standardGlobals()
         registerApi(globals)
-        globals.load(scriptContent).call()
-        // Передаём globals в адаптер, а не результат call()
-        return createLuaSourceAdapter(context, globals, this, iconUrl, fileName)
+        val result = globals.load(scriptContent).call()
+        val luaScript = if (result.istable()) result else globals
+        return createLuaSourceAdapter(context, luaScript, this, iconUrl, fileName)
     }
 
     private fun registerApi(g: Globals) {

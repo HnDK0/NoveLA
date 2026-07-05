@@ -497,15 +497,15 @@ internal class ReaderChaptersLoader(
             val sourceLang = translatorSourceLanguageOrNull()
             val targetLang = translatorTargetLanguageOrNull()
             if (sourceLang != null && targetLang != null) {
-                val titleTranslation = withContext(Dispatchers.IO) {
+                val cachedTitle = withContext(Dispatchers.IO) {
                     chapterTranslationDao.getTranslations(
                         chapterUrl = chapter.url,
                         sourceLang = sourceLang,
                         targetLang = targetLang
-                    ).firstOrNull { it.paragraphIndex == -1 }
+                    )?.titleTranslation?.takeIf { it.isNotEmpty() }
                 }
-                if (titleTranslation != null) {
-                    titleTranslated = titleTranslation.translatedText
+                if (cachedTitle != null) {
+                    titleTranslated = cachedTitle
                     android.util.Log.d(TAG, "Title translation found in DB: '$titleOriginal' -> '$titleTranslated'")
                 }
             }
@@ -600,63 +600,81 @@ internal class ReaderChaptersLoader(
                             val batchTranslator = translatorBatchTranslateOrNull()
 
                             if (batchTranslator != null) {
-                                val dbTranslations = withContext(Dispatchers.IO) {
+                                val bodyTexts = itemsOriginal.filterIsInstance<ReaderItem.Body>().map { it.text }
+                                val bodyTextToIndex = bodyTexts.withIndex().associate { (idx, text) -> text to idx }
+
+                                // Load existing cache entry (single row per chapter+language)
+                                val existingEntry = withContext(Dispatchers.IO) {
                                     chapterTranslationDao.getTranslations(
                                         chapterUrl = chapter.url,
                                         sourceLang = sourceLang,
                                         targetLang = targetLang
-                                    ).associate { it.originalText to it.translatedText }
-                                }
-
-                                // Тело главы переводится основным переводчиком (батчами)
-                                val bodyTexts = itemsOriginal.filterIsInstance<ReaderItem.Body>().map { it.text }
-                                val allTextsToTranslate = bodyTexts
-
-                                val translatedItems = if (dbTranslations.isNotEmpty()) {
-                                    val missingFromDb = allTextsToTranslate.filter { !dbTranslations.containsKey(it) }
-
-                                    if (missingFromDb.isEmpty()) {
-                                        android.util.Log.d(TAG, "Using full DB cache for chapter ${chapter.title} (${dbTranslations.size} body translations)")
-                                        itemsOriginal.map {
-                                            if (it is ReaderItem.Body) it.copy(textTranslated = dbTranslations[it.text] ?: it.text)
-                                            else it
-                                        }
-                                    } else {
-                                        android.util.Log.d(TAG, "DB cache partial: ${dbTranslations.size}/${allTextsToTranslate.size}, translating ${missingFromDb.size} missing body paragraphs")
-                                        val extraTranslations = withContext(Dispatchers.IO) {
-                                            kotlinx.coroutines.withTimeout(60_000L) {
-                                                batchTranslator.invoke(missingFromDb)
-                                            }
-                                        }
-                                        launch(Dispatchers.IO) {
-                                            val entities = missingFromDb.mapIndexed { index, original ->
-                                                ChapterTranslation(
-                                                    chapterUrl = chapter.url,
-                                                    sourceLang = sourceLang,
-                                                    targetLang = targetLang,
-                                                    paragraphIndex = index,
-                                                    originalText = original,
-                                                    translatedText = extraTranslations[original] ?: original
-                                                )
-                                            }
-                                            chapterTranslationDao.insertReplace(entities)
-                                        }
-                                        val fullTranslations = dbTranslations + extraTranslations
-                                        itemsOriginal.map {
-                                            if (it is ReaderItem.Body) it.copy(textTranslated = fullTranslations[it.text] ?: it.text)
-                                            else it
-                                        }
-                                    }
-                                } else {
-                                    translateAndCacheBodiesOnly(
-                                        itemsOriginal, batchTranslator,
-                                        chapter.url, sourceLang, targetLang
                                     )
                                 }
 
-                                // Заголовок переводим через Google PA → Free (без токенов Gemini/OpenAI).
-                                // Если в кэше БД уже был — используем его, иначе запрашиваем.
-                                // Если запрос не удался (нет интернета) — просто оставляем оригинал.
+                                // Parse cached body translations
+                                val cachedBody: Map<Int, String> = if (existingEntry != null) {
+                                    try {
+                                        val arr = org.json.JSONArray(existingEntry.translatedParagraphs)
+                                        (0 until arr.length()).associate { it to arr.getString(it) }
+                                    } catch (e: org.json.JSONException) {
+                                        emptyMap()
+                                    }
+                                } else {
+                                    emptyMap()
+                                }
+
+                                var needsSave = false
+                                var translatedParagraphsJson = existingEntry?.translatedParagraphs ?: "[]"
+                                var titleSaved = existingEntry?.titleTranslation ?: ""
+
+                                val translatedItems = if (cachedBody.isNotEmpty()) {
+                                    val missingIndices = bodyTexts.indices.filter { it !in cachedBody }
+
+                                    if (missingIndices.isEmpty()) {
+                                        android.util.Log.d(TAG, "Using full DB cache for chapter ${chapter.title} (${cachedBody.size} body translations)")
+                                        itemsOriginal.map { item ->
+                                            if (item is ReaderItem.Body) {
+                                                val idx = bodyTextToIndex[item.text] ?: return@map item
+                                                item.copy(textTranslated = cachedBody[idx] ?: item.text)
+                                            } else item
+                                        }
+                                    } else {
+                                        val missingTexts = missingIndices.map { bodyTexts[it] }
+                                        android.util.Log.d(TAG, "DB cache partial: ${cachedBody.size}/${bodyTexts.size}, translating ${missingTexts.size} missing body paragraphs")
+                                        val extraTranslations = withContext(Dispatchers.IO) {
+                                            kotlinx.coroutines.withTimeout(60_000L) {
+                                                batchTranslator.invoke(missingTexts)
+                                            }
+                                        }
+
+                                        val fullBody = cachedBody.toMutableMap()
+                                        missingIndices.forEach { idx ->
+                                            fullBody[idx] = extraTranslations[bodyTexts[idx]] ?: bodyTexts[idx]
+                                        }
+                                        translatedParagraphsJson = org.json.JSONArray(
+                                            bodyTexts.indices.map { fullBody[it] ?: bodyTexts[it] }
+                                        ).toString()
+                                        needsSave = true
+
+                                        itemsOriginal.map { item ->
+                                            if (item is ReaderItem.Body) {
+                                                val idx = bodyTextToIndex[item.text] ?: return@map item
+                                                item.copy(textTranslated = fullBody[idx] ?: item.text)
+                                            } else item
+                                        }
+                                    }
+                                } else {
+                                    val result = translateAndCacheBodiesOnly(
+                                        itemsOriginal, batchTranslator,
+                                        chapter.url, sourceLang, targetLang
+                                    )
+                                    translatedParagraphsJson = result.second
+                                    needsSave = true
+                                    result.first
+                                }
+
+                                // Translate title if not cached
                                 if (titleTranslated == titleOriginal) {
                                     try {
                                         val translated = withContext(Dispatchers.IO) {
@@ -667,6 +685,25 @@ internal class ReaderChaptersLoader(
                                         }
                                     } catch (e: Exception) {
                                         android.util.Log.w(TAG, "Title translation failed (offline?): ${e.message}")
+                                    }
+                                }
+                                if (titleTranslated != titleOriginal && titleSaved != titleTranslated) {
+                                    titleSaved = titleTranslated
+                                    needsSave = true
+                                }
+
+                                // Save combined entry synchronously if anything changed
+                                if (needsSave) {
+                                    withContext(Dispatchers.IO) {
+                                        chapterTranslationDao.insertReplace(
+                                            ChapterTranslation(
+                                                chapterUrl = chapter.url,
+                                                sourceLang = sourceLang,
+                                                targetLang = targetLang,
+                                                translatedParagraphs = translatedParagraphsJson,
+                                                titleTranslation = titleSaved,
+                                            )
+                                        )
                                     }
                                 }
 
@@ -725,26 +762,7 @@ internal class ReaderChaptersLoader(
                     )
                 }
 
-                // Сохраняем переведённый заголовок в БД (асинхронно)
                 val finalItemTitle = itemTitle.copy(textTranslated = titleTranslated)
-                if (translatorIsActive() && titleTranslated != titleOriginal) {
-                    val sourceLang = translatorSourceLanguageOrNull()
-                    val targetLang = translatorTargetLanguageOrNull()
-                    if (sourceLang != null && targetLang != null) {
-                        launch(Dispatchers.IO) {
-                            chapterTranslationDao.insertReplace(listOf(
-                                ChapterTranslation(
-                                    chapterUrl = chapter.url,
-                                    sourceLang = sourceLang,
-                                    targetLang = targetLang,
-                                    paragraphIndex = -1,
-                                    originalText = titleOriginal,
-                                    translatedText = titleTranslated,
-                                )
-                            ))
-                        }
-                    }
-                }
 
                 // Do NOT use maintainPosition for success block — it would call
                 // setSelection(titleIndex) via doMaintainStartPosition and override
@@ -815,30 +833,20 @@ internal class ReaderChaptersLoader(
         chapterUrl: String,
         sourceLang: String,
         targetLang: String,
-    ): List<ReaderItem> {
+    ): Pair<List<ReaderItem>, String> {
         val bodyTexts = itemsOriginal.filterIsInstance<ReaderItem.Body>().map { it.text }
         android.util.Log.d(TAG, "translateAndCacheBodiesOnly: ${bodyTexts.size} body paragraphs")
         val translations = batchTranslator.invoke(bodyTexts)
 
-        withContext(Dispatchers.IO) {
-            val entities = bodyTexts.mapIndexed { index, original ->
-                ChapterTranslation(
-                    chapterUrl = chapterUrl,
-                    sourceLang = sourceLang,
-                    targetLang = targetLang,
-                    paragraphIndex = index,
-                    originalText = original,
-                    translatedText = translations[original] ?: original
-                )
-            }
-            chapterTranslationDao.insertReplace(entities)
-            android.util.Log.d(TAG, "translateAndCacheBodiesOnly: saved ${entities.size} body translations to DB")
-        }
+        val bodyJson = org.json.JSONArray(
+            bodyTexts.map { translations[it] ?: it }
+        ).toString()
 
-        return itemsOriginal.map {
-            if (it is ReaderItem.Body) it.copy(textTranslated = translations[it.text] ?: it.text)
-            else it
+        val translatedItems = itemsOriginal.map { item ->
+            if (item is ReaderItem.Body) item.copy(textTranslated = translations[item.text] ?: item.text)
+            else item
         }
+        return Pair(translatedItems, bodyJson)
     }
 
     @Deprecated("Use translateAndCacheBodiesOnly for body and translatorTranslateTitleOrNull for title")
@@ -858,19 +866,20 @@ internal class ReaderChaptersLoader(
         val missing = textsToTranslate.size - translations.size
         if (missing > 0) android.util.Log.w(TAG, "translateAndCache: $missing paragraphs missing, saving original as fallback")
 
+        val bodyJson = org.json.JSONArray(
+            textsToTranslate.map { translations[it] ?: it }
+        ).toString()
+
         withContext(Dispatchers.IO) {
-            val entities = textsToTranslate.mapIndexed { index, original ->
+            chapterTranslationDao.insertReplace(
                 ChapterTranslation(
                     chapterUrl = chapterUrl,
                     sourceLang = sourceLang,
                     targetLang = targetLang,
-                    paragraphIndex = index,
-                    originalText = original,
-                    translatedText = translations[original] ?: original
+                    translatedParagraphs = bodyJson,
                 )
-            }
-            chapterTranslationDao.insertReplace(entities)
-            android.util.Log.d(TAG, "translateAndCache: saved ${entities.size} translations to DB")
+            )
+            android.util.Log.d(TAG, "translateAndCache: saved translation to DB")
         }
 
         return itemsOriginal.map {

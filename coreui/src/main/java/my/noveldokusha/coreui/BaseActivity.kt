@@ -4,9 +4,7 @@ import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.asLiveData
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.drop
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.theme.ThemeProvider
 import my.noveldokusha.core.appPreferences.AppPreferences
@@ -61,8 +59,6 @@ open class BaseActivity : AppCompatActivity() {
     // This will remain until Reader Screen has no View XML usages
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(getAppTheme())
-        appPreferences.APP_THEME.flow().drop(1).asLiveData().observe(this) { recreate() }
-        appPreferences.THEME_DARK_MODE.flow().drop(1).asLiveData().observe(this) { recreate() }
         super.onCreate(savedInstanceState)
     }
 

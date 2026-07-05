@@ -13,6 +13,7 @@ data class DownloadTaskEntity(
     val isPaused: Boolean = false,
     val isCancelled: Boolean = false,
     val isCompleted: Boolean = false,
+    val isWaitingForNetwork: Boolean = false,
     val errorCount: Int = 0,
     val successCount: Int = 0,
     val consecutiveErrors: Int = 0,

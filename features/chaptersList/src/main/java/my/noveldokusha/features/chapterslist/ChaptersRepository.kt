@@ -11,6 +11,7 @@ import my.noveldokusha.data.DownloaderRepository
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.TernaryState
 import my.noveldokusha.feature.local_database.tables.Book
+import my.noveldokusha.scraper.utils.normalizeBookUrl
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,13 +23,14 @@ internal class ChaptersRepository @Inject constructor(
 ) {
 
     suspend fun downloadBookMetadata(bookUrl: String, bookTitle: String) = coroutineScope {
-        val coverUrl = async { downloaderRepository.bookCoverImageUrl(bookUrl = bookUrl) }
-        val description = async { downloaderRepository.bookDescription(bookUrl = bookUrl) }
+        val normalizedUrl = normalizeBookUrl(bookUrl)
+        val coverUrl = async { downloaderRepository.bookCoverImageUrl(bookUrl = normalizedUrl) }
+        val description = async { downloaderRepository.bookDescription(bookUrl = normalizedUrl) }
 
         appRepository.libraryBooks.insert(
             Book(
                 title = bookTitle,
-                url = bookUrl,
+                url = normalizedUrl,
                 coverImageUrl = coverUrl.await().toSuccessOrNull()?.data ?: "",
                 description = description.await().toSuccessOrNull()?.data ?: ""
             )

@@ -3,6 +3,7 @@ package my.noveldokusha.settings.sections
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -12,13 +13,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -75,6 +79,9 @@ internal fun SettingsGeminiTranslation(
     llmMaxOutputTokens: Int,
     onLlmBatchSizeChange: (Int) -> Unit,
     onLlmMaxOutputTokensChange: (Int) -> Unit,
+    // Novel-specific prompts
+    novelPromptCount: Int,
+    onNovelPromptsClick: () -> Unit,
 ) {
     val predefinedGeminiModels = listOf(
         "gemini-3.1-flash-lite",
@@ -334,6 +341,51 @@ internal fun SettingsGeminiTranslation(
                     onSavePreset                   = onSavePreset,
                     onDeletePreset                 = onDeletePreset,
                 )
+            }
+        }
+
+        // ── Novel-specific prompts — Gemini and OpenAI only ──────────────────
+        AnimatedVisibility(
+            visible = translationProvider == "GEMINI" || translationProvider == "OPENAI",
+            enter   = expandVertically(),
+            exit    = shrinkVertically()
+        ) {
+            Column {
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNovelPromptsClick() }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    Icon(
+                        Icons.Outlined.Psychology,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.novel_prompts_title),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        if (novelPromptCount > 0) {
+                            Text(
+                                text = stringResource(R.string.novel_prompts_count, novelPromptCount),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 

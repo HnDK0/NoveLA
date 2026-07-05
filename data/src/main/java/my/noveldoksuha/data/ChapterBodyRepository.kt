@@ -1,5 +1,7 @@
 package my.noveldokusha.data
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import my.noveldokusha.core.Response
 import my.noveldokusha.core.isLocalUri
 import my.noveldokusha.core.map
@@ -38,6 +40,9 @@ class ChapterBodyRepository @Inject constructor(
         insertReplace(chapterBody)
     }
 
+    suspend fun count() = chapterBodyDao.count()
+    suspend fun getChunk(limit: Int, offset: Int) = chapterBodyDao.getChunk(limit, offset)
+
     suspend fun clearAllCache(): Int {
         val count = chapterBodyDao.deleteAll()
         chapterTranslationDao.deleteAllTranslations()
@@ -69,16 +74,18 @@ class ChapterBodyRepository @Inject constructor(
             )
         }
 
-        return downloaderRepository.bookChapter(urlChapter)
-            .map {
-                // Сохраняем в БД только непустое тело
-                if (it.body.isNotBlank()) {
-                    insertWithTitle(
-                        chapterBody = ChapterBody(url = urlChapter, body = it.body),
-                        title = it.title
-                    )
-                }
-                it.body
+        // Сетевой вызов — явно переключаемся на Dispatchers.IO
+        return withContext(Dispatchers.IO) {
+            downloaderRepository.bookChapter(urlChapter)
+        }.map {
+            // Сохраняем в БД только непустое тело
+            if (it.body.isNotBlank()) {
+                insertWithTitle(
+                    chapterBody = ChapterBody(url = urlChapter, body = it.body),
+                    title = it.title
+                )
             }
+            it.body
+        }
     }
 }

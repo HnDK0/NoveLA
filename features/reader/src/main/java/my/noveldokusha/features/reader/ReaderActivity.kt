@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
+import android.view.KeyEvent
 import android.view.WindowManager
 import android.widget.AbsListView
 import androidx.activity.compose.setContent
@@ -50,6 +52,8 @@ import my.noveldokusha.features.reader.domain.indexOfReaderItem
 import my.noveldokusha.features.reader.tools.FontsLoader
 import my.noveldokusha.features.reader.ui.ReaderScreen
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
+import my.noveldokusha.core.LocaleManager
+import my.noveldokusha.core.appPreferences.AppLanguageProvider
 import my.noveldokusha.navigation.NavigationRoutes
 import my.noveldokusha.reader.R
 import my.noveldokusha.reader.databinding.ActivityReaderBinding
@@ -126,12 +130,16 @@ class ReaderActivity : BaseActivity() {
                         .let(::startActivity)
                 },
                 onClick = {
-                    val now = System.currentTimeMillis()
-                    if (now - lastTapTime < doubleTapThresholdMs) {
+                    if (appPreferences.READER_SINGLE_TAP_TO_OPEN_SETTINGS.value) {
                         viewModel.state.showReaderInfo.value = !viewModel.state.showReaderInfo.value
-                        lastTapTime = 0L
                     } else {
-                        lastTapTime = now
+                        val now = System.currentTimeMillis()
+                        if (now - lastTapTime < doubleTapThresholdMs) {
+                            viewModel.state.showReaderInfo.value = !viewModel.state.showReaderInfo.value
+                            lastTapTime = 0L
+                        } else {
+                            lastTapTime = now
+                        }
                     }
                 },
             )
@@ -155,6 +163,11 @@ class ReaderActivity : BaseActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val language = AppLanguageProvider.fromCode(appPreferences.APP_LANGUAGE_CODE.value)
+            ?: AppLanguageProvider.supportedLanguages.first()
+        LocaleManager.applyLocale(this, language)
+
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
         viewBind.listView.adapter = viewAdapter.listView
 
@@ -178,7 +191,7 @@ class ReaderActivity : BaseActivity() {
         readerViewHandlersActions.maintainStartPosition = {
             withContext(Dispatchers.Main.immediate) {
                 it()
-                val titleIndex = (0..viewAdapter.listView.count)
+                val titleIndex = (0 until viewAdapter.listView.count)
                     .indexOfFirst { viewAdapter.listView.getItem(it) is ReaderItem.Title }
 
                 if (titleIndex != -1) {
@@ -315,12 +328,13 @@ class ReaderActivity : BaseActivity() {
                     onDarkModeSelected = { appPreferences.THEME_DARK_MODE.value = it.name },
                     onAppThemeChanged = { appPreferences.APP_THEME.value = it.name },
                     onFullScreen = { appPreferences.READER_FULL_SCREEN.value = it },
+                    onSingleTapToOpenSettingsChange = { appPreferences.READER_SINGLE_TAP_TO_OPEN_SETTINGS.value = it },
                     onPressBack = {
                         viewModel.onCloseManually()
                         finish()
                     },
                     onOpenChapterInWeb = {
-                        val url = viewModel.state.readerInfo.chapterUrl.value
+                        val url = viewModel.chapterUrl
                         if (url.isNotBlank()) {
                             navigationRoutes.webView(this, url = url).let(::startActivity)
                         }
@@ -659,48 +673,36 @@ class ReaderActivity : BaseActivity() {
         super.onPause()
     }
 
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (event != null) {
+            Log.d("MediaCallback", "onKeyDown: keyCode=$keyCode action=${event.action}")
+        }
+        if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || keyCode == KeyEvent.KEYCODE_HEADSETHOOK) {
+            if (viewModel.readerSpeaker.isSpeaking.value) {
+                viewModel.readerSpeaker.state.setPlaying(false)
+            } else {
+                viewModel.readerSpeaker.state.setPlaying(true)
+            }
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     override fun onResume() {
         super.onResume()
 
         if (viewModel.readerSpeaker.isSpeaking.value) {
-            // Get actual position directly from TTS manager to avoid stale state
-            val itemPos = viewModel.readerSpeaker.getActualPlayingPosition()
-            if (itemPos.chapterIndex >= 0) {
-                viewBind.listView.post {
-                    val firstVisible = viewBind.listView.firstVisiblePosition
-                    val lastVisible = viewBind.listView.lastVisiblePosition
-
-                    // Ищем первый видимый элемент который является Position
-                    // (Padding/Divider/BookStart не имеют позиции чтения)
-                    val firstVisiblePositionItem = (firstVisible..lastVisible)
-                        .asSequence()
-                        .mapNotNull { pos ->
-                            val idx = viewAdapter.listView.fromPositionToIndex(pos)
-                            viewModel.items.getOrNull(idx)
-                        }
-                        .filterIsInstance<ReaderItem.Position>()
-                        .firstOrNull()
-
-                    val readerIsAhead = if (firstVisiblePositionItem != null) {
-                        when {
-                            firstVisiblePositionItem.chapterIndex > itemPos.chapterIndex -> true
-                            firstVisiblePositionItem.chapterIndex == itemPos.chapterIndex ->
-                                firstVisiblePositionItem.chapterItemPosition >= itemPos.chapterItemPosition
-                            else -> false
-                        }
-                    } else {
-                        // Список ещё не перерисован после разблокировки — скроллим к TTS позиции
-                        false
-                    }
-
-                    if (!readerIsAhead) {
-                        scrollToReadingPositionSmooth(
-                            chapterIndex = itemPos.chapterIndex,
-                            chapterItemPosition = itemPos.chapterItemPosition
-                        )
-                    }
-                }
-            }
+            viewModel.readerSpeaker.forceUpdateCurrentItemState()
+            val position = viewModel.readerSpeaker.getActualPlayingPosition() ?: return
+            val itemIndex = indexOfReaderItem(
+                list = viewModel.items,
+                chapterIndex = position.chapterIndex,
+                chapterItemPosition = position.chapterItemPosition
+            )
+            if (itemIndex == -1) return
+            val itemPosition = viewAdapter.listView.fromIndexToPosition(itemIndex)
+            val newOffsetPx = 200.dpToPx(this)
+            viewBind.listView.smoothScrollToPositionFromTop(itemPosition, newOffsetPx, 500)
         }
     }
 

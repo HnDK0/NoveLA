@@ -28,6 +28,8 @@ internal fun MoreSettingDialog(
     onKeepScreenOn: (Boolean) -> Unit,
     fullScreen: Boolean,
     onFullScreen: (Boolean) -> Unit,
+    singleTapToOpenSettings: Boolean,
+    onSingleTapToOpenSettingsChange: (Boolean) -> Unit,
 ) {
     ElevatedCard(
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp)
@@ -100,6 +102,31 @@ internal fun MoreSettingDialog(
                 Switch(
                     checked = fullScreen,
                     onCheckedChange = onFullScreen,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = colorAccent(),
+                        checkedTrackColor = colorAccent().copy(alpha = 0.4f),
+                    )
+                )
+            }
+        )
+        // Single tap to open settings
+        SlimListItem(
+            modifier = Modifier
+                .clickable { onSingleTapToOpenSettingsChange(!singleTapToOpenSettings) },
+            headlineContent = {
+                Text(text = stringResource(id = R.string.single_tap_to_open_settings))
+            },
+            leadingContent = {
+                Icon(
+                    Icons.Outlined.TouchApp,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingContent = {
+                Switch(
+                    checked = singleTapToOpenSettings,
+                    onCheckedChange = onSingleTapToOpenSettingsChange,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = colorAccent(),
                         checkedTrackColor = colorAccent().copy(alpha = 0.4f),

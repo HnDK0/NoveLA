@@ -8,7 +8,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -241,54 +240,4 @@ internal class LibraryViewModel @Inject constructor(
     }
 
     fun getBook(bookUrl: String) = appRepository.libraryBooks.getFlow(bookUrl).filterNotNull()
-
-    private suspend fun updateNovelWithRetry(url: String, maxRetries: Int = 3) {
-        if (isUpdateInProgress(url)) return
-        setUpdateInProgress(url, true)
-        try {
-            var retryCount = 0
-            var success = false
-            while (retryCount < maxRetries && !success) {
-                try {
-                    val book = appRepository.libraryBooks.get(url) ?: return
-                    if (book.title == "Unknown Novel" || book.title.isBlank()) {
-                        val newTitle = getBookTitle(url)
-                        if (newTitle != null && newTitle != "Unknown Novel" && newTitle.isNotBlank()) {
-                            appRepository.libraryBooks.updateTitle(url, newTitle)
-                        }
-                    }
-                    if (book.coverImageUrl.isBlank()) {
-                        val coverUrl = getBookCover(url)
-                        if (coverUrl != null) appRepository.libraryBooks.updateCover(url, coverUrl)
-                    }
-                    if (book.description.isBlank()) {
-                        val description = getBookDescription(url)
-                        if (description != null) appRepository.libraryBooks.updateDescription(url, description)
-                    }
-                    appRepository.libraryBooks.updateLastUpdateEpochTimeMilli(url)
-                    success = true
-                } catch (e: Exception) {
-                    retryCount++
-                    if (retryCount < maxRetries) delay(1000L * (1 shl (retryCount - 1)))
-                }
-            }
-        } finally {
-            setUpdateInProgress(url, false)
-        }
-    }
-
-    private suspend fun getBookTitle(bookUrl: String): String? =
-        appRepository.downloaderRepository.bookTitle(bookUrl).toSuccessOrNull()?.data
-
-    private suspend fun getBookCover(bookUrl: String): String? =
-        appRepository.downloaderRepository.bookCoverImageUrl(bookUrl).toSuccessOrNull()?.data
-
-    private suspend fun getBookDescription(bookUrl: String): String? =
-        appRepository.downloaderRepository.bookDescription(bookUrl).toSuccessOrNull()?.data
-
-    private val updatesInProgress = mutableSetOf<String>()
-    private fun isUpdateInProgress(url: String) = updatesInProgress.contains(url)
-    private fun setUpdateInProgress(url: String, inProgress: Boolean) {
-        if (inProgress) updatesInProgress.add(url) else updatesInProgress.remove(url)
-    }
 }

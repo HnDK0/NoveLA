@@ -17,6 +17,7 @@ dependencies {
     implementation(projects.tooling.localDatabase)
     implementation(projects.tooling.textTranslator.domain)
 
+    implementation(projects.tooling.novelMigration)
     implementation(libs.material)
     implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)

@@ -3,6 +3,7 @@ package my.noveldokusha.features.reader.services
 import android.content.Intent
 import android.support.v4.media.session.MediaSessionCompat
 import android.view.KeyEvent
+import android.util.Log
 import my.noveldokusha.features.reader.features.ReaderTextToSpeech
 
 internal class NarratorMediaControlsCallback(
@@ -14,6 +15,7 @@ internal class NarratorMediaControlsCallback(
         val keyEvent = mediaButtonEvent?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
             ?: return super.onMediaButtonEvent(mediaButtonEvent)
 
+        Log.d("MediaCallback", "onMediaButtonEvent: action=${keyEvent.action} keyCode=${keyEvent.keyCode}")
         if (keyEvent.action == KeyEvent.ACTION_DOWN) {
             when (keyEvent.keyCode) {
                 KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
@@ -32,7 +34,7 @@ internal class NarratorMediaControlsCallback(
                     onPlay()
                     return true
                 }
-                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_HEADSETHOOK -> {
                     val isPlaying = readerTextToSpeech.isSpeaking.value
                     if (isPlaying) onPause() else onPlay()
                     return true
@@ -51,19 +53,21 @@ internal class NarratorMediaControlsCallback(
     }
 
     override fun onPlay() {
+        Log.d("MediaCallback", "onPlay()")
         readerTextToSpeech.state.setPlaying(true)
     }
 
     override fun onPause() {
+        Log.d("MediaCallback", "onPause()")
         readerTextToSpeech.state.setPlaying(false)
     }
 
     override fun onSkipToNext() {
-        readerTextToSpeech.state.playNextChapter()
+        readerTextToSpeech.state.playNextItem()
     }
 
     override fun onSkipToPrevious() {
-        readerTextToSpeech.state.playPreviousChapter()
+        readerTextToSpeech.state.playPreviousItem()
     }
 
     override fun onRewind() {

@@ -9,4 +9,8 @@
     <string name="download_pause">Pause</string>
     <string name="download_resume">Resume</string>
     <string name="download_cancel">Cancel</string>
+    <string name="download_chapters_added">Chapters added to queue</string>
+    <string name="download_resumed">Download resumed</string>
+    <string name="download_already_queued">Already in queue</string>
+    <string name="download_all_cached">All chapters already downloaded</string>
 </resources>

@@ -58,7 +58,7 @@ internal class SettingsViewModel @Inject constructor(
         imageFolderSize = mutableStateOf(""),
         isCleaningDatabase = isCleaningDatabase,
         isCleaningImages = isCleaningImages,
-        currentLanguage = appPreferences.APP_LANGUAGE.state(viewModelScope),
+        currentLanguage = appPreferences.APP_LANGUAGE_CODE.state(viewModelScope),
         currentAppTheme = derivedStateOf {
             try { AppTheme.valueOf(appThemePref.value) }
             catch (_: Exception) { AppTheme.DEFAULT }
@@ -100,6 +100,7 @@ internal class SettingsViewModel @Inject constructor(
         promptUseEnglishLocale = appPreferences.TRANSLATION_PROMPT_USE_ENGLISH_LOCALE.state(viewModelScope),
         llmBatchSize           = appPreferences.TRANSLATION_BATCH_SIZE.state(viewModelScope),
         llmMaxOutputTokens     = appPreferences.TRANSLATION_MAX_OUTPUT_TOKENS.state(viewModelScope),
+        translationNovelPrompts = appPreferences.TRANSLATION_NOVEL_PROMPTS.state(viewModelScope),
         autoBackupEnabled = appPreferences.BACKUP_AUTO_ENABLED.state(viewModelScope),
         autoBackupDirectoryUri = appPreferences.BACKUP_AUTO_DIRECTORY_URI.state(viewModelScope),
         autoBackupDirectoryDisplayName = mutableStateOf(
@@ -108,19 +109,24 @@ internal class SettingsViewModel @Inject constructor(
         autoBackupMaxCount = appPreferences.BACKUP_AUTO_MAX_COUNT.state(viewModelScope),
         autoBackupIntervalMinutes = appPreferences.BACKUP_AUTO_INTERVAL_MINUTES.state(viewModelScope),
         autoBackupIncludeImages = appPreferences.BACKUP_AUTO_INCLUDE_IMAGES.state(viewModelScope),
+        autoBackupIncludeSettings = appPreferences.BACKUP_AUTO_INCLUDE_SETTINGS.state(viewModelScope),
+        autoBackupIncludePlugins = appPreferences.BACKUP_AUTO_INCLUDE_PLUGINS.state(viewModelScope),
         autoBackupLastTimestamp = appPreferences.BACKUP_AUTO_LAST_TIMESTAMP.state(viewModelScope),
         chapterCacheSize = mutableStateOf("…"),
         isCleaningChapterCache = isCleaningChapterCache,
+        cleanConfirmationType = mutableStateOf(null),
     )
 
     init {
         updateDatabaseSize()
-        updateImagesFolderSize()
+        // TODO: properly implement images saving
+        // updateImagesFolderSize()
         updateChapterCacheSize()
         viewModelScope.launch {
             appRepository.eventDataRestored.collect {
                 updateDatabaseSize()
-                updateImagesFolderSize()
+                // TODO: properly implement images saving
+                // updateImagesFolderSize()
             }
         }
 
@@ -147,7 +153,11 @@ internal class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun cleanDatabase() = appScope.launch(Dispatchers.IO) {
+    fun requestCleanDatabase() {
+        state.cleanConfirmationType.value = CleanConfirmationType.DATABASE
+    }
+
+    private fun cleanDatabase() = appScope.launch(Dispatchers.IO) {
         if (isCleaningDatabase.value) return@launch
 
         try {
@@ -176,7 +186,11 @@ internal class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun cleanImagesFolder() = appScope.launch(Dispatchers.IO) {
+    fun requestCleanImageFolder() {
+        state.cleanConfirmationType.value = CleanConfirmationType.IMAGES_FOLDER
+    }
+
+    private fun cleanImagesFolder() = appScope.launch(Dispatchers.IO) {
         if (isCleaningImages.value) return@launch
 
         try {
@@ -232,17 +246,15 @@ internal class SettingsViewModel @Inject constructor(
 
     fun onAppThemeChange(appTheme: AppTheme) {
         appPreferences.APP_THEME.value = appTheme.name
-        onRestartApp?.invoke()
     }
 
     fun onDarkModeChange(darkMode: DarkMode) {
         appPreferences.THEME_DARK_MODE.value = darkMode.name
-        onRestartApp?.invoke()
     }
 
     fun onLanguageChange(language: AppLanguage) {
-        appPreferences.APP_LANGUAGE.value = language
-        toasty.show("Language changed to ${language.displayName}")
+        appPreferences.APP_LANGUAGE_CODE.value = language.code
+        toasty.show(context.getString(R.string.language_changed_to, language.getDisplayName()))
         onRestartApp?.invoke()
     }
 
@@ -312,6 +324,12 @@ internal class SettingsViewModel @Inject constructor(
         appPreferences.TRANSLATION_PROVIDER.value = provider
     }
 
+    fun onDeleteNovelPrompt(bookUrl: String) {
+        val current = appPreferences.TRANSLATION_NOVEL_PROMPTS.value.toMutableMap()
+        current.remove(bookUrl)
+        appPreferences.TRANSLATION_NOVEL_PROMPTS.value = current
+    }
+
     private fun updateDatabaseSize() = viewModelScope.launch {
         updateDatabaseSizeAndWait()
     }
@@ -334,7 +352,11 @@ internal class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun cleanChapterCache() = appScope.launch(Dispatchers.IO) {
+    fun requestCleanChapterCache() {
+        state.cleanConfirmationType.value = CleanConfirmationType.CHAPTER_CACHE
+    }
+
+    private fun cleanChapterCache() = appScope.launch(Dispatchers.IO) {
         if (isCleaningChapterCache.value) return@launch
 
         try {
@@ -352,6 +374,20 @@ internal class SettingsViewModel @Inject constructor(
         } finally {
             isCleaningChapterCache.value = false
         }
+    }
+
+    fun confirmCleanAction() {
+        when (state.cleanConfirmationType.value) {
+            CleanConfirmationType.DATABASE -> cleanDatabase()
+            CleanConfirmationType.IMAGES_FOLDER -> cleanImagesFolder()
+            CleanConfirmationType.CHAPTER_CACHE -> cleanChapterCache()
+            null -> return
+        }
+        state.cleanConfirmationType.value = null
+    }
+
+    fun dismissCleanAction() {
+        state.cleanConfirmationType.value = null
     }
 
     fun onCheckForUpdatesManual() {
@@ -509,5 +545,13 @@ internal class SettingsViewModel @Inject constructor(
 
     fun onAutoBackupIncludeImagesChange(include: Boolean) {
         appPreferences.BACKUP_AUTO_INCLUDE_IMAGES.value = include
+    }
+
+    fun onAutoBackupIncludeSettingsChange(include: Boolean) {
+        appPreferences.BACKUP_AUTO_INCLUDE_SETTINGS.value = include
+    }
+
+    fun onAutoBackupIncludePluginsChange(include: Boolean) {
+        appPreferences.BACKUP_AUTO_INCLUDE_PLUGINS.value = include
     }
 }

@@ -66,14 +66,13 @@ class TranslationManagerComposite(
         else          -> "Google Translate (Enhanced)"
     }
 
-    override fun getTranslator(source: String, target: String): TranslatorState {
+    override fun getTranslator(source: String, target: String, systemPromptOverride: String?): TranslatorState {
         val provider = activeProvider()
-        Log.d(TAG, "getTranslator: source=$source, target=$target, provider=$provider")
+        Log.d(TAG, "getTranslator: source=$source, target=$target, provider=$provider, override=${systemPromptOverride != null}")
         return when {
-            provider == "OPENAI"      -> openAiManager.getTranslator(source, target)
-            provider == "GEMINI"      -> buildGeminiTranslator(source, target)
+            provider == "OPENAI"      -> openAiManager.getTranslator(source, target, systemPromptOverride)
+            provider == "GEMINI"      -> buildGeminiTranslator(source, target, systemPromptOverride)
             provider == "GOOGLE_FREE" -> googleFreeManager.getTranslator(source, target)
-            source == "auto"          -> googleFreeManager.getTranslator(source, target)
             else                      -> googlePAManager.getTranslator(source, target)
         }
     }
@@ -83,8 +82,8 @@ class TranslationManagerComposite(
      * If Gemini fails (no key, rate limit, API error), the exception propagates
      * to ReaderChaptersLoader which shows it as a ReaderItem.Error.
      */
-    private fun buildGeminiTranslator(source: String, target: String): TranslatorState {
-        val geminiTranslator = geminiManager.getTranslator(source, target)
+    private fun buildGeminiTranslator(source: String, target: String, systemPromptOverride: String? = null): TranslatorState {
+        val geminiTranslator = geminiManager.getTranslator(source, target, systemPromptOverride)
         return TranslatorState(
             source = source,
             target = target,
@@ -95,8 +94,10 @@ class TranslationManagerComposite(
     override suspend fun translateBatch(
         texts: List<String>,
         sourceLanguage: String,
-        targetLanguage: String
+        targetLanguage: String,
+        systemPromptOverride: String?,
     ): Map<String, String> = withContext(Dispatchers.IO) {
+        Log.d(TAG, "translateBatch: $sourceLanguage → $targetLanguage, override='${systemPromptOverride?.take(200)}', texts=${texts.size}")
         if (texts.isEmpty()) return@withContext emptyMap()
 
         val resolvedSource = if (sourceLanguage == "auto") {
@@ -111,12 +112,12 @@ class TranslationManagerComposite(
         when (activeProvider()) {
             "OPENAI" -> {
                 Log.d(TAG, "translateBatch: using OpenAI-compatible API")
-                openAiManager.translateBatch(texts, resolvedSource, targetLanguage)
+                openAiManager.translateBatch(texts, resolvedSource, targetLanguage, systemPromptOverride)
             }
             "GEMINI" -> {
-                Log.d(TAG, "translateBatch: using Gemini")
+                Log.d(TAG, "translateBatch: using Gemini, passing override='${systemPromptOverride?.take(200)}'")
                 // No fallback — let exception propagate with descriptive message
-                geminiManager.translateBatch(texts, resolvedSource, targetLanguage)
+                geminiManager.translateBatch(texts, resolvedSource, targetLanguage, systemPromptOverride)
             }
             "GOOGLE_FREE" -> {
                 Log.d(TAG, "translateBatch: using Google Free")
@@ -130,9 +131,10 @@ class TranslationManagerComposite(
     }
 
     /**
-     * Translates a single chapter title using free Google endpoints only.
-     * Tries Google PA first (better quality), falls back to Google Free.
-     * Never touches Gemini or OpenAI — no tokens spent on a title.
+     * Translates a single chapter title.
+     * Uses the active provider if it is GOOGLE_FREE or GOOGLE_PA.
+     * For GEMINI or OPENAI falls back to Google PA then Google Free
+     * to avoid spending API tokens on short titles.
      */
     override suspend fun translateTitle(
         title: String,
@@ -147,33 +149,58 @@ class TranslationManagerComposite(
             sourceLanguage
         }
 
-        // Try Google PA first
-        try {
-            val result = googlePAManager.translateBatch(
-                listOf(title), resolvedSource, targetLanguage
-            )[title]
-            if (!result.isNullOrBlank() && result != title) {
-                Log.d(TAG, "translateTitle: PA succeeded")
-                return@withContext result
+        when (activeProvider()) {
+            "GOOGLE_FREE" -> {
+                Log.d(TAG, "translateTitle: using Google Free")
+                try {
+                    return@withContext googleFreeManager.translateBatch(
+                        listOf(title), resolvedSource, targetLanguage
+                    )[title]?.takeIf { !it.isNullOrBlank() && it != title }
+                } catch (e: Exception) {
+                    Log.w(TAG, "translateTitle: Free failed (${e.message})")
+                    null
+                }
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "translateTitle: PA failed (${e.message}), trying Free")
-        }
-
-        // Fallback to Google Free
-        try {
-            val result = googleFreeManager.translateBatch(
-                listOf(title), resolvedSource, targetLanguage
-            )[title]
-            if (!result.isNullOrBlank() && result != title) {
-                Log.d(TAG, "translateTitle: Free succeeded")
-                return@withContext result
+            "GOOGLE_PA" -> {
+                Log.d(TAG, "translateTitle: using Google PA")
+                try {
+                    return@withContext googlePAManager.translateBatch(
+                        listOf(title), resolvedSource, targetLanguage
+                    )[title]?.takeIf { !it.isNullOrBlank() && it != title }
+                } catch (e: Exception) {
+                    Log.w(TAG, "translateTitle: PA failed (${e.message})")
+                    null
+                }
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "translateTitle: Free also failed (${e.message})")
-        }
+            else -> {
+                // GEMINI or OPENAI — PA → Free fallback
+                try {
+                    val result = googlePAManager.translateBatch(
+                        listOf(title), resolvedSource, targetLanguage
+                    )[title]
+                    if (!result.isNullOrBlank() && result != title) {
+                        Log.d(TAG, "translateTitle: PA succeeded")
+                        return@withContext result
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "translateTitle: PA failed (${e.message}), trying Free")
+                }
 
-        null
+                try {
+                    val result = googleFreeManager.translateBatch(
+                        listOf(title), resolvedSource, targetLanguage
+                    )[title]
+                    if (!result.isNullOrBlank() && result != title) {
+                        Log.d(TAG, "translateTitle: Free succeeded")
+                        return@withContext result
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "translateTitle: Free also failed (${e.message})")
+                }
+
+                null
+            }
+        }
     }
 
     override suspend fun detectLanguage(text: String): String? {

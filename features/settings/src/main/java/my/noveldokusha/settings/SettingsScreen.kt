@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import my.noveldokusha.coreui.theme.LocalAppTheme
+import my.noveldokusha.coreui.theme.LocalIsDark
 import my.noveldokusha.tooling.backup_create.onBackupCreate
 import my.noveldokusha.tooling.backup_restore.onBackupRestore
 import androidx.activity.compose.BackHandler
@@ -44,8 +46,12 @@ fun SettingsScreen(
         }
     )
 
-    Scaffold(
-        topBar = {
+    val appTheme = LocalAppTheme.current
+    val isDark = LocalIsDark.current
+
+    androidx.compose.runtime.key(appTheme, isDark) {
+        Scaffold(
+            topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -68,9 +74,11 @@ fun SettingsScreen(
                     onRefreshSizes = viewModel::refreshSizes,
                     onAppThemeSelected = viewModel::onAppThemeChange,
                     onDarkModeSelected = viewModel::onDarkModeChange,
-                    onCleanDatabase = viewModel::cleanDatabase,
-                    onCleanImageFolder = viewModel::cleanImagesFolder,
-                    onCleanChapterCache = viewModel::cleanChapterCache,
+                    onRequestCleanDatabase = viewModel::requestCleanDatabase,
+                    onRequestCleanImageFolder = viewModel::requestCleanImageFolder,
+                    onRequestCleanChapterCache = viewModel::requestCleanChapterCache,
+                    onConfirmClean = viewModel::confirmCleanAction,
+                    onDismissClean = viewModel::dismissCleanAction,
                     onMassAddDelayChange = viewModel::onMassAddDelayChange,
                     onDownloadDelayChange = viewModel::onDownloadDelayChange,
                     onBackupData = onBackupCreate(),
@@ -100,6 +108,9 @@ fun SettingsScreen(
                     onAutoBackupIntervalMinutesChange = viewModel::onAutoBackupIntervalMinutesChange,
                     onAutoBackupEnabledChange = viewModel::onAutoBackupEnabledChange,
                     onAutoBackupIncludeImagesChange = viewModel::onAutoBackupIncludeImagesChange,
+                    onAutoBackupIncludeSettingsChange = viewModel::onAutoBackupIncludeSettingsChange,
+                    onAutoBackupIncludePluginsChange = viewModel::onAutoBackupIncludePluginsChange,
+                    onDeleteNovelPrompt = viewModel::onDeleteNovelPrompt,
                     modifier = Modifier.padding(innerPadding),
                 )
                 "regex-cleanup" -> {
@@ -115,4 +126,5 @@ fun SettingsScreen(
             }
         }
     )
+    }
 }

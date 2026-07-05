@@ -169,11 +169,13 @@ class AutoBackupWorker(
         }
 
         val includeImages = appPreferences.BACKUP_AUTO_INCLUDE_IMAGES.value
+        val includeSettings = appPreferences.BACKUP_AUTO_INCLUDE_SETTINGS.value
+        val includePlugins = appPreferences.BACKUP_AUTO_INCLUDE_PLUGINS.value
         val maxCount = appPreferences.BACKUP_AUTO_MAX_COUNT.value
         val lastTimestamp = appPreferences.BACKUP_AUTO_LAST_TIMESTAMP.value
         val intervalMinutes = appPreferences.BACKUP_AUTO_INTERVAL_MINUTES.value
 
-        Log.d(TAG, "doWork: includeImages=$includeImages, maxCount=$maxCount, lastTimestamp=$lastTimestamp, intervalMinutes=$intervalMinutes")
+        Log.d(TAG, "doWork: includeImages=$includeImages, includeSettings=$includeSettings, includePlugins=$includePlugins, maxCount=$maxCount, lastTimestamp=$lastTimestamp, intervalMinutes=$intervalMinutes")
 
         val now = System.currentTimeMillis()
         val elapsed = now - lastTimestamp
@@ -187,7 +189,7 @@ class AutoBackupWorker(
         Log.d(TAG, "doWork: starting backup...")
         val success = withContext(Dispatchers.IO) {
             try {
-                performAutoBackup(context, directoryUri, includeImages, maxCount)
+                performAutoBackup(context, directoryUri, includeImages, maxCount, includeSettings, includePlugins)
             } catch (e: Exception) {
                 Log.e(TAG, "doWork: BACKUP FAILED", e)
                 false
@@ -202,7 +204,9 @@ class AutoBackupWorker(
         ctx: Context,
         directoryUri: String,
         backupImages: Boolean,
-        maxCount: Int
+        maxCount: Int,
+        backupSettings: Boolean = true,
+        backupPlugins: Boolean = true
     ): Boolean {
         Log.d(TAG, "performAutoBackup: STARTED")
         val entryPoint = EntryPointAccessors.fromApplication(
@@ -261,50 +265,58 @@ class AutoBackupWorker(
             }
 
             // Settings
-            run {
-                val entry = ZipEntry("settings.json")
-                entry.method = ZipOutputStream.DEFLATED
-                val settingsJson = JSONObject().apply {
-                    put("TRANSLATION_GOOGLE_PA_API_KEYS", appPreferences.TRANSLATION_GOOGLE_PA_API_KEYS.value)
-                    put("TRANSLATION_GEMINI_API_KEY", appPreferences.TRANSLATION_GEMINI_API_KEY.value)
-                    put("TRANSLATION_GEMINI_MODEL", appPreferences.TRANSLATION_GEMINI_MODEL.value)
-                    put("TRANSLATION_OPENAI_BASE_URL", appPreferences.TRANSLATION_OPENAI_BASE_URL.value)
-                    put("TRANSLATION_OPENAI_API_KEYS", appPreferences.TRANSLATION_OPENAI_API_KEYS.value)
-                    put("TRANSLATION_OPENAI_MODEL", appPreferences.TRANSLATION_OPENAI_MODEL.value)
-                    put("LIBRARY_CUSTOM_CATEGORIES", org.json.JSONArray(appPreferences.LIBRARY_CUSTOM_CATEGORIES.value))
-                    put("TRANSLATION_ACTIVE_SYSTEM_PROMPT", appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value)
-                    put("TRANSLATION_PROMPT_PRESETS", org.json.JSONArray(
-                        appPreferences.TRANSLATION_PROMPT_PRESETS.value.map { pair ->
-                            JSONObject().apply {
-                                put("name", pair.first)
-                                put("prompt", pair.second)
+            if (backupSettings) {
+                run {
+                    val entry = ZipEntry("settings.json")
+                    entry.method = ZipOutputStream.DEFLATED
+                    val settingsJson = JSONObject().apply {
+                        put("TRANSLATION_GOOGLE_PA_API_KEYS", appPreferences.TRANSLATION_GOOGLE_PA_API_KEYS.value)
+                        put("TRANSLATION_GEMINI_API_KEY", appPreferences.TRANSLATION_GEMINI_API_KEY.value)
+                        put("TRANSLATION_GEMINI_MODEL", appPreferences.TRANSLATION_GEMINI_MODEL.value)
+                        put("TRANSLATION_OPENAI_BASE_URL", appPreferences.TRANSLATION_OPENAI_BASE_URL.value)
+                        put("TRANSLATION_OPENAI_API_KEYS", appPreferences.TRANSLATION_OPENAI_API_KEYS.value)
+                        put("TRANSLATION_OPENAI_MODEL", appPreferences.TRANSLATION_OPENAI_MODEL.value)
+                        put("LIBRARY_CUSTOM_CATEGORIES", org.json.JSONArray(appPreferences.LIBRARY_CUSTOM_CATEGORIES.value))
+                        put("TRANSLATION_ACTIVE_SYSTEM_PROMPT", appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value)
+                        put("TRANSLATION_PROMPT_PRESETS", org.json.JSONArray(
+                            appPreferences.TRANSLATION_PROMPT_PRESETS.value.map { pair ->
+                                JSONObject().apply {
+                                    put("name", pair.first)
+                                    put("prompt", pair.second)
+                                }
                             }
-                        }
-                    ))
-                }.toString()
-                zip.putNextEntry(entry)
-                zip.write(settingsJson.toByteArray())
-                zip.closeEntry()
-                Log.d(TAG, "performAutoBackup: Settings backed up")
+                        ))
+                    }.toString()
+                    zip.putNextEntry(entry)
+                    zip.write(settingsJson.toByteArray())
+                    zip.closeEntry()
+                    Log.d(TAG, "performAutoBackup: Settings backed up")
+                }
+            } else {
+                Log.d(TAG, "performAutoBackup: Settings excluded from backup")
             }
 
             // Lua extensions
-            run {
-                val luaDir = File(ctx.filesDir, "lua_extensions")
-                if (luaDir.exists() && luaDir.isDirectory) {
-                    val luaFiles = luaDir.listFiles()?.filter { it.isFile && it.extension == "lua" } ?: emptyList()
-                    Log.d(TAG, "performAutoBackup: ${luaFiles.size} Lua extensions found")
-                    luaFiles.forEach { file ->
-                        val entry = ZipEntry("lua_extensions/${file.name}")
-                        entry.method = ZipOutputStream.DEFLATED
-                        file.inputStream().use {
-                            zip.putNextEntry(entry)
-                            it.copyTo(zip)
+            if (backupPlugins) {
+                run {
+                    val luaDir = File(ctx.filesDir, "lua_extensions")
+                    if (luaDir.exists() && luaDir.isDirectory) {
+                        val luaFiles = luaDir.listFiles()?.filter { it.isFile && it.extension == "lua" } ?: emptyList()
+                        Log.d(TAG, "performAutoBackup: ${luaFiles.size} Lua extensions found")
+                        luaFiles.forEach { file ->
+                            val entry = ZipEntry("lua_extensions/${file.name}")
+                            entry.method = ZipOutputStream.DEFLATED
+                            file.inputStream().use {
+                                zip.putNextEntry(entry)
+                                it.copyTo(zip)
+                            }
                         }
+                    } else {
+                        Log.d(TAG, "performAutoBackup: no lua_extensions directory")
                     }
-                } else {
-                    Log.d(TAG, "performAutoBackup: no lua_extensions directory")
                 }
+            } else {
+                Log.d(TAG, "performAutoBackup: Plugins excluded from backup")
             }
 
             // Images

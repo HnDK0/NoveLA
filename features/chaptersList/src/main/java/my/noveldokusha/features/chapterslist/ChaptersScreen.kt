@@ -37,16 +37,21 @@ import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -96,6 +101,10 @@ internal fun ChaptersScreen(
     onChangeCover: () -> Unit,
     onOpenInBrowser: (url: String) -> Unit,
     onGlobalSearchClick: (input: String) -> Unit,
+    onDownloadAllChapters: () -> Unit,
+    onMigrateBook: () -> Unit = {},
+    categories: () -> List<String>,
+    onUpdateCategory: (String) -> Unit,
     translatedTitle: String?,
     translatedDescription: String?,
     isTranslatingInfo: Boolean,
@@ -105,6 +114,7 @@ internal fun ChaptersScreen(
 ) {
     var showDropDown by rememberSaveable { mutableStateOf(false) }
     var showBottomSheet by rememberSaveable { mutableStateOf(false) }
+    var showCategoryPicker by rememberSaveable { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val lazyListState = rememberLazyListState()
     val areSelectedChaptersRead = state.selectedChaptersUrl.keys.all { url ->
@@ -184,6 +194,8 @@ internal fun ChaptersScreen(
                                         onSearchBookInDatabase = onSearchBookInDatabase,
                                         onResumeReading = onResumeReading,
                                         onChangeCover = onChangeCover,
+                                        onDownloadAllChapters = onDownloadAllChapters,
+                                        onMigrateBook = onMigrateBook,
                                     )
                                 }
                             }
@@ -260,6 +272,9 @@ internal fun ChaptersScreen(
                 onPullRefresh = onPullRefresh,
                 onCoverLongClick = onCoverLongClick,
                 onGlobalSearchClick = onGlobalSearchClick,
+                bookCategory = state.book.value.category,
+                categories = categories,
+                onCategoryClick = { showCategoryPicker = true },
                 scraper = scraper,
             )
             Box(Modifier.padding(innerPadding)) {
@@ -363,4 +378,61 @@ internal fun ChaptersScreen(
         onDismiss = { showBottomSheet = false },
         state = state
     )
+
+    if (showCategoryPicker) {
+        val categoryList = categories().let { cats ->
+            cats.map { category ->
+                val label = when (category) {
+                    "" -> stringResource(R.string.reading)
+                    "Completed" -> stringResource(R.string.completed)
+                    else -> category
+                }
+                category to label
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { showCategoryPicker = false },
+            title = {
+                Text(text = stringResource(R.string.category_name))
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    categoryList.forEach { (category, label) ->
+                        val isSelected = state.book.value.category == category
+                        if (isSelected) {
+                            FilledTonalButton(
+                                onClick = {},
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(text = label)
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = {
+                                    onUpdateCategory(category)
+                                    showCategoryPicker = false
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(text = label)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showCategoryPicker = false }
+                ) {
+                    Text(text = stringResource(android.R.string.cancel))
+                }
+            }
+        )
+    }
 }

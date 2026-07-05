@@ -6,6 +6,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import my.noveldokusha.core.appPreferences.TernaryState
+import my.noveldokusha.data.DownloadTaskState
 import my.noveldokusha.feature.local_database.ChapterWithContext
 import my.noveldokusha.feature.local_database.tables.Book
 
@@ -21,6 +22,7 @@ internal data class ChaptersScreenState(
     val isRefreshable: State<Boolean>,
     val genres: MutableState<List<String>>,
     val translatedChapterTitles: MutableState<Map<String, String>>,
+    val downloadTask: MutableState<DownloadTaskState?>,
 ) {
 
     val isInSelectionMode = derivedStateOf { selectedChaptersUrl.size != 0 }
@@ -33,6 +35,7 @@ internal data class ChaptersScreenState(
         val inLibrary: Boolean = false,
         val coverImageUrl: String? = null,
         val description: String = "",
+        val category: String = "",
     ) {
         constructor(book: Book) : this(
             title = book.title,
@@ -42,6 +45,7 @@ internal data class ChaptersScreenState(
             inLibrary = book.inLibrary,
             coverImageUrl = book.coverImageUrl,
             description = book.description,
+            category = book.category,
         )
     }
 }

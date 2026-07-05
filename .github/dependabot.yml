@@ -13,6 +13,26 @@ updates:
             - "dependencies"
         commit-message:
             prefix: "chore(deps)"
+        groups:
+            # Room ships room-runtime/room-compiler/room-testing as separate
+            # artifacts that must stay version-aligned — bundle them into one PR.
+            room:
+                patterns:
+                    - "androidx.room:*"
+            # Same logic for Hilt: hilt-android + hilt-compiler must match.
+            hilt:
+                patterns:
+                    - "com.google.dagger:hilt-*"
+                    - "androidx.hilt:*"
+            # Compose libs move in lockstep with the BOM; group to avoid partial bumps.
+            compose:
+                patterns:
+                    - "androidx.compose.*"
+            # Low-risk patch-only bumps (bugfixes, no API surface change) — safe to
+            # batch and fast-track for merge.
+            patch-updates:
+                update-types:
+                    - "patch"
         ignore:
             # Dependabot serialises the gradle-wrapper jar as Base64 text, producing
             # a wrapper that fails with "Invalid or corrupt jarfile" (see PRs #302, #309).
@@ -24,6 +44,8 @@ updates:
             -   dependency-name: "*"
                 update-types: [ "version-update:semver-major" ]
             -   dependency-name: "org.jsoup:jsoup"
+              # Pinned: parsing behavior for source plugins is version-sensitive;
+              # bump manually and re-test each source parser.
 
     # GitHub Actions used by workflows in .github/workflows
     -   package-ecosystem: "github-actions"
@@ -37,4 +59,8 @@ updates:
             - "github-actions"
         commit-message:
             prefix: "chore(deps)"
-            
+        groups:
+            # All Action bumps are low-risk CI infra changes — one PR per week instead of five.
+            github-actions:
+                patterns:
+                    - "*"

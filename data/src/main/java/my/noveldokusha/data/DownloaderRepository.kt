@@ -164,15 +164,31 @@ class DownloaderRepository @Inject constructor(
                     val doc = networkClient.getWithHeaders(chapterPageUrl, headers)
                         .use { it.toDocument(source.charset) }
 
+                    // Если getChapterText вернул null или пустую строку — выходим из блока скрапера
+                    val body = source.getChapterText(doc)?.takeIf { it.isNotBlank() }
+                        ?: return@also
+
                     val data = my.noveldokusha.scraper.ChapterDownload(
-                        body = source.getChapterText(doc) ?: return@also,
+                        body = body,
                         title = null
                     )
                     return@tryFlatConnect Response.Success(data)
                 }
 
-                // Fallback: heuristic extraction
+                // Fallback: heuristic extraction с поддержкой JS-редиректов
                 val doc = networkClient.get(realUrl).use { it.toDocument() }
+
+                // Проверяем HTML на JS-редирект (window.location, meta refresh)
+                val redirectUrl = my.noveldokusha.network.JsRedirectResolver.resolveRedirectUrl(doc)
+                if (redirectUrl != null) {
+                    android.util.Log.d(TAG, "JS redirect resolved: $redirectUrl")
+                    val redirectedDoc = networkClient.get(redirectUrl).use { it.toDocument() }
+                    val chapter = heuristicChapterExtraction(redirectUrl, redirectedDoc)
+                    if (chapter != null) {
+                        return@tryFlatConnect Response.Success(chapter)
+                    }
+                }
+
                 val chapter = heuristicChapterExtraction(realUrl, doc)
                 when (chapter) {
                     null -> Response.Error(

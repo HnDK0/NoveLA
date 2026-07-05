@@ -13,7 +13,9 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.SettingsBackupRestore
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -51,6 +53,10 @@ internal fun SettingsBackup(
     onAutoBackupIntervalMinutesChange: (Long) -> Unit = {},
     autoBackupIncludeImages: Boolean = false,
     onAutoBackupIncludeImagesChange: (Boolean) -> Unit = {},
+    autoBackupIncludeSettings: Boolean = true,
+    onAutoBackupIncludeSettingsChange: (Boolean) -> Unit = {},
+    autoBackupIncludePlugins: Boolean = true,
+    onAutoBackupIncludePluginsChange: (Boolean) -> Unit = {},
     autoBackupLastTimestamp: Long = 0L,
 ) {
     Column {
@@ -194,21 +200,60 @@ internal fun SettingsBackup(
             }
         )
 
-        // Include images
+        // TODO: properly implement images saving
+        // // Include images
+        // SlimListItem(
+        //     headlineContent = {
+        //         Text(text = stringResource(R.string.auto_backup_include_images))
+        //     },
+        //     supportingContent = {
+        //         Text(text = stringResource(id = R.string.auto_backup_include_images_description))
+        //     },
+        //     leadingContent = {
+        //         Icon(Icons.Outlined.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        //     },
+        //     trailingContent = {
+        //         Switch(
+        //             checked = autoBackupIncludeImages,
+        //             onCheckedChange = onAutoBackupIncludeImagesChange
+        //         )
+        //     }
+        // )
+
+        // Include settings
         SlimListItem(
             headlineContent = {
-                Text(text = stringResource(R.string.auto_backup_include_images))
+                Text(text = stringResource(R.string.auto_backup_include_settings))
             },
             supportingContent = {
-                Text(text = stringResource(id = R.string.auto_backup_include_images_description))
+                Text(text = stringResource(id = R.string.auto_backup_include_settings_description))
             },
             leadingContent = {
-                Icon(Icons.Outlined.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Outlined.Settings, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             },
             trailingContent = {
                 Switch(
-                    checked = autoBackupIncludeImages,
-                    onCheckedChange = onAutoBackupIncludeImagesChange
+                    checked = autoBackupIncludeSettings,
+                    onCheckedChange = onAutoBackupIncludeSettingsChange
+                )
+            }
+        )
+
+        // Include plugins
+        SlimListItem(
+            headlineContent = {
+                Text(text = stringResource(R.string.auto_backup_include_plugins))
+            },
+            supportingContent = {
+                Text(text = stringResource(id = R.string.auto_backup_include_plugins_description))
+            },
+            leadingContent = {
+                Icon(Icons.Outlined.Extension, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            },
+            trailingContent = {
+                Switch(
+                    checked = autoBackupIncludePlugins,
+                    onCheckedChange = onAutoBackupIncludePluginsChange
                 )
             }
         )

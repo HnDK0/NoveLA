@@ -29,7 +29,7 @@ import javax.net.ssl.HttpsURLConnection
 import kotlin.concurrent.withLock
 import kotlin.time.Duration.Companion.seconds
 
-private val ERROR_CODES = listOf(HttpsURLConnection.HTTP_FORBIDDEN, HttpsURLConnection.HTTP_UNAVAILABLE)
+private val ERROR_CODES = listOf(HttpsURLConnection.HTTP_FORBIDDEN, HttpsURLConnection.HTTP_UNAVAILABLE, 429)
 private const val TAG = "CloudflareInterceptor"
 private const val MAX_MANUAL_ATTEMPTS = 3
 
@@ -103,7 +103,8 @@ internal class CloudFareVerificationInterceptor(
         "turnstile",
         "requireTurnstile",
         "__cf_chl_",
-        "but-captcha"
+        "but-captcha",
+        "recaptcha-accessible-status"
     )
 
     override fun intercept(chain: Interceptor.Chain): Response {

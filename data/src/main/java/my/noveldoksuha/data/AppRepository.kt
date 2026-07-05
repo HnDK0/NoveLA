@@ -14,6 +14,7 @@ import my.noveldokusha.feature.local_database.AppDatabase
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.feature.local_database.tables.Chapter
+import my.noveldokusha.scraper.utils.normalizeBookUrl
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -36,22 +37,23 @@ class AppRepository @Inject constructor(
 
     suspend fun toggleBookmark(bookUrl: String, bookTitle: String): Boolean {
         val realUrl = appFileResolver.getLocalIfContentType(bookUrl, bookFolderName = bookTitle)
-        val result = if (bookUrl.isContentUri && libraryBooks.get(realUrl) == null) {
+        val normalizedUrl = normalizeBookUrl(realUrl)
+        val result = if (bookUrl.isContentUri && libraryBooks.get(normalizedUrl) == null) {
             epubImporterRepository.importEpubFromContentUri(
                 contentUri = bookUrl,
                 bookTitle = bookTitle,
                 addToLibrary = true
             ) is Response.Success
         } else {
-            libraryBooks.toggleBookmark(bookUrl = realUrl, bookTitle = bookTitle)
+            libraryBooks.toggleBookmark(bookUrl = normalizedUrl, bookTitle = bookTitle)
         }
         // Если книга добавлена в библиотеку — загружаем жанры в фоне
-        if (result && !realUrl.isContentUri) {
+        if (result && !normalizedUrl.isContentUri) {
             appCoroutineScope.launch {
-                downloaderRepository.bookGenres(bookUrl = realUrl).onSuccess { genres ->
+                downloaderRepository.bookGenres(bookUrl = normalizedUrl).onSuccess { genres ->
                     if (genres.isNotEmpty()) {
                         val normalized = my.noveldokusha.core.utils.GenreUtils.normalize(genres)
-                        libraryDao.updateGenres(realUrl, normalized)
+                        libraryDao.updateGenres(normalizedUrl, normalized)
                     }
                 }
             }

@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.LocalContentColor
@@ -12,9 +13,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import my.noveldokusha.coreui.theme.colorscheme.BaseColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.CatppuccinColorScheme
@@ -37,6 +39,9 @@ import my.noveldokusha.coreui.theme.colorscheme.TealTurquoiseColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.TidalWaveColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.YinYangColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.YotsubaColorScheme
+
+val LocalAppTheme = staticCompositionLocalOf<AppTheme> { AppTheme.DEFAULT }
+val LocalIsDark = staticCompositionLocalOf<Boolean> { false }
 
 @Composable
 fun Theme(
@@ -121,16 +126,23 @@ fun InternalTheme(
         )
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = typography,
-        shapes = shapes,
-    ) {
+    Box(Modifier) {
         CompositionLocalProvider(
-            LocalContentColor provides MaterialTheme.colorScheme.onSurface,
-            LocalTextSelectionColors provides textSelectionColors,
-            content = content
-        )
+            LocalAppTheme provides appTheme,
+            LocalIsDark provides isDark,
+        ) {
+            MaterialTheme(
+                colorScheme = colorScheme,
+                typography = typography,
+                shapes = shapes,
+            ) {
+                CompositionLocalProvider(
+                    LocalContentColor provides MaterialTheme.colorScheme.onSurface,
+                    LocalTextSelectionColors provides textSelectionColors,
+                    content = content
+                )
+            }
+        }
     }
 }
 

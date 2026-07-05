@@ -2,6 +2,7 @@ package my.noveldokusha.di
 
 import android.content.Context
 import com.bumptech.glide.Glide
+import com.bumptech.glide.GlideBuilder
 import com.bumptech.glide.Registry
 import com.bumptech.glide.annotation.Excludes
 import com.bumptech.glide.annotation.GlideModule
@@ -15,7 +16,11 @@ import java.io.InputStream
 
 @Excludes(OkHttpLibraryGlideModule::class)
 @GlideModule
-private class GlideModule : AppGlideModule() {
+class GlideModule : AppGlideModule() {
+
+    override fun applyOptions(context: Context, builder: GlideBuilder) {
+        builder.setImageDecoderEnabledForBitmaps(false)
+    }
 
     override fun registerComponents(context: Context, glide: Glide, registry: Registry) {
         // Create a simple OkHttpClient for Glide without Hilt dependencies

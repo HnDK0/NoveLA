@@ -242,6 +242,114 @@ internal fun databaseMigrations() = arrayOf(
             )
         """)
     },
+    migration(21) {
+        // isWaitingForNetwork: показывает что задача ждёт восстановления сети (DNS/соединение)
+        it.addColumnIfNotExists("DownloadTask", "isWaitingForNetwork", "INTEGER NOT NULL DEFAULT 0")
+    },
+    migration(22) { db ->
+        // Migrate ChapterTranslation from per-paragraph to per-chapter storage
+        // Migrate ChapterTranslation from per-paragraph to per-chapter storage:
+        //   (chapterUrl, sourceLang, targetLang, paragraphIndex, originalText, translatedText, timestamp)
+        //   →
+        //   (chapterUrl, sourceLang, targetLang, translatedParagraphs JSON, titleTranslation, timestamp)
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS ChapterTranslation_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                chapterUrl TEXT NOT NULL,
+                sourceLang TEXT NOT NULL,
+                targetLang TEXT NOT NULL,
+                translatedParagraphs TEXT NOT NULL DEFAULT '[]',
+                titleTranslation TEXT NOT NULL DEFAULT '',
+                timestamp INTEGER NOT NULL
+            )
+        """)
+
+        // Group old rows by (chapterUrl, sourceLang, targetLang) and build per-chapter rows
+        val cursor = db.query("""
+            SELECT DISTINCT chapterUrl, sourceLang, targetLang
+            FROM ChapterTranslation
+        """)
+        cursor.use { c ->
+            while (c.moveToNext()) {
+                val chapterUrl = c.getString(0)
+                val sourceLang = c.getString(1)
+                val targetLang = c.getString(2)
+
+                // Collect body paragraph translations ordered by paragraphIndex
+                val bodyCursor = db.query("""
+                    SELECT translatedText FROM ChapterTranslation
+                    WHERE chapterUrl = ? AND sourceLang = ? AND targetLang = ? AND paragraphIndex >= 0
+                    ORDER BY paragraphIndex
+                """, arrayOf(chapterUrl, sourceLang, targetLang))
+                val translatedParagraphs = org.json.JSONArray()
+                bodyCursor.use { body ->
+                    while (body.moveToNext()) {
+                        translatedParagraphs.put(body.getString(0))
+                    }
+                }
+
+                // Get title translation (paragraphIndex = -1)
+                val titleCursor = db.query("""
+                    SELECT translatedText FROM ChapterTranslation
+                    WHERE chapterUrl = ? AND sourceLang = ? AND targetLang = ? AND paragraphIndex = -1
+                    LIMIT 1
+                """, arrayOf(chapterUrl, sourceLang, targetLang))
+                var titleTranslation = ""
+                titleCursor.use { title ->
+                    if (title.moveToNext()) {
+                        titleTranslation = title.getString(0)
+                    }
+                }
+
+                // Get max timestamp
+                val tsCursor = db.query("""
+                    SELECT MAX(timestamp) FROM ChapterTranslation
+                    WHERE chapterUrl = ? AND sourceLang = ? AND targetLang = ?
+                """, arrayOf(chapterUrl, sourceLang, targetLang))
+                var timestamp = System.currentTimeMillis()
+                tsCursor.use { ts ->
+                    if (ts.moveToNext()) {
+                        timestamp = ts.getLong(0)
+                    }
+                }
+
+                db.execSQL("""
+                    INSERT INTO ChapterTranslation_new (chapterUrl, sourceLang, targetLang, translatedParagraphs, titleTranslation, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, arrayOf(chapterUrl, sourceLang, targetLang, translatedParagraphs.toString(), titleTranslation, timestamp))
+            }
+        }
+
+        db.execSQL("DROP TABLE ChapterTranslation")
+        db.execSQL("ALTER TABLE ChapterTranslation_new RENAME TO ChapterTranslation")
+        db.execSQL("""
+            CREATE UNIQUE INDEX IF NOT EXISTS index_ChapterTranslation_chapterUrl_sourceLang_targetLang
+            ON ChapterTranslation (chapterUrl, sourceLang, targetLang)
+        """)
+    },
+    migration(23) { db ->
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS migration_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                oldBookUrl TEXT NOT NULL,
+                newBookUrl TEXT NOT NULL,
+                oldSourceId TEXT NOT NULL,
+                newSourceId TEXT NOT NULL,
+                status TEXT NOT NULL,
+                chaptersTotal INTEGER NOT NULL,
+                chaptersMatched INTEGER NOT NULL,
+                chaptersWithProgress INTEGER NOT NULL,
+                chaptersWithBody INTEGER NOT NULL,
+                migratedAt INTEGER NOT NULL
+            )
+        """)
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_migration_records_oldBookUrl ON migration_records (oldBookUrl)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_migration_records_newBookUrl ON migration_records (newBookUrl)")
+    },
+    migration(24) {
+        // Empty migration to recalculate Room identity hash
+        // (entity annotations changed from initial v24 release)
+    },
 )
 
 internal fun migration(vi: Int, migrate: (SupportSQLiteDatabase) -> Unit) =

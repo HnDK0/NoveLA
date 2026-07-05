@@ -34,6 +34,8 @@ fun onBackupCreate(): () -> Unit {
     val context = LocalContext.current
     var showDialog by rememberSaveable { mutableStateOf(false) }
     var saveImages by rememberSaveable { mutableStateOf(false) }
+    var saveSettings by rememberSaveable { mutableStateOf(true) }
+    var savePlugins by rememberSaveable { mutableStateOf(true) }
 
     /**
      * Steps:
@@ -47,7 +49,9 @@ fun onBackupCreate(): () -> Unit {
             if (it != null) BackupDataService.start(
                 ctx = context,
                 uri = it,
-                backupImages = saveImages
+                backupImages = saveImages,
+                backupSettings = saveSettings,
+                backupPlugins = savePlugins
             )
         }
     )
@@ -66,21 +70,60 @@ fun onBackupCreate(): () -> Unit {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier
-                            .clickable { saveImages = !saveImages }
+                            .clickable { saveSettings = !saveSettings }
                             .fillMaxWidth()
                             .padding(16.dp)
                     ) {
                         Checkbox(
-                            checked = saveImages,
+                            checked = saveSettings,
                             onCheckedChange = null
                         )
                         Text(
-                            text = stringResource(R.string.save_images),
+                            text = stringResource(R.string.save_settings),
                             modifier = Modifier
                                 .padding(start = 8.dp)
                                 .weight(1f)
                         )
                     }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .clickable { savePlugins = !savePlugins }
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Checkbox(
+                            checked = savePlugins,
+                            onCheckedChange = null
+                        )
+                        Text(
+                            text = stringResource(R.string.save_plugins),
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .weight(1f)
+                        )
+                    }
+                    // TODO: properly implement images saving
+                    // Row(
+                    //     verticalAlignment = Alignment.CenterVertically,
+                    //     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    //     modifier = Modifier
+                    //         .clickable { saveImages = !saveImages }
+                    //         .fillMaxWidth()
+                    //         .padding(16.dp)
+                    // ) {
+                    //     Checkbox(
+                    //         checked = saveImages,
+                    //         onCheckedChange = null
+                    //     )
+                    //     Text(
+                    //         text = stringResource(R.string.save_images),
+                    //         modifier = Modifier
+                    //             .padding(start = 8.dp)
+                    //             .weight(1f)
+                    //     )
+                    // }
                     MyButton(
                         text = stringResource(id = R.string.backup),
                         textAlign = TextAlign.Center,

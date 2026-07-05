@@ -13,12 +13,14 @@ import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
 import my.noveldokusha.feature.local_database.DAOs.ExtensionDao
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
+import my.noveldokusha.feature.local_database.DAOs.NovelMigrationDao
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.feature.local_database.tables.Chapter
 import my.noveldokusha.feature.local_database.tables.ChapterBody
 import my.noveldokusha.feature.local_database.tables.ChapterTranslation
 import my.noveldokusha.feature.local_database.tables.DownloadTaskEntity
 import my.noveldokusha.feature.local_database.tables.Extension
+import my.noveldokusha.feature.local_database.tables.MigrationRecord
 import java.io.InputStream
 
 
@@ -29,6 +31,7 @@ interface AppDatabase {
     fun chapterTranslationDao(): ChapterTranslationDao
     fun downloadTaskDao(): DownloadTaskDao
     fun extensionDao(): ExtensionDao
+    fun novelMigrationDao(): NovelMigrationDao
     val name: String
 
     fun closeDatabase()
@@ -70,9 +73,10 @@ interface AppDatabase {
         ChapterBody::class,
         ChapterTranslation::class,
         DownloadTaskEntity::class,
-        Extension::class
+        Extension::class,
+        MigrationRecord::class
     ],
-    version = 21,
+    version = 25,
     exportSchema = false
 )
 internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {
@@ -82,6 +86,7 @@ internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {
     abstract override fun chapterTranslationDao(): ChapterTranslationDao
     abstract override fun downloadTaskDao(): DownloadTaskDao
     abstract override fun extensionDao(): ExtensionDao
+    abstract override fun novelMigrationDao(): NovelMigrationDao
     override lateinit var name: String
 
     override suspend fun <T> transaction(block: suspend () -> T): T = withTransaction(block)

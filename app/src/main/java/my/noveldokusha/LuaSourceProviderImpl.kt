@@ -10,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import my.noveldokusha.core.ExtensionRepositoryInterface
 import timber.log.Timber
@@ -39,7 +40,9 @@ class LuaSourceProviderImpl @Inject constructor(
                 _sourcesFlow.value = cached
             }
             // Подписываемся на изменения установленных плагинов
-            extensionRepository.getInstalledExtensionsFlow().collect {
+            // debounce(500) — при пакетной установке/удалении перезагрузка одна
+            @OptIn(kotlinx.coroutines.FlowPreview::class)
+            extensionRepository.getInstalledExtensionsFlow().debounce(500).collect {
                 reload()
             }
         }

@@ -9,19 +9,21 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.outlined.ColorLens
-import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -45,6 +48,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -54,6 +59,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.roundToInt
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.theme.InternalTheme
@@ -77,6 +87,7 @@ internal fun ReaderScreen(
     onDarkModeSelected: (DarkMode) -> Unit,
     onAppThemeChanged: (AppTheme) -> Unit,
     onFullScreen: (Boolean) -> Unit,
+    onSingleTapToOpenSettingsChange: (Boolean) -> Unit,
     onTextFontChanged: (String) -> Unit,
     onTextSizeChanged: (Float) -> Unit,
     onLineHeightChanged: (Float) -> Unit,
@@ -86,13 +97,43 @@ internal fun ReaderScreen(
     readerContent: @Composable (paddingValues: PaddingValues) -> Unit,
 ) {
     val showReaderInfo by state.showReaderInfo
+    val selectedSetting by state.settings.selectedSetting
+    val fullScreen by state.settings.fullScreen
+
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val navBarHeightDp = remember {
+        val id = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
+        if (id > 0) {
+            context.resources.getDimensionPixelSize(id)
+                .let { px -> with(density) { px.toDp() } }
+        } else 0.dp
+    }
+    val bottomPadding = 52.dp
 
     // Capture back action when viewing info
     BackHandler(enabled = showReaderInfo) {
         state.showReaderInfo.value = false
     }
 
-    Scaffold(
+    val miniPlayerDismissed = remember { mutableStateOf(false) }
+    val miniPlayerOffsetX = remember { mutableStateOf(0f) }
+    val miniPlayerOffsetY = remember { mutableStateOf(0f) }
+
+    LaunchedEffect(showReaderInfo) {
+        if (!showReaderInfo) {
+            state.settings.selectedSetting.value = Type.None
+        }
+    }
+
+    LaunchedEffect(selectedSetting) {
+        if (selectedSetting == Type.TextToSpeech) {
+            miniPlayerDismissed.value = false
+        }
+    }
+
+    Box {
+        Scaffold(
         topBar = {
             val fullScreen by rememberUpdatedState(showReaderInfo)
             AnimatedVisibility(
@@ -110,7 +151,6 @@ internal fun ReaderScreen(
                         modifier = if (fullScreen) Modifier.displayCutoutPadding() else Modifier
                     ) {
                         val chapterTitle by state.readerInfo.chapterTitle
-                        val selectedSetting by state.settings.selectedSetting
 
                         val toggleOrSet = { type: Type ->
                             state.settings.selectedSetting.value = if (selectedSetting == type) Type.None else type
@@ -131,24 +171,27 @@ internal fun ReaderScreen(
                                 )
                             },
                             navigationIcon = {
-                                IconButton(onClick = onPressBack) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+                                IconButton(onClick = onPressBack, modifier = Modifier.size(36.dp)) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, modifier = Modifier.size(20.dp))
                                 }
                             },
                             actions = {
                                 if (state.settings.liveTranslation.isAvailable) {
-                                    IconButton(onClick = { toggleOrSet(Type.LiveTranslation) }) {
-                                        Icon(Icons.Outlined.Translate, stringResource(R.string.translator), tint = if (selectedSetting == Type.LiveTranslation) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                    IconButton(onClick = { toggleOrSet(Type.LiveTranslation) }, modifier = Modifier.size(36.dp)) {
+                                        Icon(Icons.Outlined.Translate, stringResource(R.string.translator), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.LiveTranslation) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                                     }
                                 }
-                                IconButton(onClick = { toggleOrSet(Type.TextToSpeech) }) {
-                                    Icon(Icons.Filled.RecordVoiceOver, stringResource(R.string.voice_reader), tint = if (selectedSetting == Type.TextToSpeech) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                IconButton(onClick = { toggleOrSet(Type.TextToSpeech) }, modifier = Modifier.size(36.dp)) {
+                                    Icon(Icons.Filled.RecordVoiceOver, stringResource(R.string.voice_reader), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.TextToSpeech) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                                 }
-                                IconButton(onClick = { toggleOrSet(Type.Style) }) {
-                                    Icon(Icons.Outlined.ColorLens, stringResource(R.string.style), tint = if (selectedSetting == Type.Style) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                IconButton(onClick = { toggleOrSet(Type.Style) }, modifier = Modifier.size(36.dp)) {
+                                    Icon(Icons.Outlined.ColorLens, stringResource(R.string.style), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.Style) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                                 }
-                                IconButton(onClick = { toggleOrSet(Type.More) }) {
-                                    Icon(Icons.Outlined.MoreHoriz, stringResource(R.string.more), tint = if (selectedSetting == Type.More) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                IconButton(onClick = { toggleOrSet(Type.More) }, modifier = Modifier.size(36.dp)) {
+                                    Icon(Icons.Filled.Build, stringResource(R.string.more), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.More) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                }
+                                IconButton(onClick = onOpenChapterInWeb, modifier = Modifier.size(36.dp)) {
+                                    Icon(Icons.Filled.Public, stringResource(R.string.open_in_browser), modifier = Modifier.size(20.dp))
                                 }
                             }
                         )
@@ -159,7 +202,6 @@ internal fun ReaderScreen(
         },
         content = readerContent,
         bottomBar = {
-            val selectedSetting by state.settings.selectedSetting
             AnimatedVisibility(
                 visible = showReaderInfo,
                 enter = expandVertically(initialHeight = { 0 }) + fadeIn(),
@@ -177,6 +219,7 @@ internal fun ReaderScreen(
                         onAppThemeSelected = onAppThemeChanged,
                         onKeepScreenOn = onKeepScreenOn,
                         onFullScreen = onFullScreen,
+                        onSingleTapToOpenSettingsChange = onSingleTapToOpenSettingsChange,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     BottomAppBar(
@@ -215,7 +258,43 @@ internal fun ReaderScreen(
                 }
             }
         }
-    )
+        )
+
+        val showMiniPlayer = !showReaderInfo &&
+            selectedSetting == Type.None &&
+            state.settings.textToSpeech.isThereActiveItem.value &&
+            !miniPlayerDismissed.value
+
+        AnimatedVisibility(
+            visible = showMiniPlayer,
+            enter = expandVertically(initialHeight = { 0 }) + fadeIn(),
+            exit = shrinkVertically(targetHeight = { 0 }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = bottomPadding)
+                .offset { IntOffset(miniPlayerOffsetX.value.roundToInt(), miniPlayerOffsetY.value.roundToInt()) }
+                .pointerInput(Unit) {
+                    detectDragGesturesAfterLongPress(
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            miniPlayerOffsetX.value += dragAmount.x
+                            miniPlayerOffsetY.value += dragAmount.y
+                        }
+                    )
+                }
+        ) {
+            TtsMiniPlayer(
+                state = state.settings.textToSpeech,
+                onClose = {
+                    state.settings.textToSpeech.setPlaying(false)
+                    miniPlayerDismissed.value = true
+                },
+                onStartHere = { state.settings.textToSpeech.playFirstVisibleItem() },
+                chapterCurrentNumber = state.readerInfo.chapterCurrentNumber.value,
+                chaptersCount = state.readerInfo.chaptersCount.value,
+            )
+        }
+    }
 }
 
 @Composable
@@ -269,7 +348,13 @@ private fun ViewsPreview(
         onEnable = {},
         onSourceChange = {},
         onDownloadTranslationModel = {}
-        , onRedoTranslation = {}
+        , onRedoTranslation = {},
+        novelPrompt = remember { mutableStateOf("") },
+        onNovelPromptChange = {},
+        novelPromptAppendMode = remember { mutableStateOf(false) },
+        onNovelPromptAppendModeChange = {},
+        currentProvider = remember { mutableStateOf("GOOGLE_PA") },
+        onProviderChange = {},
     )
 
     val textToSpeechSettingData = TextToSpeechSettingData(
@@ -314,7 +399,12 @@ private fun ViewsPreview(
         setVoiceSpeed = {},
         setVoicePitch = {},
         setCustomSavedVoices = {},
-        customSavedVoices = rememberMutableStateOf(value = listOf())
+        customSavedVoices = rememberMutableStateOf(value = listOf()),
+        chapterWordCount = remember { mutableStateOf(0) },
+        remainingWordCount = remember { mutableStateOf(0) },
+        estimatedWpm = remember { mutableStateOf(0) },
+        estimatedTotalSeconds = remember { mutableStateOf(0) },
+        estimatedRemainingSeconds = remember { mutableStateOf(0) },
     )
 
     val style = ReaderScreenState.Settings.StyleSettingsData(
@@ -346,6 +436,7 @@ private fun ViewsPreview(
                         style = style,
                         selectedSetting = remember { mutableStateOf(data.selectedSetting) },
                         fullScreen = remember { mutableStateOf(false) },
+                        isSingleTapToOpenSettings = remember { mutableStateOf(false) },
                     ),
                     showInvalidChapterDialog = remember { mutableStateOf(false) }
                 ),
@@ -361,6 +452,7 @@ private fun ViewsPreview(
                 readerContent = {},
                 onKeepScreenOn = {},
                 onFullScreen = {},
+                onSingleTapToOpenSettingsChange = {},
             )
         }
     }

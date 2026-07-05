@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,7 +35,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.AltRoute
 import my.noveldokusha.coreui.R
+import my.noveldokusha.strings.R as StringsR
 import my.noveldokusha.coreui.components.ImageView
 import my.noveldokusha.coreui.theme.ImageBorderShape
 import my.noveldokusha.core.rememberResolvedBookImagePath
@@ -50,6 +54,7 @@ internal fun BookActionsBottomSheet(
     onMarkAllChaptersRead: () -> Unit,
     onMarkAllChaptersUnread: () -> Unit,
     onDeleteNovel: () -> Unit,
+    onMigrate: () -> Unit = {},
 ) {
     val buttonTextSize = 12.sp
     val buttonShape = RoundedCornerShape(8.dp)
@@ -199,6 +204,34 @@ internal fun BookActionsBottomSheet(
             ) {
                 Text(
                     text = stringResource(R.string.mark_all_chapters_unread),
+                    fontSize = buttonTextSize,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // ── Migrate to another source ────────────────────────────────────
+            FilledTonalButton(
+                onClick = {
+                    onMigrate()
+                    onDismiss()
+                },
+                shape = buttonShape,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                androidx.compose.material3.Icon(
+                    Icons.AutoMirrored.Filled.AltRoute,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(StringsR.string.migration_migrate_src),
                     fontSize = buttonTextSize,
                     textAlign = TextAlign.Center
                 )

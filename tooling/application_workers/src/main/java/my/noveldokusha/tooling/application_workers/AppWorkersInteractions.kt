@@ -23,6 +23,7 @@ class AppWorkersInteractions @Inject constructor(
 
     override fun checkForLibraryUpdates(libraryCategory: LibraryCategory) {
         Log.d("AutoBackup", "checkForLibraryUpdates: called category=$libraryCategory")
+        workManager.cancelAllWorkByTag(LibraryUpdatesWorker.TAG)
         workManager.beginUniqueWork(
             LibraryUpdatesWorker.TAG_MANUAL,
             ExistingWorkPolicy.REPLACE,

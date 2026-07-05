@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import my.noveldokusha.core.LocaleManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -52,13 +53,17 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 
 import androidx.core.content.IntentCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import my.noveldokusha.coreui.BaseActivity
+import my.noveldokusha.tooling.application_workers.setup.PeriodicWorkersInitializer
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.theme.Theme
 import my.noveldokusha.coreui.theme.ThemeProvider
+import my.noveldokusha.core.appPreferences.AppLanguageProvider
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.R
 import my.noveldokusha.catalogexplorer.CatalogExplorerScreen
@@ -84,23 +89,39 @@ private val pages = listOf(
 @AndroidEntryPoint
 open class MainActivity : BaseActivity() {
 
+    companion object {
+        private var isColdStart = true
+    }
+
+    @Inject
+    lateinit var periodicWorkersInitializer: PeriodicWorkersInitializer
+
     private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (isColdStart) {
+            installSplashScreen()
+            isColdStart = false
+        }
         super.onCreate(savedInstanceState)
 
+        // Defer WorkManager init to first onResume (cold start optimization)
+        var initCalled = false
+        lifecycle.addObserver(LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && !initCalled) {
+                initCalled = true
+                periodicWorkersInitializer.init()
+            }
+        })
+
         // Apply saved language preference
-        val language = appPreferences.APP_LANGUAGE.value
+        val language = AppLanguageProvider.fromCode(appPreferences.APP_LANGUAGE_CODE.value)
+            ?: AppLanguageProvider.supportedLanguages.first()
         LocaleManager.applyLocale(this, language)
 
         requestPushNotificationPermission()
-
-        // Check if language was changed and recreate if needed
-        if (savedInstanceState == null) { // Only on first creation
-            // This is handled by the system
-        }
 
         setContent {
             var activePageIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -173,9 +194,7 @@ open class MainActivity : BaseActivity() {
                                 )
                         ) {
                             SettingsScreen(onRestartApp = {
-                                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                                 recreate()
-                                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                             })
                         }
                     }

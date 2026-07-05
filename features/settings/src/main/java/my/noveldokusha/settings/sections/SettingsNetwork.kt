@@ -24,6 +24,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import my.noveldokusha.coreui.components.SlimListItem
 import my.noveldokusha.coreui.theme.colorAccent
 import my.noveldokusha.coreui.theme.textPadding
@@ -31,6 +37,7 @@ import my.noveldokusha.settings.R
 
 @Composable
 internal fun SettingsNetwork(
+    context: Context,
     scraperUserAgent: MutableState<String>,
     cloudflareBypassEnabled: MutableState<Boolean>,
     @Suppress("UNUSED_PARAMETER") cloudflareChallengeTimeoutSeconds: MutableState<Int>,
@@ -298,5 +305,60 @@ internal fun SettingsNetwork(
                 onMassAddDelayChange(newDelay)
             }
         )
+
+        // Battery optimization setting
+        val powerManager = remember { context.getSystemService(Context.POWER_SERVICE) as? PowerManager }
+        val isIgnoringBatteryOptimizations = remember { mutableStateOf(false) }
+        val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+        androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                    isIgnoringBatteryOptimizations.value =
+                        powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        }
+        
+        SlimListItem(
+            headlineContent = {
+                Text(text = stringResource(R.string.battery_optimization))
+            },
+            supportingContent = {
+                Column {
+                    Text(
+                        text = stringResource(
+                            if (isIgnoringBatteryOptimizations.value) R.string.battery_optimization_disabled
+                            else R.string.battery_optimization_enabled
+                        )
+                    )
+                    Text(
+                        text = stringResource(R.string.battery_optimization_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            leadingContent = {
+                Icon(Icons.Outlined.Security, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            },
+            onClick = {
+                if (isIgnoringBatteryOptimizations.value) {
+                    // Оптимизация уже отключена — открываем настройки приложения
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    }
+                    context.startActivity(intent)
+                } else {
+                    // Оптимизация включена — запрашиваем отключение
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    }
+                    context.startActivity(intent)
+                }
+            }
+        )
+
     }
 }

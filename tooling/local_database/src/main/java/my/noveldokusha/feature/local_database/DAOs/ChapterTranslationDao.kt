@@ -21,13 +21,16 @@ interface ChapterTranslationDao {
         WHERE chapterUrl = :chapterUrl 
         AND sourceLang = :sourceLang 
         AND targetLang = :targetLang
-        ORDER BY paragraphIndex
     """)
     suspend fun getTranslations(
         chapterUrl: String,
         sourceLang: String,
         targetLang: String
-    ): List<ChapterTranslation>
+    ): ChapterTranslation?
+
+    @Transaction
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReplace(translation: ChapterTranslation)
 
     @Transaction
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -66,31 +69,24 @@ interface ChapterTranslationDao {
     suspend fun deleteAllTranslations(): Int
 
     @Query("""
-        SELECT COUNT(*) FROM ChapterTranslation 
-        WHERE chapterUrl = :chapterUrl 
-        AND sourceLang = :sourceLang 
-        AND targetLang = :targetLang
-    """)
-    suspend fun getTranslationCount(
-        chapterUrl: String,
-        sourceLang: String,
-        targetLang: String
-    ): Int
-
-    /**
-     * Переведённые названия глав книги — originalText совпадает с title главы.
-     * Используется для отображения переведённых названий в списке глав.
-     */
-    @Query("""
-        SELECT ChapterTranslation.chapterUrl, ChapterTranslation.translatedText
+        SELECT ChapterTranslation.chapterUrl, ChapterTranslation.titleTranslation AS translatedText
         FROM ChapterTranslation
         INNER JOIN Chapter ON Chapter.url = ChapterTranslation.chapterUrl
         WHERE Chapter.bookUrl = :bookUrl
         AND ChapterTranslation.targetLang = :targetLang
-        AND ChapterTranslation.originalText = Chapter.title
+        AND ChapterTranslation.titleTranslation != ''
     """)
     fun getTranslatedTitlesFlow(
         bookUrl: String,
         targetLang: String
     ): Flow<List<ChapterTitleTranslation>>
+
+    @Query("SELECT COUNT(*) FROM ChapterTranslation")
+    suspend fun count(): Int
+
+    @Query("SELECT * FROM ChapterTranslation LIMIT :limit OFFSET :offset")
+    suspend fun getChunk(limit: Int, offset: Int): List<ChapterTranslation>
+
+    @Query("SELECT * FROM ChapterTranslation WHERE chapterUrl IN (:chapterUrls)")
+    suspend fun getTranslationsByChapterUrls(chapterUrls: List<String>): List<ChapterTranslation>
 }

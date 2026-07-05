@@ -103,7 +103,8 @@ internal class ReaderSession(
     val readerLiveTranslation = ReaderLiveTranslation(
         translationManager = translationManager,
         appPreferences = appPreferences,
-        chapterTranslationDao = chapterTranslationDao
+        chapterTranslationDao = chapterTranslationDao,
+        bookUrl = bookUrl,
     )
 
     val readerChaptersLoader = ReaderChaptersLoader(
@@ -212,6 +213,7 @@ internal class ReaderSession(
 
             bookCoverUrl = book.await()?.coverImageUrl
             bookTitle = book.await()?.title
+            readerLiveTranslation.bookTitle = bookTitle ?: ""
             currentChapter = ChapterState(
                 chapterUrl = chapterUrl,
                 chapterItemPosition = chapter.await()?.lastReadPosition ?: 0,

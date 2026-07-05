@@ -48,6 +48,9 @@ internal fun ChaptersScreenBody(
     onPullRefresh: () -> Unit,
     onCoverLongClick: () -> Unit,
     onGlobalSearchClick: (input: String) -> Unit,
+    bookCategory: String,
+    categories: () -> List<String>,
+    onCategoryClick: () -> Unit,
     scraper: Scraper,
     modifier: Modifier = Modifier,
 ) {
@@ -139,7 +142,7 @@ internal fun ChaptersScreenBody(
                     },
                     numberOfChapters = state.chapters.size,
                     paddingValues = innerPadding,
-                    modifier = Modifier.padding(bottom = 12.dp),
+                    modifier = Modifier,
                     translatedTitle = translatedTitle,
                     translatedDescription = translatedDescription,
                     isTranslating = isTranslating,
@@ -149,6 +152,9 @@ internal fun ChaptersScreenBody(
                     onGlobalSearchClick = onGlobalSearchClick,
                     onScrollToLastRead = onScrollToLastRead,
                     onScrollToChapter = { showGoToChapterDialog = true },
+                    bookCategory = bookCategory,
+                    categories = categories,
+                    onCategoryClick = onCategoryClick,
                 )
             }
 

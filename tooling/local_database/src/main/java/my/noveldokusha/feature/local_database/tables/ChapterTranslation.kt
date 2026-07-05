@@ -5,20 +5,13 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Stores translated text for chapter paragraphs to avoid re-translating
- * on every reader session.
- *
- * Primary key is auto-generated Long id for index efficiency.
- * Unique index on (chapterUrl + sourceLang + targetLang + paragraphIndex)
- * prevents duplicate translations for the same paragraph.
+ * Stores all translated paragraphs for a chapter + language pair as a single row.
+ * translatedParagraphs is a JSON array of translated body paragraphs.
+ * titleTranslation is the translated chapter title (empty = not translated).
  */
 @Entity(
     indices = [
-        Index(
-            value = ["chapterUrl", "sourceLang", "targetLang", "paragraphIndex"],
-            unique = true
-        ),
-        Index(value = ["chapterUrl", "sourceLang", "targetLang"])
+        Index(value = ["chapterUrl", "sourceLang", "targetLang"], unique = true)
     ]
 )
 data class ChapterTranslation(
@@ -27,8 +20,7 @@ data class ChapterTranslation(
     val chapterUrl: String,
     val sourceLang: String,
     val targetLang: String,
-    val paragraphIndex: Int,
-    val originalText: String,
-    val translatedText: String,
+    val translatedParagraphs: String,
+    val titleTranslation: String = "",
     val timestamp: Long = System.currentTimeMillis()
 )

@@ -31,15 +31,20 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.ExperimentalAnimationApi
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.MoreVert
 import my.noveldokusha.coreui.components.AnimatedTransition
 import my.noveldokusha.coreui.components.ToolbarMode
+import my.noveldokusha.strings.R as StringsR
 import my.noveldokusha.coreui.components.TopAppBarSearch
 import my.noveldokusha.navigation.NavigationRouteViewModel
 import my.noveldokusha.feature.local_database.BookMetadata
 import my.noveldokusha.feature.local_database.BookWithContext
+import my.noveldokusha.feature.local_database.tables.Book
+
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -134,6 +139,30 @@ fun LibraryScreen(
                                 stringResource(R.string.delete),
                                 tint = if (uiState.selectedBooks.isNotEmpty())
                                     MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                val selectedUrls = uiState.selectedBooks.toList()
+                                if (selectedUrls.isNotEmpty()) {
+                                    // Launch mass migration with the first selected book's source
+                                    val sourceUrl = selectedUrls.firstOrNull()?.let { url ->
+                                        url.substringBeforeLast("/")
+                                    } ?: ""
+                                    navigationRouteViewModel.massMigration(
+                                        context = context,
+                                        sourceBaseUrl = sourceUrl
+                                    ).let(context::startActivity)
+                                }
+                            },
+                            enabled = uiState.selectedBooks.isNotEmpty()
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                stringResource(StringsR.string.migration_tab),
+                                tint = if (uiState.selectedBooks.isNotEmpty())
+                                    MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                             )
                         }
@@ -255,7 +284,14 @@ fun LibraryScreen(
             onCategorySelected = { libraryModel.updateBookCategory(book.url, it) },
             categories = libraryModel.getCategories(),
             onMarkAllChaptersRead = { libraryModel.markAllChaptersAsRead(book.url) },
-            onMarkAllChaptersUnread = { libraryModel.markAllChaptersAsUnread(book.url) }
+            onMarkAllChaptersUnread = { libraryModel.markAllChaptersAsUnread(book.url) },
+            onMigrate = {
+                navigationRouteViewModel.novelMigration(
+                    context = context,
+                    bookUrl = book.url,
+                    bookTitle = book.title
+                ).let(context::startActivity)
+            },
         )
     }
 

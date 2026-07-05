@@ -17,6 +17,7 @@ dependencies {
     implementation(projects.networking)
     implementation(projects.tooling.localDatabase)
     implementation(projects.features.extensions)
+    implementation(projects.tooling.novelMigration)
 
     implementation(libs.compose.androidx.activity)
     implementation(libs.compose.material3.android)

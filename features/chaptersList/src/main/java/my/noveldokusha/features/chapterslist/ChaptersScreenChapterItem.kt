@@ -107,7 +107,7 @@ internal fun ChaptersScreenChapterItem(
     Surface(
         shape = RoundedCornerShape(8.dp),
         tonalElevation = 0.5.dp,
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = modifier.padding(horizontal = 8.dp, vertical = 2.dp),
     ) {
         Box(

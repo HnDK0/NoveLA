@@ -9,6 +9,9 @@ import my.noveldokusha.network.interceptors.CloudFareVerificationInterceptor
 import my.noveldokusha.network.interceptors.DecodeResponseInterceptor
 import my.noveldokusha.network.interceptors.UserAgentInterceptor
 import okhttp3.Cache
+import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
+import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -35,7 +38,7 @@ class ScraperNetworkClient @Inject constructor(
 ) : NetworkClient {
 
     private val cacheDir = File(appContext.cacheDir, "network_cache")
-    private val cacheSize = 5L * 1024 * 1024
+    private val cacheSize = 50L * 1024 * 1024
 
     override val cookieJar = ScraperCookieJar()
 
@@ -43,25 +46,33 @@ class ScraperNetworkClient @Inject constructor(
         Timber.v(it)
     }.apply { level = HttpLoggingInterceptor.Level.HEADERS }
 
-    val client: OkHttpClient = OkHttpClient.Builder()
-        .apply {
-            if (appInternalState.isDebugMode) addInterceptor(okhttpLoggingInterceptor)
-            addInterceptor(UserAgentInterceptor(appPreferences.SCRAPER_USER_AGENT.value))
-            addInterceptor(DecodeResponseInterceptor())
-            if (appPreferences.CLOUDFLARE_BYPASS_ENABLED.value) {
-                addInterceptor(CloudFareVerificationInterceptor(appContext, appPreferences))
+    val client: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .apply {
+                if (appInternalState.isDebugMode) addInterceptor(okhttpLoggingInterceptor)
+                addInterceptor(UserAgentInterceptor(appPreferences.SCRAPER_USER_AGENT.value))
+                addInterceptor(DecodeResponseInterceptor())
+                if (appPreferences.CLOUDFLARE_BYPASS_ENABLED.value) {
+                    addInterceptor(CloudFareVerificationInterceptor(appContext, appPreferences))
+                }
+                connectionPool(ConnectionPool(15, 5, TimeUnit.MINUTES))
+                dispatcher(Dispatcher().apply { maxRequestsPerHost = 16 })
+                cookieJar(cookieJar)
+                cache(Cache(cacheDir, cacheSize))
+                connectTimeout(30, TimeUnit.SECONDS)
+                readTimeout(30, TimeUnit.SECONDS)
+                // Кастомный DNS resolver через DoH — работает когда системный DNS блокируется Doze mode
+                dns(DnsOverHttps())
             }
-            cookieJar(cookieJar)
-            cache(Cache(cacheDir, cacheSize))
-            connectTimeout(30, TimeUnit.SECONDS)
-            readTimeout(30, TimeUnit.SECONDS)
-        }
-        .build()
+            .build()
+    }
 
-    private val clientWithRedirects: OkHttpClient = client.newBuilder()
-        .followRedirects(true)
-        .followSslRedirects(true)
-        .build()
+    private val clientWithRedirects: OkHttpClient by lazy {
+        client.newBuilder()
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build()
+    }
 
     override suspend fun call(request: Request.Builder, followRedirects: Boolean): Response {
         return if (followRedirects) clientWithRedirects.call(request) else client.call(request)

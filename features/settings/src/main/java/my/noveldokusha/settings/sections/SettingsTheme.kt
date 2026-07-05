@@ -93,7 +93,7 @@ internal fun SettingsTheme(
 
         // Color schemes section
         Text(
-            text = "Color Scheme",
+            text = stringResource(id = R.string.color_scheme),
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             color = MaterialTheme.colorScheme.onSurfaceVariant

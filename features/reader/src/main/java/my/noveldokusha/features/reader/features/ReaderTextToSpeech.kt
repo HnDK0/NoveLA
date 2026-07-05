@@ -1,6 +1,10 @@
 package my.noveldokusha.features.reader.features
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
@@ -10,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -49,6 +54,11 @@ internal data class TextToSpeechSettingData(
     val setVoiceId: (voiceId: String) -> Unit,
     val setVoiceSpeed: (Float) -> Unit,
     val setVoicePitch: (Float) -> Unit,
+    val chapterWordCount: State<Int>,
+    val remainingWordCount: State<Int>,
+    val estimatedWpm: State<Int>,
+    val estimatedTotalSeconds: State<Int>,
+    val estimatedRemainingSeconds: State<Int>,
 )
 
 internal data class TextSynthesis(
@@ -80,6 +90,11 @@ internal class ReaderTextToSpeech(
     private val setPreferredVoiceSpeed: (voiceId: Float) -> Unit,
     private val onBufferLow: (() -> Unit)? = null,
 ) {
+    private val DECORATIVE_CHARS = """\-=*_~+#·•°─-┿"""
+    private val SEPARATOR_ONLY = Regex("""^\s*[$DECORATIVE_CHARS]{3,}\s*$""")
+    private val LEADING_DECORATIVE = Regex("""^[$DECORATIVE_CHARS]{3,}\s*""")
+    private val TRAILING_DECORATIVE = Regex("""\s*[$DECORATIVE_CHARS]{3,}$""")
+
     private val halfBuffer = 5
     private var updateJob: Job? = null
     private val manager = TextToSpeechManager(
@@ -104,6 +119,63 @@ internal class ReaderTextToSpeech(
     val scrollToReaderItem = MutableSharedFlow<ReaderItem>()
     val scrollToChapterTop = MutableSharedFlow<ChapterIndex>()
 
+    private val baseCharactersPerSecond = mutableStateOf(13.0f)
+
+    val chapterWordCount = derivedStateOf {
+        val currentChapterIndex = currentTextPlaying.value.itemPos.chapterIndex
+        if (isChapterIndexValid(currentChapterIndex)) {
+            items.filterIsInstance<ReaderItem.Text>()
+                .filter { it.chapterIndex == currentChapterIndex }
+                .sumOf { it.textToDisplay.wordCount() }
+        } else 0
+    }
+
+    val remainingWordCount = derivedStateOf {
+        val currentChapterIndex = currentTextPlaying.value.itemPos.chapterIndex
+        val currentItemPos = currentTextPlaying.value.itemPos.chapterItemPosition
+        if (isChapterIndexValid(currentChapterIndex)) {
+            items.filterIsInstance<ReaderItem.Text>()
+                .filter { it.chapterIndex == currentChapterIndex && it.chapterItemPosition >= currentItemPos }
+                .sumOf { it.textToDisplay.wordCount() }
+        } else 0
+    }
+
+    val chapterCharacterCount = derivedStateOf {
+        val currentChapterIndex = currentTextPlaying.value.itemPos.chapterIndex
+        if (isChapterIndexValid(currentChapterIndex)) {
+            items.filterIsInstance<ReaderItem.Text>()
+                .filter { it.chapterIndex == currentChapterIndex }
+                .sumOf { it.textToDisplay.length }
+        } else 0
+    }
+
+    val remainingCharacterCount = derivedStateOf {
+        val currentChapterIndex = currentTextPlaying.value.itemPos.chapterIndex
+        val currentItemPos = currentTextPlaying.value.itemPos.chapterItemPosition
+        if (isChapterIndexValid(currentChapterIndex)) {
+            items.filterIsInstance<ReaderItem.Text>()
+                .filter { it.chapterIndex == currentChapterIndex && it.chapterItemPosition >= currentItemPos }
+                .sumOf { it.textToDisplay.length }
+        } else 0
+    }
+
+    val estimatedWpm = derivedStateOf {
+        val currentSpeed = manager.voiceSpeed.floatValue
+        (baseCharactersPerSecond.value * currentSpeed * 12.0f).toInt().coerceAtLeast(30)
+    }
+
+    val estimatedTotalSeconds = derivedStateOf {
+        val currentSpeed = manager.voiceSpeed.floatValue
+        val cps = baseCharactersPerSecond.value * currentSpeed
+        if (cps > 0f) (chapterCharacterCount.value / cps).toInt() else 0
+    }
+
+    val estimatedRemainingSeconds = derivedStateOf {
+        val currentSpeed = manager.voiceSpeed.floatValue
+        val cps = baseCharactersPerSecond.value * currentSpeed
+        if (cps > 0f) (remainingCharacterCount.value / cps).toInt() else 0
+    }
+
     val state = TextToSpeechSettingData(
         isPlaying = mutableStateOf(false),
         isLoadingChapter = mutableStateOf(false),
@@ -127,6 +199,11 @@ internal class ReaderTextToSpeech(
         scrollToActiveItem = ::scrollToActiveItem,
         setVoicePitch = ::setVoicePitch,
         setVoiceSpeed = ::setVoiceSpeed,
+        chapterWordCount = chapterWordCount,
+        remainingWordCount = remainingWordCount,
+        estimatedWpm = estimatedWpm,
+        estimatedTotalSeconds = estimatedTotalSeconds,
+        estimatedRemainingSeconds = estimatedRemainingSeconds,
     )
 
     val isActive = derivedStateOf { state.isThereActiveItem.value || state.isPlaying.value }
@@ -158,11 +235,87 @@ internal class ReaderTextToSpeech(
                 }
             }
         }
+
+        // Калибровка скорости чтения в реальном времени
+        coroutineScope.launch {
+            val paragraphStartTimes = mutableMapOf<String, Long>()
+            manager.currentTextSpeakFlow.collect { utterance ->
+                val utteranceId = utterance.utteranceId
+                when (utterance.playState) {
+                    Utterance.PlayState.PLAYING -> {
+                        paragraphStartTimes[utteranceId] = System.currentTimeMillis()
+                    }
+                    Utterance.PlayState.FINISHED -> {
+                        val startTime = paragraphStartTimes.remove(utteranceId)
+                        if (startTime != null) {
+                            val durationMs = System.currentTimeMillis() - startTime
+                            val currentChapterIndex = utterance.itemPos.chapterIndex
+                            val currentItemPos = utterance.itemPos.chapterItemPosition
+
+                            val itemIndex = indexOfReaderItem(
+                                list = items,
+                                chapterIndex = currentChapterIndex,
+                                chapterItemPosition = currentItemPos,
+                            )
+                            val item = items.getOrNull(itemIndex) as? ReaderItem.Text
+                            val text = item?.textToDisplay ?: ""
+                            val charCount = text.length
+
+                            if (charCount > 10 && durationMs > 200) {
+                                val measuredCps = (charCount * 1000.0f) / durationMs
+                                val currentSpeed = manager.voiceSpeed.floatValue
+                                if (currentSpeed > 0f) {
+                                    val baseCps = measuredCps / currentSpeed
+                                    if (baseCps in 3.0f..40.0f) {
+                                        baseCharactersPerSecond.value = 0.2f * baseCps + 0.8f * baseCharactersPerSecond.value
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else -> Unit
+                }
+            }
+        }
+    }
+
+    private fun claimMediaSession() {
+        try {
+            val sampleRate = 44100
+            val durationSec = 0.1
+            val bufferSize = (sampleRate * durationSec).toInt()
+            val audioTrack = AudioTrack(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build(),
+                AudioFormat.Builder()
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setSampleRate(sampleRate)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .build(),
+                bufferSize * 2,
+                AudioTrack.MODE_STATIC,
+                AudioManager.AUDIO_SESSION_ID_GENERATE
+            )
+            val silence = ShortArray(bufferSize)
+            audioTrack.write(silence, 0, silence.size)
+            audioTrack.play()
+            coroutineScope.launch {
+                delay(200)
+                runCatching { audioTrack.stop() }
+                runCatching { audioTrack.release() }
+            }
+            Log.d("TTS", "claimMediaSession OK")
+        } catch (e: Exception) {
+            Log.w("TTS", "claimMediaSession failed: $e")
+        }
     }
 
     @Synchronized
     fun start() {
         Log.d("TTS", "start()")
+        claimMediaSession()
         state.isPlaying.value = true
         updateJob?.cancel()
         updateJob = coroutineScope.launch {
@@ -296,24 +449,43 @@ internal class ReaderTextToSpeech(
      * Returns the actual current playing position directly from the TTS manager.
      * Unlike currentTextPlaying.value.itemPos which may be stale when app is backgrounded,
      * this always returns the up-to-date position from the underlying utterance state.
+     *
+     * Returns null if there is no actively playing/loading item (i.e. TTS is
+     * between chapters or has finished all content). Callers should fall back
+     * to waiting for the next currentReaderItem emission.
      */
-    fun getActualPlayingPosition(): ReaderItem.Position {
-        // Try to find currently playing item from queue
+    fun getActualPlayingPosition(): ReaderItem.Position? {
+        // All items in the queue are non-finished — the first one is the current
         val playingItem = manager.queueList.values
             .firstOrNull { it.playState == Utterance.PlayState.PLAYING }
         if (playingItem != null) {
             return playingItem.itemPos
         }
-        
-        // Fallback to LOADING item
-        val loadingItem = manager.queueList.values
-            .firstOrNull { it.playState == Utterance.PlayState.LOADING }
-        if (loadingItem != null) {
-            return loadingItem.itemPos
+
+        // Queue is empty — check if currentActiveItemState is still active
+        val currentState = currentTextPlaying.value
+        if (currentState.playState != Utterance.PlayState.FINISHED) {
+            return currentState.itemPos
         }
-        
-        // Fallback to currentActiveItemState
-        return manager.currentActiveItemState.value.itemPos
+
+        // Queue empty and state is FINISHED: TTS is between items/chapters.
+        // Don't return a stale position — let the caller wait for the next emission.
+        return null
+    }
+
+    /**
+     * Forces the currentActiveItemState to reflect the actual playing position
+     * from the TTS queue. This ensures that after screen unlock, the LiveData
+     * observer receives the up-to-date position instead of a stale one.
+     */
+    fun forceUpdateCurrentItemState() {
+        val playingItem = manager.queueList.values
+            .firstOrNull { it.playState == Utterance.PlayState.PLAYING }
+            ?: manager.queueList.values
+                .firstOrNull { it.playState == Utterance.PlayState.LOADING }
+        if (playingItem != null) {
+            manager.setCurrentSpeakState(playingItem)
+        }
     }
 
     @Synchronized
@@ -586,11 +758,32 @@ internal class ReaderTextToSpeech(
             .toList()
     }
 
+    private fun isOnlyDecorators(text: String): Boolean {
+        if (text.isBlank()) return true
+        return text.lines().all { line ->
+            line.isBlank() || SEPARATOR_ONLY.matches(line)
+        }
+    }
+
+    private fun cleanTextForTts(text: String): String {
+        return text.lines().joinToString("\n") { line ->
+            line.replace(LEADING_DECORATIVE, "")
+                .replace(TRAILING_DECORATIVE, "")
+                .trim()
+        }
+    }
+
     private fun speakItem(item: ReaderItem) {
         when (item) {
             is ReaderItem.Text -> {
+                val displayText = item.textToDisplay
+                if (isOnlyDecorators(displayText)) return
+
+                val cleanText = cleanTextForTts(displayText)
+                if (cleanText.isBlank()) return
+
                 manager.speak(
-                    text = item.textToDisplay,
+                    text = cleanText,
                     textSynthesis = TextSynthesis(
                         itemPos = item,
                         playState = Utterance.PlayState.PLAYING
@@ -600,4 +793,9 @@ internal class ReaderTextToSpeech(
             else -> Unit
         }
     }
+}
+
+private fun String.wordCount(): Int {
+    if (this.isEmpty()) return 0
+    return this.split(Regex("\\s+")).count { it.isNotEmpty() }
 }

@@ -6,7 +6,7 @@
 
 <div align="center">
 
-<img src="https://github.com/HnDK0/NoveLA/raw/default/screenshots/NoveLA.jpg" width="88" height="88" alt="NoveLA"/>
+<img src="https://github.com/HnDK0/NoveLA/raw/default/screenshots/NoveLA.png" width="88" height="88" alt="NoveLA"/>
 
 # NoveLA
 

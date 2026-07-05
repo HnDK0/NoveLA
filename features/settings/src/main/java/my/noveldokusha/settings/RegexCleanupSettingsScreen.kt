@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
 import my.noveldokusha.core.models.RegexRule
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -240,12 +241,13 @@ fun RegexCleanupSettingsScreen(
                     )
                 },
                 confirmButton = {
-                    Button(
+                    OutlinedButton(
                         onClick = { viewModel.onConfirmDelete() },
-                        colors = ButtonDefaults.buttonColors(
+                        colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                             contentColor = MaterialTheme.colorScheme.onErrorContainer
-                        )
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
                     ) {
                         Text(stringResource(id = R.string.delete))
                     }

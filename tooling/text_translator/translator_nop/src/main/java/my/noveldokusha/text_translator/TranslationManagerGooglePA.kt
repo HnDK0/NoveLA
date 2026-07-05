@@ -68,7 +68,7 @@ class TranslationManagerGooglePA(
     override suspend fun hasModelDownloaded(language: String): TranslationModelState? =
         models.firstOrNull { it.language == language }
 
-    override fun getTranslator(source: String, target: String): TranslatorState {
+    override fun getTranslator(source: String, target: String, systemPromptOverride: String?): TranslatorState {
         Log.d(TAG, "getTranslator: source=$source, target=$target")
         return TranslatorState(
             source = source,
@@ -408,7 +408,8 @@ class TranslationManagerGooglePA(
     override suspend fun translateBatch(
         texts: List<String>,
         sourceLanguage: String,
-        targetLanguage: String
+        targetLanguage: String,
+        systemPromptOverride: String?,
     ): Map<String, String> = withContext(Dispatchers.IO) {
         if (texts.isEmpty()) return@withContext emptyMap()
 

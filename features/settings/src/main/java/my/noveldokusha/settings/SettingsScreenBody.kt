@@ -1,15 +1,24 @@
 package my.noveldokusha.settings
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,22 +30,31 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.Icons
+
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.theme.InternalTheme
 import my.noveldokusha.coreui.theme.PreviewThemes
 import my.noveldokusha.core.appPreferences.AppLanguage
+import my.noveldokusha.core.appPreferences.AppLanguageProvider
+import my.noveldokusha.core.appPreferences.NovelPromptData
 import my.noveldokusha.settings.sections.AppUpdates
 import my.noveldokusha.settings.sections.LibraryAutoUpdate
 import my.noveldokusha.settings.sections.SettingsBackup
 import my.noveldokusha.settings.sections.SettingsData
 import my.noveldokusha.settings.sections.SettingsGeminiTranslation
 import my.noveldokusha.settings.sections.SettingsLanguage
+import my.noveldokusha.settings.sections.SettingsNovelPromptsDialog
 import my.noveldokusha.settings.sections.SettingsNetwork
 import my.noveldokusha.settings.sections.SettingsTheme
 import my.noveldokusha.settings.sections.SettingsRegexCleanup
@@ -48,9 +66,11 @@ internal fun SettingsScreenBody(
     onRefreshSizes: () -> Unit,
     onAppThemeSelected: (AppTheme) -> Unit,
     onDarkModeSelected: (DarkMode) -> Unit,
-    onCleanDatabase: () -> Unit,
-    onCleanImageFolder: () -> Unit,
-    onCleanChapterCache: () -> Unit,
+    onRequestCleanDatabase: () -> Unit,
+    onRequestCleanImageFolder: () -> Unit,
+    onRequestCleanChapterCache: () -> Unit,
+    onConfirmClean: () -> Unit,
+    onDismissClean: () -> Unit,
     onMassAddDelayChange: (Long) -> Unit,
     onDownloadDelayChange: (Long) -> Unit,
     onBackupData: () -> Unit,
@@ -71,12 +91,15 @@ internal fun SettingsScreenBody(
     onLlmMaxOutputTokensChange: (Int) -> Unit,
     onLanguageChange: (AppLanguage) -> Unit,
     onNavigateToRegexCleanup: () -> Unit,
+    onDeleteNovelPrompt: (String) -> Unit,
     // Auto Backup
     onAutoBackupEnabledChange: (Boolean) -> Unit,
     onAutoBackupSelectDirectory: () -> Unit,
     onAutoBackupMaxCountChange: (Int) -> Unit,
     onAutoBackupIntervalMinutesChange: (Long) -> Unit,
     onAutoBackupIncludeImagesChange: (Boolean) -> Unit,
+    onAutoBackupIncludeSettingsChange: (Boolean) -> Unit,
+    onAutoBackupIncludePluginsChange: (Boolean) -> Unit,
 ) {
     // Refresh size displays every time the user navigates to this screen
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -92,12 +115,18 @@ internal fun SettingsScreenBody(
         }
     }
 
+    val showNovelPromptsDialog = remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
     ) {
+        val currentLanguageObj = remember(state.currentLanguage.value) {
+            AppLanguageProvider.fromCode(state.currentLanguage.value)
+                ?: AppLanguageProvider.supportedLanguages.first()
+        }
         SettingsLanguage(
-            currentLanguage = state.currentLanguage.value,
-            onLanguageChange = onLanguageChange
+            currentLanguage = currentLanguageObj,
+            onLanguageChange = onLanguageChange,
         )
         HorizontalDivider()
         SettingsTheme(
@@ -114,12 +143,14 @@ internal fun SettingsScreenBody(
             isCleaningDatabase = state.isCleaningDatabase.value,
             isCleaningImages = state.isCleaningImages.value,
             isCleaningChapterCache = state.isCleaningChapterCache.value,
-            onCleanDatabase = onCleanDatabase,
-            onCleanImageFolder = onCleanImageFolder,
-            onCleanChapterCache = onCleanChapterCache,
+            onRequestCleanDatabase = onRequestCleanDatabase,
+            onRequestCleanImageFolder = onRequestCleanImageFolder,
+            onRequestCleanChapterCache = onRequestCleanChapterCache,
         )
         HorizontalDivider()
+        val context = LocalContext.current
         SettingsNetwork(
+            context = context,
             scraperUserAgent = state.scraperUserAgent,
             cloudflareBypassEnabled = state.cloudflareBypassEnabled,
             cloudflareChallengeTimeoutSeconds = state.cloudflareChallengeTimeoutSeconds,
@@ -143,6 +174,10 @@ internal fun SettingsScreenBody(
             onAutoBackupIntervalMinutesChange = onAutoBackupIntervalMinutesChange,
             autoBackupIncludeImages = state.autoBackupIncludeImages.value,
             onAutoBackupIncludeImagesChange = onAutoBackupIncludeImagesChange,
+            autoBackupIncludeSettings = state.autoBackupIncludeSettings.value,
+            onAutoBackupIncludeSettingsChange = onAutoBackupIncludeSettingsChange,
+            autoBackupIncludePlugins = state.autoBackupIncludePlugins.value,
+            onAutoBackupIncludePluginsChange = onAutoBackupIncludePluginsChange,
             autoBackupLastTimestamp = state.autoBackupLastTimestamp.value,
         )
         SettingsGeminiTranslation(
@@ -171,8 +206,9 @@ internal fun SettingsScreenBody(
                 llmMaxOutputTokens             = state.llmMaxOutputTokens.value,
                 onLlmBatchSizeChange           = onLlmBatchSizeChange,
                 onLlmMaxOutputTokensChange     = onLlmMaxOutputTokensChange,
+                novelPromptCount               = state.translationNovelPrompts.value.size,
+                onNovelPromptsClick            = { showNovelPromptsDialog.value = true },
             )
-        HorizontalDivider()
         SettingsRegexCleanup(
             onNavigateToRegexCleanup = onNavigateToRegexCleanup
         )
@@ -196,6 +232,65 @@ internal fun SettingsScreenBody(
         )
         Spacer(modifier = Modifier.height(120.dp))
     }
+
+    if (showNovelPromptsDialog.value) {
+        SettingsNovelPromptsDialog(
+            novelPrompts = state.translationNovelPrompts.value,
+            onDeleteNovelPrompt = onDeleteNovelPrompt,
+            onDismiss = { showNovelPromptsDialog.value = false },
+        )
+    }
+
+    val confirmationType = state.cleanConfirmationType.value
+    if (confirmationType != null) {
+        val titleRes = when (confirmationType) {
+            CleanConfirmationType.DATABASE -> R.string.clean_database
+            CleanConfirmationType.IMAGES_FOLDER -> R.string.clean_images_folder
+            CleanConfirmationType.CHAPTER_CACHE -> R.string.clean_chapter_cache
+        }
+        val textRes = when (confirmationType) {
+            CleanConfirmationType.DATABASE -> R.string.clean_database_confirmation
+            CleanConfirmationType.IMAGES_FOLDER -> R.string.clean_images_folder_confirmation
+            CleanConfirmationType.CHAPTER_CACHE -> R.string.clean_chapter_cache_confirmation
+        }
+        AlertDialog(
+            onDismissRequest = onDismissClean,
+            title = {
+                Text(
+                    text = stringResource(id = titleRes),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(id = textRes),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                OutlinedButton(
+                    onClick = onConfirmClean,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(id = android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = onDismissClean,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text(stringResource(id = R.string.cancel))
+                }
+            }
+        )
+    }
 }
 
 
@@ -209,7 +304,7 @@ private fun Preview() {
                 state = SettingsScreenState(
                     currentAppTheme = remember { mutableStateOf(AppTheme.DEFAULT) },
                     currentDarkMode = remember { mutableStateOf(DarkMode.SYSTEM) },
-                    currentLanguage = remember { derivedStateOf { AppLanguage.ENGLISH } },
+                    currentLanguage = remember { mutableStateOf("en") },
                     databaseSize = remember { mutableStateOf("1 MB") },
                     imageFolderSize = remember { mutableStateOf("10 MB") },
                     isCleaningDatabase = remember { mutableStateOf(false) },
@@ -249,12 +344,18 @@ private fun Preview() {
                     autoBackupMaxCount = remember { derivedStateOf { 5 } },
                     autoBackupIntervalMinutes = remember { derivedStateOf { 60L } },
                     autoBackupIncludeImages = remember { derivedStateOf { false } },
+                    autoBackupIncludeSettings = remember { derivedStateOf { true } },
+                    autoBackupIncludePlugins = remember { derivedStateOf { true } },
                     autoBackupLastTimestamp = remember { derivedStateOf { 0L } },
+                    translationNovelPrompts = remember { derivedStateOf { emptyMap<String, NovelPromptData>() } },
+                    cleanConfirmationType = remember { mutableStateOf(null) },
                 ),
                 onRefreshSizes = { },
-                onCleanDatabase = { },
-                onCleanImageFolder = { },
-                onCleanChapterCache = { },
+                onRequestCleanDatabase = { },
+                onRequestCleanImageFolder = { },
+                onRequestCleanChapterCache = { },
+                onConfirmClean = { },
+                onDismissClean = { },
                 onMassAddDelayChange = { },
                 onDownloadDelayChange = { },
                 onBackupData = { },
@@ -282,6 +383,9 @@ private fun Preview() {
                     onAutoBackupMaxCountChange = { },
                     onAutoBackupIntervalMinutesChange = { },
                     onAutoBackupIncludeImagesChange = { },
+                    onAutoBackupIncludeSettingsChange = { },
+                    onAutoBackupIncludePluginsChange = { },
+                    onDeleteNovelPrompt = { },
             )
         }
     }

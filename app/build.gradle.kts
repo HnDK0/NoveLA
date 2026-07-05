@@ -46,8 +46,8 @@ android {
 
     defaultConfig {
         applicationId = "my.novela"
-        versionCode = 31
-        versionName = "1.3.0"
+        versionCode = 34
+        versionName = "1.3.3"
         base.archivesName.set("NoveLA_v$versionName")
     }
 
@@ -69,22 +69,17 @@ android {
         }
 
         named("debug") {
-            postprocessing {
-                isRemoveUnusedCode = false
-                isObfuscate = false
-                isOptimizeCode = false
-                isRemoveUnusedResources = false
-            }
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
 
         named("release") {
-            postprocessing {
-                proguardFile("proguard-rules.pro")
-                isRemoveUnusedCode = true
-                isObfuscate = false
-                isOptimizeCode = true
-                isRemoveUnusedResources = true
-            }
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            isShrinkResources = true
         }
     }
 
@@ -103,6 +98,7 @@ dependencies {
     implementation(projects.tooling.epubImporter)
     implementation(projects.tooling.applicationWorkers)
     implementation(projects.tooling.localSource)
+    implementation(projects.tooling.novelMigration)
 
     implementation(projects.features.extensions)
     implementation(projects.navigation)
@@ -119,7 +115,6 @@ dependencies {
     implementation(projects.data)
     implementation(projects.core)
     implementation(projects.coreui)
-    implementation(projects.navigation)
     implementation(projects.networking)
     implementation(projects.strings)
     implementation(projects.scraper)
@@ -145,10 +140,10 @@ dependencies {
     // Android SDK
     implementation(libs.androidx.workmanager)
     implementation(libs.androidx.startup)
+    implementation(libs.androidx.core.splashscreen)
 
     // UI
     implementation(libs.androidx.appcompat)
-    implementation(libs.test.androidx.core.ktx)
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
     implementation(libs.androidx.activity.ktx)
@@ -204,6 +199,7 @@ dependencies {
     implementation(libs.okhttp.interceptor.brotli)
     implementation(libs.okhttp.interceptor.logging)
     implementation(libs.okhttp.glideIntegration)
+    ksp(libs.glide.ksp)
 
     // Logging
     implementation(libs.timber)

@@ -151,11 +151,15 @@ open class LuaSourceAdapter(
     }
 
     private fun validateLuaScript() {
-        val required = listOf(
+        val required = mutableListOf(
             "getCatalogList", "getCatalogSearch", "getBookTitle",
             "getBookCoverImageUrl", "getBookDescription",
-            "getChapterList", "getChapterText"
+            "getChapterText"
         )
+        // parsePage может заменять getChapterList
+        if (luaScript.get("parsePage").isnil()) {
+            required.add("getChapterList")
+        }
         required.forEach { fn ->
             if (luaScript.get(fn).isnil())
                 Timber.w("LuaSourceAdapter [${metadata.id}]: missing '$fn'")

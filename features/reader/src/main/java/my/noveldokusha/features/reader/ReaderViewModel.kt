@@ -68,6 +68,7 @@ internal class ReaderViewModel @Inject constructor(
             textToSpeech = readerSession.readerTextToSpeech.state,
             liveTranslation = readerSession.readerLiveTranslation.state,
             fullScreen = appPreferences.READER_FULL_SCREEN.state(viewModelScope),
+            isSingleTapToOpenSettings = appPreferences.READER_SINGLE_TAP_TO_OPEN_SETTINGS.state(viewModelScope),
             style = ReaderScreenState.Settings.StyleSettingsData(
                 currentDarkMode = mutableStateOf(DarkMode.SYSTEM).also { state ->
                     viewModelScope.launch {

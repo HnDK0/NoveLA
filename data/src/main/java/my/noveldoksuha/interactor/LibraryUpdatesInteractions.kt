@@ -5,6 +5,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
@@ -130,8 +131,14 @@ class LibraryUpdatesInteractions @Inject constructor(
             }
         }
 
-        // Загружаем и сохраняем жанры книги при каждом обновлении
-        updateBookGenres(book.url)
+        // Загружаем и сохраняем жанры книги только если они ещё не заполнены
+        if (book.genres.isBlank()) {
+            downloaderRepository.bookGenres(bookUrl = book.url).onSuccess { genres ->
+                if (genres.isNotEmpty()) {
+                    libraryDao.updateGenres(book.url, my.noveldokusha.core.utils.GenreUtils.normalize(genres))
+                }
+            }
+        }
 
         // ── Выбор стратегии обновления ────────────────────────────────────────
         if (book.chaptersLastPage != null) {
@@ -155,19 +162,6 @@ class LibraryUpdatesInteractions @Inject constructor(
 
         currentUpdating.update { it - book }
         countingUpdating.update { it?.copy(updated = it.updated + 1) }
-    }
-
-    /**
-     * Загружает и сохраняет жанры книги в БД.
-     * Вызывается при каждом обновлении книги, чтобы жанры всегда были актуальны.
-     */
-    private suspend fun updateBookGenres(bookUrl: String) {
-        downloaderRepository.bookGenres(bookUrl = bookUrl).onSuccess { genres ->
-            if (genres.isEmpty()) return@onSuccess
-            val normalized = my.noveldokusha.core.utils.GenreUtils.normalize(genres)
-            libraryDao.updateGenres(bookUrl, normalized)
-            Log.d(TAG, "[genres] \"$bookUrl\" — saved ${genres.size} genres")
-        }
     }
 
     /**
@@ -315,7 +309,7 @@ class LibraryUpdatesInteractions @Inject constructor(
                 }
             }
         }.onError {
-            Log.d(TAG, "[legacy] \"${book.title}\" — FAILED to fetch chapter list")
+            Log.e(TAG, "[legacy] \"${book.title}\" — FAILED to fetch chapter list: ${it.message}")
             failedUpdates.update { it + book }
         }
     }
@@ -337,4 +331,57 @@ class LibraryUpdatesInteractions @Inject constructor(
             Log.d(TAG, "[merge] \"${book.title}\" — no new chapters (merged ${chapters.size} existing)")
         }
     }
+
+    suspend fun updateSingleBookMetadata(url: String, maxRetries: Int = 3) {
+        if (url in updatesInProgress) return
+        updatesInProgress.add(url)
+        try {
+            var retryCount = 0
+            var success = false
+            while (retryCount < maxRetries && !success) {
+                try {
+                    val book = appRepository.libraryBooks.get(url) ?: return
+                    if (book.title == "Unknown Novel" || book.title.isBlank()) {
+                        downloaderRepository.bookTitle(bookUrl = url).toSuccessOrNull()?.data?.let { newTitle ->
+                            if (!newTitle.isNullOrBlank() && newTitle != "Unknown Novel") {
+                                appRepository.libraryBooks.updateTitle(url, newTitle)
+                            }
+                        }
+                    }
+                    if (book.coverImageUrl.isBlank()) {
+                        downloaderRepository.bookCoverImageUrl(bookUrl = url).toSuccessOrNull()?.data?.let { coverUrl ->
+                            if (!coverUrl.isNullOrBlank()) {
+                                appRepository.libraryBooks.updateCover(url, coverUrl)
+                            }
+                        }
+                    }
+                    if (book.description.isBlank()) {
+                        downloaderRepository.bookDescription(bookUrl = url).toSuccessOrNull()?.data?.let { description ->
+                            if (!description.isNullOrBlank()) {
+                                appRepository.libraryBooks.updateDescription(url, description)
+                            }
+                        }
+                    }
+                    if (book.genres.isBlank()) {
+                        downloaderRepository.bookGenres(bookUrl = url).toSuccessOrNull()?.data?.let { genres ->
+                            if (genres.isNotEmpty()) {
+                                libraryDao.updateGenres(url, my.noveldokusha.core.utils.GenreUtils.normalize(genres))
+                            }
+                        }
+                    }
+                    appRepository.libraryBooks.updateLastUpdateEpochTimeMilli(url)
+                    success = true
+                } catch (e: Exception) {
+                    retryCount++
+                    if (retryCount < maxRetries) {
+                        delay(1000L * (1 shl (retryCount - 1)))
+                    }
+                }
+            }
+        } finally {
+            updatesInProgress.remove(url)
+        }
+    }
+
+    private val updatesInProgress = mutableSetOf<String>()
 }

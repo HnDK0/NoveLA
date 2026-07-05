@@ -3,6 +3,7 @@ package my.noveldokusha.features.reader.ui.settingDialogs
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,6 +13,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -93,6 +96,7 @@ import my.noveldokusha.coreui.theme.InternalTheme
 import my.noveldokusha.coreui.theme.rememberMutableStateOf
 import my.noveldokusha.core.appPreferences.VoicePredefineState
 import my.noveldokusha.features.reader.features.TextToSpeechSettingData
+import my.noveldokusha.features.reader.ui.formatDurationCompact
 import my.noveldokusha.reader.R
 import my.noveldokusha.text_to_speech.VoiceData
 
@@ -220,6 +224,54 @@ internal fun VoiceReaderSettingDialog(
                             isDialogOpen = openVoicesDialog,
                             setDialogOpen = { openVoicesDialog = it }
                         )
+                    }
+                }
+
+                val totalSeconds = state.estimatedTotalSeconds.value
+                val remainingSeconds = state.estimatedRemainingSeconds.value
+                val wpm = state.estimatedWpm.value
+
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = stringResource(R.string.tts_estimated_time_left),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                            Text(
+                                text = formatDurationCompact(remainingSeconds),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = "$wpm ${stringResource(R.string.tts_wpm)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formatDurationCompact(totalSeconds),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            )
+                        }
                     }
                 }
 
@@ -616,6 +668,7 @@ private fun DropdownCustomSavedVoices(
         )
     }
 }
+
 
 @Preview(group = "dialog")
 @Composable

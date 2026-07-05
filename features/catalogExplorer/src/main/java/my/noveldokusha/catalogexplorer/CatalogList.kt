@@ -2,7 +2,6 @@ package my.noveldokusha.catalogexplorer
 
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -76,7 +75,7 @@ internal fun CatalogList(
             key = { it.baseUrl }
         ) {
             SlimListItem(
-                modifier = Modifier.clickable { onDatabaseClick(it) },
+                onClick = { onDatabaseClick(it) },
                 headlineContent = {
                     Text(
                         text = stringResource(id = it.nameStrId),
@@ -117,9 +116,8 @@ internal fun CatalogList(
             key = { it.catalog.id }
         ) {
             SlimListItem(
-                modifier = Modifier
-                    .clickable { onSourceClick(it.catalog) }
-                    .animateItem(),
+                onClick = { onSourceClick(it.catalog) },
+                modifier = Modifier.animateItem(),
                 headlineContent = {
                     Text(
                         text = it.catalog.displayName(),

@@ -5,28 +5,25 @@ import androidx.compose.runtime.mutableStateListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.AppCoroutineScope
+import my.noveldokusha.core.appPreferences.AppPreferences
+import my.noveldokusha.network.ScraperNetworkClient
+import my.noveldokusha.network.interceptors.resolveUserAgent
 import my.noveldokusha.text_translator.domain.TranslationManager
 import my.noveldokusha.text_translator.domain.TranslationModelState
 import my.noveldokusha.text_translator.domain.TranslatorState
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.OkHttpClient
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
-import my.noveldokusha.core.appPreferences.AppPreferences
-import my.noveldokusha.network.interceptors.resolveUserAgent
-import java.util.concurrent.TimeUnit
 
 class TranslationManagerGoogleFree(
     private val coroutineScope: AppCoroutineScope,
-    private val appPreferences: AppPreferences
+    private val appPreferences: AppPreferences,
+    private val networkClient: ScraperNetworkClient
 ) : TranslationManager {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private val client get() = networkClient.client
 
     override val available = true
     override val isUsingOnlineTranslation = true
@@ -46,7 +43,7 @@ class TranslationManagerGoogleFree(
         return models.firstOrNull { it.language == language }
     }
 
-    override fun getTranslator(source: String, target: String): TranslatorState {
+    override fun getTranslator(source: String, target: String, systemPromptOverride: String?): TranslatorState {
         Log.d(TAG, "getTranslator: source=$source, target=$target")
         return TranslatorState(
             source = source,
@@ -105,7 +102,10 @@ class TranslationManagerGoogleFree(
     ): String? = withContext(Dispatchers.IO) {
 
         var lastException: Exception? = null
-        repeat(retryCount) { attempt ->
+        var cookieSeeded = false
+        var attempt = 0
+
+        while (attempt < retryCount) {
             try {
                 val request = if (text.length > 500) {
                     val formBody = okhttp3.FormBody.Builder()
@@ -135,6 +135,23 @@ class TranslationManagerGoogleFree(
                 val response = client.newCall(request).execute()
                 val responseBody = response.body.string()
 
+                if (response.code == 429 && !cookieSeeded) {
+                    Log.w(TAG, "HTTP 429, seeding cookies via translate.google.com")
+                    response.close()
+                    val seedRequest = okhttp3.Request.Builder()
+                        .url("https://translate.google.com/?hl=en")
+                        .header("User-Agent", resolveUserAgent(appPreferences))
+                        .build()
+                    try {
+                        client.newCall(seedRequest).execute().close()
+                        Log.d(TAG, "Cookie seed request completed")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Cookie seed failed: ${e.message?.take(50)}")
+                    }
+                    cookieSeeded = true
+                    continue
+                }
+
                 if (response.isSuccessful && responseBody.isNotEmpty()) {
                     val jsonElement = json.parseToJsonElement(responseBody)
                     val result = buildString {
@@ -147,11 +164,20 @@ class TranslationManagerGoogleFree(
                         Log.d(TAG, "Translated ${text.length} chars in ${System.currentTimeMillis() - startTime}ms")
                         return@withContext result
                     }
+
+                    Log.w(TAG, "translateWithGoogleFree: empty parse result, body preview: ${responseBody.take(200)}")
+                } else if (response.code != 429) {
+                    Log.w(TAG, "translateWithGoogleFree: HTTP ${response.code} ${response.message} for ${text.length} chars, body: ${responseBody.take(100)}")
+                } else if (responseBody.isEmpty()) {
+                    Log.w(TAG, "translateWithGoogleFree: empty response body for ${text.length} chars")
                 }
             } catch (e: Exception) {
+                Log.w(TAG, "translateWithGoogleFree: attempt ${attempt + 1} failed: ${e.message?.take(100)}")
                 lastException = e
             }
-            if (attempt < retryCount - 1) kotlinx.coroutines.delay(200L * (attempt + 1))
+
+            attempt++
+            if (attempt < retryCount) kotlinx.coroutines.delay(200L * attempt)
         }
         Log.w(TAG, "translateWithGoogleFree: failed after $retryCount attempts - ${lastException?.message?.take(50)}")
         null
@@ -160,15 +186,14 @@ class TranslationManagerGoogleFree(
     override suspend fun translateBatch(
         texts: List<String>,
         sourceLanguage: String,
-        targetLanguage: String
+        targetLanguage: String,
+        systemPromptOverride: String?,
     ): Map<String, String> = withContext(Dispatchers.IO) {
         if (texts.isEmpty()) return@withContext emptyMap()
 
         val normalizedTexts = texts.filter { it.isNotBlank() }
         if (normalizedTexts.isEmpty()) return@withContext emptyMap()
 
-        // Flatten all texts into a single paragraph list, tracking which original text each belongs to.
-        // This mirrors PA's approach: one translateChunks call handles everything sequentially.
         val boundaries = mutableListOf<IntRange>()
         val allParagraphs = mutableListOf<String>()
         for (text in normalizedTexts) {
@@ -201,8 +226,7 @@ class TranslationManagerGoogleFree(
 
     /**
      * Splits paragraphs into 8 000-char chunks and translates them sequentially
-     * with a short delay between requests to avoid rate-limiting the public endpoint.
-     * Each chunk is sent as a single plain-text request with \n separators.
+     * with a delay between requests to avoid rate-limiting the public endpoint.
      */
     private suspend fun translateChunks(
         paragraphs: List<String>,
@@ -239,7 +263,7 @@ class TranslationManagerGoogleFree(
         var failedChunks = 0
 
         for ((idx, chunk) in chunks.withIndex()) {
-            if (idx > 0) kotlinx.coroutines.delay(300L)
+            if (idx > 0) kotlinx.coroutines.delay(1000L)
 
             val translated = translateWithGoogleFree(chunk.text, sourceLanguage, targetLanguage)
 
@@ -273,5 +297,7 @@ class TranslationManagerGoogleFree(
     override fun downloadModel(language: String) {}
     override fun removeModel(language: String) {}
 
-    companion object { private const val TAG = "TranslationGoogleFree" }
+    companion object {
+        private const val TAG = "TranslationGoogleFree"
+    }
 }

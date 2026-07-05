@@ -60,6 +60,8 @@ class BackupDataService : Service() {
     private class IntentData : Intent {
         var uri by Extra_Uri()
         var backupImages by Extra_Boolean()
+        var backupSettings by Extra_Boolean()
+        var backupPlugins by Extra_Boolean()
         var isAutoBackup by Extra_Boolean()
         var directoryUri by Extra_String()
         var maxCount by Extra_Int()
@@ -69,6 +71,8 @@ class BackupDataService : Service() {
             ctx: Context,
             uri: Uri,
             backupImages: Boolean,
+            backupSettings: Boolean = true,
+            backupPlugins: Boolean = true,
             isAutoBackup: Boolean = false,
             directoryUri: String = "",
             maxCount: Int = 5
@@ -78,6 +82,8 @@ class BackupDataService : Service() {
         ) {
             this.uri = uri
             this.backupImages = backupImages
+            this.backupSettings = backupSettings
+            this.backupPlugins = backupPlugins
             this.isAutoBackup = isAutoBackup
             this.directoryUri = directoryUri
             this.maxCount = maxCount
@@ -87,16 +93,24 @@ class BackupDataService : Service() {
     companion object {
         private const val AUTO_BACKUP_PREFIX = "auto_backup_"
 
-        fun start(ctx: Context, uri: Uri, backupImages: Boolean) {
+        fun start(
+            ctx: Context,
+            uri: Uri,
+            backupImages: Boolean,
+            backupSettings: Boolean = true,
+            backupPlugins: Boolean = true
+        ) {
             if (!isRunning(ctx))
-                ctx.startService(IntentData(ctx, uri, backupImages))
+                ctx.startService(IntentData(ctx, uri, backupImages, backupSettings, backupPlugins))
         }
 
         fun startAutoBackup(
             ctx: Context,
             directoryUri: String,
             backupImages: Boolean,
-            maxCount: Int
+            maxCount: Int,
+            backupSettings: Boolean = true,
+            backupPlugins: Boolean = true
         ) {
             if (!isRunning(ctx)) {
                 // Generate filename with timestamp
@@ -122,6 +136,8 @@ class BackupDataService : Service() {
                         ctx = ctx,
                         uri = createUri,
                         backupImages = backupImages,
+                        backupSettings = backupSettings,
+                        backupPlugins = backupPlugins,
                         isAutoBackup = true,
                         directoryUri = directoryUri,
                         maxCount = maxCount
@@ -162,7 +178,7 @@ class BackupDataService : Service() {
 
         job = CoroutineScope(Dispatchers.IO).launch {
             tryAsResponse {
-                backupData(intentData.uri, intentData.backupImages)
+                backupData(intentData.uri, intentData.backupImages, intentData.backupSettings, intentData.backupPlugins)
             }.onError {
                 Timber.e(it.exception)
             }
@@ -252,7 +268,7 @@ class BackupDataService : Service() {
      *
      * This ensures the backup only contains books that are actually in the library.
      */
-    private suspend fun backupData(uri: Uri, backupImages: Boolean) = withContext(Dispatchers.IO) {
+    private suspend fun backupData(uri: Uri, backupImages: Boolean, backupSettings: Boolean = true, backupPlugins: Boolean = true) = withContext(Dispatchers.IO) {
 
         notificationsCenter.showNotification(
             notificationId = notificationId,
@@ -305,63 +321,80 @@ class BackupDataService : Service() {
             }
 
             // Save settings (API keys + categories)
-            notificationsCenter.modifyNotification(
-                notificationBuilder,
-                notificationId = notificationId
-            ) {
-                text = getString(R.string.backup_saving_settings)
-            }
+            if (backupSettings) {
+                notificationsCenter.modifyNotification(
+                    notificationBuilder,
+                    notificationId = notificationId
+                ) {
+                    text = getString(R.string.backup_saving_settings)
+                }
 
-            run {
-                val entry = ZipEntry("settings.json")
-                entry.method = ZipOutputStream.DEFLATED
-                val settingsJson = JSONObject().apply {
-                    put("TRANSLATION_GOOGLE_PA_API_KEYS", appPreferences.TRANSLATION_GOOGLE_PA_API_KEYS.value)
-                    put("TRANSLATION_GEMINI_API_KEY", appPreferences.TRANSLATION_GEMINI_API_KEY.value)
-                    put("TRANSLATION_GEMINI_MODEL", appPreferences.TRANSLATION_GEMINI_MODEL.value)
-                    put("TRANSLATION_OPENAI_BASE_URL", appPreferences.TRANSLATION_OPENAI_BASE_URL.value)
-                    put("TRANSLATION_OPENAI_API_KEYS", appPreferences.TRANSLATION_OPENAI_API_KEYS.value)
-                    put("TRANSLATION_OPENAI_MODEL", appPreferences.TRANSLATION_OPENAI_MODEL.value)
-                    put("LIBRARY_CUSTOM_CATEGORIES", org.json.JSONArray(appPreferences.LIBRARY_CUSTOM_CATEGORIES.value))
-                    put("TRANSLATION_ACTIVE_SYSTEM_PROMPT", appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value)
-                    put("TRANSLATION_PROMPT_PRESETS", org.json.JSONArray(
-                        appPreferences.TRANSLATION_PROMPT_PRESETS.value.map { (name, prompt) ->
-                            org.json.JSONObject().apply {
-                                put("name", name)
-                                put("prompt", prompt)
+                run {
+                    val entry = ZipEntry("settings.json")
+                    entry.method = ZipOutputStream.DEFLATED
+                    val settingsJson = JSONObject().apply {
+                        put("TRANSLATION_GOOGLE_PA_API_KEYS", appPreferences.TRANSLATION_GOOGLE_PA_API_KEYS.value)
+                        put("TRANSLATION_GEMINI_API_KEY", appPreferences.TRANSLATION_GEMINI_API_KEY.value)
+                        put("TRANSLATION_GEMINI_MODEL", appPreferences.TRANSLATION_GEMINI_MODEL.value)
+                        put("TRANSLATION_OPENAI_BASE_URL", appPreferences.TRANSLATION_OPENAI_BASE_URL.value)
+                        put("TRANSLATION_OPENAI_API_KEYS", appPreferences.TRANSLATION_OPENAI_API_KEYS.value)
+                        put("TRANSLATION_OPENAI_MODEL", appPreferences.TRANSLATION_OPENAI_MODEL.value)
+                        put("LIBRARY_CUSTOM_CATEGORIES", org.json.JSONArray(appPreferences.LIBRARY_CUSTOM_CATEGORIES.value))
+                        put("TRANSLATION_ACTIVE_SYSTEM_PROMPT", appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value)
+                        put("TRANSLATION_PROMPT_PRESETS", org.json.JSONArray(
+                            appPreferences.TRANSLATION_PROMPT_PRESETS.value.map { (name, prompt) ->
+                                org.json.JSONObject().apply {
+                                    put("name", name)
+                                    put("prompt", prompt)
+                                }
                             }
-                        }
-                    ))
-                }.toString()
-                zip.putNextEntry(entry)
-                zip.write(settingsJson.toByteArray())
-                zip.closeEntry()
-                Timber.d("BackupDataService: Settings backed up")
+                        ))
+                        put("TRANSLATION_NOVEL_PROMPTS", org.json.JSONObject().apply {
+                            appPreferences.TRANSLATION_NOVEL_PROMPTS.value.forEach { (url, data) ->
+                                put(url, org.json.JSONObject().apply {
+                                    put("title", data.title)
+                                    put("prompt", data.prompt)
+                                    put("appendMode", data.appendMode)
+                                })
+                            }
+                        })
+                    }.toString()
+                    zip.putNextEntry(entry)
+                    zip.write(settingsJson.toByteArray())
+                    zip.closeEntry()
+                    Timber.d("BackupDataService: Settings backed up")
+                }
+            } else {
+                Timber.d("BackupDataService: Settings excluded from backup")
             }
 
             // Save lua extension scripts
-            notificationsCenter.modifyNotification(
-                notificationBuilder,
-                notificationId = notificationId
-            ) {
-                text = getString(R.string.copying_images)
-            }
-
-            run {
-                val luaDir = File(this@BackupDataService.filesDir, "lua_extensions")
-                if (luaDir.exists() && luaDir.isDirectory) {
-                    luaDir.listFiles()?.filter { it.isFile && it.extension == "lua" }?.forEach { file ->
-                        val entry = ZipEntry("lua_extensions/${file.name}")
-                        entry.method = ZipOutputStream.DEFLATED
-                        file.inputStream().use {
-                            zip.putNextEntry(entry)
-                            it.copyTo(zip)
-                        }
-                    }
-                    Timber.d("BackupDataService: Lua extensions backed up (${luaDir.listFiles()?.size} files)")
-                } else {
-                    Timber.d("BackupDataService: No lua_extensions directory found")
+            if (backupPlugins) {
+                notificationsCenter.modifyNotification(
+                    notificationBuilder,
+                    notificationId = notificationId
+                ) {
+                    text = getString(R.string.copying_plugins)
                 }
+
+                run {
+                    val luaDir = File(this@BackupDataService.filesDir, "lua_extensions")
+                    if (luaDir.exists() && luaDir.isDirectory) {
+                        luaDir.listFiles()?.filter { it.isFile && it.extension == "lua" }?.forEach { file ->
+                            val entry = ZipEntry("lua_extensions/${file.name}")
+                            entry.method = ZipOutputStream.DEFLATED
+                            file.inputStream().use {
+                                zip.putNextEntry(entry)
+                                it.copyTo(zip)
+                            }
+                        }
+                        Timber.d("BackupDataService: Lua extensions backed up (${luaDir.listFiles()?.size} files)")
+                    } else {
+                        Timber.d("BackupDataService: No lua_extensions directory found")
+                    }
+                }
+            } else {
+                Timber.d("BackupDataService: Plugins excluded from backup")
             }
 
             // Save books extra data (like images) — only for library books

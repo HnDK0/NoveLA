@@ -14,6 +14,12 @@ interface ChapterDao {
     @Query("SELECT * FROM Chapter")
     suspend fun getAll(): List<Chapter>
 
+    @Query("SELECT COUNT(*) FROM Chapter")
+    suspend fun count(): Int
+
+    @Query("SELECT * FROM Chapter LIMIT :limit OFFSET :offset")
+    suspend fun getChunk(limit: Int, offset: Int): List<Chapter>
+
     @Query(
         """
         SELECT * FROM Chapter

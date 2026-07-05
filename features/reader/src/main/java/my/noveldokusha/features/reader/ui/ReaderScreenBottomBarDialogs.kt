@@ -28,6 +28,7 @@ internal fun ReaderScreenBottomBarDialogs(
     onAppThemeSelected: (AppTheme) -> Unit,
     onKeepScreenOn: (Boolean) -> Unit,
     onFullScreen: (Boolean) -> Unit,
+    onSingleTapToOpenSettingsChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -61,6 +62,8 @@ internal fun ReaderScreenBottomBarDialogs(
                         onKeepScreenOn = onKeepScreenOn,
                         fullScreen = settings.fullScreen.value,
                         onFullScreen = onFullScreen,
+                        singleTapToOpenSettings = settings.isSingleTapToOpenSettings.value,
+                        onSingleTapToOpenSettingsChange = onSingleTapToOpenSettingsChange,
                     )
                     ReaderScreenState.Settings.Type.None -> Unit
                 }

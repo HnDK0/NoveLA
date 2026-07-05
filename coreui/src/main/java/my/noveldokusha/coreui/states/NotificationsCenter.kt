@@ -53,7 +53,7 @@ class NotificationsCenter @Inject constructor(
         manager.createNotificationChannel(channel)
 
         return NotificationCompat.Builder(context, channelId).apply {
-            setSmallIcon(R.mipmap.ic_logo)
+            setSmallIcon(R.drawable.ic_logo)
             priority = NotificationCompat.PRIORITY_DEFAULT
             builder(this)
         }

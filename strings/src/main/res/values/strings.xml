@@ -122,6 +122,20 @@
     <string name="language_target_empty_text">Target</string>
     <string name="language_clear_selection">Clear selection</string>
     <string name="live_translation">Live translation</string>
+    <string name="provider_name">Provider: %s</string>
+    <string name="language_selection">Language</string>
+    <string name="language_search">Select language</string>
+    <string name="language_search_hint">Search languages…</string>
+    <string name="language_no_results">No languages found</string>
+    <string name="novel_prompt_title">Novel-specific prompt</string>
+    <string name="novel_prompt_placeholder">Optional: custom system prompt for this novel</string>
+    <string name="novel_prompt_description_reader">Set a custom system prompt for this novel</string>
+    <string name="novel_prompt_llm_only">Gemini/OpenAI only</string>
+    <string name="novel_prompt_append_mode">Add to global prompt</string>
+    <string name="novel_prompts_title">Novel-specific prompts</string>
+    <string name="novel_prompts_search">Search prompts</string>
+    <string name="novel_prompts_description">Custom translation prompts set per novel in the reader settings</string>
+    <string name="novel_prompts_count">%d novel(s)</string>
     <string name="creating_backup">Creating backup</string>
     <string name="copying_database">Copying database</string>
     <string name="copying_images">Copying images</string>
@@ -162,6 +176,13 @@
     <string name="new_chapters">New chapters</string>
     <string name="update_error">Update error</string>
     <string name="update_cancelled">Update cancelled</string>
+    <string name="tts_estimated_time_left">Estimated Time Left</string>
+    <string name="tts_total_chapter">Total Chapter</string>
+    <string name="tts_wpm">WPM</string>
+    <string name="tts_remaining">left</string>
+    <string name="tts_hours_abbr">h</string>
+    <string name="tts_minutes_abbr">m</string>
+    <string name="tts_seconds_abbr">s</string>
     <string name="media_control_previous">previous</string>
     <string name="media_control_rewind">rewind</string>
     <string name="media_control_play">play</string>
@@ -306,6 +327,7 @@
     <string name="cloudfare_firewall_failed_bypass">Cloudfare firewall failed bypass</string>
     <string name="tried_but_failed_to_bypass_cloudfare_firewall">Tried but failed to bypass cloudfare firewall</string>
     <string name="features_reader_full_screen">Full screen</string>
+    <string name="single_tap_to_open_settings">Single tap to open menu</string>
     <string name="source_name_local">Local</string>
 
     <string name="delete_novel">Delete novel</string>
@@ -448,13 +470,16 @@
     <!-- Backup/Restore options -->
     <string name="restore_options">Restore options</string>
     <string name="overwrite_plugins">Overwrite plugins</string>
-    <string name="overwrite_plugins_description">Overwrite installed plugins with those from the backup. Uncheck to keep your current plugins.</string>
+    <string name="overwrite_plugins_description">Install new and update existing plugins from backup only if the backup version is newer. Uncheck to skip all plugin data.</string>
     <string name="restore_settings">Restore settings</string>
     <string name="restore_settings_description">Restore API keys and library categories from the backup.</string>
     <string name="restoring_plugins">Restoring plugins…</string>
     <string name="restoring_settings">Restoring settings…</string>
     <string name="plugins_restored">Plugins restored (%1$d)</string>
     <string name="settings_restored">Settings restored</string>
+    <string name="save_settings">Save settings</string>
+    <string name="save_plugins">Save plugins</string>
+    <string name="copying_plugins">Copying plugins…</string>
     <string name="backup_saving_settings">Saving settings…</string>
 
     <!-- Auto Backup -->
@@ -468,6 +493,10 @@
     <string name="auto_backup_max_count_value">%d files</string>
     <string name="auto_backup_include_images">Include images</string>
     <string name="auto_backup_include_images_description">Save images in auto backup</string>
+    <string name="auto_backup_include_settings">Include settings</string>
+    <string name="auto_backup_include_settings_description">Save API keys and preferences in auto backup</string>
+    <string name="auto_backup_include_plugins">Include plugins</string>
+    <string name="auto_backup_include_plugins_description">Save Lua scraper plugins in auto backup</string>
     <string name="auto_backup_enabled">Auto backup enabled</string>
     <string name="auto_backup_interval">Backup interval</string>
     <string name="auto_backup_disabled">Auto backup disabled</string>
@@ -477,6 +506,9 @@
     <string name="auto_backup_last_time">Last backup</string>
     <string name="auto_backup_never">Never</string>
     <string name="clean_chapter_cache">Clear chapter cache</string>
+    <string name="clean_database_confirmation">Are you sure you want to clean the database? This will remove all non-library books and their data.</string>
+    <string name="clean_images_folder_confirmation">Are you sure you want to clean the images folder? This will remove images of non-library books.</string>
+    <string name="clean_chapter_cache_confirmation">Are you sure you want to clear the chapter cache? This will remove cached chapter bodies and translations.</string>
     <string name="cleaning_chapter_cache">Clearing chapter cache…</string>
     <string name="chapter_cache_cleaned">Chapter cache cleared</string>
     <string name="chapter_cache_clean_failed">Failed to clear chapter cache</string>
@@ -485,6 +517,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">Added to download queue</string>
+    <string name="download_all_chapters">Download all chapters</string>
     <string name="download_progress">Downloading %1$s: %2$s</string>
     <string name="download_pause">Pause</string>
     <string name="download_resume">Resume</string>
@@ -494,4 +527,81 @@
     <string name="download_error">Download error</string>
     <string name="download_delay">Download delay (ms)</string>
     <string name="download_delay_description">Delay between downloading chapters to avoid rate limiting</string>
+
+    <!-- Battery optimization -->
+    <string name="battery_optimization">Disable battery optimization</string>
+    <string name="battery_optimization_description">Required for downloading chapters when screen is off. On some devices (MIUI/HyperOS) the system blocks network in sleep mode even with foreground service.</string>
+    <string name="battery_optimization_enabled">Battery optimization is enabled — tap to disable</string>
+    <string name="battery_optimization_disabled">Battery optimization is disabled — background downloads work</string>
+
+    <!-- Language settings -->
+    <string name="follow_system_language">Follow system</string>
+    <string name="language_changed_to">Language changed to %s</string>
+
+    <!-- Migration -->
+    <string name="migration_title">Migration</string>
+    <string name="migration_tab">Migration</string>
+    <string name="migration_books_count">%1$d books</string>
+    <string name="migration_history">History</string>
+    <string name="migration_select_books">Select books from %1$s</string>
+    <string name="migration_search_matches">Search for matches</string>
+    <string name="migration_no_match">No match found</string>
+    <string name="migration_searching">Searching…</string>
+    <string name="migration_search_manually">Search manually</string>
+    <string name="migration_skip">Skip</string>
+    <string name="migration_migrate_now">Migrate now</string>
+    <string name="migration_migrate_all">Migrate All</string>
+    <string name="migration_progress">Migrating %1$d/%2$d</string>
+    <string name="migration_complete">Migration complete</string>
+    <string name="migration_chapters_matched">Matched %1$d / %2$d chapters</string>
+    <string name="migration_success">Success: %1$d, Skipped: %2$d, Failed: %3$d</string>
+    <string name="migration_return_to_library">Return to Library</string>
+    <string name="migration_select_source">Select source</string>
+    <string name="migration_reading_progress">Reading progress</string>
+    <string name="migration_downloaded_chapters">Downloaded chapters</string>
+    <string name="migration_translations">Translations</string>
+    <string name="migration_delete_old_book">Delete old book</string>
+    <string name="migration_latest_chapter">Latest: %1$s</string>
+    <string name="migration_unknown_latest">Unknown</string>
+    <string name="migration_select_destination">Select destination</string>
+    <string name="migration_confirm_migrate">Migrate book to %1$s?</string>
+    <string name="migration_no_books_found">No books found on this source</string>
+
+    <!-- CoreUI unique (not duplicated in main) -->
+    <string name="loading">Loading...</string>
+    <string name="download_progress_title">Downloads</string>
+    <string name="download_chapters_added">Chapters added to queue</string>
+    <string name="download_resumed">Download resumed</string>
+    <string name="download_already_queued">Already in queue</string>
+    <string name="download_all_cached">All chapters already downloaded</string>
+
+    <!-- Migration -->
+    <string name="migration_no_sources_available">No sources available</string>
+    <string name="migration_no_matches_found">No matches found</string>
+    <string name="migration_failed_to_load_chapters">Failed to load chapters: %s</string>
+    <string name="migration_unknown_error">Unknown error</string>
+    <string name="migration_no_book_selected">No book selected</string>
+    <string name="migration_chapter_matching_not_ready">Chapter matching not ready</string>
+    <string name="migration_no_sources_with_books">No sources with books in library</string>
+    <string name="migration_searching_progress">%1$d of %2$d: %3$s</string>
+    <string name="migration_chapters_count">%1$d ch.</string>
+    <string name="migration_source_with_chapters">%1$s (%2$d ch.)</string>
+    <string name="migration_no_history">No migration history</string>
+    <string name="migration_completed_count">Completed: %1$d</string>
+    <string name="migration_partial_count">Partial: %1$d</string>
+    <string name="migration_migrate_to">Migrate to:</string>
+    <string name="migration_clear_selection">Clear</string>
+    <string name="migration_migrate_src">Migrate to another source</string>
+    <string name="migration_old_book_not_found">Old book not found in library</string>
+    <string name="migration_no_matching_source">No matching source found</string>
+
+    <!-- Finder / Catalog Explorer -->
+    <string name="title_browse">Browse</string>
+    <string name="search">Search</string>
+    <string name="languages">Languages</string>
+    <string name="refresh">Refresh</string>
+    <string name="repository_settings">Repository Settings</string>
+    <string name="installed">Installed</string>
+    <string name="available">Available</string>
+
 </resources>

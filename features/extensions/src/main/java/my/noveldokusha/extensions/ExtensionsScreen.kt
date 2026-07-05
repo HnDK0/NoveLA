@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.FilledTonalButton
@@ -180,14 +179,13 @@ private fun UnifiedExtensionsScreen(
                         modifier = Modifier
                             .fillMaxWidth(),
                         contentPadding = PaddingValues(bottom = 300.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         if (installedExtensions.isNotEmpty()) {
                             item {
                                 Text(
-                                    text = "Installed",
+                                    text = stringResource(my.noveldokusha.strings.R.string.installed),
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier
                                         .padding(horizontal = 16.dp)
                                         .padding(top = 8.dp),
@@ -205,9 +203,9 @@ private fun UnifiedExtensionsScreen(
                         if (availableExtensions.isNotEmpty()) {
                             item {
                                 Text(
-                                    text = "Available",
+                                    text = stringResource(my.noveldokusha.strings.R.string.available),
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier
                                         .padding(horizontal = 16.dp)
                                         .padding(top = 8.dp),
@@ -312,7 +310,6 @@ private fun RepositoryUrlDialog(
         }
     )
 }
-
 
 @Composable
 private fun ExtensionListItem(

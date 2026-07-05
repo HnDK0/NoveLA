@@ -1,9 +1,7 @@
-
 package my.noveldokusha.core
 
 import android.content.Context
 import android.content.res.Configuration
-import android.os.Build
 import my.noveldokusha.core.appPreferences.AppLanguage
 import java.util.Locale
 
@@ -20,31 +18,22 @@ object LocaleManager {
         context.resources.updateConfiguration(configuration, context.resources.displayMetrics)
     }
 
-    fun applyLocaleAndRecreate(activity: androidx.activity.ComponentActivity, language: AppLanguage) {
-        applyLocale(activity, language)
-        activity.recreate()
+    fun applyLocale(context: Context, locale: Locale) {
+        Locale.setDefault(locale)
+
+        val configuration = Configuration(context.resources.configuration)
+        configuration.setLocale(locale)
+
+        @Suppress("DEPRECATION")
+        context.resources.updateConfiguration(configuration, context.resources.displayMetrics)
     }
 
     fun getCurrentLocale(context: Context): Locale {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
             context.resources.configuration.locales[0]
         } else {
             @Suppress("DEPRECATION")
             context.resources.configuration.locale
-        }
-    }
-
-    fun getSystemLocale(context: Context): AppLanguage {
-        val systemLocale = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            context.resources.configuration.locales[0]
-        } else {
-            @Suppress("DEPRECATION")
-            context.resources.configuration.locale
-        }
-
-        return when (systemLocale.language) {
-            "ru" -> AppLanguage.RUSSIAN
-            else -> AppLanguage.ENGLISH
         }
     }
 }

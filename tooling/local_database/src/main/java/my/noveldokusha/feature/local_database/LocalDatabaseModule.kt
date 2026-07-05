@@ -11,6 +11,7 @@ import my.noveldokusha.feature.local_database.DAOs.ChapterDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
+import my.noveldokusha.feature.local_database.DAOs.NovelMigrationDao
 import javax.inject.Singleton
 
 @InstallIn(SingletonComponent::class)
@@ -47,6 +48,10 @@ abstract class LocalDatabaseModule {
         @Provides
         @Singleton
         fun provideDownloadTaskDao(database: AppDatabase): DownloadTaskDao = database.downloadTaskDao()
+
+        @Provides
+        @Singleton
+        fun provideNovelMigrationDao(database: AppDatabase): NovelMigrationDao = database.novelMigrationDao()
 
     }
 }

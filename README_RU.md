@@ -4,7 +4,7 @@
   安卓小说阅读器, 网络小说APP, 轻小说阅读器, 免费小说阅读, epub阅读器安卓, 开源小说应用
 -->
 <div align="center">
-<img src="https://github.com/HnDK0/NoveLA/raw/default/screenshots/NoveLA.jpg" width="88" height="88" alt="NoveLA"/>
+<img src="https://github.com/HnDK0/NoveLA/raw/default/screenshots/NoveLA.png" width="88" height="88" alt="NoveLA"/>
 
 # NoveLA
 
