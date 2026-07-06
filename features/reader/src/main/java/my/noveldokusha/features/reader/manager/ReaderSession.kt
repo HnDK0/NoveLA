@@ -28,6 +28,7 @@ import my.noveldokusha.features.reader.domain.chapterReadPercentage
 import my.noveldokusha.features.reader.features.ReaderChaptersLoader
 import my.noveldokusha.features.reader.features.ReaderLiveTranslation
 import my.noveldokusha.features.reader.features.ReaderTextToSpeech
+import my.noveldokusha.features.reader.services.FloatingTtsOverlayService
 import my.noveldokusha.features.reader.services.NarratorMediaControlsService
 import my.noveldokusha.features.reader.tools.ChaptersIsReadRoutine
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
@@ -227,6 +228,14 @@ internal class ReaderSession(
     }
 
     private fun initReaderTTSObservers() {
+        scope.launch {
+            snapshotFlow {
+                appPreferences.READER_TEXT_TO_SPEECH_FLOATING_OVERLAY.value &&
+                    readerTextToSpeech.isActive.value
+            }.collectLatest { shouldShow ->
+                if (shouldShow) FloatingTtsOverlayService.start(context) else FloatingTtsOverlayService.stop(context)
+            }
+        }
         scope.launch {
             readerTextToSpeech
                 .currentReaderItem

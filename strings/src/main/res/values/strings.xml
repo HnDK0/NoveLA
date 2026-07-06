@@ -610,4 +610,6 @@
     <string name="installed">Installed</string>
     <string name="available">Available</string>
 
+    <string name="floating_tts_overlay">Floating TTS Overlay</string>
+    <string name="floating_tts_live_paragraph">Live paragraph in overlay</string>
 </resources>

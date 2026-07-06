@@ -51,6 +51,8 @@ import my.noveldokusha.features.reader.domain.ReaderState
 import my.noveldokusha.features.reader.domain.indexOfReaderItem
 import my.noveldokusha.features.reader.tools.FontsLoader
 import my.noveldokusha.features.reader.ui.ReaderScreen
+import my.noveldokusha.features.reader.services.FloatingTtsOverlayPermissionManager
+import my.noveldokusha.features.reader.services.FloatingTtsOverlayService
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
 import my.noveldokusha.navigation.NavigationRoutes
 import my.noveldokusha.reader.R
@@ -148,6 +150,20 @@ class ReaderActivity : BaseActivity() {
 
     private val fontsLoader by lazy { FontsLoader(this) }
 
+
+    private fun setFloatingTtsOverlayEnabled(enabled: Boolean) {
+        appPreferences.READER_TEXT_TO_SPEECH_FLOATING_OVERLAY.value = enabled
+        if (enabled && !FloatingTtsOverlayPermissionManager.canDrawOverlays(this)) {
+            startActivity(FloatingTtsOverlayPermissionManager.settingsIntent(this))
+            return
+        }
+        if (enabled && viewModel.state.settings.textToSpeech.isActive.value) {
+            FloatingTtsOverlayService.start(this)
+        } else if (!enabled) {
+            FloatingTtsOverlayService.stop(this)
+        }
+    }
+
     private val backPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
             viewModel.onCloseManually()
@@ -158,6 +174,18 @@ class ReaderActivity : BaseActivity() {
     override fun onDestroy() {
         readerViewHandlersActions.invalidate()
         super.onDestroy()
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    override fun onResume() {
+        super.onResume()
+        if (viewModel.state.settings.floatingTtsOverlay.enabled.value) {
+            if (!FloatingTtsOverlayPermissionManager.canDrawOverlays(this)) {
+                appPreferences.READER_TEXT_TO_SPEECH_FLOATING_OVERLAY.value = false
+            } else if (viewModel.state.settings.textToSpeech.isActive.value) {
+                FloatingTtsOverlayService.start(this)
+            }
+        }
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -331,6 +359,10 @@ class ReaderActivity : BaseActivity() {
                     onAppThemeChanged = { appPreferences.APP_THEME.value = it.name; recreate() },
                     onFullScreen = { appPreferences.READER_FULL_SCREEN.value = it; recreate() },
                     onSingleTapToOpenSettingsChange = { appPreferences.READER_SINGLE_TAP_TO_OPEN_SETTINGS.value = it },
+                    onFloatingTtsOverlayChange = ::setFloatingTtsOverlayEnabled,
+                    onFloatingTtsOverlayLiveParagraphChange = {
+                        appPreferences.READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_LIVE_PARAGRAPH.value = it
+                    },
                     onPressBack = {
                         viewModel.onCloseManually()
                         finish()

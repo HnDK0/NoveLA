@@ -117,6 +117,48 @@ class AppPreferences @Inject constructor(
             override var value by SharedPreference_Float(name, preferences, 1f)
         }
 
+
+    val READER_TEXT_TO_SPEECH_FLOATING_OVERLAY =
+        object : Preference<Boolean>("READER_TEXT_TO_SPEECH_FLOATING_OVERLAY") {
+            override var value by SharedPreference_Boolean(name, preferences, false)
+        }
+    val READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_LIVE_PARAGRAPH =
+        object : Preference<Boolean>("READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_LIVE_PARAGRAPH") {
+            override var value by SharedPreference_Boolean(name, preferences, false)
+        }
+    val READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_OPACITY =
+        object : Preference<Float>("READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_OPACITY") {
+            override var value by SharedPreference_Float(name, preferences, 0.92f)
+        }
+    val READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_BUBBLE_SIZE =
+        object : Preference<Float>("READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_BUBBLE_SIZE") {
+            override var value by SharedPreference_Float(name, preferences, 56f)
+        }
+    val READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_PANEL_SIZE =
+        object : Preference<String>("READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_PANEL_SIZE") {
+            override var value by SharedPreference_String(name, preferences, "Medium")
+        }
+    val READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_COLLAPSED =
+        object : Preference<Boolean>("READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_COLLAPSED") {
+            override var value by SharedPreference_Boolean(name, preferences, true)
+        }
+    val READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_SHOW_REMAINING_TIME =
+        object : Preference<Boolean>("READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_SHOW_REMAINING_TIME") {
+            override var value by SharedPreference_Boolean(name, preferences, true)
+        }
+    val READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_SHOW_PLAYBACK_SPEED =
+        object : Preference<Boolean>("READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_SHOW_PLAYBACK_SPEED") {
+            override var value by SharedPreference_Boolean(name, preferences, true)
+        }
+    val READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_X =
+        object : Preference<Int>("READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_X") {
+            override var value by SharedPreference_Int(name, preferences, 24)
+        }
+    val READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_Y =
+        object : Preference<Int>("READER_TEXT_TO_SPEECH_FLOATING_OVERLAY_Y") {
+            override var value by SharedPreference_Int(name, preferences, 160)
+        }
+
     val READER_TEXT_TO_SPEECH_SAVED_PREDEFINED_LIST =
         object : Preference<List<VoicePredefineState>>(
             "READER_TEXT_TO_SPEECH_SAVED_PREDEFINED_LIST"
