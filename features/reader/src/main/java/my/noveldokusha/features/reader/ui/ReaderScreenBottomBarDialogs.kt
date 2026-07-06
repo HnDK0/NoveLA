@@ -29,6 +29,8 @@ internal fun ReaderScreenBottomBarDialogs(
     onKeepScreenOn: (Boolean) -> Unit,
     onFullScreen: (Boolean) -> Unit,
     onSingleTapToOpenSettingsChange: (Boolean) -> Unit,
+    onFloatingTtsOverlayChange: (Boolean) -> Unit,
+    onFloatingTtsOverlayLiveParagraphChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -42,7 +44,10 @@ internal fun ReaderScreenBottomBarDialogs(
                         state = settings.liveTranslation
                     )
                     ReaderScreenState.Settings.Type.TextToSpeech -> VoiceReaderSettingDialog(
-                        state = settings.textToSpeech
+                        state = settings.textToSpeech,
+                        overlayState = settings.floatingTtsOverlay,
+                        onOverlayEnabledChange = onFloatingTtsOverlayChange,
+                        onLiveParagraphOverlayChange = onFloatingTtsOverlayLiveParagraphChange,
                     )
                     ReaderScreenState.Settings.Type.Style -> {
                         StyleSettingDialog(

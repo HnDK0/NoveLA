@@ -88,6 +88,8 @@ internal fun ReaderScreen(
     onAppThemeChanged: (AppTheme) -> Unit,
     onFullScreen: (Boolean) -> Unit,
     onSingleTapToOpenSettingsChange: (Boolean) -> Unit,
+    onFloatingTtsOverlayChange: (Boolean) -> Unit,
+    onFloatingTtsOverlayLiveParagraphChange: (Boolean) -> Unit,
     onTextFontChanged: (String) -> Unit,
     onTextSizeChanged: (Float) -> Unit,
     onLineHeightChanged: (Float) -> Unit,
@@ -220,6 +222,8 @@ internal fun ReaderScreen(
                         onKeepScreenOn = onKeepScreenOn,
                         onFullScreen = onFullScreen,
                         onSingleTapToOpenSettingsChange = onSingleTapToOpenSettingsChange,
+                        onFloatingTtsOverlayChange = onFloatingTtsOverlayChange,
+                        onFloatingTtsOverlayLiveParagraphChange = onFloatingTtsOverlayLiveParagraphChange,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     BottomAppBar(
@@ -435,6 +439,10 @@ private fun ViewsPreview(
                     settings = ReaderScreenState.Settings(
                         isTextSelectable = remember { mutableStateOf(false) },
                         keepScreenOn = remember { mutableStateOf(false) },
+                        floatingTtsOverlay = ReaderScreenState.Settings.FloatingTtsOverlaySettingsData(
+                            enabled = remember { mutableStateOf(false) },
+                            liveParagraphEnabled = remember { mutableStateOf(false) },
+                        ),
                         textToSpeech = textToSpeechSettingData,
                         liveTranslation = liveTranslationSettingData,
                         style = style,
@@ -457,6 +465,8 @@ private fun ViewsPreview(
                 onKeepScreenOn = {},
                 onFullScreen = {},
                 onSingleTapToOpenSettingsChange = {},
+                onFloatingTtsOverlayChange = {},
+                onFloatingTtsOverlayLiveParagraphChange = {},
             )
         }
     }

@@ -31,11 +31,18 @@ internal data class ReaderScreenState(
         val keepScreenOn: State<Boolean>,
         val fullScreen: State<Boolean>,
         val isSingleTapToOpenSettings: State<Boolean>,
+        val floatingTtsOverlay: FloatingTtsOverlaySettingsData,
         val textToSpeech: TextToSpeechSettingData,
         val liveTranslation: LiveTranslationSettingData,
         val style: StyleSettingsData,
         val selectedSetting: MutableState<Type>,
     ) {
+        @Stable
+        data class FloatingTtsOverlaySettingsData(
+            val enabled: State<Boolean>,
+            val liveParagraphEnabled: State<Boolean>,
+        )
+
         @Stable
         data class StyleSettingsData(
             val currentDarkMode: State<DarkMode>,

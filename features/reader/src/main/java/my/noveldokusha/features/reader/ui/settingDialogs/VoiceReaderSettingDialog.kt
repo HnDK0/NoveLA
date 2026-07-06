@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.rounded.NavigateNext
 import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.CenterFocusWeak
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.StarRate
 import androidx.compose.material.icons.outlined.Save
@@ -55,6 +56,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -93,9 +96,11 @@ import my.noveldokusha.coreui.components.MySlider
 import my.noveldokusha.coreui.components.SlimListItem
 import my.noveldokusha.coreui.composableActions.debouncedAction
 import my.noveldokusha.coreui.theme.InternalTheme
+import my.noveldokusha.coreui.theme.colorAccent
 import my.noveldokusha.coreui.theme.rememberMutableStateOf
 import my.noveldokusha.core.appPreferences.VoicePredefineState
 import my.noveldokusha.features.reader.features.TextToSpeechSettingData
+import my.noveldokusha.features.reader.ui.ReaderScreenState
 import my.noveldokusha.features.reader.ui.formatDurationCompact
 import my.noveldokusha.reader.R
 import my.noveldokusha.text_to_speech.VoiceData
@@ -104,7 +109,10 @@ import my.noveldokusha.text_to_speech.VoiceData
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun VoiceReaderSettingDialog(
-    state: TextToSpeechSettingData
+    state: TextToSpeechSettingData,
+    overlayState: ReaderScreenState.Settings.FloatingTtsOverlaySettingsData,
+    onOverlayEnabledChange: (Boolean) -> Unit,
+    onLiveParagraphOverlayChange: (Boolean) -> Unit,
 ) {
     var openVoicesDialog by rememberSaveable { mutableStateOf(false) }
     val dropdownCustomSavedVoicesExpanded = rememberSaveable { mutableStateOf(false) }
@@ -153,6 +161,42 @@ internal fun VoiceReaderSettingDialog(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     onValueChangeFinished = { state.setVoiceSpeed(localSpeed) },
                 )
+
+                SlimListItem(
+                    modifier = Modifier.clickable {
+                        onOverlayEnabledChange(!overlayState.enabled.value)
+                    },
+                    headlineContent = { Text(text = stringResource(R.string.floating_tts_overlay)) },
+                    leadingContent = { Icon(Icons.Filled.OpenInNew, null, Modifier.size(18.dp)) },
+                    trailingContent = {
+                        Switch(
+                            checked = overlayState.enabled.value,
+                            onCheckedChange = onOverlayEnabledChange,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = colorAccent(),
+                                checkedTrackColor = colorAccent().copy(alpha = 0.4f),
+                            )
+                        )
+                    }
+                )
+                AnimatedVisibility(visible = overlayState.enabled.value) {
+                    SlimListItem(
+                        modifier = Modifier.clickable {
+                            onLiveParagraphOverlayChange(!overlayState.liveParagraphEnabled.value)
+                        },
+                        headlineContent = { Text(text = stringResource(R.string.floating_tts_live_paragraph)) },
+                        trailingContent = {
+                            Switch(
+                                checked = overlayState.liveParagraphEnabled.value,
+                                onCheckedChange = onLiveParagraphOverlayChange,
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = colorAccent(),
+                                    checkedTrackColor = colorAccent().copy(alpha = 0.4f),
+                                )
+                            )
+                        }
+                    )
+                }
 
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
