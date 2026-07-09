@@ -16,6 +16,7 @@ import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.ExtensionInfoCached
 import my.noveldokusha.network.NetworkClient
 import my.noveldokusha.scraper.LuaSourceLoader
+import my.noveldokusha.scraper.LuaSourceProvider
 import my.noveldokusha.data.ScraperRepository
 import org.yaml.snakeyaml.Yaml
 import timber.log.Timber
@@ -29,6 +30,7 @@ class ExtensionsManagerViewModel @Inject constructor(
     private val appPreferences: AppPreferences,
     private val scraperRepository: ScraperRepository,
     private val luaSourceLoader: LuaSourceLoader,          // ← для скачивания .lua
+    private val luaSourceProvider: LuaSourceProvider,
 ) : ViewModel() {
 
     private val yaml = Yaml()
@@ -78,6 +80,162 @@ class ExtensionsManagerViewModel @Inject constructor(
         ExtensionsScreenEvent.OnBackPressed              -> Unit
         is ExtensionsScreenEvent.OnExtensionInstall      -> installExtension(event.extensionId)
         is ExtensionsScreenEvent.OnExtensionUninstallById -> uninstallExtensionById(event.extensionId)
+        ExtensionsScreenEvent.OnImportLuaClick            -> Unit
+        is ExtensionsScreenEvent.OnEditLuaClick           -> openLuaEditor(event.extensionId)
+        ExtensionsScreenEvent.OnLuaEditorDismiss          -> closeLuaEditor()
+        is ExtensionsScreenEvent.OnLuaEditorChange        -> updateLuaEditorText(event.code)
+        ExtensionsScreenEvent.OnLuaEditorSave             -> saveLuaEditor()
+        is ExtensionsScreenEvent.OnResetLuaClick          -> resetLuaExtension(event.extensionId)
+        is ExtensionsScreenEvent.OnDeleteLocalLuaClick    -> deleteLocalExtension(event.extensionId)
+        ExtensionsScreenEvent.OnClearAllLocalLuaClick     -> clearAllLocalExtensions()
+    }
+
+
+    // ── Локальный импорт / редактор Lua ─────────────────────────────────────
+
+    private fun luaField(code: String, key: String, fallback: String = ""): String {
+        val regex = Regex("""(?m)^\s*$key\s*=\s*["']([^"']+)["']""")
+        return regex.find(code)?.groupValues?.getOrNull(1)?.trim().orEmpty().ifBlank { fallback }
+    }
+
+    private suspend fun settingsMap(extensionId: String): Map<String, Any>? {
+        val raw = extensionManager.getExtensionSettings(extensionId) ?: return null
+        if (raw.isBlank() || raw == "{}") return null
+        return try {
+            @Suppress("UNCHECKED_CAST")
+            yaml.loadAs(raw, Map::class.java) as? Map<String, Any>
+        } catch (e: Exception) {
+            Timber.w(e, "Bad settings YAML for $extensionId")
+            null
+        }
+    }
+
+    private suspend fun isLocalExtension(extensionId: String): Boolean =
+        settingsMap(extensionId)?.get("sourceType")?.toString() == "local"
+
+    private suspend fun getCodeUrl(extensionId: String): String? =
+        settingsMap(extensionId)?.get("codeUrl")?.toString()
+
+    fun openLuaEditor(extensionId: String) = viewModelScope.launch {
+        val ext = _state.value.extensions.find { it.id == extensionId } ?: return@launch
+        val code = luaSourceLoader.readScript(extensionId).orEmpty()
+
+        _state.update {
+            it.copy(
+                showLuaEditor = true,
+                luaEditorExtensionId = extensionId,
+                luaEditorTitle = ext.name,
+                luaEditorCode = code,
+                luaEditorError = null
+            )
+        }
+    }
+
+    fun updateLuaEditorText(code: String) {
+        _state.update { it.copy(luaEditorCode = code, luaEditorError = null) }
+    }
+
+    fun closeLuaEditor() {
+        _state.update {
+            it.copy(
+                showLuaEditor = false,
+                luaEditorExtensionId = null,
+                luaEditorTitle = "",
+                luaEditorCode = "",
+                luaEditorError = null
+            )
+        }
+    }
+
+    fun saveLuaEditor() = viewModelScope.launch {
+        val id = _state.value.luaEditorExtensionId ?: return@launch
+        val code = _state.value.luaEditorCode
+
+        if (luaSourceLoader.validateScript(code, "$id.lua").isFailure) {
+            _state.update { it.copy(luaEditorError = "Lua compile error") }
+            return@launch
+        }
+
+        if (!luaSourceLoader.saveScript(id, code)) {
+            _state.update { it.copy(luaEditorError = "Failed to save Lua file") }
+            return@launch
+        }
+
+        luaSourceProvider.reload()
+        closeLuaEditor()
+    }
+
+    fun importLuaFromText(fileName: String, code: String) = viewModelScope.launch {
+        if (luaSourceLoader.validateScript(code, fileName).isFailure) {
+            _state.update { it.copy(error = "Lua compile error") }
+            return@launch
+        }
+
+        val fallbackId = fileName.substringBeforeLast('.').ifBlank { "local_source" }
+        val id = luaField(code, "id", fallbackId).replace(Regex("[^A-Za-z0-9_.-]"), "_")
+        val name = luaField(code, "name", id)
+        val version = luaField(code, "version", "1.0.0")
+        val language = luaField(code, "language", "en")
+        val icon = luaField(code, "icon")
+
+        if (!luaSourceLoader.saveScript(id, code)) {
+            _state.update { it.copy(error = "Failed to save imported Lua file") }
+            return@launch
+        }
+
+        extensionManager.installExtensionFromInfo(
+            id = id,
+            name = name,
+            version = version,
+            language = language,
+            imageUrl = icon.ifBlank { null },
+            codeUrl = null
+        )
+        extensionManager.updateExtensionSettings(id, "sourceType: local")
+        luaSourceProvider.reload()
+    }
+
+    fun resetLuaExtension(extensionId: String) = viewModelScope.launch {
+        val codeUrl = getCodeUrl(extensionId)
+
+        if (codeUrl.isNullOrBlank()) {
+            luaSourceLoader.removeScript(extensionId)
+            if (isLocalExtension(extensionId)) {
+                extensionManager.uninstallExtension(extensionId)
+            }
+            luaSourceProvider.reload()
+            return@launch
+        }
+
+        luaSourceLoader.removeScript(extensionId)
+
+        if (!luaSourceLoader.downloadAndCacheScript(extensionId, codeUrl)) {
+            _state.update { it.copy(error = "Failed to restore repository Lua") }
+            return@launch
+        }
+
+        luaSourceProvider.reload()
+    }
+
+    fun deleteLocalExtension(extensionId: String) = viewModelScope.launch {
+        luaSourceLoader.removeScript(extensionId)
+        if (isLocalExtension(extensionId)) {
+            extensionManager.uninstallExtension(extensionId)
+        }
+        luaSourceProvider.reload()
+    }
+
+    fun clearAllLocalExtensions() = viewModelScope.launch {
+        val localIds = extensionManager.getInstalledExtensions()
+            .map { it.id }
+            .filter { isLocalExtension(it) }
+
+        localIds.forEach { id ->
+            luaSourceLoader.removeScript(id)
+            extensionManager.uninstallExtension(id)
+        }
+
+        luaSourceProvider.reload()
     }
 
     // ── Загрузка доступных расширений из репозитория ─────────────────────────
