@@ -1,91 +1,151 @@
-name: Build & Publish
+name: Build & Publish Release
 
 on:
   workflow_dispatch:
-    inputs:
-      build_type:
-        description: 'Build type'
-        required: true
-        default: 'test'
-        type: choice
-        options:
-          - test      # Upload artifact only, no release
-          - release   # Create a draft GitHub Release
 
 permissions:
   contents: write
 
+concurrency:
+  group: novela-release
+  cancel-in-progress: false
+
 jobs:
   build:
-    name: Build APK (${{ inputs.build_type }})
+    name: Build and Publish APK
     runs-on: ubuntu-latest
-    steps:
-      - name: Clone repo
-        uses: actions/checkout@v7
 
-      - name: Set up JDK environment
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: 21
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Setup APK signing
+      - name: Generate APK signing key
         run: |
-          echo -n ${{ secrets.SIGNING_KEY }} | base64 -d > app/storeFile.jks
-          echo storeFile=storeFile.jks          > custom.properties
-          echo storePassword=${{ secrets.KEY_STORE_PASSWORD }} >> custom.properties
-          echo keyAlias=${{ secrets.ALIAS }}    >> custom.properties
-          echo keyPassword=${{ secrets.KEY_PASSWORD }} >> custom.properties
+          keytool -genkeypair -v \
+            -keystore app/storeFile.jks \
+            -alias novela \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 36500 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=Vaizero, OU=NoveLA, O=Vaizero, L=Earth, S=Earth, C=US"
 
-      - name: Remove local Java home from gradle.properties
-        run: sed -i '/org\.gradle\.java\.home/d' gradle.properties
+          {
+            echo "storeFile=storeFile.jks"
+            echo "storePassword=android"
+            echo "keyAlias=novela"
+            echo "keyPassword=android"
+          } > custom.properties
 
-      - name: Build release APK
+      - name: Build optimized release APK
         run: ./gradlew assembleRelease -PlocalPropertiesFilePath=custom.properties
 
-      - name: Set app version
+      - name: Read build information
         run: |
-          echo "APP_VERSION=$(sed -n 's/^[[:space:]]*versionName = "\(.*\)"$/\1/p' app/build.gradle.kts | head -n 1)" >> "$GITHUB_ENV"
+          APP_VERSION=$(sed -n 's/^[[:space:]]*versionName = "\(.*\)"$/\1/p' app/build.gradle.kts | head -n 1)
+          SHORT_SHA=$(git rev-parse --short HEAD)
 
-      - name: Collect APKs
+          if [ -z "$APP_VERSION" ]; then
+            echo "Unable to detect app version"
+            exit 1
+          fi
+
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
+
+      - name: Prepare APK
         run: |
           mkdir -p release-artifacts
-          find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' \
-            -exec cp {} release-artifacts/ \;
+
+          APK=$(find app/build/outputs/apk/release \
+            -maxdepth 1 \
+            -type f \
+            -name '*.apk' \
+            | head -n 1)
+
+          if [ -z "$APK" ]; then
+            echo "Release APK not found"
+            exit 1
+          fi
+
+          cp "$APK" \
+            "release-artifacts/NoveLA-v${APP_VERSION}-Vaizero.apk"
+
           ls -lah release-artifacts
 
-      # ── Test build: upload as workflow artifact (no release) ────────────────
-      - name: Upload APK artifact (test build)
-        if: inputs.build_type == 'test'
-        uses: actions/upload-artifact@v7
-        with:
-          name: NoveLA-v${{ env.APP_VERSION }}-test
-          path: release-artifacts/*.apk
-          retention-days: 14
+      - name: Generate release description
+        run: |
+          {
+            echo "# 📖 NoveLA"
+            echo ""
+            echo "**Free and open-source web novel reader for Android.**"
+            echo ""
+            echo "## 🧩 Local Lua Extension Tools"
+            echo ""
+            echo "- 📥 Import local \`.lua\` source extensions directly in NoveLA"
+            echo "- ✏️ Edit installed Lua extension code with a lightweight built-in editor"
+            echo "- 💾 Save Lua changes locally and reload extensions for quick testing"
+            echo "- ♻️ Restore repository extensions to their original Lua source"
+            echo "- 🗑️ Delete individual local Lua extensions"
+            echo "- 🧹 Clear all locally imported Lua extensions"
+            echo ""
+            echo "## ✨ Features"
+            echo ""
+            echo "- 📚 35+ novel sources with built-in and external Lua plugin support"
+            echo "- 🔎 Global multi-source novel search and add novels by URL"
+            echo "- 🌐 In-reader translation with parallel reading mode"
+            echo "- 🌍 Translation support for 226 languages"
+            echo "- 🤖 Google Gemini and OpenAI-compatible translation backends"
+            echo "- 🔊 Text-to-speech with background playback"
+            echo "- 🎛️ Floating TTS player with draggable controls and paragraph display"
+            echo "- 🎧 Bluetooth and lock-screen media controls"
+            echo "- 🗣️ Original voice selection for parallel mode"
+            echo "- 📜 Infinite chapter scrolling with offline caching"
+            echo "- 📥 Download all chapters for offline reading"
+            echo "- 📖 Local EPUB and FB2 library with bulk import"
+            echo "- 🔄 Novel migration between sources"
+            echo "- ☁️ Automatic Cloudflare Turnstile bypass"
+            echo "- 🧹 Regex text cleanup for ads and injected text"
+            echo "- 💾 Backup, restore, and automatic backup support"
+            echo "- ⏱️ TTS reading timer"
+            echo "- 🌐 20 interface languages"
+            echo ""
+            echo "## 🛠 Build Information"
+            echo ""
+            echo "- **Version:** ${APP_VERSION}"
+            echo "- **Commit:** \`${SHORT_SHA}\`"
+            echo "- **Build type:** Release"
+            echo ""
+            echo "> ⚠️ This is a modified NoveLA build and is not an official HnDK0 release."
+            echo ""
+            echo "## 📄 License"
+            echo ""
+            echo "Based on NoveLA and distributed under the GPL-3.0 license."
+            echo ""
+            echo "---"
+            echo ""
+            echo "### 📱 APK by *Insta ID: @vaizero126* — **Vaizero**"
+          } > release-body.md
 
-      # ── Release build: create a draft GitHub Release ─────────────────────────
-      - name: Create draft release
-        if: inputs.build_type == 'release'
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          name: NoveLA v${{ env.APP_VERSION }}
-          tag_name: v${{ env.APP_VERSION }}
-          draft: true
-          body: |
-            # <img src="https://github.com/HnDK0/NoveLA/raw/default/screenshots/NoveLA.png" width="36" valign="middle"> NoveLA — Light Novel Reader & Parser
-            <details>
-            <summary><b>🇷🇺 Russian Version</b></summary>
-            ### [КАТЕГОРИЯ]
-            - [ОПИСАНИЕ ИЗМЕНЕНИЯ]
-            </details>
-            <details open>
-            <summary><b>🇺🇸 English Version</b></summary>
-            ### [CATEGORY]
-            - [CHANGE DESCRIPTION]
-            </details>
-            ## Screenshots
-            [ССЫЛКИ НА ИЗОБРАЖЕНИЯ]
+          name: NoveLA v${{ env.APP_VERSION }} • Vaizero
+          tag_name: vaizero-${{ env.APP_VERSION }}-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: false
+          body_path: release-body.md
           files: release-artifacts/*.apk
