@@ -18,6 +18,9 @@ interface LuaSourceProvider {
     /** Ждёт завершения загрузки реальных Lua скриптов. Возвращает мгновенно если уже загружены. */
     suspend fun awaitLoaded()
 
+    /** Reload installed Lua sources from disk and repository settings. */
+    suspend fun reload()
+
     /** Очистить кэш скомпилированных скриптов */
     fun clearCache()
 }

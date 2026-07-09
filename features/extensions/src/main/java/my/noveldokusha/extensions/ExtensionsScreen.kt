@@ -1,5 +1,7 @@
 package my.noveldokusha.extensions
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -104,6 +107,18 @@ private fun UnifiedExtensionsScreen(
     @Suppress("UNUSED_PARAMETER") onExtensionsLanguageFilterDismiss: () -> Unit = {},
     @Suppress("UNUSED_PARAMETER") onRefresh: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            val code = input.bufferedReader().readText()
+            val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "local.lua"
+            viewModel.importLuaFromText(fileName, code)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -149,10 +164,29 @@ private fun UnifiedExtensionsScreen(
                     state.availableExtensions.filter { it.language in state.selectedLanguages }
                 }
 
-                val installedExtensions = filteredExtensions.filter { it.isInstalled }
+                val availableIds = state.availableExtensions.map { it.id }.toSet()
+                val localInstalledExtensions = state.extensions
+                    .filter { installed -> installed.id !in availableIds }
+                    .filter { installed -> state.selectedLanguages.isEmpty() || installed.language in state.selectedLanguages }
+                    .map { installed ->
+                        ExtensionInfo(
+                            id = installed.id,
+                            name = installed.name,
+                            description = "Local Lua extension",
+                            author = "Local",
+                            version = installed.version,
+                            remoteVersion = installed.version,
+                            codeUrl = "",
+                            iconUrl = installed.iconUrl.orEmpty(),
+                            language = installed.language,
+                            isInstalled = true,
+                            isEnabled = installed.enabled
+                        )
+                    }
+                val installedExtensions = filteredExtensions.filter { it.isInstalled } + localInstalledExtensions
                 val availableExtensions = filteredExtensions.filter { !it.isInstalled }
 
-                if (filteredExtensions.isEmpty()) {
+                if (filteredExtensions.isEmpty() && localInstalledExtensions.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center
@@ -167,6 +201,14 @@ private fun UnifiedExtensionsScreen(
                                 textAlign = TextAlign.Center
                             )
                             FilledTonalButton(
+                                onClick = { importLauncher.launch(arrayOf("text/*", "application/octet-stream", "application/x-lua")) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null)
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text("Import Lua")
+                            }
+                            FilledTonalButton(
                                 onClick = { viewModel.onEvent(ExtensionsScreenEvent.OnRefresh) },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -180,6 +222,19 @@ private fun UnifiedExtensionsScreen(
                             .fillMaxWidth(),
                         contentPadding = PaddingValues(bottom = 300.dp),
                     ) {
+                        item {
+                            FilledTonalButton(
+                                onClick = { importLauncher.launch(arrayOf("text/*", "application/octet-stream", "application/x-lua")) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null)
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text("Import Lua")
+                            }
+                        }
+
                         if (installedExtensions.isNotEmpty()) {
                             item {
                                 Text(
@@ -230,6 +285,17 @@ private fun UnifiedExtensionsScreen(
         RepositoryUrlDialog(
             state = state,
             viewModel = viewModel
+        )
+    }
+
+    if (state.showLuaEditor) {
+        LuaEditorDialog(
+            title = state.luaEditorTitle,
+            code = state.luaEditorCode,
+            error = state.luaEditorError,
+            onCodeChange = { viewModel.onEvent(ExtensionsScreenEvent.OnLuaEditorChange(it)) },
+            onDismiss = { viewModel.onEvent(ExtensionsScreenEvent.OnLuaEditorDismiss) },
+            onSave = { viewModel.onEvent(ExtensionsScreenEvent.OnLuaEditorSave) }
         )
     }
 }
@@ -447,19 +513,35 @@ private fun ExtensionListItem(
                     }
                 }
                 extension.isInstalled -> {
-                    FilledTonalButton(
-                        onClick = {
-                            viewModel.onEvent(ExtensionsScreenEvent.OnExtensionUninstallById(extension.id))
-                        },
-                        modifier = Modifier.height(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.size(6.dp))
-                        Text("Uninstall")
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilledTonalButton(
+                            onClick = { viewModel.onEvent(ExtensionsScreenEvent.OnEditLuaClick(extension.id)) },
+                            modifier = Modifier.height(40.dp)
+                        ) {
+                            Text("Edit Lua")
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedButton(
+                                onClick = { viewModel.onEvent(ExtensionsScreenEvent.OnResetLuaClick(extension.id)) },
+                                modifier = Modifier.height(40.dp)
+                            ) {
+                                Text("Reset")
+                            }
+                            FilledTonalButton(
+                                onClick = {
+                                    viewModel.onEvent(ExtensionsScreenEvent.OnExtensionUninstallById(extension.id))
+                                },
+                                modifier = Modifier.height(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Delete,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.size(6.dp))
+                                Text("Uninstall")
+                            }
+                        }
                     }
                 }
                 else -> {
