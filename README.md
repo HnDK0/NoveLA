@@ -31,7 +31,7 @@ Free and open source web novel reader for Android.
 
 ## Download
 
-**[Get the latest APK](https://github.com/HnDK0/NoveLA/releases/latest)** — requires Android 8.0+
+**[Get the latest APK](https://github.com/Vaizer0/NoveLA/releases/latest)** — requires Android 8.0+
 
 Or build from source:
 
