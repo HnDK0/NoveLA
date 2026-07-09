@@ -8,6 +8,8 @@ on:
       - '**.md'
       - 'screenshots/**'
 
+  workflow_dispatch:
+
 permissions:
   contents: write
 
@@ -19,6 +21,7 @@ jobs:
   build:
     name: Build nightly APK
     runs-on: ubuntu-latest
+
     steps:
       - name: Clone repo
         uses: actions/checkout@v7
@@ -29,27 +32,33 @@ jobs:
       - name: Set up JDK environment
         uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: 21
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Setup APK signing
-        env:
-          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
-          ALIAS: ${{ secrets.ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          echo -n "$SIGNING_KEY" | base64 -d > app/storeFile.jks
-          echo storeFile=storeFile.jks          > custom.properties
-          echo storePassword="$KEY_STORE_PASSWORD" >> custom.properties
-          echo keyAlias="$ALIAS"    >> custom.properties
-          echo keyPassword="$KEY_PASSWORD" >> custom.properties
-
       - name: Remove local Java home from gradle.properties
         run: sed -i '/org\.gradle\.java\.home/d' gradle.properties
+
+      - name: Setup temporary APK signing
+        run: |
+          keytool -genkeypair -v \
+            -keystore app/storeFile.jks \
+            -alias novela \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 36500 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=NoveLA, OU=NoveLA, O=NoveLA, L=Earth, S=Earth, C=US"
+
+          {
+            echo "storeFile=storeFile.jks"
+            echo "storePassword=android"
+            echo "keyAlias=novela"
+            echo "keyPassword=android"
+          } > custom.properties
 
       - name: Build release APK
         run: ./gradlew assembleRelease -PlocalPropertiesFilePath=custom.properties
@@ -72,15 +81,13 @@ jobs:
         run: |
           git fetch origin --tags --force
 
-          # Baseline = latest *stable* tag (anything that isn't "nightly").
-          # This way the list accumulates across nightly builds and only
-          # resets once a real release tag is cut.
           BASE_TAG=$(git tag --sort=-creatordate | grep -v -x 'nightly' | head -n1)
 
           {
-            echo "⚠️ Automated build from the latest commit on the \`${{ github.ref_name }}\` branch / Автоматическая сборка из последнего коммита на ветке \`${{ github.ref_name }}\`."
-            echo "Commit / Коммит: ${{ github.sha }}"
-            echo "This is not a stable release and may contain bugs / Не является стабильным релизом — может содержать баги."
+            echo "⚠️ Automated build from the latest commit on the \`${{ github.ref_name }}\` branch."
+            echo "Commit: ${{ github.sha }}"
+            echo ""
+            echo "This is not a stable release and may contain bugs."
             echo ""
             if [ -n "$BASE_TAG" ]; then
               echo "## Changes since $BASE_TAG"
@@ -92,9 +99,6 @@ jobs:
             echo ""
           } > release-body.md
 
-          cat release-body.md
-
-          # Now move the tag to the new commit so source archives stay in sync too
           git tag -f nightly "${{ github.sha }}"
           git push origin nightly --force
 
