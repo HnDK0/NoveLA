@@ -42,10 +42,10 @@ class LuaSourceProviderImpl @Inject constructor(
             if (cached.isNotEmpty()) {
                 _sourcesFlow.value = cached
             }
-            reload()
+            reloadInternal()
             @OptIn(kotlinx.coroutines.FlowPreview::class)
             extensionRepository.getInstalledExtensionsFlow().debounce(500).collect {
-                reload()
+                reloadInternal()
             }
         }
     }
@@ -91,7 +91,11 @@ class LuaSourceProviderImpl @Inject constructor(
         }
     }
 
-    private suspend fun reload() {
+    override suspend fun reload() {
+        reloadInternal()
+    }
+
+    private suspend fun reloadInternal() {
         try {
             luaSourceLoader.loadAllSources()
                 .onSuccess { sources ->
