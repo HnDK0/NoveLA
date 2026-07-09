@@ -45,6 +45,11 @@ git clone https://github.com/HnDK0/NoveLA
 ## Features
 
 - 35+ sources (built-in + Lua plugins)
+- Import local `.lua` source extensions directly in NoveLA
+- Edit installed Lua extension code with a lightweight built-in editor
+- Save and reload Lua changes for quick extension testing
+- Reset repository extensions to their original Lua source
+- Delete individual local Lua extensions
 - Global multi-source search; add any novel by URL
 - In-reader translation with parallel mode and novel-specific prompts — no copy-paste, no app switching
 - Infinite chapter scrolling with offline caching
