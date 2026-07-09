@@ -38,9 +38,6 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Remove local Java home from gradle.properties
-        run: sed -i '/org\.gradle\.java\.home/d' gradle.properties
-
       - name: Setup temporary APK signing
         run: |
           keytool -genkeypair -v \
