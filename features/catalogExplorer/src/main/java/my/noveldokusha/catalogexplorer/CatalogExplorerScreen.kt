@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.AltRoute
 import androidx.compose.material.icons.automirrored.outlined.AltRoute
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddLink
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
@@ -38,6 +38,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -74,6 +75,7 @@ fun CatalogExplorerScreen(
 
     val context = LocalContext.current
     var extensionsChipsVisible by rememberSaveable { mutableStateOf(false) }
+    var importLuaTrigger by remember { mutableIntStateOf(0) }
 
     val onDatabaseClick = remember(context) {
         { database: my.noveldokusha.scraper.DatabaseInterface ->
@@ -133,6 +135,7 @@ fun CatalogExplorerScreen(
                                 onToggleLanguageChips = viewModel::toggleLanguageChips,
                             )
                             1 -> ExtensionsTabActions(
+                                onImportLua = { importLuaTrigger++ },
                                 onRefresh = { extensionsViewModel.onEvent(ExtensionsScreenEvent.OnRefresh) },
                                 onShowRepositoryDialog = { extensionsViewModel.onEvent(ExtensionsScreenEvent.OnShowRepositoryDialog) },
                                 onToggleLanguageChips = { extensionsChipsVisible = !extensionsChipsVisible },
@@ -249,6 +252,7 @@ fun CatalogExplorerScreen(
                     // Extensions tab content
                     ExtensionsScreen(
                         innerPadding = innerPadding,
+                        importLuaTrigger = importLuaTrigger,
                         onBackPressed = null,
                         showExtensionsLanguageFilter = false,
                         onExtensionsLanguageFilterDismiss = { },
@@ -342,11 +346,20 @@ private fun MigrationTabActions(
 
 @Composable
 private fun ExtensionsTabActions(
+    onImportLua: () -> Unit,
     onRefresh: () -> Unit,
     onShowRepositoryDialog: () -> Unit,
     onToggleLanguageChips: () -> Unit,
 ) {
     Row {
+        // Import Lua button
+        IconButton(onClick = onImportLua) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Import Lua",
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
         // Refresh button
         IconButton(onClick = onRefresh) {
             Icon(

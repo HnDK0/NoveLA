@@ -93,8 +93,8 @@ class DatabaseSearchViewModel @Inject constructor(
             }.map { page ->
                 PagedList(
                     list = page.list.map { it.mapToBookMetadata() },
-                    index = 0,
-                    isLastPage = false
+                    index = page.index,
+                    isLastPage = page.isLastPage
 
                 )
             }
