@@ -136,7 +136,7 @@ jobs:
             echo ""
             echo "---"
             echo ""
-            echo "### 📱 APK by *Insta ID: @vaizero126* — **Vaizero**"
+            echo "### 📱 APK by : @vaizero126* — **Vaizero**"
           } > release-body.md
 
       - name: Publish GitHub Release
