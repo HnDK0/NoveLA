@@ -35,7 +35,7 @@ androidx-constraintLayout = "2.2.1"
 androidx-appcompat = "1.7.1"
 
 androidx-testing-core = "1.6.1"
-androidx-testing-runner = "1.6.2"
+androidx-testing-runner = "1.7.0"
 androidx-testing-rules = "1.7.0"
 androidx-testing-orchestrator = "1.6.1"
 androidx-testing-junit = "1.3.0"
