@@ -22,7 +22,7 @@ enum class LocalBookImportType(
     PDF("PDF", "application/pdf"),
 }
 
-internal fun parseLocalBook(
+internal suspend fun parseLocalBook(
     context: Context,
     uri: Uri,
     fileName: String,
