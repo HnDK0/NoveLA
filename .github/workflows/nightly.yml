@@ -38,34 +38,33 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Setup temporary APK signing
+      - name: Restore APK signing key
         run: |
-          keytool -genkeypair -v \
-            -keystore app/storeFile.jks \
-            -alias novela \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 36500 \
-            -storepass android \
-            -keypass android \
-            -dname "CN=NoveLA, OU=NoveLA, O=NoveLA, L=Earth, S=Earth, C=US"
+          echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > app/storeFile.jks
 
-          {
-            echo "storeFile=storeFile.jks"
-            echo "storePassword=android"
-            echo "keyAlias=novela"
-            echo "keyPassword=android"
-          } > custom.properties
+          cat > custom.properties <<EOF
+          storeFile=storeFile.jks
+          storePassword=${{ secrets.STORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
 
-      - name: Build release APK
-        run: ./gradlew assembleRelease -PlocalPropertiesFilePath=custom.properties
+      - name: Set nightly version code
+        run: |
+          VERSION_CODE=$(date +%s)
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+
+          sed -i "s/versionCode = [0-9]\+/versionCode = ${VERSION_CODE}/" app/build.gradle.kts
 
       - name: Set app version
         run: |
-          echo "APP_VERSION=$(sed -n 's/^[[:space:]]*versionName = "\(.*\)"$/\1/p' app/build.gradle.kts | head -n 1)" >> "$GITHUB_ENV"
+          echo "APP_VERSION=$(sed -n 's/^[[:space:]]*versionName = \"\\(.*\\)\"$/\\1/p' app/build.gradle.kts | head -n 1)" >> "$GITHUB_ENV"
 
       - name: Set short SHA
         run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease -PlocalPropertiesFilePath=custom.properties
 
       - name: Collect APKs
         run: |
@@ -82,18 +81,20 @@ jobs:
 
           {
             echo "⚠️ Automated build from the latest commit on the \`${{ github.ref_name }}\` branch."
-            echo "Commit: ${{ github.sha }}"
             echo ""
-            echo "This is not a stable release and may contain bugs."
+            echo "**Commit:** \`${{ github.sha }}\`"
+            echo "**Version code:** \`${VERSION_CODE}\`"
             echo ""
+            echo "This is a nightly build and may contain bugs."
+            echo ""
+
             if [ -n "$BASE_TAG" ]; then
               echo "## Changes since $BASE_TAG"
-              git log --pretty=format:'- %s (%h)' "$BASE_TAG"..${{ github.sha }}
+              git log --no-merges --pretty=format:'- %s (%h)' "$BASE_TAG"..HEAD | sed '/^$/d' | head -n 40
             else
               echo "## Recent changes"
-              git log -20 --pretty=format:'- %s (%h)' ${{ github.sha }}
+              git log --no-merges -20 --pretty=format:'- %s (%h)' HEAD | sed '/^$/d'
             fi
-            echo ""
           } > release-body.md
 
           git tag -f nightly "${{ github.sha }}"
