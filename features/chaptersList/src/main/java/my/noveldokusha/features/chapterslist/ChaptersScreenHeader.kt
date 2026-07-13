@@ -259,18 +259,8 @@ internal fun ChaptersScreenHeader(
                         modifier = Modifier.padding(vertical = 8.dp),
                         thickness = Dp.Hairline,
                     )
-                    // Description
-                    val displayDesc = (translatedDescription ?: bookState.description).trim()
-                    val descText by remember(displayDesc) { derivedStateOf { displayDesc } }
-                    SelectionContainer {
-                        ExpandableText(
-                            text = descText,
-                            linesForExpand = 3,
-                        )
-                    }
                     // Genres
                     if (genres.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
                         val genresCollapsedCount = 4
                         var genresExpanded by rememberSaveable { mutableStateOf(false) }
                         val visibleGenres = if (genresExpanded || genres.size <= genresCollapsedCount)
@@ -325,6 +315,19 @@ internal fun ChaptersScreenHeader(
                             }
                         }
                     }
+                }
+            }
+
+            // Description
+            val displayDesc = (translatedDescription ?: bookState.description).trim()
+            if (displayDesc.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                val descText by remember(displayDesc) { derivedStateOf { displayDesc } }
+                SelectionContainer {
+                    ExpandableText(
+                        text = descText,
+                        linesForExpand = 3,
+                    )
                 }
             }
 
