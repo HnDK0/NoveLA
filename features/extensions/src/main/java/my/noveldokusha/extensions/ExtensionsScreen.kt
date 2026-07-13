@@ -22,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -43,14 +42,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import my.noveldokusha.coreui.theme.colorAccent
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -83,7 +78,6 @@ import my.noveldokusha.coreui.R
 @Composable
 fun ExtensionsScreen(
     innerPadding: PaddingValues,
-    importLuaTrigger: Int = 0,
     onBackPressed: (() -> Unit)? = null,
     showExtensionsLanguageFilter: Boolean = false,
     onExtensionsLanguageFilterDismiss: () -> Unit = {},
@@ -93,7 +87,6 @@ fun ExtensionsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     UnifiedExtensionsScreen(
-        importLuaTrigger = importLuaTrigger,
         innerPadding = innerPadding,
         state = state,
         viewModel = viewModel,
@@ -106,7 +99,6 @@ fun ExtensionsScreen(
 
 @Composable
 private fun UnifiedExtensionsScreen(
-    importLuaTrigger: Int,
     innerPadding: PaddingValues,
     state: ExtensionsScreenState,
     viewModel: ExtensionsManagerViewModel,
@@ -116,30 +108,14 @@ private fun UnifiedExtensionsScreen(
     @Suppress("UNUSED_PARAMETER") onRefresh: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
-    var lastHandledTrigger by rememberSaveable { mutableIntStateOf(importLuaTrigger) }
-
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-
         context.contentResolver.openInputStream(uri)?.use { input ->
             val code = input.bufferedReader().readText()
             val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "local.lua"
             viewModel.importLuaFromText(fileName, code)
-        }
-    }
-
-    LaunchedEffect(importLuaTrigger) {
-        if (importLuaTrigger > lastHandledTrigger) {
-            importLauncher.launch(
-                arrayOf(
-                    "text/*",
-                    "application/octet-stream",
-                    "application/x-lua"
-                )
-            )
-            lastHandledTrigger = importLuaTrigger
         }
     }
 
@@ -244,8 +220,20 @@ private fun UnifiedExtensionsScreen(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                        contentPadding = PaddingValues(bottom = 300.dp),
                     ) {
+                        item {
+                            FilledTonalButton(
+                                onClick = { importLauncher.launch(arrayOf("text/*", "application/octet-stream", "application/x-lua")) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null)
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text("Import Lua")
+                            }
+                        }
 
                         if (installedExtensions.isNotEmpty()) {
                             item {
@@ -525,53 +513,34 @@ private fun ExtensionListItem(
                     }
                 }
                 extension.isInstalled -> {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        FilledTonalIconButton(
-                            onClick = {
-                                viewModel.onEvent(
-                                    ExtensionsScreenEvent.OnEditLuaClick(extension.id)
-                                )
-                            },
-                            modifier = Modifier.size(32.dp)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilledTonalButton(
+                            onClick = { viewModel.onEvent(ExtensionsScreenEvent.OnEditLuaClick(extension.id)) },
+                            modifier = Modifier.height(40.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.Edit,
-                                contentDescription = "Edit Lua",
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Text("Edit Lua")
                         }
-
-                        OutlinedIconButton(
-                            onClick = {
-                                viewModel.onEvent(
-                                    ExtensionsScreenEvent.OnResetLuaClick(extension.id)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedButton(
+                                onClick = { viewModel.onEvent(ExtensionsScreenEvent.OnResetLuaClick(extension.id)) },
+                                modifier = Modifier.height(40.dp)
+                            ) {
+                                Text("Reset")
+                            }
+                            FilledTonalButton(
+                                onClick = {
+                                    viewModel.onEvent(ExtensionsScreenEvent.OnExtensionUninstallById(extension.id))
+                                },
+                                modifier = Modifier.height(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Delete,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Refresh,
-                                contentDescription = "Reset Lua",
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        FilledTonalIconButton(
-                            onClick = {
-                                viewModel.onEvent(
-                                    ExtensionsScreenEvent.OnExtensionUninstallById(extension.id)
-                                )
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Delete,
-                                contentDescription = "Uninstall",
-                                modifier = Modifier.size(16.dp)
-                            )
+                                Spacer(modifier = Modifier.size(6.dp))
+                                Text("Uninstall")
+                            }
                         }
                     }
                 }
