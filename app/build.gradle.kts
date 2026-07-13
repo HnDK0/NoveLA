@@ -184,7 +184,7 @@ dependencies {
     implementation(libs.timber)
 
     // Force concurrent-futures to 1.2.0 for consistent resolution with test deps
-    implementation("androidx.concurrent:concurrent-futures-ktx:1.2.0")
+    implementation("androidx.concurrent:concurrent-futures-ktx:1.3.0")
 }
 
 hilt {
