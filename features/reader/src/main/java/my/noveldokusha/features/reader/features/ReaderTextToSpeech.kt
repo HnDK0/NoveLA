@@ -108,6 +108,7 @@ internal class ReaderTextToSpeech(
     private val halfBuffer = 5
     private val _originalVoiceId = mutableStateOf(getPreferredVoiceIdForOriginal())
     private var updateJob: Job? = null
+    private var pausedByInterruption = false
     private val manager = TextToSpeechManager(
         context = context,
         appTtsEngine = AppTtsEngine.getInstance(context),
@@ -579,6 +580,28 @@ internal class ReaderTextToSpeech(
 
     @Synchronized
     private fun setPlaying(playing: Boolean) {
+        pausedByInterruption = false
+        setPlayingInternal(playing)
+    }
+
+    fun pauseForInterruption() {
+        if (!state.isPlaying.value) return
+        pausedByInterruption = true
+        setPlayingInternal(false)
+    }
+
+    fun resumeAfterInterruption() {
+        if (!pausedByInterruption || state.isPlaying.value) return
+        pausedByInterruption = false
+        setPlayingInternal(true)
+    }
+
+    fun stopForPermanentAudioLoss() {
+        pausedByInterruption = false
+        setPlayingInternal(false)
+    }
+
+    private fun setPlayingInternal(playing: Boolean) {
         if (!playing) {
             stop()
             return

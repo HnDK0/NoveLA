@@ -44,6 +44,9 @@ import my.noveldokusha.navigation.NavigationRouteViewModel
 import my.noveldokusha.feature.local_database.BookMetadata
 import my.noveldokusha.feature.local_database.BookWithContext
 import my.noveldokusha.feature.local_database.tables.Book
+import my.noveldokusha.tooling.epub_importer.onDoImportEPUB
+import my.noveldokusha.tooling.epub_importer.onDoImportPDF
+import my.noveldokusha.tooling.epub_importer.onDoImportTXT
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
@@ -58,6 +61,9 @@ fun LibraryScreen(
 
     val context = LocalContext.current
     val showDropdownMenu = remember { mutableStateOf(false) }
+    val importEpub = onDoImportEPUB()
+    val importTxt = onDoImportTXT()
+    val importPdf = onDoImportPDF()
     val lastClickTime = remember { mutableStateOf(0L) }
 
     val gridColumns = uiState.gridColumns
@@ -238,7 +244,30 @@ fun LibraryScreen(
                                                 Icon(Icons.Filled.FileOpen, stringResource(id = R.string.import_epub))
                                             },
                                             text = { Text(stringResource(id = R.string.import_epub)) },
-                                            onClick = my.noveldokusha.tooling.epub_importer.onDoImportEPUB()
+                                            onClick = {
+                                                showDropdownMenu.value = false
+                                                importEpub()
+                                            }
+                                        )
+                                        androidx.compose.material3.DropdownMenuItem(
+                                            leadingIcon = {
+                                                Icon(Icons.Filled.FileOpen, stringResource(id = R.string.import_txt))
+                                            },
+                                            text = { Text(stringResource(id = R.string.import_txt)) },
+                                            onClick = {
+                                                showDropdownMenu.value = false
+                                                importTxt()
+                                            }
+                                        )
+                                        androidx.compose.material3.DropdownMenuItem(
+                                            leadingIcon = {
+                                                Icon(Icons.Filled.FileOpen, stringResource(id = R.string.import_pdf))
+                                            },
+                                            text = { Text(stringResource(id = R.string.import_pdf)) },
+                                            onClick = {
+                                                showDropdownMenu.value = false
+                                                importPdf()
+                                            }
                                         )
                                     }
                                 }
