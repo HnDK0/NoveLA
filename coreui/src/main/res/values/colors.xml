@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material 3 Color Scheme - Light Theme -->
+    <color name="primary">#2A59B6</color>
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="primaryContainer">#DCE1FF</color>
+    <color name="onPrimaryContainer">#00164F</color>
+
+    <color name="secondary">#585E71</color>
+    <color name="onSecondary">#FFFFFF</color>
+    <color name="secondaryContainer">#DCE2F9</color>
+    <color name="onSecondaryContainer">#151B2C</color>
+
+    <color name="tertiary">#705575</color>
+    <color name="onTertiary">#FFFFFF</color>
+    <color name="tertiaryContainer">#FBD7FC</color>
+    <color name="onTertiaryContainer">#28132E</color>
+
+    <color name="error">#BA1A1A</color>
+    <color name="onError">#FFFFFF</color>
+    <color name="errorContainer">#FFDAD6</color>
+    <color name="onErrorContainer">#410002</color>
+
+    <color name="background">#FEFBFF</color>
+    <color name="onBackground">#1B1C1E</color>
+    <color name="surface">#FEFBFF</color>
+    <color name="onSurface">#1B1C1E</color>
+    <color name="surfaceVariant">#E1E2EC</color>
+    <color name="onSurfaceVariant">#44474F</color>
+
+    <color name="outline">#74777F</color>
+    <color name="outlineVariant">#C4C6D0</color>
+
+    <!-- Legacy colors for backward compatibility -->
+    <color name="colorAccent">#2A59B6</color>
+    <color name="colorAccent_transparent">#332A59B6</color>
+
+    <!-- Legacy gray colors for backward compatibility -->
+    <color name="color_ff">#ffffff</color>
+    <color name="color_fb">#fbfbfb</color>
+    <color name="color_ee">#eeeeee</color>
+    <color name="color_e0">#e0e0e0</color>
+    <color name="color_dd">#dddddd</color>
+    <color name="color_aa">#aaaaaa</color>
+    <color name="color_77">#777777</color>
+    <color name="color_66">#666666</color>
+    <color name="color_55">#555555</color>
+    <color name="color_44">#444444</color>
+    <color name="color_33">#333333</color>
+    <color name="color_30">#303030</color>
+    <color name="color_28">#282828</color>
+    <color name="color_24">#242424</color>
+    <color name="color_22">#222222</color>
+    <color name="color_20">#202020</color>
+    <color name="color_18">#181818</color>
+    <color name="color_12">#121212</color>
+    <color name="color_11">#111111</color>
+    <color name="color_01">#010101</color>
+    <color name="color_00">#000000</color>
+
+    <!-- Transparent colors -->
+    <color name="color_ff_transparent">#00ffffff</color>
+    <color name="color_fb_transparent">#00fbfbfb</color>
+    <color name="color_33_transparent">#00333333</color>
+    <color name="color_20_transparent">#00202020</color>
+    <color name="color_00_transparent">#00000000</color>
+
+    <!-- State colors -->
+    <color name="positiveStateTint">#71A30E</color>
+    <color name="negativeStateTint">#C81414</color>
+    <color name="dark_green">#71A30E</color>
+    <color name="dark_red">#C81414</color>
+</resources>

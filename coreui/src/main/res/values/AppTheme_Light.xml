@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+	<style name="AppTheme.Light" parent="Theme.Material3.DayNight.NoActionBar">
+		<item name="isLightTheme">true</item>
+		<item name="android:windowLightStatusBar">true</item>
+		<item name="android:statusBarColor">?android:colorBackground</item>
+
+		<!-- Material 3 Color Attributes -->
+		<item name="colorPrimary">@color/primary</item>
+		<item name="colorOnPrimary">@color/onPrimary</item>
+		<item name="colorPrimaryContainer">@color/primaryContainer</item>
+		<item name="colorOnPrimaryContainer">@color/onPrimaryContainer</item>
+
+		<item name="colorSecondary">@color/secondary</item>
+		<item name="colorOnSecondary">@color/onSecondary</item>
+		<item name="colorSecondaryContainer">@color/secondaryContainer</item>
+		<item name="colorOnSecondaryContainer">@color/onSecondaryContainer</item>
+
+		<item name="colorTertiary">@color/tertiary</item>
+		<item name="colorOnTertiary">@color/onTertiary</item>
+		<item name="colorTertiaryContainer">@color/tertiaryContainer</item>
+		<item name="colorOnTertiaryContainer">@color/onTertiaryContainer</item>
+
+		<item name="colorError">@color/error</item>
+		<item name="colorOnError">@color/onError</item>
+		<item name="colorErrorContainer">@color/errorContainer</item>
+		<item name="colorOnErrorContainer">@color/onErrorContainer</item>
+
+		<item name="android:colorBackground">@color/background</item>
+		<item name="colorOnBackground">@color/onBackground</item>
+		<item name="colorSurface">@color/surface</item>
+		<item name="colorOnSurface">@color/onSurface</item>
+		<item name="colorSurfaceVariant">@color/surfaceVariant</item>
+		<item name="colorOnSurfaceVariant">@color/onSurfaceVariant</item>
+
+		<item name="colorOutline">@color/outline</item>
+		<item name="colorOutlineVariant">@color/outlineVariant</item>
+
+		<!-- Legacy compatibility -->
+		<item name="colorAccent">@color/colorAccent</item>
+		<item name="colorAccentTransparent">@color/colorAccent_transparent</item>
+		<item name="android:colorEdgeEffect">?colorPrimary</item>
+
+		<!-- Component styles -->
+		<item name="bottomNavigationStyle">@style/myBottomNavigationStyle.Light</item>
+		<item name="materialButtonStyle">@style/myMaterialButtonStyle</item>
+		<item name="textInputStyle">@style/myTextInputStyle</item>
+		<item name="myReaderTextStyle">@style/myReaderTextStyle.Light</item>
+		<item name="tabStyle">@style/myTabLayout</item>
+		<item name="appBarLayoutStyle">@style/myAppBarLayoutStyle</item>
+
+		<!-- State colors -->
+		<item name="noneStateTint">?attr/colorOnSurface</item>
+		<item name="positiveStateTint">@color/positiveStateTint</item>
+		<item name="negativeStateTint">@color/negativeStateTint</item>
+		<item name="myColorControlNormalPale">?attr/colorOnSurfaceVariant</item>
+
+		<item name="android:scrollbarThumbVertical">@drawable/scrollbar_thumb</item>
+		<item name="bottomSheetDialogTheme">@style/myBottomSheetDialogStyle.Light</item>
+	</style>
+
+	<style name="myReaderTextStyle.Light">
+		<item name="android:textColor">@color/color_33</item>
+	</style>
+
+	<style name="myBottomNavigationStyle.Light" parent="myBottomNavigationStyle">
+		<item name="itemIconTint">@color/icon_effect_light</item>
+		<item name="itemTextColor">@color/icon_effect_light</item>
+	</style>
+
+	<style name="myBottomSheetStyle.Light">
+		<!-- Using tint instead of background color (works for unknown reasons) -->
+		<item name="backgroundTint">@color/color_fb</item>
+	</style>
+
+	<style name="myBottomSheetDialogStyle.Light">
+		<item name="bottomSheetStyle">@style/myBottomSheetStyle.Light</item>
+	</style>
+
+</resources>

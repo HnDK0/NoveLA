@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material 3 Color Scheme - Dark Theme -->
+    <color name="primary">#B4C5FF</color>
+    <color name="onPrimary">#00164F</color>
+    <color name="primaryContainer">#0932A2</color>
+    <color name="onPrimaryContainer">#DCE1FF</color>
+
+    <color name="secondary">#C0C6DC</color>
+    <color name="onSecondary">#2A3042</color>
+    <color name="secondaryContainer">#3F4559</color>
+    <color name="onSecondaryContainer">#DCE2F9</color>
+
+    <color name="tertiary">#DFBCDF</color>
+    <color name="onTertiary">#3E2844</color>
+    <color name="tertiaryContainer">#563E5C</color>
+    <color name="onTertiaryContainer">#FBD7FC</color>
+
+    <color name="error">#FFB4AB</color>
+    <color name="onError">#690005</color>
+    <color name="errorContainer">#93000A</color>
+    <color name="onErrorContainer">#FFDAD6</color>
+
+    <color name="background">#0F1419</color>
+    <color name="onBackground">#E0E2E8</color>
+    <color name="surface">#0F1419</color>
+    <color name="onSurface">#E0E2E8</color>
+    <color name="surfaceVariant">#44474F</color>
+    <color name="onSurfaceVariant">#C4C6D0</color>
+
+    <color name="outline">#8E9099</color>
+    <color name="outlineVariant">#44474F</color>
+
+    <!-- Legacy colors for backward compatibility -->
+    <color name="colorAccent">#B4C5FF</color>
+    <color name="colorAccent_transparent">#33B4C5FF</color>
+
+    <!-- Legacy gray colors for backward compatibility -->
+    <color name="color_ff">#ffffff</color>
+    <color name="color_fb">#fbfbfb</color>
+    <color name="color_ee">#eeeeee</color>
+    <color name="color_e0">#e0e0e0</color>
+    <color name="color_dd">#dddddd</color>
+    <color name="color_aa">#aaaaaa</color>
+    <color name="color_77">#777777</color>
+    <color name="color_66">#666666</color>
+    <color name="color_55">#555555</color>
+    <color name="color_44">#444444</color>
+    <color name="color_33">#333333</color>
+    <color name="color_30">#303030</color>
+    <color name="color_28">#282828</color>
+    <color name="color_24">#242424</color>
+    <color name="color_22">#222222</color>
+    <color name="color_20">#202020</color>
+    <color name="color_18">#181818</color>
+    <color name="color_12">#121212</color>
+    <color name="color_11">#111111</color>
+    <color name="color_01">#010101</color>
+    <color name="color_00">#000000</color>
+
+    <!-- State colors -->
+    <color name="positiveStateTint">#71A30E</color>
+    <color name="negativeStateTint">#C81414</color>
+    <color name="dark_green">#71A30E</color>
+    <color name="dark_red">#C81414</color>
+</resources>

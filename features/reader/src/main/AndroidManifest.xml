@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+	<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+	<application>
+		<activity android:name="my.noveldokusha.features.reader.ReaderActivity" />
+
+		<service
+			android:name="my.noveldokusha.features.reader.services.NarratorMediaControlsService"
+			android:exported="false"
+			android:foregroundServiceType="mediaPlayback"
+			>
+			<intent-filter>
+				<action android:name="android.intent.action.MEDIA_BUTTON" />
+			</intent-filter>
+		</service>
+
+		<service
+			android:name="my.noveldokusha.features.reader.services.FloatingTtsService"
+			android:exported="false"
+			android:foregroundServiceType="specialUse"
+			>
+			<property
+				android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+				android:value="floating_tts_overlay" />
+		</service>
+
+		<receiver
+			android:name="androidx.media.session.MediaButtonReceiver"
+			android:exported="true"
+			>
+			<intent-filter>
+				<action android:name="android.intent.action.MEDIA_BUTTON" />
+			</intent-filter>
+		</receiver>
+	</application>
+</manifest>

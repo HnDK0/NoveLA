@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Разрешаем HTTP (cleartext) для ВСЕХ соединений. -->
+    <!-- Это позволит подключаться к Ollama по любому локальному IP, -->
+    <!-- а также к сайтам вроде piaotia.com, если у них нет HTTPS. -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

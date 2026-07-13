@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="loading">Loading...</string>
+    <string name="no_results_found">No results found</string>
+    <string name="no_more_results">No more results</string>
+
+    <!-- Download Progress -->
+    <string name="download_progress_title">Downloads</string>
+    <string name="download_pause">Pause</string>
+    <string name="download_resume">Resume</string>
+    <string name="download_cancel">Cancel</string>
+    <string name="download_chapters_added">Chapters added to queue</string>
+    <string name="download_resumed">Download resumed</string>
+    <string name="download_already_queued">Already in queue</string>
+    <string name="download_all_cached">All chapters already downloaded</string>
+</resources>

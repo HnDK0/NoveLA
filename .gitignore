@@ -1,0 +1,55 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+out/
+
+# Gradle
+.gradle/
+build/
+app/release/
+
+# Kotlin compiler cache
+.kotlin/
+
+# Android / Native
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Databases
+word_database
+word_database-shm
+word_database-wal
+
+# Env / Venv
+.env
+.env.*
+*.local
+.venv/
+
+# Logs / Temp
+*.log
+*.tmp
+*.bak
+
+# Scripts
+undetected_chrome.bat
+scripts/
+
+# Security (keystore only)
+*.jks
+*.keystore
+keychain/
+key.properties
+/.history
+app/release/output-metadata.json
+
+keystore_base64.txt
+*.patch
+repomix.config.json

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string translatable="false" name="source_name_box_novel">Box Novel</string>
+    <string translatable="false" name="source_name_novelhall">NovelHall</string>
+    <string translatable="false" name="source_name_novel_updates">Novel Updates</string>
+    <string translatable="false" name="source_name_read_novel_full">Read Novel Full</string>
+    <string translatable="false" name="source_name_reddit">Reddit</string>
+    <string translatable="false" name="source_name_royal_road">Royal Road</string>
+    <string translatable="false" name="source_name_saikai">Saikai</string>
+    <string translatable="false" name="source_name_sousetsuka">Sousetsuka</string>
+    <string translatable="false" name="source_name_wuxia_world_site">WuxiaWorld.site</string>
+    <string translatable="false" name="database_name_baka_updates">Baka-Updates</string>
+    <string translatable="false" name="database_name_novel_updates">Novel Updates</string>
+    <string translatable="false" name="source_name_indo_webnovel">Indonesia Webnovel</string>
+    <string translatable="false" name="source_name_baca_lightnovel">Baca Lightnovel</string>
+    <string translatable="false" name="source_name_sakura_novel">Sakura Novel</string>
+    <string translatable="false" name="source_name_meio_novel">Meio Novel</string>
+    <string translatable="false" name="source_name_more_novel">More Novel</string>
+    <string translatable="false" name="source_name_novelbin">NovelBin</string>
+    <string translatable="false" name="source_name_novelku">NovelKu</string>
+    <string translatable="false" name="source_name_wb_novel">Wb Novel</string>
+    <string translatable="false" name="source_name_69shuba">69书吧 (69shuba.com)</string>
+    <string translatable="false" name="source_name_uukanshu">UU看书 (uukanshu.cc)</string>
+    <string translatable="false" name="source_name_27k">乐阅读 (27k.net)</string>
+    <string translatable="false" name="source_name_twkan">Twkan</string>
+    <string translatable="false" name="source_name_scribblehub">ScribbleHub</string>
+    <string translatable="false" name="source_name_freewebnovel">FreeWebNovel</string>
+    <string translatable="false" name="source_name_novelfull">NovelFull</string>
+    <string translatable="false" name="source_name_allnovel">AllNovel</string>
+    <string translatable="false" name="source_name_readmtl">ReadMTL</string>
+    <string translatable="false" name="source_name_novlove">NovLove</string>
+    <string translatable="false" name="source_name_sonicmtl">SonicMTL</string>
+    <string translatable="false" name="source_name_nobadnovel">NoBadNovel</string>
+    <string translatable="false" name="source_name_fanmtl">FanMTL</string>
+    <string translatable="false" name="source_name_ranobelib">RanobeLib</string>
+    <string translatable="false" name="source_name_ranobehub">RanobeHub</string>
+    <string translatable="false" name="source_name_ttkan">Ttkan</string>
+    <string translatable="false" name="source_name_jaomix">Jaomix</string>
+    <string translatable="false" name="source_name_ifreedom">Ifreedom</string>
+    <string translatable="false" name="source_name_bookhamster">Bookhamster</string>
+    <string translatable="false" name="source_name_novelfire">Novel Fire</string>
+    <string translatable="false" name="source_name_novelbuddy">NovelBuddy.io</string>
+    <string translatable="false" name="source_name_wtrlab">WTR-Lab</string>
+    <string translatable="false" name="source_name_wtrlab_en">WTR-Lab (English)</string>
+    <string translatable="false" name="source_name_wtrlab_id">WTR-Lab (Indonesian)</string>
+    <string translatable="false" name="source_name_wtrlab_es">WTR-Lab (Spanish)</string>
+    <string translatable="false" name="source_name_wtrlab_tr">WTR-Lab (Turkish)</string>
+    <string translatable="false" name="source_name_novel543">Novel543 (novel543.com)</string>
+    <string translatable="false" name="source_name_quanben5">全本小說網 (quanben5.com)</string>
+    <string translatable="false" name="source_name_piaotia">飘天文学 (piaotia.com)</string>
+</resources>

@@ -1,0 +1,91 @@
+name: Build & Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - test      # Upload artifact only, no release
+          - release   # Create a draft GitHub Release
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build APK (${{ inputs.build_type }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@v7
+
+      - name: Set up JDK environment
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Setup APK signing
+        run: |
+          echo -n ${{ secrets.SIGNING_KEY }} | base64 -d > app/storeFile.jks
+          echo storeFile=storeFile.jks          > custom.properties
+          echo storePassword=${{ secrets.KEY_STORE_PASSWORD }} >> custom.properties
+          echo keyAlias=${{ secrets.ALIAS }}    >> custom.properties
+          echo keyPassword=${{ secrets.KEY_PASSWORD }} >> custom.properties
+
+      - name: Remove local Java home from gradle.properties
+        run: sed -i '/org\.gradle\.java\.home/d' gradle.properties
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease -PlocalPropertiesFilePath=custom.properties
+
+      - name: Set app version
+        run: |
+          echo "APP_VERSION=$(sed -n 's/^[[:space:]]*versionName = "\(.*\)"$/\1/p' app/build.gradle.kts | head -n 1)" >> "$GITHUB_ENV"
+
+      - name: Collect APKs
+        run: |
+          mkdir -p release-artifacts
+          find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' \
+            -exec cp {} release-artifacts/ \;
+          ls -lah release-artifacts
+
+      # ── Test build: upload as workflow artifact (no release) ────────────────
+      - name: Upload APK artifact (test build)
+        if: inputs.build_type == 'test'
+        uses: actions/upload-artifact@v7
+        with:
+          name: NoveLA-v${{ env.APP_VERSION }}-test
+          path: release-artifacts/*.apk
+          retention-days: 14
+
+      # ── Release build: create a draft GitHub Release ─────────────────────────
+      - name: Create draft release
+        if: inputs.build_type == 'release'
+        uses: softprops/action-gh-release@v3
+        with:
+          name: NoveLA v${{ env.APP_VERSION }}
+          tag_name: v${{ env.APP_VERSION }}
+          draft: true
+          body: |
+            # <img src="https://github.com/HnDK0/NoveLA/raw/default/screenshots/NoveLA.png" width="36" valign="middle"> NoveLA — Light Novel Reader & Parser
+            <details>
+            <summary><b>🇷🇺 Russian Version</b></summary>
+            ### [КАТЕГОРИЯ]
+            - [ОПИСАНИЕ ИЗМЕНЕНИЯ]
+            </details>
+            <details open>
+            <summary><b>🇺🇸 English Version</b></summary>
+            ### [CATEGORY]
+            - [CHANGE DESCRIPTION]
+            </details>
+            ## Screenshots
+            [ССЫЛКИ НА ИЗОБРАЖЕНИЯ]
+          files: release-artifacts/*.apk
