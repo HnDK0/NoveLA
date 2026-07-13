@@ -146,10 +146,8 @@ fun resolveLanguageName(langCode: String, useEnglish: Boolean): String {
     if (useEnglish) {
         LANGUAGE_DISPLAY_NAMES[langCode]?.let { return it }
     }
-    val locale = try {
-        Locale.forLanguageTag(langCode)
-    } catch (_: Exception) {
-        try { Locale(langCode) } catch (_: Exception) { null }
+    val locale = Locale.forLanguageTag(langCode).let {
+        if (it.language.isEmpty()) null else it
     }
     val name = locale?.let {
         if (useEnglish) it.getDisplayLanguage(Locale.ENGLISH)

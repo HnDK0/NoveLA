@@ -239,23 +239,12 @@ internal fun ChaptersScreenHeader(
                             )
                         }
                     }
-                    // Divider
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        thickness = Dp.Hairline,
-                    )
-                    // Description
-                    val displayDesc = (translatedDescription ?: bookState.description).trim()
-                    val descText by remember(displayDesc) { derivedStateOf { displayDesc } }
-                    SelectionContainer {
-                        ExpandableText(
-                            text = descText,
-                            linesForExpand = 3,
-                        )
-                    }
-                    // Genres
+                    // Divider & Genres (replacing description)
                     if (genres.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            thickness = Dp.Hairline,
+                        )
                         val genresCollapsedCount = 4
                         var genresExpanded by rememberSaveable { mutableStateOf(false) }
                         val visibleGenres = if (genresExpanded || genres.size <= genresCollapsedCount)
@@ -310,6 +299,19 @@ internal fun ChaptersScreenHeader(
                             }
                         }
                     }
+                }
+            }
+
+            // Description below cover/Row
+            val displayDesc = (translatedDescription ?: bookState.description).trim()
+            val descText by remember(displayDesc) { derivedStateOf { displayDesc } }
+            if (displayDesc.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                SelectionContainer {
+                    ExpandableText(
+                        text = descText,
+                        linesForExpand = 4,
+                    )
                 }
             }
 

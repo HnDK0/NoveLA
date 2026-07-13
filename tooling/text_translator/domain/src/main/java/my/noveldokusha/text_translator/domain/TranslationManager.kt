@@ -9,10 +9,8 @@ data class TranslationModelState(
     val downloading: Boolean,
     val downloadingFailed: Boolean,
 ) {
-    val locale: Locale = try {
-        Locale.forLanguageTag(language)
-    } catch (_: Exception) {
-        try { Locale(language) } catch (_: Exception) { Locale("en") }
+    val locale: Locale = Locale.forLanguageTag(language).let {
+        if (it.language.isEmpty()) Locale.ENGLISH else it
     }
 
     val displayName: String
@@ -31,7 +29,9 @@ data class TranslatorState(
     val target: String,
     val translate: suspend (input: String) -> String,
 ) {
+    @Suppress("DEPRECATION")
     val sourceLocale = Locale(source)
+    @Suppress("DEPRECATION")
     val targetLocale = Locale(target)
 }
 

@@ -46,7 +46,7 @@ val LocalIsDark = staticCompositionLocalOf<Boolean> { false }
 @Composable
 fun Theme(
     themeProvider: ThemeProvider,
-    content: @Composable () -> @Composable Unit,
+    content: @Composable () -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
     val darkMode = themeProvider.currentDarkMode(coroutineScope).value
@@ -71,7 +71,7 @@ fun Theme(
 fun Theme(
     appTheme: AppTheme = AppTheme.DEFAULT,
     darkMode: DarkMode = DarkMode.SYSTEM,
-    content: @Composable () -> @Composable Unit,
+    content: @Composable () -> Unit,
 ) {
     val isDark = when (darkMode) {
         DarkMode.LIGHT -> false

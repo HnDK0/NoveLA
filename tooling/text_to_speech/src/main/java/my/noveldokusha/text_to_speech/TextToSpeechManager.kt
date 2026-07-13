@@ -247,8 +247,10 @@ class TextToSpeechManager<T : Utterance<T>>(
 
             override fun onDone(utteranceId: String?) = onFinished(utteranceId)
 
-            @Deprecated("Deprecated in Java")
+            @Suppress("OVERRIDE_DEPRECATION")
             override fun onError(utteranceId: String?) = onFinished(utteranceId)
+
+            override fun onError(utteranceId: String?, errorCode: Int) = onFinished(utteranceId)
 
             private fun onFinished(utteranceId: String?) {
                 if (utteranceId == null) {

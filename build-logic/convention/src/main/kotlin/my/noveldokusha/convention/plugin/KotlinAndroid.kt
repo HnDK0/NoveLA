@@ -51,6 +51,7 @@ private fun Project.configureKotlin() {
             freeCompilerArgs.addAll(
                 "-opt-in=kotlin.RequiresOptIn",
                 "-Xjvm-default=all-compatibility",
+                "-Xannotation-default-target=param-property",
             )
         }
     }
