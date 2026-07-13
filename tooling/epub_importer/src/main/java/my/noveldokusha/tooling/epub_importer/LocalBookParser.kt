@@ -82,8 +82,8 @@ private fun parsePdfBook(context: Context, uri: Uri, fileName: String): EpubBook
 /**
  * Lightweight selectable-text extraction for common PDFs.
  *
- * This intentionally avoids bundling a full PDF engine because pdfbox-android
- * more than doubled the release APK size. It scans page content streams,
+ * This intentionally avoids bundling a full PDF engine, keeping the release
+ * APK near its previous size. It scans page content streams,
  * inflates FlateDecode streams, and extracts text drawing operands from BT/ET
  * sections. Image-only/scanned PDFs naturally produce blank text and surface the
  * existing scanned-PDF error.
