@@ -1,0 +1,70 @@
+name: "CodeQL Advanced"
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  schedule:
+    - cron: '41 2 * * 2'
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    # Menggunakan ubuntu-latest untuk semua bahasa kecuali swift
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - language: actions
+          build-mode: none
+        # PERBAIKAN 1: Ubah build-mode dari 'autobuild' menjadi 'manual'
+        - language: java-kotlin
+          build-mode: manual 
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Opsional: Pastikan versi Java sesuai dengan proyek Anda (misal: 17)
+    # Jika proyek Anda menggunakan Java 8 atau 11, sesuaikan java-version di bawah ini.
+    - name: Set up JDK 21
+      if: matrix.language == 'java-kotlin'
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+        # Anda bisa menambahkan query packs jika diperlukan, misal:
+        # queries: security-extended,security-and-quality
+
+    # PERBAIKAN 2: Ganti langkah autobuild dengan perintah build manual
+    - name: Build Project (Manual)
+      if: matrix.build-mode == 'manual'
+      shell: bash
+      run: |
+        # Berikan izin eksekusi pada gradlew
+        chmod +x gradlew
+        
+        # Jalankan build dengan --no-daemon dan --no-build-cache untuk stabilitas di CI
+        # Menggunakan assembleDebug karena tugas compileJava/compileKotlin tidak ada di level root proyek Android
+        ./gradlew clean assembleDebug --no-daemon --no-build-cache
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v4
+      with:
+        category: "/language:${{matrix.language}}"
+
