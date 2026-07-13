@@ -34,7 +34,7 @@ class BakaUpdates(
             add("perpage", 50)
             add("orderby", "rating")
         }
-        getSearchList(index, url)
+        getSearchList(page, url)
     }
 
     override suspend fun getAuthorData(authorUrl: String) = withContext(Dispatchers.Default) {
@@ -75,7 +75,7 @@ class BakaUpdates(
                 .select(".p-1.col-6.text")
                 .map { it.text().trim() }
                 .associateWith { it.replace(" ", "+") }
-                .map { (genre, id) ->
+                .map { (id, genre) ->
                     SearchGenre(
                         id = id,
                         genreName = genre
@@ -97,7 +97,7 @@ class BakaUpdates(
             add("search", input)
         }
 
-        getSearchList(index, url)
+        getSearchList(page, url)
     }
 
     override suspend fun searchByFilters(
