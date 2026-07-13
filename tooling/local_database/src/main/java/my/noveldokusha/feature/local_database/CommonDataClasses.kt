@@ -8,8 +8,15 @@ import my.noveldokusha.feature.local_database.tables.Chapter
 // ponytail: @Immutable tells the Compose compiler these data classes never mutate after
 // construction, so it can skip recomposition of any composable that takes them as a
 // parameter unless the value (by equals) actually changes. Without this annotation the
-// Compose compiler treats `List<BookMetadata>` / `List<ChapterWithContext>` as unstable
+// Compose compiler treats `List<BookMetadata>` / `List<ChapterMetadata>` as unstable
 // and recomposes the entire list-binding composables on every parent update.
+//
+// NOTE: @Immutable is only applied to pure DTOs (BookMetadata, ChapterMetadata) that are
+// NOT processed by Room's KSP. BookWithContext and ChapterWithContext use @Embedded and are
+// processed by Room's KSP processor, which fails to resolve androidx.compose.runtime.Immutable
+// on its classpath — see build error "references a type that is not present". Room-processed
+// classes get their Compose stability inferred via the @Stable annotation on the consumer side
+// or by wrapping in a StateFlow-derived immutable list.
 @Immutable
 data class BookMetadata(
     val title: String,
@@ -31,14 +38,12 @@ data class ChapterMetadata(val title: String, val url: String) {
     override fun hashCode(): Int = url.hashCode()
 }
 
-@Immutable
 data class BookWithContext(
     @Embedded val book: Book,
     val chaptersCount: Int,
     val chaptersReadCount: Int
 )
 
-@Immutable
 data class ChapterWithContext(
     @Embedded val chapter: Chapter,
     val downloaded: Boolean,
