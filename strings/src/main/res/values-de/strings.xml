@@ -150,6 +150,8 @@
     <string name="focus">Fokus</string>
     <string name="voice_pitch">Stimmtonhöhe</string>
     <string name="voice_speed">Sprechgeschwindigkeit</string>
+    <string name="original_voice">Originalsprache</string>
+    <string name="not_set">Nicht festgelegt</string>
     <string name="chapter_x_over_n">Kapitel: %1$d/%2$d</string>
     <string name="progress_x_percentage">Fortschritt: %1$.0f%%</string>
     <string name="text_size">Textgröße</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">pausieren</string>
     <string name="media_control_fast_forward">vorspulen</string>
     <string name="media_control_next">nächste</string>
+    <string name="tts_floating">Floating TTS</string>
+    <string name="tts_floating_channel_description">Floating TTS Overlay-Steuerung</string>
+    <string name="tts_floating_overlay_active">TTS-Overlay ist aktiv</string>
+    <string name="tts_floating_show_outside_app">Über anderen Apps anzeigen</string>
+    <string name="tts_floating_opacity">Deckkraft</string>
+    <string name="tts_floating_width">Breite</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">Overlay-Berechtigung</string>
+    <string name="tts_floating_overlay_permission_message">Der Floating-Player benötigt die Berechtigung, über anderen Apps angezeigt zu werden.</string>
+    <string name="tts_floating_open_settings">Einstellungen öffnen</string>
     <string name="delete">Löschen</string>
     <string name="english">Englisch</string>
     <string name="filter_title">Titel</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">Lokal</string>
 
     <string name="delete_novel">Roman löschen</string>
+    <string name="delete_book_translations">Alle Übersetzungen dieses Romans löschen</string>
     <string name="mark_all_chapters_read">Alle Kapitel als gelesen markieren</string>
     <string name="mark_all_chapters_unread">Alle Kapitel als ungelesen markieren</string>
     <string name="move_to">Verschieben nach</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">Eigenen System-Prompt für diesen Roman festlegen</string>
     <string name="novel_prompt_llm_only">Nur Gemini/OpenAI</string>
     <string name="novel_prompt_append_mode">Zum globalen Prompt hinzufügen</string>
+    <string name="parallel_mode_title">Parallelmodus</string>
+    <string name="parallel_mode_description">Original und Übersetzung nebeneinander anzeigen</string>
+    <string name="parallel_order_original_first">Original zuerst</string>
+    <string name="parallel_order_translation_first">Übersetzung zuerst</string>
     <string name="novel_prompts_title">Romanspezifische Prompts</string>
     <string name="novel_prompts_search">Prompts suchen</string>
     <string name="novel_prompts_description">Eigene Übersetzungs-Prompts, pro Roman in den Readereinstellungen</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">Keine Quellen verfügbar</string>
     <string name="migration_no_matches_found">Keine Übereinstimmungen gefunden</string>
-    <string name="migration_failed_to_load_chapters">Kapitel konnten nicht geladen werden</string>
+    <string name="migration_failed_to_load_chapters">Kapitel konnten nicht geladen werden: %s</string>
     <string name="migration_unknown_error">Unbekannter Fehler</string>
     <string name="migration_no_book_selected">Kein Buch ausgewählt</string>
     <string name="migration_chapter_matching_not_ready">Kapitelabgleich noch nicht bereit</string>

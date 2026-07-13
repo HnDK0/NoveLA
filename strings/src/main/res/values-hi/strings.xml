@@ -150,6 +150,8 @@
     <string name="focus">फ़ोकस</string>
     <string name="voice_pitch">आवाज़ की पिच</string>
     <string name="voice_speed">आवाज़ की गति</string>
+    <string name="original_voice">मूल आवाज़</string>
+    <string name="not_set">सेट नहीं है</string>
     <string name="chapter_x_over_n">अध्याय: %1$d/%2$d</string>
     <string name="progress_x_percentage">प्रगति: %1$.0f%%</string>
     <string name="text_size">पाठ आकार</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">रोकें</string>
     <string name="media_control_fast_forward">तेज़ आगे</string>
     <string name="media_control_next">अगला</string>
+    <string name="tts_floating">फ्लोटिंग TTS</string>
+    <string name="tts_floating_channel_description">फ्लोटिंग TTS ओवरले नियंत्रण</string>
+    <string name="tts_floating_overlay_active">TTS ओवरले सक्रिय है</string>
+    <string name="tts_floating_show_outside_app">अन्य ऐप्स के ऊपर दिखाएं</string>
+    <string name="tts_floating_opacity">अपारदर्शिता</string>
+    <string name="tts_floating_width">चौड़ाई</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">ओवरले अनुमति</string>
+    <string name="tts_floating_overlay_permission_message">फ्लोटिंग प्लेयर को अन्य ऐप्स के ऊपर प्रदर्शित होने के लिए अनुमति चाहिए।</string>
+    <string name="tts_floating_open_settings">सेटिंग खोलें</string>
     <string name="delete">हटाएं</string>
     <string name="english">अंग्रेज़ी</string>
     <string name="filter_title">शीर्षक</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">स्थानीय</string>
 
     <string name="delete_novel">उपन्यास हटाएं</string>
+    <string name="delete_book_translations">इस उपन्यास के सभी अनुवाद हटाएं</string>
     <string name="mark_all_chapters_read">सभी अध्यायों को पढ़ा हुआ चिह्नित करें</string>
     <string name="mark_all_chapters_unread">सभी अध्यायों को अपठित चिह्नित करें</string>
     <string name="move_to">ले जाएं</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">इस उपन्यास के लिए कस्टम सिस्टम प्रॉम्प्ट सेट करें</string>
     <string name="novel_prompt_llm_only">केवल Gemini/OpenAI</string>
     <string name="novel_prompt_append_mode">ग्लोबल प्रॉम्प्ट में जोड़ें</string>
+    <string name="parallel_mode_title">समानांतर मोड</string>
+    <string name="parallel_mode_description">मूल और अनुवाद को एक साथ दिखाएं</string>
+    <string name="parallel_order_original_first">पहले मूल</string>
+    <string name="parallel_order_translation_first">पहले अनुवाद</string>
     <string name="novel_prompts_title">उपन्यास-विशिष्ट प्रॉम्प्ट</string>
     <string name="novel_prompts_search">प्रॉम्प्ट खोजें</string>
     <string name="novel_prompts_description">रीडर सेटिंग्स में प्रति उपन्यास सेट किए गए कस्टम अनुवाद प्रॉम्प्ट</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">कोई स्रोत उपलब्ध नहीं</string>
     <string name="migration_no_matches_found">कोई मिलान नहीं मिला</string>
-    <string name="migration_failed_to_load_chapters">अध्याय लोड करने में विफल</string>
+    <string name="migration_failed_to_load_chapters">अध्याय लोड करने में विफल: %s</string>
     <string name="migration_unknown_error">अज्ञात त्रुटि</string>
     <string name="migration_no_book_selected">कोई पुस्तक चयनित नहीं</string>
     <string name="migration_chapter_matching_not_ready">अध्याय मिलान अभी तैयार नहीं</string>

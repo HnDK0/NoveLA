@@ -4,11 +4,13 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
@@ -29,24 +31,26 @@ class LuaSourceProviderImpl @Inject constructor(
     private val _sourcesFlow = MutableStateFlow<List<SourceInterface>>(emptyList())
     override val sourcesFlow: Flow<List<SourceInterface>> = _sourcesFlow.asStateFlow()
 
+    private val _loadedSourcesFlow = MutableStateFlow<List<SourceInterface>>(emptyList())
+    override val loadedSourcesFlow: StateFlow<List<SourceInterface>> = _loadedSourcesFlow.asStateFlow()
+
+    private val loadedSignal = CompletableDeferred<Unit>()
+
     init {
         scope.launch {
             val cached = loadCache()
-            if (cached.isEmpty()) {
-                // Первый запуск — грузим, UI подождёт
-                reload()
-            } else {
-                // Используем кэш мгновенно — без немедленного reload()
+            if (cached.isNotEmpty()) {
                 _sourcesFlow.value = cached
             }
-            // Подписываемся на изменения установленных плагинов
-            // debounce(500) — при пакетной установке/удалении перезагрузка одна
+            reload()
             @OptIn(kotlinx.coroutines.FlowPreview::class)
             extensionRepository.getInstalledExtensionsFlow().debounce(500).collect {
                 reload()
             }
         }
     }
+
+    override suspend fun awaitLoaded() = loadedSignal.await()
 
     override fun clearCache() {
         luaSourceLoader.clearCache()
@@ -92,13 +96,17 @@ class LuaSourceProviderImpl @Inject constructor(
             luaSourceLoader.loadAllSources()
                 .onSuccess { sources ->
                     _sourcesFlow.value = sources
+                    _loadedSourcesFlow.value = sources
                     saveCache(sources)
+                    if (!loadedSignal.isCompleted) loadedSignal.complete(Unit)
                     Timber.d("LuaSourceProvider: loaded ${sources.size} sources")
                 }
                 .onFailure { err ->
+                    if (!loadedSignal.isCompleted) loadedSignal.complete(Unit)
                     Timber.e(err, "LuaSourceProvider: reload failed")
                 }
         } catch (e: Exception) {
+            if (!loadedSignal.isCompleted) loadedSignal.complete(Unit)
             Timber.e(e, "LuaSourceProvider: exception during reload")
         }
     }

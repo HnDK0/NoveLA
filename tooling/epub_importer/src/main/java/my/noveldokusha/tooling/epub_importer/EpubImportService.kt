@@ -70,7 +70,6 @@ class EpubImportService : Service() {
             channelId = channelId,
             channelName = channelName,
         )
-        startForeground(notificationId, notificationBuilder.build())
     }
 
     override fun onDestroy() {
@@ -79,6 +78,7 @@ class EpubImportService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(notificationId, notificationBuilder.build())
         if (intent == null) return START_NOT_STICKY
         val intentData = IntentData(intent)
         job = CoroutineScope(Dispatchers.IO).launch {

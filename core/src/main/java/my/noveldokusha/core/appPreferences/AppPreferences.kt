@@ -103,6 +103,10 @@ class AppPreferences @Inject constructor(
         object : Preference<String>("READER_TEXT_TO_SPEECH_VOICE_ID") {
             override var value by SharedPreference_String(name, preferences, "")
         }
+    val READER_TEXT_TO_SPEECH_VOICE_ID_ORIGINAL =
+        object : Preference<String>("READER_TEXT_TO_SPEECH_VOICE_ID_ORIGINAL") {
+            override var value by SharedPreference_String(name, preferences, "")
+        }
     // Пакет TTS-движка, которому принадлежит сохранённый голос (например "com.rhvoice.android")
     val READER_TEXT_TO_SPEECH_VOICE_ENGINE =
         object : Preference<String>("READER_TEXT_TO_SPEECH_VOICE_ENGINE") {
@@ -129,6 +133,42 @@ class AppPreferences @Inject constructor(
                 decode = { Json.decodeFromString(it) }
             )
         }
+
+    val FLOATING_TTS_ENABLED = object : Preference<Boolean>("FLOATING_TTS_ENABLED") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    val FLOATING_TTS_SHOW_OUTSIDE_APP = object : Preference<Boolean>("FLOATING_TTS_SHOW_OUTSIDE_APP") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+
+    val FLOATING_TTS_OPACITY = object : Preference<Float>("FLOATING_TTS_OPACITY") {
+        override var value by SharedPreference_Float(name, preferences, 0.95f)
+    }
+
+    val FLOATING_TTS_POS_X = object : Preference<Float>("FLOATING_TTS_POS_X") {
+        override var value by SharedPreference_Float(name, preferences, -1f)
+    }
+
+    val FLOATING_TTS_POS_Y = object : Preference<Float>("FLOATING_TTS_POS_Y") {
+        override var value by SharedPreference_Float(name, preferences, -1f)
+    }
+
+    val FLOATING_TTS_PANEL_WIDTH = object : Preference<Float>("FLOATING_TTS_PANEL_WIDTH") {
+        override var value by SharedPreference_Float(name, preferences, 300f)
+    }
+
+    val FLOATING_TTS_PANEL_POS_X = object : Preference<Float>("FLOATING_TTS_PANEL_POS_X") {
+        override var value by SharedPreference_Float(name, preferences, -1f)
+    }
+
+    val FLOATING_TTS_PANEL_POS_Y = object : Preference<Float>("FLOATING_TTS_PANEL_POS_Y") {
+        override var value by SharedPreference_Float(name, preferences, -1f)
+    }
+
+    val FLOATING_TTS_PARAGRAPH_MODE = object : Preference<String>("FLOATING_TTS_PARAGRAPH_MODE") {
+        override var value by SharedPreference_String(name, preferences, "tts")
+    }
 
     val READER_SELECTABLE_TEXT = object : Preference<Boolean>("READER_SELECTABLE_TEXT") {
         override var value by SharedPreference_Boolean(name, preferences, false)
@@ -254,6 +294,17 @@ class AppPreferences @Inject constructor(
     val GLOBAL_APP_AUTOMATIC_LIBRARY_UPDATES_INTERVAL_HOURS =
         object : Preference<Int>("GLOBAL_APP_AUTOMATIC_LIBRARY_UPDATES_INTERVAL_HOURS") {
             override var value by SharedPreference_Int(name, preferences, 24)
+        }
+
+    val GLOBAL_APP_AUTOMATIC_LIBRARY_UPDATES_LAST_TIMESTAMP =
+        object : Preference<Long>("GLOBAL_APP_AUTOMATIC_LIBRARY_UPDATES_LAST_TIMESTAMP") {
+            override var value by SharedPreference_Serializable(
+                name = name,
+                sharedPreferences = preferences,
+                defaultValue = 0L,
+                encode = { it.toString() },
+                decode = { it.toLongOrNull() ?: 0L }
+            )
         }
 
     val TRANSLATION_GEMINI_API_KEY =
@@ -408,6 +459,14 @@ class AppPreferences @Inject constructor(
 
     // Количество параграфов в одном LLM-запросе (только Gemini и OpenAI).
     // Google PA и Free используют символьный лимит и не читают это значение.
+    val TRANSLATION_PARALLEL_ENABLED = object : Preference<Boolean>("TRANSLATION_PARALLEL_ENABLED") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    val TRANSLATION_PARALLEL_ORDER = object : Preference<String>("TRANSLATION_PARALLEL_ORDER") {
+        override var value by SharedPreference_String(name, preferences, "TRANSLATION_FIRST")
+    }
+
     val TRANSLATION_BATCH_SIZE =
         object : Preference<Int>("TRANSLATION_BATCH_SIZE") {
             override var value by SharedPreference_Int(name, preferences, 60)

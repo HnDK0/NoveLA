@@ -35,6 +35,7 @@ internal data class ReaderScreenState(
         val liveTranslation: LiveTranslationSettingData,
         val style: StyleSettingsData,
         val selectedSetting: MutableState<Type>,
+        val floatingTts: FloatingTtsSettingsData,
     ) {
         @Stable
         data class StyleSettingsData(
@@ -44,6 +45,13 @@ internal data class ReaderScreenState(
             val textSize: State<Float>,
             val lineHeight: State<Float>,
             val paragraphSpacing: State<Float>,
+        )
+
+        @Stable
+        data class FloatingTtsSettingsData(
+            val isEnabled: MutableState<Boolean>,
+            val showOutsideApp: MutableState<Boolean>,
+            val opacity: MutableState<Float>,
         )
 
         @Immutable

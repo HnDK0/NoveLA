@@ -150,6 +150,8 @@
     <string name="focus">Odak</string>
     <string name="voice_pitch">Ses perdesi</string>
     <string name="voice_speed">Ses hızı</string>
+    <string name="original_voice">Orijinal ses</string>
+    <string name="not_set">Ayarlanmadı</string>
     <string name="chapter_x_over_n">Bölüm: %1$d/%2$d</string>
     <string name="progress_x_percentage">İlerleme: %1$.0f%%</string>
     <string name="text_size">Metin boyutu</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">duraklat</string>
     <string name="media_control_fast_forward">hızlı ileri sar</string>
     <string name="media_control_next">sonraki</string>
+    <string name="tts_floating">Yüzen TTS</string>
+    <string name="tts_floating_channel_description">Yüzen TTS kaplama kontrolleri</string>
+    <string name="tts_floating_overlay_active">TTS kaplaması aktif</string>
+    <string name="tts_floating_show_outside_app">Diğer uygulamaların üstünde göster</string>
+    <string name="tts_floating_opacity">Opaklık</string>
+    <string name="tts_floating_width">Genişlik</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">Kaplama izni</string>
+    <string name="tts_floating_overlay_permission_message">Yüzen oynatıcının diğer uygulamaların üzerinde görüntülenmek için izne ihtiyacı var.</string>
+    <string name="tts_floating_open_settings">Ayarları aç</string>
     <string name="delete">Sil</string>
     <string name="english">İngilizce</string>
     <string name="filter_title">Başlık</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">Yerel</string>
 
     <string name="delete_novel">Romanı sil</string>
+    <string name="delete_book_translations">Bu romanın tüm çevirilerini sil</string>
     <string name="mark_all_chapters_read">Tüm bölümleri okundu işaretle</string>
     <string name="mark_all_chapters_unread">Tüm bölümleri okunmadı işaretle</string>
     <string name="move_to">Taşı</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">Bu roman için özel bir sistem istemi belirleyin</string>
     <string name="novel_prompt_llm_only">Yalnızca Gemini/OpenAI</string>
     <string name="novel_prompt_append_mode">Küresel istemciye ekle</string>
+    <string name="parallel_mode_title">Paralel mod</string>
+    <string name="parallel_mode_description">Orijinal ve çeviriyi yan yana göster</string>
+    <string name="parallel_order_original_first">Önce orijinal</string>
+    <string name="parallel_order_translation_first">Önce çeviri</string>
     <string name="novel_prompts_title">Romana özel istemler</string>
     <string name="novel_prompts_search">İstemleri ara</string>
     <string name="novel_prompts_description">Okuyucu ayarlarında roman başına belirlenen özel çeviri istemleri</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">Kullanılabilir kaynak yok</string>
     <string name="migration_no_matches_found">Eşleşme bulunamadı</string>
-    <string name="migration_failed_to_load_chapters">Bölümler yüklenemedi</string>
+    <string name="migration_failed_to_load_chapters">Bölümler yüklenemedi: %s</string>
     <string name="migration_unknown_error">Bilinmeyen hata</string>
     <string name="migration_no_book_selected">Kitap seçilmedi</string>
     <string name="migration_chapter_matching_not_ready">Bölüm eşleştirme henüz hazır değil</string>

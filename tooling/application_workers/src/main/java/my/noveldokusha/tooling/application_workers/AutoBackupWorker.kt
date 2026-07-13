@@ -286,6 +286,15 @@ class AutoBackupWorker(
                                 }
                             }
                         ))
+                        put("TRANSLATION_NOVEL_PROMPTS", JSONObject().apply {
+                            appPreferences.TRANSLATION_NOVEL_PROMPTS.value.forEach { (url, data) ->
+                                put(url, JSONObject().apply {
+                                    put("title", data.title)
+                                    put("prompt", data.prompt)
+                                    put("appendMode", data.appendMode)
+                                })
+                            }
+                        })
                     }.toString()
                     zip.putNextEntry(entry)
                     zip.write(settingsJson.toByteArray())

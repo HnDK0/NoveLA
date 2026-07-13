@@ -35,6 +35,7 @@ data class VoiceData(
 
 class TextToSpeechManager<T : Utterance<T>>(
     private val context: Context,
+    private val appTtsEngine: AppTtsEngine,
     initialItemState: T,
 ) {
     private val scope = CoroutineScope(Dispatchers.Default)
@@ -59,10 +60,15 @@ class TextToSpeechManager<T : Utterance<T>>(
     // независимо от того с каким enginePackage был создан этот конкретный service объект.
     private var currentEnginePackage: String = ""
 
-    var service: TextToSpeech = createService(enginePackage = null, onReady = ::onServiceReady)
+    lateinit var service: TextToSpeech
         private set
 
     val currentActiveItemState = mutableStateOf(initialItemState)
+
+    fun init() {
+        service = appTtsEngine.getOrCreate(onReady = ::onServiceReady)
+        onServiceReady()
+    }
 
     private fun onServiceReady() {
         currentEnginePackage = service.defaultEngine ?: ""
@@ -70,17 +76,6 @@ class TextToSpeechManager<T : Utterance<T>>(
         listenToUtterances()
         updateActiveVoice()
         collectVoicesFromAllEngines()
-    }
-
-    private fun createService(enginePackage: String?, onReady: () -> Unit): TextToSpeech {
-        val init: (Int) -> Unit = { status ->
-            if (status == TextToSpeech.SUCCESS) onReady()
-        }
-        return if (enginePackage.isNullOrEmpty()) {
-            TextToSpeech(context, init)
-        } else {
-            TextToSpeech(context, init, enginePackage)
-        }
     }
 
     fun getCurrentEnginePackage(): String = currentEnginePackage
@@ -91,12 +86,12 @@ class TextToSpeechManager<T : Utterance<T>>(
         auxiliaryServices.clear()
 
         service.stop()
-        service.shutdown()
 
         val savedSpeed = voiceSpeed.floatValue
         val savedPitch = voicePitch.floatValue
 
-        service = createService(enginePackage = enginePackage) {
+        appTtsEngine.reinit(enginePackage) {
+            service = appTtsEngine.getOrCreate()
             currentEnginePackage = enginePackage
             service.setSpeechRate(savedSpeed)
             service.setPitch(savedPitch)
@@ -115,7 +110,6 @@ class TextToSpeechManager<T : Utterance<T>>(
         var pending = engines.size
 
         if (engines.isEmpty()) {
-            scope.launch { serviceLoadedFlow.emit(Unit) }
             return
         }
 

@@ -1,14 +1,17 @@
 package my.noveldokusha.coreui
 
+import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import dagger.hilt.android.AndroidEntryPoint
+import my.noveldokusha.core.LocaleManager
+import my.noveldokusha.core.Toasty
+import my.noveldokusha.core.appPreferences.AppLanguageProvider
+import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.theme.ThemeProvider
-import my.noveldokusha.core.appPreferences.AppPreferences
-import my.noveldokusha.core.Toasty
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -54,6 +57,15 @@ open class BaseActivity : AppCompatActivity() {
     private fun isSystemInDarkTheme(): Boolean {
         val uiMode = resources.configuration.uiMode
         return (uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+    }
+
+    override fun attachBaseContext(newBase: Context?) {
+        val base = newBase ?: return super.attachBaseContext(null)
+        val prefs = base.getSharedPreferences(base.packageName + "_preferences", Context.MODE_PRIVATE)
+        val code = prefs.getString("APP_LANGUAGE_CODE", "en") ?: "en"
+        val language = AppLanguageProvider.fromCode(code)
+            ?: AppLanguageProvider.supportedLanguages.first()
+        super.attachBaseContext(LocaleManager.createLocaleContext(base, language))
     }
 
     // This will remain until Reader Screen has no View XML usages

@@ -150,6 +150,8 @@
     <string name="focus">Concentrazione</string>
     <string name="voice_pitch">Tono voce</string>
     <string name="voice_speed">Velocità voce</string>
+    <string name="original_voice">Voce originale</string>
+    <string name="not_set">Non impostato</string>
     <string name="chapter_x_over_n">Capitolo: %1$d/%2$d</string>
     <string name="progress_x_percentage">Progresso: %1$.0f%%</string>
     <string name="text_size">Dimensione testo</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">pausa</string>
     <string name="media_control_fast_forward">avanti_veloce</string>
     <string name="media_control_next">successivo</string>
+    <string name="tts_floating">TTS fluttuante</string>
+    <string name="tts_floating_channel_description">Controlli sovrapposizione TTS</string>
+    <string name="tts_floating_overlay_active">La sovrapposizione TTS è attiva</string>
+    <string name="tts_floating_show_outside_app">Mostra sopra altre app</string>
+    <string name="tts_floating_opacity">Opacità</string>
+    <string name="tts_floating_width">Larghezza</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">Permesso sovrapposizione</string>
+    <string name="tts_floating_overlay_permission_message">Il lettore fluttuante necessita del permesso per mostrarsi sopra altre applicazioni.</string>
+    <string name="tts_floating_open_settings">Apri impostazioni</string>
     <string name="delete">Elimina</string>
     <string name="english">English</string>
     <string name="filter_title">Titolo</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">Locale</string>
 
     <string name="delete_novel">Elimina romanzo</string>
+    <string name="delete_book_translations">Elimina tutte le traduzioni di questo romanzo</string>
     <string name="mark_all_chapters_read">Segna tutti i capitoli come letti</string>
     <string name="mark_all_chapters_unread">Segna tutti i capitoli come non letti</string>
     <string name="move_to">Sposta in</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">Imposta un prompt di sistema personalizzato per questo romanzo</string>
     <string name="novel_prompt_llm_only">Solo Gemini/OpenAI</string>
     <string name="novel_prompt_append_mode">Aggiungi al prompt globale</string>
+    <string name="parallel_mode_title">Modalità parallela</string>
+    <string name="parallel_mode_description">Mostra originale e traduzione affiancati</string>
+    <string name="parallel_order_original_first">Prima l\'originale</string>
+    <string name="parallel_order_translation_first">Prima la traduzione</string>
     <string name="novel_prompts_title">Prompt specifici per romanzi</string>
     <string name="novel_prompts_search">Cerca prompt</string>
     <string name="novel_prompts_description">Prompt di traduzione personalizzati impostati per romanzo nelle impostazioni del lettore</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">Nessuna fonte disponibile</string>
     <string name="migration_no_matches_found">Nessuna corrispondenza trovata</string>
-    <string name="migration_failed_to_load_chapters">Caricamento capitoli fallito</string>
+    <string name="migration_failed_to_load_chapters">Caricamento capitoli fallito: %s</string>
     <string name="migration_unknown_error">Errore sconosciuto</string>
     <string name="migration_no_book_selected">Nessun libro selezionato</string>
     <string name="migration_chapter_matching_not_ready">Corrispondenza capitoli non ancora pronta</string>

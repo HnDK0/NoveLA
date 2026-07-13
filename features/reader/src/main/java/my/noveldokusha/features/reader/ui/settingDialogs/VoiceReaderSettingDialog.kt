@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
@@ -55,6 +56,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -96,7 +98,6 @@ import my.noveldokusha.coreui.theme.InternalTheme
 import my.noveldokusha.coreui.theme.rememberMutableStateOf
 import my.noveldokusha.core.appPreferences.VoicePredefineState
 import my.noveldokusha.features.reader.features.TextToSpeechSettingData
-import my.noveldokusha.features.reader.ui.formatDurationCompact
 import my.noveldokusha.reader.R
 import my.noveldokusha.text_to_speech.VoiceData
 
@@ -104,9 +105,12 @@ import my.noveldokusha.text_to_speech.VoiceData
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun VoiceReaderSettingDialog(
-    state: TextToSpeechSettingData
+    state: TextToSpeechSettingData,
+    floatingTtsState: my.noveldokusha.features.reader.ui.ReaderScreenState.Settings.FloatingTtsSettingsData? = null,
+    parallelEnabled: MutableState<Boolean>? = null,
 ) {
     var openVoicesDialog by rememberSaveable { mutableStateOf(false) }
+    var openOriginalVoiceDialog by rememberSaveable { mutableStateOf(false) }
     val dropdownCustomSavedVoicesExpanded = rememberSaveable { mutableStateOf(false) }
 
     Column {
@@ -188,6 +192,18 @@ internal fun VoiceReaderSettingDialog(
                             disabledLeadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
                     )
+                    if (parallelEnabled?.value == true) {
+                        AssistChip(
+                            label = { Text(text = stringResource(R.string.original_voice)) },
+                            onClick = { openOriginalVoiceDialog = !openOriginalVoiceDialog },
+                            leadingIcon = { Icon(Icons.Filled.RecordVoiceOver, null, Modifier.size(14.dp)) },
+                            modifier = Modifier.heightIn(min = 30.dp),
+                            colors = AssistChipDefaults.assistChipColors(
+                                leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledLeadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
+                        )
+                    }
                     AssistChip(
                         label = { Text(text = stringResource(R.string.saved_voices)) },
                         onClick = {
@@ -224,53 +240,53 @@ internal fun VoiceReaderSettingDialog(
                             isDialogOpen = openVoicesDialog,
                             setDialogOpen = { openVoicesDialog = it }
                         )
+                        VoiceSelectorDialog(
+                            availableVoices = state.availableVoices,
+                            currentVoice = state.availableVoices.find { it.id == state.originalVoiceId.value },
+                            inputTextFilter = rememberSaveable { mutableStateOf("") },
+                            setVoice = { state.setOriginalVoiceId(it) },
+                            isDialogOpen = openOriginalVoiceDialog,
+                            setDialogOpen = { openOriginalVoiceDialog = it }
+                        )
                     }
                 }
 
-                val totalSeconds = state.estimatedTotalSeconds.value
-                val remainingSeconds = state.estimatedRemainingSeconds.value
-                val wpm = state.estimatedWpm.value
-
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                if (floatingTtsState != null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = stringResource(R.string.tts_estimated_time_left),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                            Text(
-                                text = formatDurationCompact(remainingSeconds),
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        Column(
-                            horizontalAlignment = Alignment.End,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "$wpm ${stringResource(R.string.tts_wpm)}",
+                                text = stringResource(R.string.tts_floating),
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                fontWeight = FontWeight.SemiBold
                             )
-                            Text(
-                                text = formatDurationCompact(totalSeconds),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Switch(
+                                    checked = floatingTtsState.isEnabled.value,
+                                    onCheckedChange = { floatingTtsState.isEnabled.value = it }
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(R.string.tts_floating_show_outside_app),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Switch(
+                                    checked = floatingTtsState.showOutsideApp.value,
+                                    onCheckedChange = { floatingTtsState.showOutsideApp.value = it },
+                                    enabled = floatingTtsState.isEnabled.value
+                                )
+                            }
                         }
                     }
                 }
@@ -365,6 +381,8 @@ internal fun VoiceReaderSettingDialog(
                 }
             }
         }
+
+
     }
 }
 
@@ -550,7 +568,6 @@ private fun VoiceSelectorDialog(
         }
     }
 }
-
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

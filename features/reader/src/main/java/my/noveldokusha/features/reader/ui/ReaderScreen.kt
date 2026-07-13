@@ -1,7 +1,13 @@
 package my.noveldokusha.features.reader.ui
 
+import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -25,7 +31,9 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -35,10 +43,12 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -46,10 +56,13 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -59,11 +72,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.input.pointer.pointerInput
-import kotlin.math.roundToInt
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.theme.InternalTheme
@@ -76,7 +84,10 @@ import my.noveldokusha.features.reader.ui.ReaderScreenState.Settings.Type
 import my.noveldokusha.reader.R
 import my.noveldokusha.text_to_speech.Utterance
 import my.noveldokusha.text_to_speech.VoiceData
+import my.noveldokusha.features.reader.services.FloatingTtsService
 import my.noveldokusha.text_translator.domain.TranslationModelState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,33 +113,25 @@ internal fun ReaderScreen(
 
     val context = LocalContext.current
     val density = LocalDensity.current
+    val windowToken = LocalView.current.windowToken
     val navBarHeightDp = remember {
+        @Suppress("DiscouragedApi")
         val id = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
         if (id > 0) {
             context.resources.getDimensionPixelSize(id)
                 .let { px -> with(density) { px.toDp() } }
         } else 0.dp
     }
-    val bottomPadding = 52.dp
+
 
     // Capture back action when viewing info
     BackHandler(enabled = showReaderInfo) {
         state.showReaderInfo.value = false
     }
 
-    val miniPlayerDismissed = remember { mutableStateOf(false) }
-    val miniPlayerOffsetX = remember { mutableStateOf(0f) }
-    val miniPlayerOffsetY = remember { mutableStateOf(0f) }
-
     LaunchedEffect(showReaderInfo) {
         if (!showReaderInfo) {
             state.settings.selectedSetting.value = Type.None
-        }
-    }
-
-    LaunchedEffect(selectedSetting) {
-        if (selectedSetting == Type.TextToSpeech) {
-            miniPlayerDismissed.value = false
         }
     }
 
@@ -260,39 +263,128 @@ internal fun ReaderScreen(
         }
         )
 
-        val showMiniPlayer = !showReaderInfo &&
-            selectedSetting == Type.None &&
-            state.settings.textToSpeech.isThereActiveItem.value &&
-            !miniPlayerDismissed.value
+        var showOverlayPermissionDialog by remember { mutableStateOf(false) }
 
-        AnimatedVisibility(
-            visible = showMiniPlayer,
-            enter = expandVertically(initialHeight = { 0 }) + fadeIn(),
-            exit = shrinkVertically(targetHeight = { 0 }) + fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = bottomPadding)
-                .offset { IntOffset(miniPlayerOffsetX.value.roundToInt(), miniPlayerOffsetY.value.roundToInt()) }
-                .pointerInput(Unit) {
-                    detectDragGesturesAfterLongPress(
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            miniPlayerOffsetX.value += dragAmount.x
-                            miniPlayerOffsetY.value += dragAmount.y
-                        }
-                    )
-                }
+        val overlayPermissionLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult()
         ) {
-            TtsMiniPlayer(
-                state = state.settings.textToSpeech,
-                onClose = {
-                    state.settings.textToSpeech.setPlaying(false)
-                    miniPlayerDismissed.value = true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(context)) {
+                my.noveldokusha.features.reader.services.FloatingTtsService.activityWindowToken =
+                    windowToken
+                my.noveldokusha.features.reader.services.FloatingTtsService.ttsState.value =
+                    state.settings.textToSpeech
+                my.noveldokusha.features.reader.services.FloatingTtsService.showOutsideApp.value =
+                    state.settings.floatingTts.showOutsideApp.value
+                my.noveldokusha.features.reader.services.FloatingTtsService.opacity.value =
+                    state.settings.floatingTts.opacity.value
+                my.noveldokusha.features.reader.services.FloatingTtsService.start(context)
+            }
+        }
+
+        if (showOverlayPermissionDialog) {
+            AlertDialog(
+                onDismissRequest = { showOverlayPermissionDialog = false },
+                title = { Text(text = stringResource(R.string.tts_floating_overlay_permission_title)) },
+                text = {
+                    Text(text = stringResource(R.string.tts_floating_overlay_permission_message))
                 },
-                onStartHere = { state.settings.textToSpeech.playFirstVisibleItem() },
-                chapterCurrentNumber = state.readerInfo.chapterCurrentNumber.value,
-                chaptersCount = state.readerInfo.chaptersCount.value,
+                confirmButton = {
+                    Button(onClick = {
+                        showOverlayPermissionDialog = false
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:${context.packageName}")
+                        )
+                        overlayPermissionLauncher.launch(intent)
+                    }) {
+                        Text(text = stringResource(R.string.tts_floating_open_settings))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showOverlayPermissionDialog = false }) {
+                        Text(text = stringResource(android.R.string.cancel))
+                    }
+                },
             )
+        }
+
+        LaunchedEffect(
+            state.settings.floatingTts.isEnabled.value,
+        ) {
+            val floatingEnabled = state.settings.floatingTts.isEnabled.value
+            if (floatingEnabled) {
+                val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    Settings.canDrawOverlays(context)
+                } else true
+
+                if (hasPermission) {
+                    my.noveldokusha.features.reader.services.FloatingTtsService.activityWindowToken =
+                        windowToken
+                    my.noveldokusha.features.reader.services.FloatingTtsService.ttsState.value =
+                        state.settings.textToSpeech
+                    my.noveldokusha.features.reader.services.FloatingTtsService.showOutsideApp.value =
+                        state.settings.floatingTts.showOutsideApp.value
+                    my.noveldokusha.features.reader.services.FloatingTtsService.opacity.value =
+                        state.settings.floatingTts.opacity.value
+                    my.noveldokusha.features.reader.services.FloatingTtsService.start(context)
+                } else {
+                    showOverlayPermissionDialog = true
+                    state.settings.floatingTts.isEnabled.value = false
+                }
+            } else {
+                my.noveldokusha.features.reader.services.FloatingTtsService.stop(context)
+            }
+        }
+
+        LaunchedEffect(
+            state.settings.floatingTts.showOutsideApp.value,
+            state.settings.floatingTts.opacity.value,
+        ) {
+            my.noveldokusha.features.reader.services.FloatingTtsService.showOutsideApp.value =
+                state.settings.floatingTts.showOutsideApp.value
+            my.noveldokusha.features.reader.services.FloatingTtsService.opacity.value =
+                state.settings.floatingTts.opacity.value
+        }
+
+        LaunchedEffect(
+            state.settings.floatingTts.showOutsideApp.value,
+        ) {
+            if (FloatingTtsService.isRunning(context)) {
+                FloatingTtsService.activityWindowToken =
+                    windowToken
+                FloatingTtsService.recreateOverlay()
+            }
+        }
+
+        val lifecycle = LocalLifecycleOwner.current.lifecycle
+
+        DisposableEffect(
+            lifecycle,
+            state.settings.selectedSetting.value,
+            state.settings.floatingTts.showOutsideApp.value,
+        ) {
+            val selectedSetting = state.settings.selectedSetting.value
+            val showOutsideApp = state.settings.floatingTts.showOutsideApp.value
+
+            val observer = LifecycleEventObserver { _, event ->
+                if (!FloatingTtsService.isRunning(context)) return@LifecycleEventObserver
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> {
+                        FloatingTtsService.setOverlayHidden(selectedSetting != Type.None)
+                    }
+                    Lifecycle.Event.ON_PAUSE -> {
+                        FloatingTtsService.setOverlayHidden(!showOutsideApp)
+                    }
+                    else -> {}
+                }
+            }
+            lifecycle.addObserver(observer)
+
+            if (FloatingTtsService.isRunning(context)) {
+                FloatingTtsService.setOverlayHidden(selectedSetting != Type.None)
+            }
+
+            onDispose { lifecycle.removeObserver(observer) }
         }
     }
 }
@@ -355,6 +447,10 @@ private fun ViewsPreview(
         onNovelPromptAppendModeChange = {},
         currentProvider = remember { mutableStateOf("GOOGLE_PA") },
         onProviderChange = {},
+        parallelEnabled = remember { mutableStateOf(false) },
+        onParallelEnabledChange = {},
+        parallelOrder = remember { mutableStateOf("ORIGINAL_FIRST") },
+        onParallelOrderChange = {},
     )
 
     val textToSpeechSettingData = TextToSpeechSettingData(
@@ -405,6 +501,11 @@ private fun ViewsPreview(
         estimatedWpm = remember { mutableStateOf(0) },
         estimatedTotalSeconds = remember { mutableStateOf(0) },
         estimatedRemainingSeconds = remember { mutableStateOf(0) },
+        currentParagraphText = remember { mutableStateOf("") },
+        alternateParagraphText = remember { mutableStateOf("") },
+        parallelEnabled = remember { mutableStateOf(false) },
+        originalVoiceId = remember { mutableStateOf("") },
+        setOriginalVoiceId = {},
     )
 
     val style = ReaderScreenState.Settings.StyleSettingsData(
@@ -437,6 +538,11 @@ private fun ViewsPreview(
                         selectedSetting = remember { mutableStateOf(data.selectedSetting) },
                         fullScreen = remember { mutableStateOf(false) },
                         isSingleTapToOpenSettings = remember { mutableStateOf(false) },
+                        floatingTts = ReaderScreenState.Settings.FloatingTtsSettingsData(
+                            isEnabled = remember { mutableStateOf(false) },
+                            showOutsideApp = remember { mutableStateOf(true) },
+                            opacity = remember { mutableFloatStateOf(0.6f) },
+                        ),
                     ),
                     showInvalidChapterDialog = remember { mutableStateOf(false) }
                 ),

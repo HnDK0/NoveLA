@@ -146,7 +146,6 @@ class RestoreDataService : Service() {
             channelId = channelId,
             channelName = channelName
         )
-        startForeground(notificationId, notificationBuilder.build())
     }
 
     override fun onDestroy() {
@@ -155,6 +154,7 @@ class RestoreDataService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(notificationId, notificationBuilder.build())
         if (intent == null) {
             Timber.e("RestoreDataService: intent is null")
             return START_NOT_STICKY

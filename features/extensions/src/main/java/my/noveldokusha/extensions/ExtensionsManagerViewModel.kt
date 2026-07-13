@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import my.noveldokusha.core.ExtensionManager
 import my.noveldokusha.core.appPreferences.AppPreferences
@@ -143,6 +144,8 @@ class ExtensionsManagerViewModel @Inject constructor(
                                 )
                             )
                         }
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         Timber.w(e, "Failed to load language $langCode")
                     }
@@ -168,6 +171,8 @@ class ExtensionsManagerViewModel @Inject constructor(
                         error               = null
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load extensions repository")
                 _state.update { it.copy(isLoading = false, error = "Failed to load extensions: ${e.message}") }
@@ -281,6 +286,8 @@ class ExtensionsManagerViewModel @Inject constructor(
 
                 Timber.d("Installed extension: ${extInfo.name}")
                 // Шаг 3: Scraper обновится реактивно через extensionRepository.getInstalledExtensionsFlow()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "Failed to install ${extInfo.name}")
                 _state.update { it.copy(error = "Failed to install ${extInfo.name}: ${e.message}") }
@@ -302,6 +309,8 @@ class ExtensionsManagerViewModel @Inject constructor(
                 extensionManager.uninstallExtension(extensionId)
                 luaSourceLoader.removeScript(extensionId)
                 // Scraper обновится реактивно
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "Failed to uninstall $extensionId")
                 _state.update { it.copy(error = "Failed to uninstall extension") }
@@ -317,6 +326,8 @@ class ExtensionsManagerViewModel @Inject constructor(
                 if (enabled) extensionManager.enableExtension(extensionId)
                 else         extensionManager.disableExtension(extensionId)
                 // Scraper обновится реактивно
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "Failed to toggle extension $extensionId")
                 _state.update { it.copy(error = "Failed to toggle extension") }

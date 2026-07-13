@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.appPreferences.AppPreferences
+import my.noveldokusha.text_translator.domain.GOOGLE_TRANSLATE_LANGUAGES
 import my.noveldokusha.text_translator.domain.TranslationManager
 import my.noveldokusha.text_translator.domain.TranslationModelState
 import my.noveldokusha.text_translator.domain.TranslatorState
@@ -94,12 +95,7 @@ class TranslationManagerOpenAI(
     override val isUsingOnlineTranslation = true
 
     override val models = mutableStateListOf<TranslationModelState>().apply {
-        val supportedLanguages = listOf(
-            "en", "zh", "ja", "ko", "es", "fr", "de", "it", "pt", "ru",
-            "ar", "hi", "th", "vi", "id", "tr", "pl", "nl", "sv", "da",
-            "fi", "no", "cs", "el", "he", "ro", "hu", "uk", "bg", "hr"
-        )
-        addAll(supportedLanguages.map { lang ->
+        addAll(GOOGLE_TRANSLATE_LANGUAGES.map { lang ->
             TranslationModelState(
                 language = lang,
                 available = true,

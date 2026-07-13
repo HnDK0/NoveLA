@@ -43,6 +43,8 @@ internal class ReaderItemAdapter(
     private val currentParagraphSpacing: () -> Float,
     private val currentTypeface: () -> Typeface,
     private val currentTypefaceBold: () -> Typeface,
+    private val currentParallelEnabled: () -> Boolean,
+    private val currentParallelOrder: () -> String,
     private val onChapterStartVisible: (chapterUrl: String) -> Unit,
     private val onChapterEndVisible: (chapterUrl: String) -> Unit,
     private val onReloadReader: () -> Unit,
@@ -78,6 +80,26 @@ internal class ReaderItemAdapter(
 
     private val topPadding = ReaderItem.Padding(chapterIndex = Int.MIN_VALUE)
     private val bottomPadding = ReaderItem.Padding(chapterIndex = Int.MAX_VALUE)
+
+    override fun hasStableIds(): Boolean = true
+
+    override fun getItemId(position: Int): Long {
+        if (position == 0) return Long.MIN_VALUE
+        if (position == count - 1) return Long.MAX_VALUE
+        val item = super.getItem(position - 1)!!
+        return when (item) {
+            is ReaderItem.Position -> (item.chapterIndex.toLong() shl 32) or (item.chapterItemPosition.toLong() and 0xFFFFFFFFL)
+            is ReaderItem.BookStart -> (item.chapterIndex.toLong() shl 32) or 1L
+            is ReaderItem.BookEnd -> (item.chapterIndex.toLong() shl 32) or 2L
+            is ReaderItem.Divider -> (item.chapterIndex.toLong() shl 32) or 3L
+            is ReaderItem.Progressbar -> (item.chapterIndex.toLong() shl 32) or 4L
+            is ReaderItem.Translating -> (item.chapterIndex.toLong() shl 32) or 5L
+            is ReaderItem.Error -> (item.chapterIndex.toLong() shl 32) or 6L
+            is ReaderItem.GoogleTranslateAttribution -> (item.chapterIndex.toLong() shl 32) or 7L
+            is ReaderItem.TranslateAttribution -> (item.chapterIndex.toLong() shl 32) or 8L
+            else -> item.chapterIndex.toLong()
+        }
+    }
 
     override fun getViewTypeCount(): Int = 12
     override fun getItemViewType(position: Int) = when (getItem(position)) {
@@ -121,20 +143,44 @@ internal class ReaderItemAdapter(
             else -> ActivityReaderListItemBodyBinding.bind(convertView)
         }
 
-        bind.body.updateTextSelectability()
+        val parallelEnabled = currentParallelEnabled() && item.textTranslated != null
+
+        if (parallelEnabled) {
+            val orderTranslationFirst = currentParallelOrder() == "TRANSLATION_FIRST"
+
+            val primaryText = if (orderTranslationFirst) item.textTranslated ?: item.text else item.text
+            val secondaryText = if (orderTranslationFirst) item.text else item.textTranslated ?: item.text
+
+            bind.bodyTranslated.text = primaryText
+            bind.bodyTranslated.textSize = currentFontSize()
+            bind.bodyTranslated.typeface = currentTypeface()
+            bind.bodyTranslated.updateTextSelectability()
+            bind.bodyTranslated.setLineSpacing(0f, currentLineHeight())
+
+            bind.bodyOriginal.text = secondaryText
+            bind.bodyOriginal.textSize = currentFontSize() * 0.85f
+            bind.bodyOriginal.typeface = currentTypeface()
+            bind.bodyOriginal.updateTextSelectability()
+            bind.bodyOriginal.setLineSpacing(0f, currentLineHeight())
+            bind.bodyOriginal.visibility = View.VISIBLE
+        } else {
+            bind.bodyTranslated.text = item.textToDisplay
+            bind.bodyTranslated.textSize = currentFontSize()
+            bind.bodyTranslated.typeface = currentTypeface()
+            bind.bodyTranslated.updateTextSelectability()
+            bind.bodyTranslated.setLineSpacing(0f, currentLineHeight())
+
+            bind.bodyOriginal.visibility = View.GONE
+        }
+
         bind.root.background = getItemReadingStateBackground(item)
-        bind.body.text = item.textToDisplay
-        bind.body.textSize = currentFontSize()
-        bind.body.typeface = currentTypeface()
-        
-        // Improve reading comfort with line spacing and paragraph spacing
-        bind.body.setLineSpacing(0f, currentLineHeight())
         val paddingVertical = android.util.TypedValue.applyDimension(
             android.util.TypedValue.COMPLEX_UNIT_DIP,
             currentParagraphSpacing(),
             ctx.resources.displayMetrics
         ).toInt()
-        bind.body.setPadding(bind.body.paddingLeft, paddingVertical, bind.body.paddingRight, paddingVertical)
+        bind.bodyTranslated.setPadding(bind.bodyTranslated.paddingLeft, paddingVertical, bind.bodyTranslated.paddingRight, paddingVertical)
+        bind.bodyOriginal.setPadding(bind.bodyOriginal.paddingLeft, paddingVertical, bind.bodyOriginal.paddingRight, paddingVertical)
 
         when (item.location) {
             ReaderItem.Location.FIRST -> onChapterStartVisible(item.chapterUrl)
@@ -250,10 +296,11 @@ internal class ReaderItemAdapter(
             null -> ActivityReaderListItemTitleBinding.inflate(parent.inflater, parent, false).also { it.root.tag = it }
             else -> ActivityReaderListItemTitleBinding.bind(convertView)
         }
-        bind.title.updateTextSelectability()
+        bind.titleTranslated.updateTextSelectability()
         bind.root.background = getItemReadingStateBackground(item)
-        bind.title.text = item.textToDisplay
-        bind.title.typeface = currentTypefaceBold()
+        bind.titleTranslated.text = item.textToDisplay
+        bind.titleTranslated.typeface = currentTypefaceBold()
+        bind.titleOriginal.visibility = View.GONE
         return bind.root
     }
 

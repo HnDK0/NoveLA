@@ -69,6 +69,11 @@ internal class ReaderViewModel @Inject constructor(
             liveTranslation = readerSession.readerLiveTranslation.state,
             fullScreen = appPreferences.READER_FULL_SCREEN.state(viewModelScope),
             isSingleTapToOpenSettings = appPreferences.READER_SINGLE_TAP_TO_OPEN_SETTINGS.state(viewModelScope),
+            floatingTts = ReaderScreenState.Settings.FloatingTtsSettingsData(
+                isEnabled = appPreferences.FLOATING_TTS_ENABLED.state(viewModelScope),
+                showOutsideApp = appPreferences.FLOATING_TTS_SHOW_OUTSIDE_APP.state(viewModelScope),
+                opacity = appPreferences.FLOATING_TTS_OPACITY.state(viewModelScope),
+            ),
             style = ReaderScreenState.Settings.StyleSettingsData(
                 currentDarkMode = mutableStateOf(DarkMode.SYSTEM).also { state ->
                     viewModelScope.launch {
@@ -124,11 +129,16 @@ internal class ReaderViewModel @Inject constructor(
         readerSession.currentChapter = new
     }
     val onTranslatorChanged = readerSession.readerLiveTranslation.onTranslatorChanged
+    val onDisplaySettingsChanged = readerSession.readerLiveTranslation.onDisplaySettingsChanged
     val ttsScrolledToTheTop = readerSession.readerTextToSpeech.scrolledToTheTop
     val ttsScrolledToTheBottom = readerSession.readerTextToSpeech.scrolledToTheBottom
 
     fun onCloseManually() {
-        readerManager.close()
+        if (readerSession.readerTextToSpeech.isActive.value) {
+            readerManager.detachSession()
+        } else {
+            readerManager.close()
+        }
     }
 
     fun startSpeaker(itemIndex: Int) =

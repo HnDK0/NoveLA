@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.withTransaction
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import my.noveldokusha.feature.local_database.DAOs.ChapterBodyDao
@@ -47,6 +48,12 @@ interface AppDatabase {
         fun createRoom(ctx: Context, name: String): AppDatabase = Room
             .databaseBuilder(ctx, AppRoomDatabase::class.java, name)
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+            .addCallback(object : RoomDatabase.Callback() {
+                override fun onOpen(db: SupportSQLiteDatabase) {
+                    super.onOpen(db)
+                    db.query("PRAGMA journal_size_limit = 16777216").close()
+                }
+            })
             .addMigrations(*databaseMigrations())
             .build()
             .also { it.name = name }
@@ -59,7 +66,7 @@ interface AppDatabase {
             .databaseBuilder(ctx, AppRoomDatabase::class.java, name)
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .createFromInputStream { inputStream }
-            .fallbackToDestructiveMigration() // Don't apply migrations, database is already at correct version
+            .fallbackToDestructiveMigration(false) // Don't apply migrations, database is already at correct version
             .build()
             .also { it.name = name }
     }

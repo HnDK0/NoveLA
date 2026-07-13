@@ -42,7 +42,9 @@ internal fun ReaderScreenBottomBarDialogs(
                         state = settings.liveTranslation
                     )
                     ReaderScreenState.Settings.Type.TextToSpeech -> VoiceReaderSettingDialog(
-                        state = settings.textToSpeech
+                        state = settings.textToSpeech,
+                        floatingTtsState = settings.floatingTts,
+                        parallelEnabled = settings.liveTranslation.parallelEnabled,
                     )
                     ReaderScreenState.Settings.Type.Style -> {
                         StyleSettingDialog(

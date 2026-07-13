@@ -1,22 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<TextView
-	xmlns:android="http://schemas.android.com/apk/res/android"
-	xmlns:app="http://schemas.android.com/apk/res-auto"
-	xmlns:tools="http://schemas.android.com/tools"
-	android:id="@+id/title"
-	android:layout_width="match_parent"
-	android:layout_height="wrap_content"
-	android:drawablePadding="12sp"
-	android:gravity="start|center_vertical"
-	android:paddingLeft="17sp"
-	android:paddingTop="46sp"
-	android:paddingRight="17sp"
-	android:paddingBottom="17sp"
-	android:textSize="22sp"
-	android:textStyle="bold"
-	app:drawableLeftCompat="@drawable/ic_decoration_round"
-	app:drawableTint="#b4b1b1"
-	android:textColor="#b4b1b1"
-	tools:text="@tools:sample/lorem"
-	/>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/title_translated"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:drawablePadding="12sp"
+        android:gravity="start|center_vertical"
+        android:paddingLeft="17sp"
+        android:paddingTop="46sp"
+        android:paddingRight="17sp"
+        android:paddingBottom="17sp"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        app:drawableLeftCompat="@drawable/ic_decoration_round"
+        app:drawableTint="#b4b1b1"
+        android:textColor="#b4b1b1"
+        tools:text="@tools:sample/lorem" />
+
+    <TextView
+        android:id="@+id/title_original"
+        style="?attr/myReaderTextStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:alpha="0.85"
+        android:paddingLeft="17sp"
+        android:paddingRight="17sp"
+        android:paddingBottom="8sp"
+        android:textSize="14sp"
+        android:textStyle="normal"
+        android:visibility="gone"
+        tools:text="@tools:sample/lorem"
+        tools:visibility="visible" />
+
+</LinearLayout>

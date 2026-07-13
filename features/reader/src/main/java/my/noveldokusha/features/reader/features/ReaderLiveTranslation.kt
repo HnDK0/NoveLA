@@ -40,6 +40,10 @@ internal data class LiveTranslationSettingData(
     val onNovelPromptAppendModeChange: (Boolean) -> Unit,
     val currentProvider: MutableState<String>,
     val onProviderChange: (String) -> Unit,
+    val parallelEnabled: MutableState<Boolean>,
+    val onParallelEnabledChange: (Boolean) -> Unit,
+    val parallelOrder: MutableState<String>,
+    val onParallelOrderChange: (String) -> Unit,
 )
 
 internal class ReaderLiveTranslation(
@@ -53,8 +57,7 @@ internal class ReaderLiveTranslation(
     )
 ) {
     internal var bookTitle: String = bookTitleInitial
-    // Callback to clear chapter cache (set by ReaderSession)
-    var onClearChapterCache: (() -> Unit)? = null
+    var currentChapterUrl: String = ""
 
     private fun resolveNovelPrompt(): String =
         appPreferences.TRANSLATION_NOVEL_PROMPTS.value[bookUrl]?.prompt ?: ""
@@ -81,6 +84,10 @@ internal class ReaderLiveTranslation(
         onNovelPromptAppendModeChange = ::onNovelPromptAppendModeChange,
         currentProvider = mutableStateOf(appPreferences.TRANSLATION_PROVIDER.value),
         onProviderChange = ::onProviderChange,
+        parallelEnabled = mutableStateOf(appPreferences.TRANSLATION_PARALLEL_ENABLED.value),
+        onParallelEnabledChange = ::onParallelEnabledChange,
+        parallelOrder = mutableStateOf(appPreferences.TRANSLATION_PARALLEL_ORDER.value),
+        onParallelOrderChange = ::onParallelOrderChange,
     )
 
     var translatorState: TranslatorState? = null
@@ -88,6 +95,9 @@ internal class ReaderLiveTranslation(
 
     private val _onTranslatorChanged = MutableSharedFlow<Unit>()
     val onTranslatorChanged = _onTranslatorChanged.asSharedFlow()
+
+    private val _onDisplaySettingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val onDisplaySettingsChanged = _onDisplaySettingsChanged.asSharedFlow()
 
     suspend fun init() {
         Log.d(TAG, "init: starting")
@@ -282,23 +292,21 @@ internal class ReaderLiveTranslation(
                     return@launch
                 }
 
-                Log.d(TAG, "onRedoTranslation: invalidating cache for source=$source, target=$target")
+                Log.d(TAG, "onRedoTranslation: source=$source, target=$target, chapter=$currentChapterUrl")
 
-                chapterTranslationDao?.let { dao ->
-                    try {
-                        Log.d(TAG, "onRedoTranslation: clearing ALL database cached translations")
-                        val deletedCount = withContext(Dispatchers.IO) {
-                            dao.deleteAllTranslations()
+                if (currentChapterUrl.isNotEmpty()) {
+                    chapterTranslationDao?.let { dao ->
+                        try {
+                            Log.d(TAG, "onRedoTranslation: clearing translation for current chapter $currentChapterUrl")
+                            withContext(Dispatchers.IO) {
+                                dao.deleteChapterTranslations(currentChapterUrl)
+                            }
+                            Log.d(TAG, "onRedoTranslation: chapter translation cleared")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "onRedoTranslation: failed to clear chapter translation", e)
                         }
-                        Log.d(TAG, "onRedoTranslation: database cache cleared successfully (deleted $deletedCount translations)")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "onRedoTranslation: failed to clear database cache", e)
-                    }
-                } ?: Log.w(TAG, "onRedoTranslation: chapterTranslationDao is null, skipping database clear")
-
-                onClearChapterCache?.invoke()
-                    ?.also { Log.d(TAG, "onRedoTranslation: chapter cache cleared") }
-                    ?: Log.w(TAG, "onRedoTranslation: no chapter cache clear callback")
+                    } ?: Log.w(TAG, "onRedoTranslation: chapterTranslationDao is null")
+                }
 
                 Log.d(TAG, "onRedoTranslation: forcing translator state update")
                 translatorState = null
@@ -338,6 +346,18 @@ internal class ReaderLiveTranslation(
         return { texts ->
             translationManager.translateBatch(texts, source, target, systemPromptOverride)
         }
+    }
+
+    private fun onParallelEnabledChange(it: Boolean) {
+        state.parallelEnabled.value = it
+        appPreferences.TRANSLATION_PARALLEL_ENABLED.value = it
+        scope.launch { _onDisplaySettingsChanged.emit(Unit) }
+    }
+
+    private fun onParallelOrderChange(it: String) {
+        state.parallelOrder.value = it
+        appPreferences.TRANSLATION_PARALLEL_ORDER.value = it
+        scope.launch { _onDisplaySettingsChanged.emit(Unit) }
     }
 
     companion object {

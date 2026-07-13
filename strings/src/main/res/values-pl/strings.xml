@@ -150,6 +150,8 @@
     <string name="focus">Skupienie</string>
     <string name="voice_pitch">Wysokość głosu</string>
     <string name="voice_speed">Szybkość głosu</string>
+    <string name="original_voice">Głos oryginału</string>
+    <string name="not_set">Nie ustawiono</string>
     <string name="chapter_x_over_n">Rozdział: %1$d/%2$d</string>
     <string name="progress_x_percentage">Postęp: %1$.0f%%</string>
     <string name="text_size">Rozmiar tekstu</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">pauza</string>
     <string name="media_control_fast_forward">przewiń do przodu</string>
     <string name="media_control_next">następny</string>
+    <string name="tts_floating">Pływający TTS</string>
+    <string name="tts_floating_channel_description">Kontrolki nakładki pływającego TTS</string>
+    <string name="tts_floating_overlay_active">Nakładka TTS jest aktywna</string>
+    <string name="tts_floating_show_outside_app">Pokaż nad innymi aplikacjami</string>
+    <string name="tts_floating_opacity">Przezroczystość</string>
+    <string name="tts_floating_width">Szerokość</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">Zezwolenie na nakładkę</string>
+    <string name="tts_floating_overlay_permission_message">Pływający odtwarzacz potrzebuje zezwolenia, aby wyświetlać się nad innymi aplikacjami.</string>
+    <string name="tts_floating_open_settings">Otwórz ustawienia</string>
     <string name="delete">Usuń</string>
     <string name="english">Angielski</string>
     <string name="filter_title">Tytuł</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">Lokalne</string>
 
     <string name="delete_novel">Usuń nowelę</string>
+    <string name="delete_book_translations">Usuń wszystkie tłumaczenia tej noweli</string>
     <string name="mark_all_chapters_read">Oznacz wszystkie rozdziały jako przeczytane</string>
     <string name="mark_all_chapters_unread">Oznacz wszystkie rozdziały jako nieprzeczytane</string>
     <string name="move_to">Przenieś do</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">Ustaw niestandardowy prompt systemowy dla tej noweli</string>
     <string name="novel_prompt_llm_only">Tylko Gemini/OpenAI</string>
     <string name="novel_prompt_append_mode">Dodaj do globalnego promptu</string>
+    <string name="parallel_mode_title">Tryb równoległy</string>
+    <string name="parallel_mode_description">Pokaż oryginał i tłumaczenie obok siebie</string>
+    <string name="parallel_order_original_first">Oryginał najpierw</string>
+    <string name="parallel_order_translation_first">Tłumaczenie najpierw</string>
     <string name="novel_prompts_title">Prompty specyficzne dla nowel</string>
     <string name="novel_prompts_search">Szukaj promptów</string>
     <string name="novel_prompts_description">Niestandardowe prompty tłumaczenia ustawione dla nowel w ustawieniach czytnika</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">Brak dostępnych źródeł</string>
     <string name="migration_no_matches_found">Nie znaleziono dopasowań</string>
-    <string name="migration_failed_to_load_chapters">Nie udało się załadować rozdziałów</string>
+    <string name="migration_failed_to_load_chapters">Nie udało się załadować rozdziałów: %s</string>
     <string name="migration_unknown_error">Nieznany błąd</string>
     <string name="migration_no_book_selected">Nie wybrano książki</string>
     <string name="migration_chapter_matching_not_ready">Dopasowywanie rozdziałów jeszcze nie gotowe</string>

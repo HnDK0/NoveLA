@@ -1,5 +1,6 @@
 package my.noveldokusha.text_translator
 
+import my.noveldokusha.text_translator.domain.LANGUAGE_DISPLAY_NAMES
 import okhttp3.Response
 import java.util.Locale
 
@@ -142,9 +143,21 @@ val BUILT_IN_PROMPTS = listOf(
  *                    false → название на языке системы/интерфейса
  */
 fun resolveLanguageName(langCode: String, useEnglish: Boolean): String {
-    val locale = Locale(langCode)
-    return if (useEnglish) locale.getDisplayLanguage(Locale.ENGLISH)
-    else locale.displayLanguage
+    if (useEnglish) {
+        LANGUAGE_DISPLAY_NAMES[langCode]?.let { return it }
+    }
+    val locale = try {
+        Locale.forLanguageTag(langCode)
+    } catch (_: Exception) {
+        try { Locale(langCode) } catch (_: Exception) { null }
+    }
+    val name = locale?.let {
+        if (useEnglish) it.getDisplayLanguage(Locale.ENGLISH)
+        else it.getDisplayName()
+    }
+    return name?.takeIf { it.isNotBlank() && it != langCode }
+        ?: LANGUAGE_DISPLAY_NAMES[langCode]
+        ?: langCode
 }
 
 /**

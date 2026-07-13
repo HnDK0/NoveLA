@@ -150,6 +150,8 @@
     <string name="focus">ফোকাস</string>
     <string name="voice_pitch">কণ্ঠস্বরের পিচ</string>
     <string name="voice_speed">কণ্ঠস্বরের গতি</string>
+    <string name="original_voice">মূল ভয়েস</string>
+    <string name="not_set">সেট করা নেই</string>
     <string name="chapter_x_over_n">অধ্যায়: %1$d/%2$d</string>
     <string name="progress_x_percentage">অগ্রগতি: %1$.0f%%</string>
     <string name="text_size">টেক্সটের আকার</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">পজ</string>
     <string name="media_control_fast_forward">ফাস্ট_ফরোয়ার্ড</string>
     <string name="media_control_next">পরবর্তী</string>
+    <string name="tts_floating">ভাসমান TTS</string>
+    <string name="tts_floating_channel_description">ভাসমান TTS ওভারলে নিয়ন্ত্রণ</string>
+    <string name="tts_floating_overlay_active">TTS ওভারলে সক্রিয়</string>
+    <string name="tts_floating_show_outside_app">অন্যান্য অ্যাপের উপরে দেখান</string>
+    <string name="tts_floating_opacity">অস্বচ্ছতা</string>
+    <string name="tts_floating_width">প্রস্থ</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">ওভারলে অনুমতি</string>
+    <string name="tts_floating_overlay_permission_message">ভাসমান প্লেয়ারটিকে অন্যান্য অ্যাপের উপরে দেখানোর জন্য অনুমতি প্রয়োজন।</string>
+    <string name="tts_floating_open_settings">সেটিংস খুলুন</string>
     <string name="delete">মুছুন</string>
     <string name="english">ইংরেজি</string>
     <string name="filter_title">শিরোনাম</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">স্থানীয়</string>
 
     <string name="delete_novel">নভেল মুছুন</string>
+    <string name="delete_book_translations">এই উপন্যাসের সমস্ত অনুবাদ মুছুন</string>
     <string name="mark_all_chapters_read">সব অধ্যায় পঠিত হিসেবে চিহ্নিত করুন</string>
     <string name="mark_all_chapters_unread">সব অধ্যায় অপঠিত হিসেবে চিহ্নিত করুন</string>
     <string name="move_to">এতে সরান</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">এই নভেলের জন্য একটি কাস্টম সিস্টেম প্রম্পট সেট করুন</string>
     <string name="novel_prompt_llm_only">শুধুমাত্র Gemini/OpenAI</string>
     <string name="novel_prompt_append_mode">গ্লোবাল প্রম্পটে যোগ করুন</string>
+    <string name="parallel_mode_title">সমান্তরাল মোড</string>
+    <string name="parallel_mode_description">মূল এবং অনুবাদ পাশাপাশি দেখান</string>
+    <string name="parallel_order_original_first">মূল প্রথম</string>
+    <string name="parallel_order_translation_first">অনুবাদ প্রথম</string>
     <string name="novel_prompts_title">নভেল-নির্দিষ্ট প্রম্পটসমূহ</string>
     <string name="novel_prompts_search">প্রম্পট অনুসন্ধান</string>
     <string name="novel_prompts_description">রিডার সেটিংসে নভেল প্রতি সেট করা কাস্টম অনুবাদ প্রম্পট</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">কোনো উৎস উপলব্ধ নেই</string>
     <string name="migration_no_matches_found">কোনো মিল পাওয়া যায়নি</string>
-    <string name="migration_failed_to_load_chapters">অধ্যায় লোড করতে ব্যর্থ</string>
+    <string name="migration_failed_to_load_chapters">অধ্যায় লোড করতে ব্যর্থ: %s</string>
     <string name="migration_unknown_error">অজানা ত্রুটি</string>
     <string name="migration_no_book_selected">কোনো বই নির্বাচিত নয়</string>
     <string name="migration_chapter_matching_not_ready">অধ্যায় মিলানো এখনও প্রস্তুত নয়</string>

@@ -150,6 +150,8 @@
     <string name="focus">Fokus</string>
     <string name="voice_pitch">Nada suara</string>
     <string name="voice_speed">Kelajuan suara</string>
+    <string name="original_voice">Suara asal</string>
+    <string name="not_set">Tidak ditetapkan</string>
     <string name="chapter_x_over_n">Bab: %1$d/%2$d</string>
     <string name="progress_x_percentage">Kemajuan: %1$.0f%%</string>
     <string name="text_size">Saiz teks</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">jeda</string>
     <string name="media_control_fast_forward">maju_cepat</string>
     <string name="media_control_next">seterusnya</string>
+    <string name="tts_floating">TTS Terapung</string>
+    <string name="tts_floating_channel_description">Kawalan tindanan TTS terapung</string>
+    <string name="tts_floating_overlay_active">Tindanan TTS aktif</string>
+    <string name="tts_floating_show_outside_app">Tunjukkan di atas apl lain</string>
+    <string name="tts_floating_opacity">Kelegapan</string>
+    <string name="tts_floating_width">Lebar</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">Kebenaran tindanan</string>
+    <string name="tts_floating_overlay_permission_message">Pemain terapung memerlukan kebenaran untuk dipaparkan di atas aplikasi lain.</string>
+    <string name="tts_floating_open_settings">Buka tetapan</string>
     <string name="delete">Padam</string>
     <string name="english">Inggeris</string>
     <string name="filter_title">Tajuk</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">Tempatan</string>
 
     <string name="delete_novel">Padam novel</string>
+    <string name="delete_book_translations">Padam semua terjemahan novel ini</string>
     <string name="mark_all_chapters_read">Tandakan semua bab sebagai telah dibaca</string>
     <string name="mark_all_chapters_unread">Tandakan semua bab sebagai belum dibaca</string>
     <string name="move_to">Pindah ke</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">Tetapkan arahan sistem tersuai untuk novel ini</string>
     <string name="novel_prompt_llm_only">Gemini/OpenAI sahaja</string>
     <string name="novel_prompt_append_mode">Tambah ke prompt global</string>
+    <string name="parallel_mode_title">Mod selari</string>
+    <string name="parallel_mode_description">Tunjukkan asal dan terjemahan sebelah-menyebelah</string>
+    <string name="parallel_order_original_first">Asal dahulu</string>
+    <string name="parallel_order_translation_first">Terjemahan dahulu</string>
     <string name="novel_prompts_title">Arahan khusus untuk novel</string>
     <string name="novel_prompts_search">Cari arahan</string>
     <string name="novel_prompts_description">Arahan terjemahan tersuai ditetapkan setiap novel dalam tetapan pembaca</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">Tiada sumber tersedia</string>
     <string name="migration_no_matches_found">Tiada padanan ditemui</string>
-    <string name="migration_failed_to_load_chapters">Gagal memuat bab</string>
+    <string name="migration_failed_to_load_chapters">Gagal memuat bab: %s</string>
     <string name="migration_unknown_error">Ralat tidak diketahui</string>
     <string name="migration_no_book_selected">Tiada buku dipilih</string>
     <string name="migration_chapter_matching_not_ready">Padanan bab belum sedia</string>

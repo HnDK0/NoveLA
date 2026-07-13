@@ -8,7 +8,6 @@ import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import my.noveldokusha.core.LocaleManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -63,7 +62,6 @@ import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.theme.Theme
 import my.noveldokusha.coreui.theme.ThemeProvider
-import my.noveldokusha.core.appPreferences.AppLanguageProvider
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.R
 import my.noveldokusha.catalogexplorer.CatalogExplorerScreen
@@ -115,11 +113,6 @@ open class MainActivity : BaseActivity() {
                 periodicWorkersInitializer.init()
             }
         })
-
-        // Apply saved language preference
-        val language = AppLanguageProvider.fromCode(appPreferences.APP_LANGUAGE_CODE.value)
-            ?: AppLanguageProvider.supportedLanguages.first()
-        LocaleManager.applyLocale(this, language)
 
         requestPushNotificationPermission()
 

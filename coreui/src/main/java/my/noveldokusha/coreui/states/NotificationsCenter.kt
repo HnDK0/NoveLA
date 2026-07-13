@@ -1,6 +1,7 @@
 package my.noveldokusha.coreui.states
 
 import android.annotation.SuppressLint
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -25,6 +26,7 @@ class NotificationsCenter @Inject constructor(
         channelName: String,
         notificationId: Int,
         importance: Int = NotificationManager.IMPORTANCE_DEFAULT,
+        channelConfig: (NotificationChannel.() -> Unit)? = null,
         builder: NotificationCompat.Builder.() -> Unit = {}
     ): NotificationCompat.Builder {
         return buildNotification(
@@ -32,6 +34,7 @@ class NotificationsCenter @Inject constructor(
             channelId = channelId,
             channelName = channelName,
             importance = importance,
+            channelConfig = channelConfig,
             builder = builder
         ).apply {
             NotificationManagerCompat
@@ -47,9 +50,11 @@ class NotificationsCenter @Inject constructor(
         channelId: String,
         channelName: String,
         importance: Int = NotificationManager.IMPORTANCE_DEFAULT,
+        channelConfig: (NotificationChannel.() -> Unit)? = null,
         builder: NotificationCompat.Builder.() -> Unit,
     ): NotificationCompat.Builder {
         val channel = NotificationChannel(channelId, channelName, importance)
+        channelConfig?.invoke(channel)
         manager.createNotificationChannel(channel)
 
         return NotificationCompat.Builder(context, channelId).apply {

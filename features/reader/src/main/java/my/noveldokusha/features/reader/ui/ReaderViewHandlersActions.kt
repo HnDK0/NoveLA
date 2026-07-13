@@ -1,5 +1,6 @@
 package my.noveldokusha.features.reader.ui
 
+import android.widget.ListView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import my.noveldokusha.features.reader.domain.InitialPositionChapter
@@ -57,6 +58,8 @@ internal class ReaderViewHandlersActions @Inject constructor() {
     @Volatile
     var introScrollToCurrentChapter: Boolean = false
 
+    @Volatile
+    var listView: ListView? = null
 
     fun invalidate() {
         forceUpdateListViewState = null
@@ -64,5 +67,6 @@ internal class ReaderViewHandlersActions @Inject constructor() {
         maintainStartPosition = null
         setInitialPosition = null
         showInvalidChapterDialog = null
+        listView = null
     }
 }

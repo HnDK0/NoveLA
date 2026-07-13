@@ -19,7 +19,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowRightAlt
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ViewColumn
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ViewColumn
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material3.AlertDialog
@@ -112,6 +114,9 @@ internal fun TranslatorSettingDialog(
             // ── Language selection ──────────────────────────────────────
             LanguageSelector(state = state)
 
+            // ── Display options ────────────────────────────────────────
+            DisplayOptionsSection(state = state)
+
             // ── Novel prompt (LLM only) ────────────────────────────────
             NovelPromptSection(state = state)
         }
@@ -186,7 +191,7 @@ private fun LanguageSelector(state: LiveTranslationSettingData) {
             modifier = Modifier.fillMaxWidth(),
         ) {
             LanguageButton(
-                label = state.source.value?.locale?.displayLanguage
+                label = state.source.value?.displayName
                     ?: stringResource(R.string.language_source_empty_text),
                 active = state.source.value != null,
                 onClick = { showSourceDialog = true },
@@ -201,7 +206,7 @@ private fun LanguageSelector(state: LiveTranslationSettingData) {
             )
             Spacer(Modifier.width(8.dp))
             LanguageButton(
-                label = state.target.value?.locale?.displayLanguage
+                label = state.target.value?.displayName
                     ?: stringResource(R.string.language_target_empty_text),
                 active = state.target.value != null,
                 onClick = { showTargetDialog = true },
@@ -269,7 +274,7 @@ private fun LanguageSearchDialog(
     val filtered = remember(query, languages) {
         if (query.isBlank()) languages
         else languages.filter {
-            it.locale.displayLanguage.contains(query, ignoreCase = true) ||
+            it.displayName.contains(query, ignoreCase = true) ||
             it.language.contains(query, ignoreCase = true)
         }
     }
@@ -318,7 +323,7 @@ private fun LanguageSearchDialog(
                                 .padding(vertical = 6.dp, horizontal = 4.dp),
                         ) {
                             Text(
-                                text = "${item.locale.displayLanguage} (${item.language})",
+                                text = "${item.displayName} (${item.language})",
                                 style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier.weight(1f),
                                 color = when {
@@ -355,6 +360,69 @@ private fun LanguageSearchDialog(
             }
         },
     )
+}
+
+@Composable
+private fun DisplayOptionsSection(state: LiveTranslationSettingData) {
+    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+    val enabled = state.parallelEnabled.value
+    val order = state.parallelOrder.value
+    val active = enabled
+
+    val modeLabel = when {
+        !enabled -> ""
+        order == "TRANSLATION_FIRST" -> stringResource(R.string.parallel_order_translation_first)
+        else -> stringResource(R.string.parallel_order_original_first)
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                when {
+                    !enabled -> {
+                        state.onParallelEnabledChange(true)
+                        state.onParallelOrderChange("TRANSLATION_FIRST")
+                    }
+                    order == "TRANSLATION_FIRST" -> {
+                        state.onParallelOrderChange("ORIGINAL_FIRST")
+                    }
+                    else -> {
+                        state.onParallelEnabledChange(false)
+                    }
+                }
+            }
+            .padding(vertical = 4.dp),
+    ) {
+        Icon(
+            if (active) Icons.Filled.ViewColumn else Icons.Outlined.ViewColumn,
+            contentDescription = stringResource(R.string.parallel_mode_title),
+            tint = if (active) colorAccent() else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.parallel_mode_title),
+                style = MaterialTheme.typography.titleSmall,
+                color = if (active) colorAccent() else MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = stringResource(R.string.parallel_mode_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (active) {
+            Text(
+                text = modeLabel,
+                style = MaterialTheme.typography.labelSmall,
+                color = colorAccent(),
+            )
+        }
+    }
 }
 
 @Composable

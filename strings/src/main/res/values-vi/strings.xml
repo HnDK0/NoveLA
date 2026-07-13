@@ -150,6 +150,8 @@
     <string name="focus">Tập trung</string>
     <string name="voice_pitch">Cao độ giọng</string>
     <string name="voice_speed">Tốc độ giọng</string>
+    <string name="original_voice">Giọng gốc</string>
+    <string name="not_set">Chưa đặt</string>
     <string name="chapter_x_over_n">Chương: %1$d/%2$d</string>
     <string name="progress_x_percentage">Tiến trình: %1$.0f%%</string>
     <string name="text_size">Cỡ chữ</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">tạm dừng</string>
     <string name="media_control_fast_forward">tua nhanh</string>
     <string name="media_control_next">tiếp</string>
+    <string name="tts_floating">TTS nổi</string>
+    <string name="tts_floating_channel_description">Điều khiển lớp phủ TTS nổi</string>
+    <string name="tts_floating_overlay_active">Lớp phủ TTS đang hoạt động</string>
+    <string name="tts_floating_show_outside_app">Hiển thị trên ứng dụng khác</string>
+    <string name="tts_floating_opacity">Độ mờ</string>
+    <string name="tts_floating_width">Chiều rộng</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">Quyền lớp phủ</string>
+    <string name="tts_floating_overlay_permission_message">Trình phát nổi cần quyền để hiển thị trên các ứng dụng khác.</string>
+    <string name="tts_floating_open_settings">Mở cài đặt</string>
     <string name="delete">Xóa</string>
     <string name="english">Tiếng Anh</string>
     <string name="filter_title">Tựa đề</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">Cục bộ</string>
 
     <string name="delete_novel">Xóa tiểu thuyết</string>
+    <string name="delete_book_translations">Xóa tất cả bản dịch của tiểu thuyết này</string>
     <string name="mark_all_chapters_read">Đánh dấu tất cả chương đã đọc</string>
     <string name="mark_all_chapters_unread">Đánh dấu tất cả chương chưa đọc</string>
     <string name="move_to">Di chuyển đến</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">Đặt lời nhắc hệ thống tùy chỉnh cho tiểu thuyết này</string>
     <string name="novel_prompt_llm_only">Chỉ Gemini/OpenAI</string>
     <string name="novel_prompt_append_mode">Thêm vào prompt chung</string>
+    <string name="parallel_mode_title">Chế độ song song</string>
+    <string name="parallel_mode_description">Hiển thị bản gốc và bản dịch cạnh nhau</string>
+    <string name="parallel_order_original_first">Bản gốc trước</string>
+    <string name="parallel_order_translation_first">Bản dịch trước</string>
     <string name="novel_prompts_title">Lời nhắc dành riêng cho tiểu thuyết</string>
     <string name="novel_prompts_search">Tìm kiếm lời nhắc</string>
     <string name="novel_prompts_description">Lời nhắc dịch tùy chỉnh được đặt cho mỗi tiểu thuyết trong cài đặt trình đọc</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">Không có nguồn nào khả dụng</string>
     <string name="migration_no_matches_found">Không tìm thấy kết quả phù hợp</string>
-    <string name="migration_failed_to_load_chapters">Không thể tải chương</string>
+    <string name="migration_failed_to_load_chapters">Không thể tải chương: %s</string>
     <string name="migration_unknown_error">Lỗi không xác định</string>
     <string name="migration_no_book_selected">Chưa chọn sách</string>
     <string name="migration_chapter_matching_not_ready">Việc so khớp chương chưa sẵn sàng</string>

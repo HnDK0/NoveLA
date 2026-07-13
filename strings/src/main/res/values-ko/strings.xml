@@ -150,6 +150,8 @@
     <string name="focus">집중</string>
     <string name="voice_pitch">음성 피치</string>
     <string name="voice_speed">음성 속도</string>
+    <string name="original_voice">원본 음성</string>
+    <string name="not_set">설정되지 않음</string>
     <string name="chapter_x_over_n">화: %1$d/%2$d</string>
     <string name="progress_x_percentage">진행률: %1$.0f%%</string>
     <string name="text_size">텍스트 크기</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">일시정지</string>
     <string name="media_control_fast_forward">빨리감기</string>
     <string name="media_control_next">다음</string>
+    <string name="tts_floating">플로팅 TTS</string>
+    <string name="tts_floating_channel_description">플로팅 TTS 오버레이 컨트롤</string>
+    <string name="tts_floating_overlay_active">TTS 오버레이가 활성화됨</string>
+    <string name="tts_floating_show_outside_app">다른 앱 위에 표시</string>
+    <string name="tts_floating_opacity">투명도</string>
+    <string name="tts_floating_width">너비</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">오버레이 권한</string>
+    <string name="tts_floating_overlay_permission_message">플로팅 플레이어가 다른 앱 위에 표시되려면 권한이 필요합니다.</string>
+    <string name="tts_floating_open_settings">설정 열기</string>
     <string name="delete">삭제</string>
     <string name="english">영어</string>
     <string name="filter_title">제목</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">로컬</string>
 
     <string name="delete_novel">소설 삭제</string>
+    <string name="delete_book_translations">이 소설의 모든 번역 삭제</string>
     <string name="mark_all_chapters_read">모든 화 읽음으로 표시</string>
     <string name="mark_all_chapters_unread">모든 화 읽지 않음으로 표시</string>
     <string name="move_to">이동</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">이 소설의 맞춤 시스템 프롬프트 설정</string>
     <string name="novel_prompt_llm_only">Gemini/OpenAI만</string>
     <string name="novel_prompt_append_mode">전역 프롬프트에 추가</string>
+    <string name="parallel_mode_title">병렬 모드</string>
+    <string name="parallel_mode_description">원문과 번역을 나란히 표시</string>
+    <string name="parallel_order_original_first">원문 먼저</string>
+    <string name="parallel_order_translation_first">번역 먼저</string>
     <string name="novel_prompts_title">소설별 프롬프트</string>
     <string name="novel_prompts_search">프롬프트 검색</string>
     <string name="novel_prompts_description">리더 설정에서 소설별로 설정된 사용자 정의 번역 프롬프트</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">사용 가능한 소스가 없습니다</string>
     <string name="migration_no_matches_found">일치하는 항목이 없습니다</string>
-    <string name="migration_failed_to_load_chapters">장을 불러오지 못했습니다</string>
+    <string name="migration_failed_to_load_chapters">장을 불러오지 못했습니다: %s</string>
     <string name="migration_unknown_error">알 수 없는 오류</string>
     <string name="migration_no_book_selected">선택된 책이 없습니다</string>
     <string name="migration_chapter_matching_not_ready">장 매칭이 아직 준비되지 않았습니다</string>

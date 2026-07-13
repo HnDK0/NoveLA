@@ -40,4 +40,8 @@ internal class ReaderManager @Inject constructor(
         session?.close()
         session = null
     }
+
+    fun detachSession() {
+        readerViewHandlersActions.invalidate()
+    }
 }

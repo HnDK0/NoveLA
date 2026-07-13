@@ -1,6 +1,7 @@
 package my.noveldokusha.scraper
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Интерфейс провайдера Lua источников.
@@ -8,8 +9,14 @@ import kotlinx.coroutines.flow.Flow
  * Реализация находится в модуле app/data где есть доступ к Context.
  */
 interface LuaSourceProvider {
-    /** Flow установленных и включённых Lua источников */
+    /** Flow установленных и включённых Lua источников (включая CachedSource заглушки для UI) */
     val sourcesFlow: Flow<List<SourceInterface>>
+
+    /** Только загруженные реальные Lua источники (без CachedSource заглушек) */
+    val loadedSourcesFlow: StateFlow<List<SourceInterface>>
+
+    /** Ждёт завершения загрузки реальных Lua скриптов. Возвращает мгновенно если уже загружены. */
+    suspend fun awaitLoaded()
 
     /** Очистить кэш скомпилированных скриптов */
     fun clearCache()

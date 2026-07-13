@@ -150,6 +150,8 @@
     <string name="focus">โฟกัส</string>
     <string name="voice_pitch">ระดับเสียง</string>
     <string name="voice_speed">ความเร็วเสียง</string>
+    <string name="original_voice">เสียงต้นฉบับ</string>
+    <string name="not_set">ไม่ได้ตั้งค่า</string>
     <string name="chapter_x_over_n">บทที่: %1$d/%2$d</string>
     <string name="progress_x_percentage">ความคืบหน้า: %1$.0f%%</string>
     <string name="text_size">ขนาดข้อความ</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">หยุดชั่วคราว</string>
     <string name="media_control_fast_forward">กรอไปข้างหน้า</string>
     <string name="media_control_next">ถัดไป</string>
+    <string name="tts_floating">TTS ลอย</string>
+    <string name="tts_floating_channel_description">การควบคุมซ้อนทับ TTS ลอย</string>
+    <string name="tts_floating_overlay_active">การซ้อนทับ TTS ทำงานอยู่</string>
+    <string name="tts_floating_show_outside_app">แสดงเหนือแอปอื่น</string>
+    <string name="tts_floating_opacity">ความทึบ</string>
+    <string name="tts_floating_width">ความกว้าง</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">สิทธิ์การซ้อนทับ</string>
+    <string name="tts_floating_overlay_permission_message">โปรแกรมเล่นลอยต้องได้รับสิทธิ์ในการแสดงเหนือแอปอื่น</string>
+    <string name="tts_floating_open_settings">เปิดการตั้งค่า</string>
     <string name="delete">ลบ</string>
     <string name="english">อังกฤษ</string>
     <string name="filter_title">ชื่อเรื่อง</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">ในเครื่อง</string>
 
     <string name="delete_novel">ลบนิยาย</string>
+    <string name="delete_book_translations">ลบทั้งหมดการแปลของนิยายเรื่องนี้</string>
     <string name="mark_all_chapters_read">ทำเครื่องหมายทุกบทว่าอ่านแล้ว</string>
     <string name="mark_all_chapters_unread">ทำเครื่องหมายทุกบทว่ายังไม่ได้อ่าน</string>
     <string name="move_to">ย้ายไปยัง</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">ตั้งค่าข้อความแจ้งระบบที่กำหนดเองสำหรับนิยายนี้</string>
     <string name="novel_prompt_llm_only">Gemini/OpenAI เท่านั้น</string>
     <string name="novel_prompt_append_mode">เพิ่มไปยังพรอมต์ส่วนกลาง</string>
+    <string name="parallel_mode_title">โหมดคู่ขนาน</string>
+    <string name="parallel_mode_description">แสดงต้นฉบับและคำแปลเคียงข้างกัน</string>
+    <string name="parallel_order_original_first">ต้นฉบับก่อน</string>
+    <string name="parallel_order_translation_first">คำแปลก่อน</string>
     <string name="novel_prompts_title">ข้อความแจ้งเฉพาะนิยาย</string>
     <string name="novel_prompts_search">ค้นหาข้อความแจ้ง</string>
     <string name="novel_prompts_description">ข้อความแจ้งการแปลที่กำหนดเองซึ่งตั้งค่าต่อนิยายในการตั้งค่าผู้อ่าน</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">ไม่มีแหล่งที่มาที่พร้อมใช้งาน</string>
     <string name="migration_no_matches_found">ไม่พบรายการที่ตรงกัน</string>
-    <string name="migration_failed_to_load_chapters">ไม่สามารถโหลดบทได้</string>
+    <string name="migration_failed_to_load_chapters">ไม่สามารถโหลดบทได้: %s</string>
     <string name="migration_unknown_error">ข้อผิดพลาดที่ไม่ทราบสาเหตุ</string>
     <string name="migration_no_book_selected">ไม่ได้เลือกหนังสือ</string>
     <string name="migration_chapter_matching_not_ready">การจับคู่บทยังไม่พร้อม</string>

@@ -13,6 +13,7 @@ dependencies {
     implementation(projects.strings)
     implementation(projects.data)
     implementation(projects.navigation)
+    implementation(projects.scraper)
     implementation(projects.tooling.localDatabase)
     implementation(projects.tooling.backupCreate)
 

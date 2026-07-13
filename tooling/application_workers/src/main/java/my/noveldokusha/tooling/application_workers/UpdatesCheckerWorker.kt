@@ -36,7 +36,7 @@ internal class UpdatesCheckerWorker @AssistedInject constructor(
 
         fun createPeriodicRequest(): PeriodicWorkRequest {
             val builder = PeriodicWorkRequestBuilder<UpdatesCheckerWorker>(
-                repeatInterval = 2,
+                repeatInterval = 1,
                 repeatIntervalTimeUnit = TimeUnit.DAYS,
             )
 

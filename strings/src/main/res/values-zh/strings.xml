@@ -150,6 +150,8 @@
     <string name="focus">焦点</string>
     <string name="voice_pitch">音调</string>
     <string name="voice_speed">语速</string>
+    <string name="original_voice">原文语音</string>
+    <string name="not_set">未设置</string>
     <string name="chapter_x_over_n">章节：%1$d/%2$d</string>
     <string name="progress_x_percentage">进度：%1$.0f%%</string>
     <string name="text_size">文字大小</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">暂停</string>
     <string name="media_control_fast_forward">快进</string>
     <string name="media_control_next">下一个</string>
+    <string name="tts_floating">浮动TTS</string>
+    <string name="tts_floating_channel_description">浮动TTS覆盖层控制</string>
+    <string name="tts_floating_overlay_active">TTS覆盖层已激活</string>
+    <string name="tts_floating_show_outside_app">在其他应用上方显示</string>
+    <string name="tts_floating_opacity">透明度</string>
+    <string name="tts_floating_width">宽度</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">覆盖层权限</string>
+    <string name="tts_floating_overlay_permission_message">浮动播放器需要权限才能在其他应用上方显示。</string>
+    <string name="tts_floating_open_settings">打开设置</string>
     <string name="delete">删除</string>
     <string name="english">英语</string>
     <string name="filter_title">标题</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">本地</string>
 
     <string name="delete_novel">删除小说</string>
+    <string name="delete_book_translations">删除此小说的所有翻译</string>
     <string name="mark_all_chapters_read">将所有章节标为已读</string>
     <string name="mark_all_chapters_unread">将所有章节标为未读</string>
     <string name="move_to">移至</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">为此小说设置自定义系统提示</string>
     <string name="novel_prompt_llm_only">仅 Gemini/OpenAI</string>
     <string name="novel_prompt_append_mode">添加到全局提示词</string>
+    <string name="parallel_mode_title">并行模式</string>
+    <string name="parallel_mode_description">并排显示原文和译文</string>
+    <string name="parallel_order_original_first">原文优先</string>
+    <string name="parallel_order_translation_first">译文优先</string>
     <string name="novel_prompts_title">小说专属提示</string>
     <string name="novel_prompts_search">搜索提示</string>
     <string name="novel_prompts_description">在阅读器设置中为每部小说设置的自定义翻译提示</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">没有可用的来源</string>
     <string name="migration_no_matches_found">未找到匹配项</string>
-    <string name="migration_failed_to_load_chapters">加载章节失败</string>
+    <string name="migration_failed_to_load_chapters">加载章节失败: %s</string>
     <string name="migration_unknown_error">未知错误</string>
     <string name="migration_no_book_selected">未选择书籍</string>
     <string name="migration_chapter_matching_not_ready">章节匹配尚未就绪</string>

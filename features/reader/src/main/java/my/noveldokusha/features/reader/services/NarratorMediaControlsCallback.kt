@@ -3,8 +3,8 @@ package my.noveldokusha.features.reader.services
 import android.content.Intent
 import android.support.v4.media.session.MediaSessionCompat
 import android.view.KeyEvent
-import android.util.Log
 import my.noveldokusha.features.reader.features.ReaderTextToSpeech
+import timber.log.Timber
 
 internal class NarratorMediaControlsCallback(
     private val readerTextToSpeech: ReaderTextToSpeech
@@ -15,7 +15,7 @@ internal class NarratorMediaControlsCallback(
         val keyEvent = mediaButtonEvent?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
             ?: return super.onMediaButtonEvent(mediaButtonEvent)
 
-        Log.d("MediaCallback", "onMediaButtonEvent: action=${keyEvent.action} keyCode=${keyEvent.keyCode}")
+        Timber.d("onMediaButtonEvent: action=${keyEvent.action} keyCode=${keyEvent.keyCode}")
         if (keyEvent.action == KeyEvent.ACTION_DOWN) {
             when (keyEvent.keyCode) {
                 KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
@@ -53,12 +53,12 @@ internal class NarratorMediaControlsCallback(
     }
 
     override fun onPlay() {
-        Log.d("MediaCallback", "onPlay()")
+        Timber.d("onPlay()")
         readerTextToSpeech.state.setPlaying(true)
     }
 
     override fun onPause() {
-        Log.d("MediaCallback", "onPause()")
+        Timber.d("onPause()")
         readerTextToSpeech.state.setPlaying(false)
     }
 

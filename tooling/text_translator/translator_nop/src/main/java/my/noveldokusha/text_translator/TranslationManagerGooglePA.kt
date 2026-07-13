@@ -17,6 +17,7 @@ import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.network.ScraperNetworkClient
 import my.noveldokusha.network.interceptors.resolveUserAgent
+import my.noveldokusha.text_translator.domain.GOOGLE_TRANSLATE_LANGUAGES
 import my.noveldokusha.text_translator.domain.TranslationManager
 import my.noveldokusha.text_translator.domain.TranslationModelState
 import my.noveldokusha.text_translator.domain.TranslatorState
@@ -50,12 +51,7 @@ class TranslationManagerGooglePA(
     private var keyFetchJob: Deferred<String>? = null
 
     override val models = mutableStateListOf<TranslationModelState>().apply {
-        val supportedLanguages = listOf(
-            "en", "zh", "ja", "ko", "es", "fr", "de", "it", "pt", "ru",
-            "ar", "hi", "th", "vi", "id", "tr", "pl", "nl", "sv", "da",
-            "fi", "no", "cs", "el", "he", "ro", "hu", "uk", "bg", "hr"
-        )
-        addAll(supportedLanguages.map { lang ->
+        addAll(GOOGLE_TRANSLATE_LANGUAGES.map { lang ->
             TranslationModelState(
                 language = lang,
                 available = true,

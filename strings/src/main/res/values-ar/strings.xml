@@ -150,6 +150,8 @@
     <string name="focus">تركيز</string>
     <string name="voice_pitch">درجة الصوت</string>
     <string name="voice_speed">سرعة الصوت</string>
+    <string name="original_voice">الصوت الأصلي</string>
+    <string name="not_set">غير مضبوط</string>
     <string name="chapter_x_over_n">الفصل: %1$d/%2$d</string>
     <string name="progress_x_percentage">التقدم: %1$.0f%%</string>
     <string name="text_size">حجم النص</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">إيقاف مؤقت</string>
     <string name="media_control_fast_forward">تقديم سريع</string>
     <string name="media_control_next">تالي</string>
+    <string name="tts_floating">TTS عائم</string>
+    <string name="tts_floating_channel_description">عناصر تحكم التراكب TTS العائم</string>
+    <string name="tts_floating_overlay_active">تراكب TTS نشط</string>
+    <string name="tts_floating_show_outside_app">عرض فوق التطبيقات الأخرى</string>
+    <string name="tts_floating_opacity">الشفافية</string>
+    <string name="tts_floating_width">العرض</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">إذن التراكب</string>
+    <string name="tts_floating_overlay_permission_message">المشغل العائم يحتاج إلى إذن للعرض فوق التطبيقات الأخرى.</string>
+    <string name="tts_floating_open_settings">فتح الإعدادات</string>
     <string name="delete">حذف</string>
     <string name="english">الإنجليزية</string>
     <string name="filter_title">العنوان</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">محلي</string>
 
     <string name="delete_novel">حذف الرواية</string>
+    <string name="delete_book_translations">حذف جميع ترجمات هذه الرواية</string>
     <string name="mark_all_chapters_read">وضع علامة مقروءة على كل الفصول</string>
     <string name="mark_all_chapters_unread">وضع علامة غير مقروءة على كل الفصول</string>
     <string name="move_to">نقل إلى</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">تعيين موجه نظام مخصص لهذه الرواية</string>
     <string name="novel_prompt_llm_only">Gemini/OpenAI فقط</string>
     <string name="novel_prompt_append_mode">إضافة إلى البرومبت العام</string>
+    <string name="parallel_mode_title">الوضع المتوازي</string>
+    <string name="parallel_mode_description">عرض النص الأصلي والترجمة جنبًا إلى جنب</string>
+    <string name="parallel_order_original_first">النص الأصلي أولاً</string>
+    <string name="parallel_order_translation_first">الترجمة أولاً</string>
     <string name="novel_prompts_title">موجهات خاصة بالروايات</string>
     <string name="novel_prompts_search">البحث عن الموجهات</string>
     <string name="novel_prompts_description">موجهات ترجمة مخصصة محددة لكل رواية في إعدادات القارئ</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">لا توجد مصادر متاحة</string>
     <string name="migration_no_matches_found">لم يتم العثور على تطابقات</string>
-    <string name="migration_failed_to_load_chapters">فشل تحميل الفصول</string>
+    <string name="migration_failed_to_load_chapters">فشل تحميل الفصول: %s</string>
     <string name="migration_unknown_error">خطأ غير معروف</string>
     <string name="migration_no_book_selected">لم يتم تحديد كتاب</string>
     <string name="migration_chapter_matching_not_ready">مطابقة الفصول ليست جاهزة بعد</string>

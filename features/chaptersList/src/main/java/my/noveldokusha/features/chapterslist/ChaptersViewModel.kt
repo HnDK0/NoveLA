@@ -491,6 +491,12 @@ internal class ChaptersViewModel @Inject constructor(
         }
     }
 
+    fun deleteTranslationsForBook() {
+        appScope.launch(Dispatchers.Default) {
+            chapterTranslationDao.deleteTranslationsByBookUrls(listOf(bookUrl))
+        }
+    }
+
     fun onSelectionModeChapterClick(chapter: ChapterWithContext) {
         val url = chapter.chapter.url
         if (state.selectedChaptersUrl.containsKey(url)) {

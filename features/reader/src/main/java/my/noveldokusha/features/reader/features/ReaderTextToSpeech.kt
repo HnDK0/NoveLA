@@ -28,6 +28,7 @@ import my.noveldokusha.features.reader.domain.ChapterIndex
 import my.noveldokusha.features.reader.domain.ChapterLoaded
 import my.noveldokusha.features.reader.domain.ReaderItem
 import my.noveldokusha.features.reader.domain.indexOfReaderItem
+import my.noveldokusha.text_to_speech.AppTtsEngine
 import my.noveldokusha.text_to_speech.TextToSpeechManager
 import my.noveldokusha.text_to_speech.Utterance
 import my.noveldokusha.text_to_speech.VoiceData
@@ -59,6 +60,11 @@ internal data class TextToSpeechSettingData(
     val estimatedWpm: State<Int>,
     val estimatedTotalSeconds: State<Int>,
     val estimatedRemainingSeconds: State<Int>,
+    val currentParagraphText: State<String>,
+    val alternateParagraphText: State<String>,
+    val parallelEnabled: State<Boolean>,
+    val originalVoiceId: State<String>,
+    val setOriginalVoiceId: (String) -> Unit,
 )
 
 internal data class TextSynthesis(
@@ -88,7 +94,11 @@ internal class ReaderTextToSpeech(
     private val setPreferredVoicePitch: (voiceId: Float) -> Unit,
     private val getPreferredVoiceSpeed: () -> Float,
     private val setPreferredVoiceSpeed: (voiceId: Float) -> Unit,
+    private val getPreferredVoiceIdForOriginal: () -> String,
+    private val setPreferredVoiceIdForOriginal: (voiceId: String) -> Unit,
     private val onBufferLow: (() -> Unit)? = null,
+    private val getParallelEnabled: () -> Boolean,
+    private val getParallelOrder: () -> String,
 ) {
     private val DECORATIVE_CHARS = """\-=*_~+#·•°─-┿"""
     private val SEPARATOR_ONLY = Regex("""^\s*[$DECORATIVE_CHARS]{3,}\s*$""")
@@ -96,9 +106,11 @@ internal class ReaderTextToSpeech(
     private val TRAILING_DECORATIVE = Regex("""\s*[$DECORATIVE_CHARS]{3,}$""")
 
     private val halfBuffer = 5
+    private val _originalVoiceId = mutableStateOf(getPreferredVoiceIdForOriginal())
     private var updateJob: Job? = null
     private val manager = TextToSpeechManager(
         context = context,
+        appTtsEngine = AppTtsEngine.getInstance(context),
         initialItemState = TextSynthesis(
             itemPos = ReaderItem.Title(
                 chapterUrl = "",
@@ -176,6 +188,39 @@ internal class ReaderTextToSpeech(
         if (cps > 0f) (remainingCharacterCount.value / cps).toInt() else 0
     }
 
+    val currentParagraphText = derivedStateOf {
+        val itemPos = manager.currentActiveItemState.value.itemPos
+        val itemIndex = indexOfReaderItem(
+            list = items,
+            chapterIndex = itemPos.chapterIndex,
+            chapterItemPosition = itemPos.chapterItemPosition,
+        )
+        val item = items.getOrNull(itemIndex)
+        when (item) {
+            is ReaderItem.Text -> ttsText(item)
+            else -> ""
+        }
+    }
+
+    val alternateParagraphText = derivedStateOf {
+        val itemPos = manager.currentActiveItemState.value.itemPos
+        val itemIndex = indexOfReaderItem(
+            list = items,
+            chapterIndex = itemPos.chapterIndex,
+            chapterItemPosition = itemPos.chapterItemPosition,
+        )
+        val item = items.getOrNull(itemIndex)
+        when {
+            item is ReaderItem.Text && getParallelEnabled() && item.textTranslated != null -> {
+                if (getParallelOrder() == "ORIGINAL_FIRST") item.textToDisplay
+                else item.text
+            }
+            else -> ""
+        }
+    }
+
+    val parallelEnabled = derivedStateOf { getParallelEnabled() }
+
     val state = TextToSpeechSettingData(
         isPlaying = mutableStateOf(false),
         isLoadingChapter = mutableStateOf(false),
@@ -204,6 +249,15 @@ internal class ReaderTextToSpeech(
         estimatedWpm = estimatedWpm,
         estimatedTotalSeconds = estimatedTotalSeconds,
         estimatedRemainingSeconds = estimatedRemainingSeconds,
+        currentParagraphText = currentParagraphText,
+        alternateParagraphText = alternateParagraphText,
+        parallelEnabled = parallelEnabled,
+        originalVoiceId = _originalVoiceId,
+        setOriginalVoiceId = { voiceId ->
+            setPreferredVoiceIdForOriginal(voiceId)
+            _originalVoiceId.value = voiceId
+            onOriginalVoiceChanged()
+        },
     )
 
     val isActive = derivedStateOf { state.isThereActiveItem.value || state.isPlaying.value }
@@ -235,6 +289,8 @@ internal class ReaderTextToSpeech(
                 }
             }
         }
+
+        manager.init()
 
         // Калибровка скорости чтения в реальном времени
         coroutineScope.launch {
@@ -279,6 +335,34 @@ internal class ReaderTextToSpeech(
         }
     }
 
+    private fun switchVoiceForMode() {
+        if (!getParallelEnabled()) return
+        val targetVoiceId = when (getParallelOrder()) {
+            "ORIGINAL_FIRST" -> getPreferredVoiceIdForOriginal()
+            else -> getPreferredVoiceId()
+        }
+        if (targetVoiceId.isNotBlank() && targetVoiceId != manager.activeVoice.value?.id) {
+            manager.trySetVoiceById(targetVoiceId)
+            setPreferredVoiceId(targetVoiceId)
+            val voiceData = manager.availableVoices.find { it.id == targetVoiceId }
+            if (voiceData != null) setPreferredVoiceEngine(voiceData.enginePackage)
+        }
+    }
+
+    fun onParallelModeOrderChanged() {
+        if (state.isPlaying.value) {
+            switchVoiceForMode()
+            resumeFromCurrentState()
+        }
+    }
+
+    private fun onOriginalVoiceChanged() {
+        if (state.isPlaying.value && getParallelEnabled() && getParallelOrder() == "ORIGINAL_FIRST") {
+            switchVoiceForMode()
+            resumeFromCurrentState()
+        }
+    }
+
     private fun claimMediaSession() {
         try {
             val sampleRate = 44100
@@ -316,6 +400,7 @@ internal class ReaderTextToSpeech(
     fun start() {
         Log.d("TTS", "start()")
         claimMediaSession()
+        switchVoiceForMode()
         state.isPlaying.value = true
         updateJob?.cancel()
         updateJob = coroutineScope.launch {
@@ -356,11 +441,6 @@ internal class ReaderTextToSpeech(
         state.isPlaying.value = false
         updateJob?.cancel()
         manager.stop()
-    }
-
-    fun onClose() {
-        stop()
-        manager.service.shutdown()
     }
 
     suspend fun readChapterStartingFromStart(
@@ -773,10 +853,17 @@ internal class ReaderTextToSpeech(
         }
     }
 
+    private fun ttsText(item: ReaderItem.Text): String {
+        return when {
+            getParallelEnabled() && item.textTranslated != null && getParallelOrder() == "ORIGINAL_FIRST" -> item.text
+            else -> item.textToDisplay
+        }
+    }
+
     private fun speakItem(item: ReaderItem) {
         when (item) {
             is ReaderItem.Text -> {
-                val displayText = item.textToDisplay
+                val displayText = ttsText(item)
                 if (isOnlyDecorators(displayText)) return
 
                 val cleanText = cleanTextForTts(displayText)

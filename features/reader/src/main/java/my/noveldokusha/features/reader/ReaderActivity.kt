@@ -52,8 +52,6 @@ import my.noveldokusha.features.reader.domain.indexOfReaderItem
 import my.noveldokusha.features.reader.tools.FontsLoader
 import my.noveldokusha.features.reader.ui.ReaderScreen
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
-import my.noveldokusha.core.LocaleManager
-import my.noveldokusha.core.appPreferences.AppLanguageProvider
 import my.noveldokusha.navigation.NavigationRoutes
 import my.noveldokusha.reader.R
 import my.noveldokusha.reader.databinding.ActivityReaderBinding
@@ -116,6 +114,8 @@ class ReaderActivity : BaseActivity() {
                 currentTypeface = { fontsLoader.getTypeFaceNORMAL(appPreferences.READER_FONT_FAMILY.value) },
                 currentTypefaceBold = { fontsLoader.getTypeFaceBOLD(appPreferences.READER_FONT_FAMILY.value) },
                 currentSpeakerActiveItem = { viewModel.readerSpeaker.currentTextPlaying.value },
+                currentParallelEnabled = { appPreferences.TRANSLATION_PARALLEL_ENABLED.value },
+                currentParallelOrder = { appPreferences.TRANSLATION_PARALLEL_ORDER.value },
                 onChapterStartVisible = viewModel::markChapterStartAsSeen,
                 onChapterEndVisible = viewModel::markChapterEndAsSeen,
                 onReloadReader = viewModel::reloadReader,
@@ -164,12 +164,9 @@ class ReaderActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val language = AppLanguageProvider.fromCode(appPreferences.APP_LANGUAGE_CODE.value)
-            ?: AppLanguageProvider.supportedLanguages.first()
-        LocaleManager.applyLocale(this, language)
-
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
         viewBind.listView.adapter = viewAdapter.listView
+        readerViewHandlersActions.listView = viewBind.listView
 
         fadeInTextLiveData.distinctUntilChanged().observe(this) {
             if (it) {
@@ -180,6 +177,11 @@ class ReaderActivity : BaseActivity() {
         lifecycleScope.launch {
             viewModel.onTranslatorChanged.collect {
                 viewModel.reloadReader()
+            }
+        }
+        lifecycleScope.launch {
+            viewModel.onDisplaySettingsChanged.collect {
+                viewAdapter.listView.notifyDataSetChanged()
             }
         }
         readerViewHandlersActions.forceUpdateListViewState = {
@@ -325,9 +327,9 @@ class ReaderActivity : BaseActivity() {
                     onParagraphSpacingChanged = { appPreferences.READER_PARAGRAPH_SPACING.value = it },
                     onSelectableTextChange = { appPreferences.READER_SELECTABLE_TEXT.value = it },
                     onKeepScreenOn = { appPreferences.READER_KEEP_SCREEN_ON.value = it },
-                    onDarkModeSelected = { appPreferences.THEME_DARK_MODE.value = it.name },
-                    onAppThemeChanged = { appPreferences.APP_THEME.value = it.name },
-                    onFullScreen = { appPreferences.READER_FULL_SCREEN.value = it },
+                    onDarkModeSelected = { appPreferences.THEME_DARK_MODE.value = it.name; recreate() },
+                    onAppThemeChanged = { appPreferences.APP_THEME.value = it.name; recreate() },
+                    onFullScreen = { appPreferences.READER_FULL_SCREEN.value = it; recreate() },
                     onSingleTapToOpenSettingsChange = { appPreferences.READER_SINGLE_TAP_TO_OPEN_SETTINGS.value = it },
                     onPressBack = {
                         viewModel.onCloseManually()

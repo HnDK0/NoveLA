@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.IBinder
 import android.provider.DocumentsContract
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -101,7 +102,7 @@ class BackupDataService : Service() {
             backupPlugins: Boolean = true
         ) {
             if (!isRunning(ctx))
-                ctx.startService(IntentData(ctx, uri, backupImages, backupSettings, backupPlugins))
+                ContextCompat.startForegroundService(ctx, IntentData(ctx, uri, backupImages, backupSettings, backupPlugins))
         }
 
         fun startAutoBackup(
@@ -132,7 +133,7 @@ class BackupDataService : Service() {
                 )
 
                 if (createUri != null) {
-                    ctx.startService(IntentData(
+                    ContextCompat.startForegroundService(ctx, IntentData(
                         ctx = ctx,
                         uri = createUri,
                         backupImages = backupImages,
@@ -164,7 +165,6 @@ class BackupDataService : Service() {
             channelName = channelName,
             notificationId = notificationId
         )
-        startForeground(notificationId, notificationBuilder.build())
     }
 
     override fun onDestroy() {
@@ -173,6 +173,7 @@ class BackupDataService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(notificationId, notificationBuilder.build())
         if (intent == null) return START_NOT_STICKY
         val intentData = IntentData(intent)
 

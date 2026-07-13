@@ -151,7 +151,7 @@ internal class LibraryPageViewModel @Inject constructor(
                 list.filter { book ->
                     categories.any { cat ->
                         when (cat) {
-                            "" -> book.book.category == "" || book.book.category == null // Reading
+                            "" -> book.book.category == "" // Reading
                             "Completed" -> book.book.category == "Completed"
                             else -> book.book.category == cat // Custom
                         }

@@ -150,6 +150,8 @@
     <string name="focus">Focus</string>
     <string name="voice_pitch">Hauteur de la voix</string>
     <string name="voice_speed">Vitesse de la voix</string>
+    <string name="original_voice">Voix originale</string>
+    <string name="not_set">Non défini</string>
     <string name="chapter_x_over_n">Chapitre : %1$d/%2$d</string>
     <string name="progress_x_percentage">Progression : %1$.0f%%</string>
     <string name="text_size">Taille du texte</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">pause</string>
     <string name="media_control_fast_forward">avance rapide</string>
     <string name="media_control_next">suivant</string>
+    <string name="tts_floating">TTS flottant</string>
+    <string name="tts_floating_channel_description">Contrôles de la superposition TTS</string>
+    <string name="tts_floating_overlay_active">La superposition TTS est active</string>
+    <string name="tts_floating_show_outside_app">Afficher par-dessus les autres apps</string>
+    <string name="tts_floating_opacity">Opacité</string>
+    <string name="tts_floating_width">Largeur</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">Permission de superposition</string>
+    <string name="tts_floating_overlay_permission_message">Le lecteur flottant a besoin de l\'autorisation de s\'afficher par-dessus les autres applications.</string>
+    <string name="tts_floating_open_settings">Ouvrir les paramètres</string>
     <string name="delete">Supprimer</string>
     <string name="english">Anglais</string>
     <string name="filter_title">Titre</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">Local</string>
 
     <string name="delete_novel">Supprimer le roman</string>
+    <string name="delete_book_translations">Supprimer toutes les traductions de ce roman</string>
     <string name="mark_all_chapters_read">Marquer tous les chapitres comme lus</string>
     <string name="mark_all_chapters_unread">Marquer tous les chapitres comme non lus</string>
     <string name="move_to">Déplacer vers</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">Définir une invite système personnalisée pour ce roman</string>
     <string name="novel_prompt_llm_only">Gemini/OpenAI uniquement</string>
     <string name="novel_prompt_append_mode">Ajouter au prompt global</string>
+    <string name="parallel_mode_title">Mode parallèle</string>
+    <string name="parallel_mode_description">Afficher l\'original et la traduction côte à côte</string>
+    <string name="parallel_order_original_first">Original d\'abord</string>
+    <string name="parallel_order_translation_first">Traduction d\'abord</string>
     <string name="novel_prompts_title">Invites spécifiques aux romans</string>
     <string name="novel_prompts_search">Rechercher des invites</string>
     <string name="novel_prompts_description">Invites de traduction personnalisées définies par roman dans les réglages du lecteur</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">Aucune source disponible</string>
     <string name="migration_no_matches_found">Aucune correspondance trouvée</string>
-    <string name="migration_failed_to_load_chapters">Échec du chargement des chapitres</string>
+    <string name="migration_failed_to_load_chapters">Échec du chargement des chapitres: %s</string>
     <string name="migration_unknown_error">Erreur inconnue</string>
     <string name="migration_no_book_selected">Aucun livre sélectionné</string>
     <string name="migration_chapter_matching_not_ready">Correspondance des chapitres pas encore prête</string>

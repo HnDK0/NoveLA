@@ -1,6 +1,7 @@
 package my.noveldokusha
 
 import android.app.Application
+import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.work.Configuration as WorkConfiguration
@@ -33,12 +34,20 @@ class App : Application(), ImageLoaderFactory, WorkConfiguration.Provider {
     @Inject
     lateinit var downloadManager: DownloadManager
 
+    override fun attachBaseContext(newBase: Context?) {
+        val base = newBase ?: return super.attachBaseContext(null)
+        val prefs = base.getSharedPreferences(base.packageName + "_preferences", Context.MODE_PRIVATE)
+        val code = prefs.getString("APP_LANGUAGE_CODE", "en") ?: "en"
+        val language = AppLanguageProvider.fromCode(code)
+            ?: AppLanguageProvider.supportedLanguages.first()
+        super.attachBaseContext(LocaleManager.createLocaleContext(base, language))
+    }
+
     override fun onCreate() {
         super.onCreate()
 
         val appPreferences = EntryPoints.get(this, HiltAppEntryPoint::class.java).appPreferences()
-        val language = resolveAppLanguage(appPreferences)
-        LocaleManager.applyLocale(this, language)
+        resolveAppLanguage(appPreferences)
 
         try {
             android.webkit.CookieManager.getInstance().apply {

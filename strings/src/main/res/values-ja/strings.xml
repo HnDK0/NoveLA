@@ -150,6 +150,8 @@
     <string name="focus">フォーカス</string>
     <string name="voice_pitch">音声のピッチ</string>
     <string name="voice_speed">音声の速度</string>
+    <string name="original_voice">原文の音声</string>
+    <string name="not_set">未設定</string>
     <string name="chapter_x_over_n">チャプター：%1$d/%2$d</string>
     <string name="progress_x_percentage">進捗：%1$.0f%%</string>
     <string name="text_size">文字サイズ</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">一時停止</string>
     <string name="media_control_fast_forward">早送り</string>
     <string name="media_control_next">次へ</string>
+    <string name="tts_floating">フローティングTTS</string>
+    <string name="tts_floating_channel_description">フローティングTTSオーバーレイコントロール</string>
+    <string name="tts_floating_overlay_active">TTSオーバーレイがアクティブです</string>
+    <string name="tts_floating_show_outside_app">他のアプリの上に表示</string>
+    <string name="tts_floating_opacity">透明度</string>
+    <string name="tts_floating_width">幅</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">オーバーレイ許可</string>
+    <string name="tts_floating_overlay_permission_message">フローティングプレーヤーが他のアプリの上に表示するには許可が必要です。</string>
+    <string name="tts_floating_open_settings">設定を開く</string>
     <string name="delete">削除</string>
     <string name="english">英語</string>
     <string name="filter_title">タイトル</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">ローカル</string>
 
     <string name="delete_novel">小説を削除</string>
+    <string name="delete_book_translations">この小説のすべての翻訳を削除</string>
     <string name="mark_all_chapters_read">すべてのチャプターを既読にする</string>
     <string name="mark_all_chapters_unread">すべてのチャプターを未読にする</string>
     <string name="move_to">移動</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">この小説用のカスタムシステムプロンプトを設定</string>
     <string name="novel_prompt_llm_only">Gemini/OpenAIのみ</string>
     <string name="novel_prompt_append_mode">グローバルプロンプトに追加</string>
+    <string name="parallel_mode_title">パラレルモード</string>
+    <string name="parallel_mode_description">原文と翻訳を並べて表示</string>
+    <string name="parallel_order_original_first">原文を先に</string>
+    <string name="parallel_order_translation_first">翻訳を先に</string>
     <string name="novel_prompts_title">小説固有のプロンプト</string>
     <string name="novel_prompts_search">プロンプトを検索</string>
     <string name="novel_prompts_description">リーダー設定で小説ごとに設定されたカスタム翻訳プロンプト</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">利用可能なソースがありません</string>
     <string name="migration_no_matches_found">一致するものが見つかりません</string>
-    <string name="migration_failed_to_load_chapters">章の読み込みに失敗しました</string>
+    <string name="migration_failed_to_load_chapters">章の読み込みに失敗しました: %s</string>
     <string name="migration_unknown_error">不明なエラー</string>
     <string name="migration_no_book_selected">本が選択されていません</string>
     <string name="migration_chapter_matching_not_ready">章のマッチングがまだ準備できていません</string>

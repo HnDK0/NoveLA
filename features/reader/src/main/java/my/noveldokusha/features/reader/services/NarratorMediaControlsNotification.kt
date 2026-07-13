@@ -6,15 +6,18 @@ import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Color
 import android.media.AudioManager
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.compose.runtime.snapshotFlow
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.media.session.MediaButtonReceiver
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -28,6 +31,8 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import my.noveldokusha.coreui.R as CoreUiR
 import my.noveldokusha.coreui.states.NotificationsCenter
 import my.noveldokusha.coreui.states.text
 import my.noveldokusha.coreui.states.title
@@ -50,11 +55,53 @@ internal class NarratorMediaControlsNotification @Inject constructor(
     )
 
     private val channelName = context.getString(R.string.notification_channel_name_reader_narrator)
-    private val channelId = "Reader narrator"
-    private val mediaTagDebug = "NovelDokusha_narratorMediaControls"
+    private val channelId = "Reader narrator v2"
+    private val mediaTagDebug = "NoveLA_narratorMediaControls"
     val notificationId: Int = channelId.hashCode()
 
     private var mediaSession: MediaSessionCompat? = null
+    private var currentChapterTitle: String? = null
+    private var currentBookTitle: String? = null
+    private var currentCoverBitmap: Bitmap? = null
+
+    private fun refreshMediaSessionMetadata() {
+        val builder = MediaMetadataCompat.Builder()
+            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, -1L)
+        currentChapterTitle?.let { builder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, it) }
+        currentBookTitle?.let { builder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, it) }
+        currentCoverBitmap?.let {
+            builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, it)
+            builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, it)
+            builder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, it)
+        }
+        mediaSession?.setMetadata(builder.build())
+    }
+
+    private suspend fun loadCoverBitmap(coverUrl: String?): Bitmap? {
+        if (coverUrl.isNullOrBlank()) return null
+        return withContext(Dispatchers.IO) {
+            try {
+                val bitmap = Glide.with(context)
+                    .asBitmap()
+                    .load(coverUrl)
+                    .override(512, 512)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .submit()
+                    .get(10, java.util.concurrent.TimeUnit.SECONDS)
+                if (bitmap.byteCount > 900_000) {
+                    val scale = kotlin.math.sqrt(900_000.0 / bitmap.byteCount)
+                    Bitmap.createScaledBitmap(
+                        bitmap,
+                        (bitmap.width * scale).toInt().coerceAtLeast(1),
+                        (bitmap.height * scale).toInt().coerceAtLeast(1),
+                        true
+                    )
+                } else bitmap
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
 
     fun handleCommand(intent: Intent?) {
         MediaButtonReceiver.handleIntent(mediaSession, intent)
@@ -74,15 +121,15 @@ internal class NarratorMediaControlsNotification @Inject constructor(
             ComponentName(context, MediaButtonReceiver::class.java),
             mbrIntent
         ).apply {
+            currentBookTitle = readerSession.bookTitle
+            val initialChapterTitle = readerSession.readerTextToSpeech.currentTextPlaying.value
+                .let { readerSession.readerChaptersLoader.chaptersStats[it.itemPos.chapterUrl] }
+                ?.chapter?.title
+            currentChapterTitle = initialChapterTitle
             // https://stackoverflow.com/questions/59443133/disable-or-hide-seekbar-in-mediastyle-notifications
-            val mediaMetadata = MediaMetadataCompat.Builder().putLong(MediaMetadataCompat.METADATA_KEY_DURATION, -1L).build()
-            setMetadata(mediaMetadata)
+            refreshMediaSessionMetadata()
 
             setCallback(NarratorMediaControlsCallback(readerSession.readerTextToSpeech))
-            setFlags(
-                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
-            )
             isActive = true
             setPlaybackToLocal(AudioManager.STREAM_MUSIC)
 
@@ -218,7 +265,8 @@ internal class NarratorMediaControlsNotification @Inject constructor(
             channelId = channelId,
             channelName = channelName,
             notificationId = notificationId,
-            importance = NotificationManager.IMPORTANCE_LOW
+            importance = NotificationManager.IMPORTANCE_LOW,
+            channelConfig = { setLockscreenVisibility(Notification.VISIBILITY_PUBLIC) }
         ) {
             title = ""
             text = ""
@@ -226,10 +274,12 @@ internal class NarratorMediaControlsNotification @Inject constructor(
             setOngoing(true)
             setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             priority = NotificationCompat.PRIORITY_HIGH
+            setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            setColorized(false)
             setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.ic_logo))
             setStyle(mediaStyle)
             setDeleteIntent(cancelButton)
-            color = Color.CYAN
+            color = ContextCompat.getColor(context, CoreUiR.color.colorAccent)
             setContentIntent(generateIntentStack())
         }
 
@@ -259,13 +309,15 @@ internal class NarratorMediaControlsNotification @Inject constructor(
                 }
         }
 
-        // Update chapter notification title
+        // Update chapter notification title + media session title
         scope.launch {
             snapshotFlow { readerSession.readerTextToSpeech.currentTextPlaying.value }
                 .mapNotNull { readerSession.readerChaptersLoader.chaptersStats[it.itemPos.chapterUrl] }
                 .map { it.chapter.title }
                 .distinctUntilChanged()
                 .collectLatest { chapterTitle ->
+                    currentChapterTitle = chapterTitle
+                    refreshMediaSessionMetadata()
                     notificationsCenter.modifyNotification(
                         builder = notificationBuilder,
                         notificationId = notificationId,
@@ -312,7 +364,7 @@ internal class NarratorMediaControlsNotification @Inject constructor(
                         stats.chapterReadPercentage()
                     )
                     val remainingStr = if (remainingSecs > 0) {
-                        "  |  ${formatDuration(remainingSecs, context.getString(R.string.tts_hours_abbr), context.getString(R.string.tts_minutes_abbr), context.getString(R.string.tts_seconds_abbr))} ${context.getString(R.string.tts_remaining)}"
+                        "  •  -${formatDuration(remainingSecs)}"
                     } else ""
                     notificationsCenter.modifyNotification(
                         builder = notificationBuilder,
@@ -321,6 +373,21 @@ internal class NarratorMediaControlsNotification @Inject constructor(
                         text = "$chapterPos  $progress$remainingStr"
                     }
                 }
+        }
+
+        // Load cover image and update session metadata + notification
+        scope.launch {
+            val coverBitmap = loadCoverBitmap(readerSession.bookCoverUrl)
+            if (coverBitmap != null) {
+                currentCoverBitmap = coverBitmap
+                refreshMediaSessionMetadata()
+                notificationsCenter.modifyNotification(
+                    builder = notificationBuilder,
+                    notificationId = notificationId,
+                ) {
+                    setLargeIcon(coverBitmap)
+                }
+            }
         }
 
         return notificationBuilder.build()
@@ -349,14 +416,15 @@ internal class NarratorMediaControlsNotification @Inject constructor(
     }
 }
 
-private fun formatDuration(seconds: Int, hoursLabel: String, minutesLabel: String, secondsLabel: String): String {
-    if (seconds <= 0) return "0$secondsLabel"
-    val h = seconds / 3600
-    val m = (seconds % 3600) / 60
-    val s = seconds % 60
-    return buildString {
-        if (h > 0) append("$h$hoursLabel ")
-        if (m > 0 || h > 0) append("$m$minutesLabel ")
-        if (s > 0 || (h == 0 && m == 0)) append("$s$secondsLabel")
-    }.trim()
+private fun formatDuration(seconds: Int): String {
+    val total = seconds.coerceAtLeast(0)
+    val h = total / 3600
+    val m = (total % 3600) / 60
+    val s = total % 60
+
+    return if (h > 0) {
+        "%d:%02d:%02d".format(h, m, s)
+    } else {
+        "%d:%02d".format(m, s)
+    }
 }

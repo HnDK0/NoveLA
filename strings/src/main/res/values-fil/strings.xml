@@ -150,6 +150,8 @@
     <string name="focus">Tumuon</string>
     <string name="voice_pitch">Pitch ng boses</string>
     <string name="voice_speed">Bilis ng boses</string>
+    <string name="original_voice">Orihinal na boses</string>
+    <string name="not_set">Hindi nakatakda</string>
     <string name="chapter_x_over_n">Kabanata: %1$d/%2$d</string>
     <string name="progress_x_percentage">Progreso: %1$.0f%%</string>
     <string name="text_size">Laki ng teksto</string>
@@ -175,6 +177,19 @@
     <string name="media_control_pause">pause</string>
     <string name="media_control_fast_forward">fast_forward</string>
     <string name="media_control_next">susunod</string>
+    <string name="tts_floating">Lumulutang na TTS</string>
+    <string name="tts_floating_channel_description">Mga kontrol ng overlay ng lumulutang na TTS</string>
+    <string name="tts_floating_overlay_active">Aktibo ang overlay ng TTS</string>
+    <string name="tts_floating_show_outside_app">Ipakita sa itaas ng iba pang app</string>
+    <string name="tts_floating_opacity">Opacity</string>
+    <string name="tts_floating_width">Lapad</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">Pahintulot sa overlay</string>
+    <string name="tts_floating_overlay_permission_message">Ang lumulutang na player ay nangangailangan ng pahintulot upang magpakita sa ibabaw ng iba pang mga application.</string>
+    <string name="tts_floating_open_settings">Buksan ang mga setting</string>
     <string name="delete">Tanggalin</string>
     <string name="english">Ingles</string>
     <string name="filter_title">Pamagat</string>
@@ -317,6 +332,7 @@
     <string name="source_name_local">Lokal</string>
 
     <string name="delete_novel">Tanggalin ang nobela</string>
+    <string name="delete_book_translations">Tanggalin ang lahat ng pagsasalin ng nobelang ito</string>
     <string name="mark_all_chapters_read">Markahan lahat ng kabanata bilang nabasa</string>
     <string name="mark_all_chapters_unread">Markahan lahat ng kabanata bilang hindi nabasa</string>
     <string name="move_to">Ilipat sa</string>
@@ -528,6 +544,10 @@
     <string name="novel_prompt_description_reader">Magtakda ng custom system prompt para sa nobelang ito</string>
     <string name="novel_prompt_llm_only">Gemini/OpenAI lang</string>
     <string name="novel_prompt_append_mode">Idagdag sa global prompt</string>
+    <string name="parallel_mode_title">Paralel na modo</string>
+    <string name="parallel_mode_description">Ipakita ang orihinal at salin nang magkatabi</string>
+    <string name="parallel_order_original_first">Una ang orihinal</string>
+    <string name="parallel_order_translation_first">Una ang salin</string>
     <string name="novel_prompts_title">Mga prompt na tiyak sa nobela</string>
     <string name="novel_prompts_search">Maghanap ng mga prompt</string>
     <string name="novel_prompts_description">Mga custom na prompt ng pagsasalin na itinakda bawat nobela sa mga setting ng reader</string>
@@ -573,7 +593,7 @@
     <!-- Migration from hardcoded strings -->
     <string name="migration_no_sources_available">Walang available na source</string>
     <string name="migration_no_matches_found">Walang nakitang tugma</string>
-    <string name="migration_failed_to_load_chapters">Hindi na-load ang mga kabanata</string>
+    <string name="migration_failed_to_load_chapters">Hindi na-load ang mga kabanata: %s</string>
     <string name="migration_unknown_error">Hindi kilalang error</string>
     <string name="migration_no_book_selected">Walang napiling aklat</string>
     <string name="migration_chapter_matching_not_ready">Hindi pa handa ang pagtutugma ng kabanata</string>

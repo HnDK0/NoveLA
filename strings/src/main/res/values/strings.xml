@@ -132,6 +132,11 @@
     <string name="novel_prompt_description_reader">Set a custom system prompt for this novel</string>
     <string name="novel_prompt_llm_only">Gemini/OpenAI only</string>
     <string name="novel_prompt_append_mode">Add to global prompt</string>
+    <string name="display_options_title">Display</string>
+    <string name="parallel_mode_title">Parallel mode</string>
+    <string name="parallel_mode_description">Show original and translation side by side</string>
+    <string name="parallel_order_original_first">Original first</string>
+    <string name="parallel_order_translation_first">Translation first</string>
     <string name="novel_prompts_title">Novel-specific prompts</string>
     <string name="novel_prompts_search">Search prompts</string>
     <string name="novel_prompts_description">Custom translation prompts set per novel in the reader settings</string>
@@ -164,6 +169,8 @@
     <string name="focus">Focus</string>
     <string name="voice_pitch">Voice pitch</string>
     <string name="voice_speed">Voice speed</string>
+    <string name="original_voice">Original voice</string>
+    <string name="not_set">Not set</string>
     <string name="chapter_x_over_n">Chapter: %1$d/%2$d</string>
     <string name="progress_x_percentage">Progress: %1$.0f%%</string>
     <string name="text_size">Text size</string>
@@ -189,6 +196,19 @@
     <string name="media_control_pause">pause</string>
     <string name="media_control_fast_forward">fast_forward</string>
     <string name="media_control_next">next</string>
+    <string name="tts_floating">Floating TTS</string>
+    <string name="tts_floating_channel_description">Floating TTS overlay controls</string>
+    <string name="tts_floating_overlay_active">TTS overlay is active</string>
+    <string name="tts_floating_show_outside_app">Show outside app</string>
+    <string name="tts_floating_opacity">Opacity</string>
+    <string name="tts_floating_width">Width</string>
+    <string name="tts_floating_paragraph">Paragraph</string>
+    <string name="tts_voice">TTS voice</string>
+    <string name="inverse">Inverse</string>
+    <string name="tts_both">Both</string>
+    <string name="tts_floating_overlay_permission_title">Overlay permission</string>
+    <string name="tts_floating_overlay_permission_message">Floating player needs permission to display over other apps.</string>
+    <string name="tts_floating_open_settings">Open settings</string>
     <string name="delete">Delete</string>
     <string name="english">English</string>
     <string name="filter_title">Title</string>
@@ -331,6 +351,7 @@
     <string name="source_name_local">Local</string>
 
     <string name="delete_novel">Delete novel</string>
+    <string name="delete_book_translations">Delete all translations for this book</string>
     <string name="mark_all_chapters_read">Mark all chapters as read</string>
     <string name="mark_all_chapters_unread">Mark all chapters as unread</string>
     <string name="move_to">Move to</string>

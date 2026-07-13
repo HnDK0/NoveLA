@@ -21,6 +21,7 @@
         />
 
     <LinearLayout
+        style="?android:attr/buttonBarStyle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -28,6 +29,7 @@
         android:gravity="center_horizontal">
 
         <Button
+            style="?android:attr/buttonBarButtonStyle"
             android:id="@+id/reloadButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -36,6 +38,7 @@
             />
 
         <Button
+            style="?android:attr/buttonBarButtonStyle"
             android:id="@+id/openInBrowserButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

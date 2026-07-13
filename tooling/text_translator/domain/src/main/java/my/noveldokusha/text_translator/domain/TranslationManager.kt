@@ -9,7 +9,21 @@ data class TranslationModelState(
     val downloading: Boolean,
     val downloadingFailed: Boolean,
 ) {
-    val locale = Locale(language)
+    val locale: Locale = try {
+        Locale.forLanguageTag(language)
+    } catch (_: Exception) {
+        try { Locale(language) } catch (_: Exception) { Locale("en") }
+    }
+
+    val displayName: String
+        get() {
+            // Локализованное полное название (язык + регион/скрипт)
+            val full = locale.getDisplayName()
+                .takeIf { it.isNotBlank() && it != language }
+            if (full != null) return full
+            // Fallback на английское из карты
+            return LANGUAGE_DISPLAY_NAMES[language] ?: language.uppercase()
+        }
 }
 
 data class TranslatorState(

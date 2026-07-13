@@ -8,6 +8,9 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.withContext
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.DownloaderRepository
@@ -27,6 +30,8 @@ class LibraryUpdatesInteractions @Inject constructor(
 ) {
     companion object {
         private const val TAG = "LibraryUpdate"
+        private val hostGroupSemaphore = Semaphore(4)
+        private val isUpdating = AtomicBoolean(false)
     }
 
     data class NewUpdate(
@@ -45,36 +50,46 @@ class LibraryUpdatesInteractions @Inject constructor(
         currentUpdating: MutableStateFlow<Set<Book>>,
         newUpdates: MutableStateFlow<Set<NewUpdate>>,
         failedUpdates: MutableStateFlow<Set<Book>>,
-    ): Unit = withContext(Dispatchers.Default) {
-        appRepository.libraryBooks.getAllInLibrary()
-            .filter { it.completed == completedOnes }
-            .filter { !it.url.isLocalUri }
-            .also { list ->
-                Log.d(TAG, "=== Library update started: ${list.size} books (completed=$completedOnes) ===")
-                countingUpdating.update {
-                    CountingUpdating(
-                        updated = 0,
-                        total = list.size
-                    )
-                }
-            }
-            .groupBy { it.url.toHttpUrlOrNull()?.host }
-            .map { (_, books) ->
-                async {
-                    for (book in books) {
-                        updateBook(
-                            book = book,
-                            currentUpdating = currentUpdating,
-                            newUpdates = newUpdates,
-                            failedUpdates = failedUpdates,
-                            countingUpdating = countingUpdating
+    ): Unit = withContext(Dispatchers.IO) {
+        if (!isUpdating.compareAndSet(false, true)) {
+            Log.d(TAG, "Library update already in progress, skipping")
+            return@withContext
+        }
+        try {
+            appRepository.libraryBooks.getAllInLibrary()
+                .filter { it.completed == completedOnes }
+                .filter { !it.url.isLocalUri }
+                .also { list ->
+                    Log.d(TAG, "=== Library update started: ${list.size} books (completed=$completedOnes) ===")
+                    countingUpdating.update {
+                        CountingUpdating(
+                            updated = 0,
+                            total = list.size
                         )
                     }
                 }
-            }
-            .awaitAll()
+                .groupBy { it.url.toHttpUrlOrNull()?.host }
+                .map { (_, books) ->
+                    async {
+                        hostGroupSemaphore.withPermit {
+                            for (book in books) {
+                                updateBook(
+                                    book = book,
+                                    currentUpdating = currentUpdating,
+                                    newUpdates = newUpdates,
+                                    failedUpdates = failedUpdates,
+                                    countingUpdating = countingUpdating
+                                )
+                            }
+                        }
+                    }
+                }
+                .awaitAll()
 
-        Log.d(TAG, "=== Library update finished ===")
+            Log.d(TAG, "=== Library update finished ===")
+        } finally {
+            isUpdating.set(false)
+        }
     }
 
     private suspend fun updateBook(
@@ -83,7 +98,7 @@ class LibraryUpdatesInteractions @Inject constructor(
         currentUpdating: MutableStateFlow<Set<Book>>,
         newUpdates: MutableStateFlow<Set<NewUpdate>>,
         failedUpdates: MutableStateFlow<Set<Book>>,
-    ): Unit = withContext(Dispatchers.Default) {
+    ): Unit = withContext(Dispatchers.IO) {
         Log.d(TAG, "[book] \"${book.title}\" — start update | chaptersLastPage=${book.chaptersLastPage} | chaptersListHash=${book.chaptersListHash?.take(8)?.let { "$it…" } ?: "null"}")
         currentUpdating.update { it + book }
 

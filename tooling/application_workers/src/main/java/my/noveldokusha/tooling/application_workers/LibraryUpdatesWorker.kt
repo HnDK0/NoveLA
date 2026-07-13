@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.interactor.LibraryUpdatesInteractions
 import my.noveldokusha.core.Response
 import my.noveldokusha.core.domain.LibraryCategory
@@ -32,13 +34,14 @@ import java.util.concurrent.TimeUnit
 internal class LibraryUpdatesWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParameters: WorkerParameters,
+    private val appPreferences: AppPreferences,
     private val libraryUpdateNotification: LibraryUpdateNotification,
     private val libraryUpdatesInteractions: LibraryUpdatesInteractions,
+    private val luaSourceProvider: my.noveldokusha.scraper.LuaSourceProvider,
 ) : CoroutineWorker(context, workerParameters) {
 
     companion object {
 
-        // TODO: solve when both are run at the same time (notifications will get weird)
         const val TAG = "LibraryUpdates"
         const val TAG_MANUAL = "LibraryUpdatesManual"
 
@@ -69,9 +72,7 @@ internal class LibraryUpdatesWorker @AssistedInject constructor(
         fun createManualRequest(
             updateCategory: LibraryCategory
         ): OneTimeWorkRequest {
-            val builder = OneTimeWorkRequestBuilder<LibraryUpdatesWorker>()
-            PeriodicWorkRequest.MIN_PERIODIC_FLEX_MILLIS
-            return builder
+            return OneTimeWorkRequestBuilder<LibraryUpdatesWorker>()
                 .addTag(TAG_MANUAL)
                 .setInitialDelay(0, TimeUnit.SECONDS)
                 .setInputData(createInputData(updateCategory))
@@ -92,8 +93,22 @@ internal class LibraryUpdatesWorker @AssistedInject constructor(
 
         Timber.d("LibraryUpdatesWorker: starting $updateCategory")
 
+        // Ждём загрузки реальных Lua-скриптов (CachedSource заглушки не подходят для данных)
+        try {
+            withTimeout(30_000L) {
+                luaSourceProvider.awaitLoaded()
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "LibraryUpdatesWorker: timed out waiting for Lua sources to load")
+            return Result.retry()
+        }
+
         val result = updateLibrary(updateCategory = updateCategory)
             .onError { Timber.e(it.exception) }
+
+        if (result is Response.Success) {
+            appPreferences.GLOBAL_APP_AUTOMATIC_LIBRARY_UPDATES_LAST_TIMESTAMP.value = System.currentTimeMillis()
+        }
 
         return when (result) {
             is Response.Error -> Result.failure()

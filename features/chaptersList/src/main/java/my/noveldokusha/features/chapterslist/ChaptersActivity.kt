@@ -87,6 +87,7 @@ class ChaptersActivity : BaseActivity() {
                             bookTitle = viewModel.state.book.value.title
                         ).let(::startActivity)
                     },
+                    onDeleteTranslations = viewModel::deleteTranslationsForBook,
                     categories = viewModel::getCategories,
                     onUpdateCategory = viewModel::updateBookCategory,
                     translatedTitle = viewModel.translatedTitle.value,

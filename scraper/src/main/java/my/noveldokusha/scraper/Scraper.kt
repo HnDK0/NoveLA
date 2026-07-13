@@ -38,7 +38,6 @@ class Scraper @Inject constructor(
     val luaSources: StateFlow<Set<SourceInterface>> = _luaSources.asStateFlow()
 
     init {
-        // Подписываемся на Flow провайдера — обновляется при install/uninstall/enable/disable
         scraperScope.launch {
             luaSourceProvider.sourcesFlow.collect { sources ->
                 _luaSources.value = sources.toSet()
@@ -47,10 +46,17 @@ class Scraper @Inject constructor(
         }
     }
 
+    suspend fun awaitLoaded() = luaSourceProvider.awaitLoaded()
+
     fun clearCache() = luaSourceProvider.clearCache()
 
+    /** Все источники включая CachedSource заглушки (для UI) */
     val sourcesList: Set<SourceInterface>
         get() = localSourcesList + _luaSources.value
+
+    /** Только загруженные реальные Lua-источники (для data-операций) */
+    val loadedSourcesList: Set<SourceInterface>
+        get() = localSourcesList + luaSourceProvider.loadedSourcesFlow.value.toSet()
 
     val sourcesCatalogListFlow: kotlinx.coroutines.flow.Flow<List<SourceInterface.Catalog>> =
         _luaSources.map { lua ->
@@ -69,16 +75,16 @@ class Scraper @Inject constructor(
     }
 
     fun getCompatibleSource(url: String): SourceInterface? =
-        sourcesList.find { url.isCompatibleWithBaseUrl(it.baseUrl) }
+        loadedSourcesList.find { url.isCompatibleWithBaseUrl(it.baseUrl) }
 
     fun getCompatibleSourceCatalog(url: String): SourceInterface.Catalog? =
-        sourcesList.filterIsInstance<SourceInterface.Catalog>()
+        loadedSourcesList.filterIsInstance<SourceInterface.Catalog>()
             .find { url.isCompatibleWithBaseUrl(it.baseUrl) }
 
     fun getCompatibleDatabase(url: String): DatabaseInterface? =
         databasesList.find { url.isCompatibleWithBaseUrl(it.baseUrl) }
 
-    fun isUrlSupported(url: String) = getCompatibleSource(url) != null
+    fun isUrlSupported(url: String) = sourcesList.find { url.isCompatibleWithBaseUrl(it.baseUrl) } != null
 
-    fun getSourceId(url: String): String? = getCompatibleSource(url)?.id
+    fun getSourceId(url: String): String? = sourcesList.find { url.isCompatibleWithBaseUrl(it.baseUrl) }?.id
 }

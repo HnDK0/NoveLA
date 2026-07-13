@@ -39,6 +39,9 @@ dependencies {
     implementation(libs.hilt.android)
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
+    // CardView for extension item layout
+    implementation("androidx.cardview:cardview:1.0.0")
+
     // Timber for logging
     implementation(libs.timber)
 }
