@@ -1,8 +1,6 @@
 package my.noveldokusha.tooling.application_workers.setup
 
-import android.annotation.SuppressLint
 import android.content.Context
-import android.util.Log
 import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
@@ -16,6 +14,7 @@ import my.noveldokusha.tooling.application_workers.DatabaseMaintenanceWorker
 import my.noveldokusha.tooling.application_workers.LibraryUpdatesWorker
 import my.noveldokusha.tooling.application_workers.UpdatesCheckerWorker
 import my.noveldokusha.tooling.application_workers.notifications.LibraryUpdateNotification
+import timber.log.Timber
 import javax.inject.Inject
 
 class AppWorkerFactory @Inject internal constructor(
@@ -26,16 +25,15 @@ class AppWorkerFactory @Inject internal constructor(
     private val libraryUpdatesInteractions: LibraryUpdatesInteractions,
     private val luaSourceProvider: LuaSourceProvider,
 ) : WorkerFactory() {
-    @SuppressLint("LogNotTimber")
     override fun createWorker(
         appContext: Context,
         workerClassName: String,
         workerParameters: WorkerParameters
     ): ListenableWorker? {
-        Log.d("AppWorkerFactory", "AppWorkerFactory: createWorker called for '$workerClassName'")
+        Timber.d("AppWorkerFactory: createWorker called for '$workerClassName'")
         return when (workerClassName) {
             UpdatesCheckerWorker::class.java.name -> {
-                Log.d("AppWorkerFactory", "AppWorkerFactory: creating UpdatesCheckerWorker")
+                Timber.d("AppWorkerFactory: creating UpdatesCheckerWorker")
                 UpdatesCheckerWorker(
                     context = appContext,
                     workerParameters = workerParameters,
@@ -44,7 +42,7 @@ class AppWorkerFactory @Inject internal constructor(
                 )
             }
             LibraryUpdatesWorker::class.java.name -> {
-                Log.d("AppWorkerFactory", "AppWorkerFactory: creating LibraryUpdatesWorker")
+                Timber.d("AppWorkerFactory: creating LibraryUpdatesWorker")
                 LibraryUpdatesWorker(
                     context = appContext,
                     workerParameters = workerParameters,
@@ -55,21 +53,21 @@ class AppWorkerFactory @Inject internal constructor(
                 )
             }
             AutoBackupWorker::class.java.name -> {
-                Log.d("AppWorkerFactory", "AppWorkerFactory: creating AutoBackupWorker")
+                Timber.d("AppWorkerFactory: creating AutoBackupWorker")
                 AutoBackupWorker(
                     context = appContext,
                     workerParameters = workerParameters,
                 )
             }
             DatabaseMaintenanceWorker::class.java.name -> {
-                Log.d("AppWorkerFactory", "AppWorkerFactory: creating DatabaseMaintenanceWorker")
+                Timber.d("AppWorkerFactory: creating DatabaseMaintenanceWorker")
                 DatabaseMaintenanceWorker(
                     context = appContext,
                     workerParameters = workerParameters,
                 )
             }
             else -> {
-                Log.w("AppWorkerFactory", "AppWorkerFactory: unknown worker '$workerClassName', returning null")
+                Timber.w("AppWorkerFactory: unknown worker '$workerClassName', returning null")
                 null
             }
         }

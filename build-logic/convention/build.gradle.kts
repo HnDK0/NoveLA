@@ -44,6 +44,11 @@ gradlePlugin {
             implementationClass =
                 "NoveldokushaAndroidLibraryBestPracticesConventionPlugin" // ;)
         }
+        register("androidLibraryNoHilt") {
+            id = "noveldokusha.android.library.nohilt"
+            implementationClass =
+                "NoveldokushaAndroidLibraryConventionPlugin"
+        }
         register("androidCompose") {
             id = "noveldokusha.android.compose"
             implementationClass =

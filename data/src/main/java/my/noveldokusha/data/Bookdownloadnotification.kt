@@ -1,5 +1,6 @@
 package my.noveldokusha.data
 
+import timber.log.Timber
 import android.Manifest
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -183,7 +184,7 @@ class BookDownloadNotification(
             Manifest.permission.POST_NOTIFICATIONS
         )
         if (result != PackageManager.PERMISSION_GRANTED) {
-            android.util.Log.w(TAG, "POST_NOTIFICATIONS denied, skipping notification for $bookUrl")
+            Timber.w("POST_NOTIFICATIONS denied, skipping notification for $bookUrl")
             return false
         }
         return true
@@ -259,8 +260,6 @@ class BookDownloadNotification(
     }
 
     companion object {
-        private const val TAG = "BookDownloadNotification"
-
         const val CHANNEL_ID = "chapter_downloads"
         const val CHANNEL_NAME = "Chapter Downloads"
 

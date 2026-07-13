@@ -40,12 +40,12 @@
     <string name="open_in_browser">ब्राउज़र में खोलें</string>
     <string name="sources">स्रोत</string>
     <string name="search_for_sources">स्रोत खोजें</string>
-    <string name="import_epub">EPUB आयात करें</string>
+    <string name="import_epub">पुस्तक आयात करें</string>
     <string name="failed_get_file">फ़ाइल प्राप्त करने में विफल</string>
     <string name="local_book_nothing_to_update">स्थानीय पुस्तक, अपडेट करने के लिए कुछ नहीं</string>
-    <string name="failed_to_import_epub">EPUB आयात करने में विफल</string>
+    <string name="failed_to_import_epub">पुस्तक आयात करने में विफल</string>
     <string name="image">छवि</string>
-    <string name="importing_epub">EPUB आयात हो रहा है</string>
+    <string name="importing_epub">पुस्तक आयात हो रहा है</string>
     <string name="no_results_found">कोई परिणाम नहीं मिला</string>
     <string name="updating_library_notice">लाइब्रेरी अपडेट हो रही है</string>
     <string name="chapter_downloaded">अध्याय डाउनलोड किया गया</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">नए अध्याय</string>
     <string name="notification_channel_name_failed_updates">विफल अपडेट</string>
     <string name="notification_channel_name_backup">बैकअप</string>
-    <string name="notification_channel_name_import_epub">EPUB आयात</string>
+    <string name="notification_channel_name_import_epub">पुस्तक आयात</string>
     <string name="notification_channel_name_restore_backup">बैकअप पुनर्स्थापित करें</string>
     <string name="notification_channel_name_app_updates_checker">अपडेट जाँचकर्ता</string>
     <string name="new_app_version_available">नया ऐप संस्करण उपलब्ध</string>
@@ -352,7 +352,6 @@
     <string name="cloudflare_bypass">Cloudflare बाइपास</string>
     <string name="cloudflare_bypass_description">स्वचालित Cloudflare चैलेंज बाइपास सक्षम करें</string>
     <string name="cloudflare_bypass_restart_required">Cloudflare बाइपास सेटिंग ऐप पुनरारंभ के बाद लागू होगी</string>
-    <string name="user_agent_restart_required">User-Agent बदल गया। लागू करने के लिए ऐप पुनरारंभ करें।</string>
     <string name="cloudflare_challenge_timeout">चैलेंज टाइमआउट</string>
     <string name="timeout_seconds">टाइमआउट (सेकंड)</string>
     <string name="seconds_format">%d सेकंड</string>
@@ -618,5 +617,7 @@
     <string name="repository_settings">रिपॉजिटरी सेटिंग्स</string>
     <string name="installed">इंस्टॉल किया</string>
     <string name="available">उपलब्ध</string>
+
+    <string name="book_fix">पुस्तक ठीक करें</string>
 
 </resources>

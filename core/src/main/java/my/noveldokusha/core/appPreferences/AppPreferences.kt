@@ -46,7 +46,9 @@ class AppPreferences @Inject constructor(
 ) {
     private val preferences = PreferenceManager.getDefaultSharedPreferences(context)
     private val preferencesChangeListeners =
-        mutableSetOf<SharedPreferences.OnSharedPreferenceChangeListener>()
+        java.util.Collections.synchronizedSet(
+            mutableSetOf<SharedPreferences.OnSharedPreferenceChangeListener>()
+        )
 
     val APP_LANGUAGE_CODE = object : Preference<String>("APP_LANGUAGE_CODE") {
         override var value by SharedPreference_String(name, preferences, "en")
@@ -243,14 +245,6 @@ class AppPreferences @Inject constructor(
         )
     }
 
-    @Deprecated("Use LIBRARY_SORT_OPTION instead", ReplaceWith("LIBRARY_SORT_OPTION"))
-    val LIBRARY_SORT_LAST_READ = object : Preference<TernaryState>("LIBRARY_SORT_LAST_READ") {
-        override var value by SharedPreference_Enum(
-            name,
-            preferences,
-            TernaryState.Inverse
-        ) { enumValueOf(it) }
-    }
     val BOOKS_LIST_LAYOUT_MODE = object : Preference<ListLayoutMode>("BOOKS_LIST_LAYOUT_MODE") {
         override var value by SharedPreference_Enum(
             name,
@@ -502,16 +496,6 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_String(name, preferences, "")
     }
 
-    val SCRAPER_CUSTOM_HEADERS = object : Preference<Map<String, String>>("SCRAPER_CUSTOM_HEADERS") {
-        override var value by SharedPreference_Serializable<Map<String, String>>(
-            name = name,
-            sharedPreferences = preferences,
-            defaultValue = emptyMap<String, String>(),
-            encode = { Json.encodeToString(it) },
-            decode = { Json.decodeFromString(it) }
-        )
-    }
-
     val CLOUDFLARE_BYPASS_ENABLED = object : Preference<Boolean>("CLOUDFLARE_BYPASS_ENABLED") {
         override var value by SharedPreference_Boolean(name, preferences, true)
     }
@@ -619,21 +603,6 @@ class AppPreferences @Inject constructor(
     }
 
 
-    @Deprecated("Removed", level = DeprecationLevel.HIDDEN)
-    val LOCAL_SOURCES_URI_DIRECTORIES =
-        object : Preference<Set<String>>("LOCAL_SOURCES_URI_DIRECTORIES") {
-            override var value by SharedPreference_StringSet(name, preferences, setOf())
-        }
-
-    @Deprecated("Removed", level = DeprecationLevel.HIDDEN)
-    val LIBRARY_SORT_READ = object : Preference<TernaryState>("LIBRARY_SORT_READ") {
-        override var value by SharedPreference_Enum(
-            name,
-            preferences,
-            TernaryState.Active
-        ) { enumValueOf(it) }
-    }
-
     abstract inner class Preference<T>(val name: String) {
         abstract var value: T
         fun flow() = toFlow(name) { value }.flowOn(Dispatchers.IO)
@@ -644,10 +613,9 @@ class AppPreferences @Inject constructor(
 
     private fun <T> toFlow(key: String, mapper: (String) -> T): Flow<T> {
         val flow = MutableStateFlow(mapper(key))
-        val scope = CoroutineScope(Dispatchers.Default)
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, vkey ->
             if (key == vkey)
-                scope.launch { flow.value = mapper(vkey) }
+                flow.value = mapper(vkey)
         }
 
         return flow

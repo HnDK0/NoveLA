@@ -28,10 +28,12 @@ class ChapterBodyRepository @Inject constructor(
         chapterBodyDao.insertReplace(chapterBody)
 
     suspend fun removeRows(chaptersUrl: List<String>) {
-        chaptersUrl.chunked(500).forEach { chunk ->
-            chapterBodyDao.removeChapterRows(chunk)
-            chunk.forEach { chapterUrl ->
-                chapterTranslationDao.deleteChapterTranslations(chapterUrl)
+        appDatabase.transaction {
+            chaptersUrl.chunked(500).forEach { chunk ->
+                chapterBodyDao.removeChapterRows(chunk)
+                chunk.forEach { chapterUrl ->
+                    chapterTranslationDao.deleteChapterTranslations(chapterUrl)
+                }
             }
         }
     }
@@ -43,10 +45,10 @@ class ChapterBodyRepository @Inject constructor(
     suspend fun count() = chapterBodyDao.count()
     suspend fun getChunk(limit: Int, offset: Int) = chapterBodyDao.getChunk(limit, offset)
 
-    suspend fun clearAllCache(): Int {
+    suspend fun clearAllCache(): Int = appDatabase.transaction {
         val count = chapterBodyDao.deleteAll()
         chapterTranslationDao.deleteAllTranslations()
-        return count
+        count
     }
 
     suspend fun getCacheSizeBytes(): Long = chapterBodyDao.getCacheSizeBytes()

@@ -15,8 +15,6 @@ import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import okhttp3.logging.HttpLoggingInterceptor
-import timber.log.Timber
 import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -42,15 +40,13 @@ class ScraperNetworkClient @Inject constructor(
 
     override val cookieJar = ScraperCookieJar()
 
-    private val okhttpLoggingInterceptor = HttpLoggingInterceptor {
-        Timber.v(it)
-    }.apply { level = HttpLoggingInterceptor.Level.HEADERS }
+    private val okhttpLoggingInterceptor = createLoggingInterceptor()
 
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .apply {
-                if (appInternalState.isDebugMode) addInterceptor(okhttpLoggingInterceptor)
-                addInterceptor(UserAgentInterceptor(appPreferences.SCRAPER_USER_AGENT.value))
+                if (appInternalState.isDebugMode) okhttpLoggingInterceptor?.let { addInterceptor(it) }
+                addInterceptor(UserAgentInterceptor(appPreferences))
                 addInterceptor(DecodeResponseInterceptor())
                 if (appPreferences.CLOUDFLARE_BYPASS_ENABLED.value) {
                     addInterceptor(CloudFareVerificationInterceptor(appContext, appPreferences))

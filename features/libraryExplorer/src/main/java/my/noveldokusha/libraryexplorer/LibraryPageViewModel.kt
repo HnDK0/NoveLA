@@ -12,10 +12,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import my.noveldokusha.coreui.BaseViewModel
+import androidx.lifecycle.ViewModel
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.isLocalUri
@@ -30,6 +32,8 @@ import my.noveldokusha.core.utils.toState
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.interactor.WorkersInteractions
 import my.noveldokusha.scraper.Scraper
+import my.noveldokusha.scraper.SourceInterface
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 @HiltViewModel
@@ -41,7 +45,16 @@ internal class LibraryPageViewModel @Inject constructor(
     private val libraryDao: LibraryDao,
     private val scraper: Scraper,
     @ApplicationContext private val context: Context,
-) : BaseViewModel() {
+) : ViewModel() {
+    var isLibraryLoaded by mutableStateOf(false)
+        private set
+
+    private val sourceNameCache = ConcurrentHashMap<String, String>()
+
+    private val sharedBooksFlow = appRepository.libraryBooks
+        .getBooksInLibraryWithContextFlow
+        .shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
+
     var searchQuery by mutableStateOf("")
         private set
 
@@ -71,8 +84,7 @@ internal class LibraryPageViewModel @Inject constructor(
         .toState(viewModelScope, emptyList())
 
     // Полная карта жанр → Set<bookUrl> — парсим из Book.genres
-    private val genreToBookUrls = appRepository.libraryBooks
-        .getBooksInLibraryWithContextFlow
+    private val genreToBookUrls = sharedBooksFlow
         .map { list ->
             val result = mutableMapOf<String, MutableSet<String>>()
             list.forEach { book ->
@@ -86,21 +98,20 @@ internal class LibraryPageViewModel @Inject constructor(
         .toState(viewModelScope, emptyMap())
 
     // Доступные имена плагинов в библиотеке — определяем динамически из списка книг
-    private val availableSourcesState = appRepository.libraryBooks
-        .getBooksInLibraryWithContextFlow
+    private val availableSourcesState = sharedBooksFlow
         .map { list ->
             list.mapNotNull { book ->
-                if (book.book.url.isLocalUri) "Local"
-                else scraper.getCompatibleSource(book.book.url)?.resolveName(context)
+                resolveSourceName(book.book.url)
             }.distinct().sorted()
         }
         .toState(viewModelScope, emptyList<String>())
 
     val availableSources = availableSourcesState
 
+    val luaSources: StateFlow<Set<SourceInterface>> get() = scraper.luaSources
+
     // Shared pre-category-filter flow — all filters EXCEPT category selection
-    private val preCategoryFilterFlow = appRepository.libraryBooks
-        .getBooksInLibraryWithContextFlow
+    private val preCategoryFilterFlow = sharedBooksFlow
         .combine(preferences.LIBRARY_FILTER_READ.flow()) { list, filterRead ->
             when (filterRead) {
                 TernaryState.Active -> list.filter { it.chaptersCount == it.chaptersReadCount }
@@ -113,8 +124,7 @@ internal class LibraryPageViewModel @Inject constructor(
                 val q = query.trim()
                 val cache = genreToBookUrls.value
                 list.filter { book ->
-                    val sourceName = if (book.book.url.isLocalUri) "Local"
-                    else scraper.getCompatibleSource(book.book.url)?.resolveName(context) ?: ""
+                    val sourceName = resolveSourceName(book.book.url) ?: ""
                     book.book.title.contains(q, ignoreCase = true) ||
                             sourceName.contains(q, ignoreCase = true) ||
                             cache.any { (genre, urls) ->
@@ -136,12 +146,11 @@ internal class LibraryPageViewModel @Inject constructor(
             if (selectedSources.isEmpty()) list
             else {
                 list.filter { book ->
-                    val sourceName = if (book.book.url.isLocalUri) "Local"
-                    else scraper.getCompatibleSource(book.book.url)?.resolveName(context) ?: ""
+                    val sourceName = resolveSourceName(book.book.url) ?: ""
                     sourceName in selectedSources
                 }
             }
-        }.shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
+        }.shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
 
     // Base flow with category filter — used for the actual filtered list
     private val baseLibraryFlow = preCategoryFilterFlow
@@ -158,7 +167,7 @@ internal class LibraryPageViewModel @Inject constructor(
                     }
                 }
             }
-        }.shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
+        }.shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
 
     // Single filtered list instead of listReading/listCompleted
     val filteredList = baseLibraryFlow
@@ -180,6 +189,7 @@ internal class LibraryPageViewModel @Inject constructor(
                 }
             }
         }
+        .onEach { isLibraryLoaded = true }
         .toState(viewModelScope, listOf())
 
     // Count of items in each category for the chips (category → count)
@@ -282,8 +292,15 @@ internal class LibraryPageViewModel @Inject constructor(
         toasty.show(R.string.update_cancelled)
     }
 
-    fun getSourceName(url: String): String {
-        if (url.isLocalUri) return "Local"
-        return scraper.getCompatibleSource(url)?.resolveName(context) ?: "Unknown Source"
+    private fun resolveSourceName(url: String): String? {
+        sourceNameCache[url]?.let { return it }
+        val result = if (url.isLocalUri) "Local"
+        else scraper.getSourceId(url)?.let { id ->
+            scraper.sourcesList.find { it.id == id }?.resolveName(context)
+        }
+        if (result != null) sourceNameCache[url] = result
+        return result
     }
+
+    fun getSourceName(url: String): String = resolveSourceName(url) ?: "Unknown Source"
 }

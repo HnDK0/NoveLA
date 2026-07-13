@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
-import my.noveldokusha.core.ExtensionRepositoryInterface
+import my.noveldokusha.core.ExtensionManager
 import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
@@ -23,7 +23,7 @@ import javax.inject.Singleton
 @Singleton
 class LuaSourceProviderImpl @Inject constructor(
     private val luaSourceLoader: LuaSourceLoader,
-    private val extensionRepository: ExtensionRepositoryInterface,
+    private val extensionRepository: ExtensionManager,
     @ApplicationContext private val context: Context,
 ) : LuaSourceProvider {
 

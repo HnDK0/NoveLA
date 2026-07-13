@@ -123,7 +123,7 @@ class NovelUpdates(
                         coverImageUrl = image
                     )
                 }
-            val authorName = doc.selectFirst("h3.mypage.followauthor")!!.text()
+            val authorName = doc.selectFirst("h3.mypage.followauthor")?.text() ?: ""
 
             DatabaseInterface.AuthorData(
                 name = authorName,
@@ -186,9 +186,10 @@ class NovelUpdates(
             ?.toList() ?: listOf()
 
         val authors = doc
-            .selectFirst("#showauthors")!!
-            .select("a[href]")
-            .map { DatabaseInterface.AuthorMetadata(name = it.text(), url = it.attr("href")) }
+            .selectFirst("#showauthors")
+            ?.select("a[href]")
+            ?.map { DatabaseInterface.AuthorMetadata(name = it.text(), url = it.attr("href")) }
+            ?: emptyList()
 
         val genres = doc
             .select("#seriesgenre a")

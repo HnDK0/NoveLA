@@ -104,6 +104,7 @@ internal fun ChaptersScreen(
     onDownloadAllChapters: () -> Unit,
     onMigrateBook: () -> Unit = {},
     onDeleteTranslations: () -> Unit = {},
+    onFixBook: () -> Unit = {},
     categories: () -> List<String>,
     onUpdateCategory: (String) -> Unit,
     translatedTitle: String?,
@@ -198,6 +199,7 @@ internal fun ChaptersScreen(
                                         onDownloadAllChapters = onDownloadAllChapters,
                                         onMigrateBook = onMigrateBook,
                                         onDeleteTranslations = onDeleteTranslations,
+                                        onFixBook = onFixBook,
                                     )
                                 }
                             }

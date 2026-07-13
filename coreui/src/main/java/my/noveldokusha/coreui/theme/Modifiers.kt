@@ -54,13 +54,6 @@ fun Modifier.drawTopLine(
 }
 
 
-/**
- * Blocks any input from passing this composable down the event tree.
- * Effectively acts as a surface.
- */
-fun Modifier.blockInteraction() = this
-
-
 fun Modifier.clickableWithUnboundedIndicator(onClick: () -> Unit) = composed {
     then(
         clickable(

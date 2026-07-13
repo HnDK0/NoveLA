@@ -17,6 +17,9 @@ interface ChapterDao {
     @Query("SELECT COUNT(*) FROM Chapter")
     suspend fun count(): Int
 
+    @Query("SELECT COUNT(*) FROM Chapter WHERE bookUrl = :bookUrl")
+    suspend fun countByBookUrl(bookUrl: String): Int
+
     @Query("SELECT * FROM Chapter LIMIT :limit OFFSET :offset")
     suspend fun getChunk(limit: Int, offset: Int): List<Chapter>
 
@@ -45,11 +48,14 @@ interface ChapterDao {
     )
     suspend fun getFirstChapter(bookUrl: String): Chapter?
 
-    @Query("UPDATE Chapter SET read = 1 WHERE url in (:chaptersUrl)")
+    @Query("UPDATE Chapter SET read = 1 WHERE url IN (:chaptersUrl)")
     suspend fun setAsRead(chaptersUrl: List<String>)
 
     @Query("UPDATE Chapter SET read = :read WHERE url = :chapterUrl")
     suspend fun setAsRead(chapterUrl: String, read: Boolean)
+
+    @Query("UPDATE Chapter SET read = 1 WHERE bookUrl = :bookUrl")
+    suspend fun setAllAsReadByBookUrl(bookUrl: String)
 
     @Query(
         """
@@ -63,8 +69,11 @@ interface ChapterDao {
     @Query("UPDATE Chapter SET title = :title WHERE url == :url")
     suspend fun updateTitle(url: String, title: String)
 
-    @Query("UPDATE Chapter SET read = 0 WHERE url in (:chaptersUrl)")
+    @Query("UPDATE Chapter SET read = 0 WHERE url IN (:chaptersUrl)")
     suspend fun setAsUnread(chaptersUrl: List<String>)
+
+    @Query("UPDATE Chapter SET read = 0 WHERE bookUrl = :bookUrl")
+    suspend fun setAllAsUnreadByBookUrl(bookUrl: String)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(chapters: List<Chapter>)
@@ -87,15 +96,20 @@ interface ChapterDao {
     @Query("DELETE FROM Chapter WHERE url IN (:urls)")
     suspend fun removeByUrls(urls: List<String>)
 
+    @Query("UPDATE Chapter SET bookUrl = :newBookUrl WHERE bookUrl = :oldBookUrl")
+    suspend fun updateBookUrl(oldBookUrl: String, newBookUrl: String)
+
     @Query(
         """
-        SELECT Chapter.*, ChapterBody.url IS NOT NULL AS downloaded , Book.lastReadChapter IS NOT NULL AS lastReadChapter
+        SELECT Chapter.*, 0 AS downloaded, Book.lastReadChapter IS NOT NULL AS lastReadChapter
         FROM Chapter
-        LEFT JOIN ChapterBody ON ChapterBody.url = Chapter.url
         LEFT JOIN Book ON Book.url = :bookUrl AND Book.lastReadChapter == Chapter.url
         WHERE Chapter.bookUrl == :bookUrl
         ORDER BY position ASC
     """
     )
     fun getChaptersWithContextFlow(bookUrl: String): Flow<List<ChapterWithContext>>
+
+    @Query("SELECT url FROM Chapter WHERE bookUrl == :bookUrl ORDER BY position ASC")
+    suspend fun getChapterUrls(bookUrl: String): List<String>
 }

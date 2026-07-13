@@ -104,26 +104,25 @@ fun onBackupCreate(): () -> Unit {
                                 .weight(1f)
                         )
                     }
-                    // TODO: properly implement images saving
-                    // Row(
-                    //     verticalAlignment = Alignment.CenterVertically,
-                    //     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    //     modifier = Modifier
-                    //         .clickable { saveImages = !saveImages }
-                    //         .fillMaxWidth()
-                    //         .padding(16.dp)
-                    // ) {
-                    //     Checkbox(
-                    //         checked = saveImages,
-                    //         onCheckedChange = null
-                    //     )
-                    //     Text(
-                    //         text = stringResource(R.string.save_images),
-                    //         modifier = Modifier
-                    //             .padding(start = 8.dp)
-                    //             .weight(1f)
-                    //     )
-                    // }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .clickable { saveImages = !saveImages }
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Checkbox(
+                            checked = saveImages,
+                            onCheckedChange = null
+                        )
+                        Text(
+                            text = stringResource(R.string.save_images),
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .weight(1f)
+                        )
+                    }
                     MyButton(
                         text = stringResource(id = R.string.backup),
                         textAlign = TextAlign.Center,

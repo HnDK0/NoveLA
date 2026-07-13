@@ -10,11 +10,10 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
+import timber.log.Timber
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.view.doOnNextLayout
 import androidx.core.view.updateLayoutParams
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
+import coil.load
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.utils.inflater
 import my.noveldokusha.features.reader.features.TextSynthesis
@@ -200,15 +199,29 @@ internal class ReaderItemAdapter(
             dimensionRatio = "1:${item.image.yrel}"
         }
 
-        val imageModel = appFileResolver.resolvedBookImagePath(bookUrl = bookUrl, imagePath = item.image.path)
+        bind.image.tag = null
 
-        bind.imageContainer.doOnNextLayout {
-            Glide.with(ctx)
-                .load(imageModel)
-                .fitCenter()
-                .error(R.drawable.ic_baseline_error_outline_24)
-                .transition(DrawableTransitionOptions.withCrossFade())
-                .into(bind.image)
+        val imageModel = appFileResolver.resolvedBookImagePath(bookUrl = bookUrl, imagePath = item.image.path, isCover = false)
+        Timber.d("viewImage called imageModel=%s path=%s", imageModel, item.image.path)
+
+        bind.image.load(imageModel) {
+            crossfade(true)
+            scale(coil.size.Scale.FIT)
+            size(1024)
+            listener(onError = { _,_ ->
+                Timber.d("viewImage: load error for path=%s", item.image.path)
+                if (bind.image.tag == null && item.image.path.startsWith("http")) {
+                    bind.image.tag = true
+                    val proxyUrl = "https://images.weserv.nl/?url=${android.net.Uri.encode(item.image.path)}"
+                    Timber.d("viewImage: trying proxy url=%s", proxyUrl)
+                    bind.image.load(proxyUrl) {
+                        crossfade(true)
+                        scale(coil.size.Scale.FIT)
+                        size(1024)
+                        error(R.drawable.ic_baseline_error_outline_24)
+                    }
+                }
+            })
         }
 
         when (item.location) {

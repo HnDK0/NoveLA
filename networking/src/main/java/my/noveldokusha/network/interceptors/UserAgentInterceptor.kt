@@ -21,10 +21,10 @@ fun resolveUserAgent(appPreferences: AppPreferences): String {
 
 private fun String.isAscii(): Boolean = all { it.code in 0..127 }
 
-class UserAgentInterceptor(private val customUserAgent: String? = null) : Interceptor {
+class UserAgentInterceptor(private val appPreferences: AppPreferences) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val userAgent = if (!customUserAgent.isNullOrBlank() && customUserAgent.isAscii()) customUserAgent else GLOBAL_USER_AGENT
+        val userAgent = resolveUserAgent(appPreferences)
         return chain.proceed(
             chain.request().newBuilder()
                 .header("User-Agent", userAgent)

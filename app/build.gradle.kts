@@ -62,18 +62,11 @@ android {
 
     buildTypes {
 
-        signingConfigs.asMap["default"]?.let {
-            all {
-                signingConfig = it
-            }
-        }
-
         named("debug") {
-            isMinifyEnabled = false
-            isShrinkResources = false
         }
 
         named("release") {
+            signingConfigs.asMap["default"]?.let { signingConfig = it }
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -122,18 +115,12 @@ dependencies {
     // Translation feature (FOSS - Gemini API only)
     implementation(projects.tooling.textTranslator.translatorNop)
 
-    // Kotlin scripting for extension compilation
-    implementation(libs.kotlin.scripting.jvm)
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlin.script.runtime)
     implementation(libs.kotlin.stdlib)
 
     // Lifecycle components
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.livedata.ktx)
-    implementation(libs.androidx.lifecycle.common.java8)
-    implementation(libs.androidx.coordinatorlayout)
-
     // Local storage directory access
     implementation(libs.androidx.documentfile)
 
@@ -169,7 +156,6 @@ dependencies {
     implementation(libs.moshi)
     implementation(libs.moshi.kotlin)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.retrofit)
 
     // Dependency injection
     implementation(libs.hilt.android)
@@ -178,7 +164,6 @@ dependencies {
     implementation(libs.hilt.workmanager)
 
     // HTML text extractor
-    implementation(libs.crux)
     implementation(libs.readability4j)
     implementation(libs.jsoup)
 
@@ -187,20 +172,14 @@ dependencies {
     implementation(libs.compose.androidx.animation)
     implementation(libs.compose.androidx.runtime.livedata)
     implementation(libs.compose.androidx.lifecycle.viewmodel)
-    implementation(libs.compose.androidx.constraintlayout)
     implementation(libs.compose.androidx.material.icons.extended)
     implementation(libs.compose.material3.android)
-    implementation(libs.compose.landscapist.glide)
     implementation(libs.compose.coil)
     implementation(libs.compose.lazyColumnScrollbar)
 
     // Networking
     implementation(libs.okhttp)
     implementation(libs.okhttp.interceptor.brotli)
-    implementation(libs.okhttp.interceptor.logging)
-    implementation(libs.okhttp.glideIntegration)
-    ksp(libs.glide.ksp)
-
     // Logging
     implementation(libs.timber)
 

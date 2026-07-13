@@ -40,12 +40,12 @@
     <string name="open_in_browser">Buksan sa browser</string>
     <string name="sources">Mga Pinagmulan</string>
     <string name="search_for_sources">Maghanap ng mga pinagmulan</string>
-    <string name="import_epub">Mag-import ng EPUB</string>
+    <string name="import_epub">Mag-import ng libro</string>
     <string name="failed_get_file">Nabigo ang pagkuha ng file</string>
     <string name="local_book_nothing_to_update">Lokal na aklat, walang i-update</string>
-    <string name="failed_to_import_epub">Nabigo ang pag-import ng epub</string>
+    <string name="failed_to_import_epub">Nabigo ang pag-import ng libro</string>
     <string name="image">larawan</string>
-    <string name="importing_epub">Ina-import ang epub</string>
+    <string name="importing_epub">Ina-import ang libro</string>
     <string name="no_results_found">Walang nakitang resulta</string>
     <string name="updating_library_notice">Ina-update ang aklatan</string>
     <string name="chapter_downloaded">Na-download ang kabanata</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">Mga bagong kabanata</string>
     <string name="notification_channel_name_failed_updates">Mga nabigong update</string>
     <string name="notification_channel_name_backup">Backup</string>
-    <string name="notification_channel_name_import_epub">Mag-import ng EPUB</string>
+    <string name="notification_channel_name_import_epub">Mag-import ng libro</string>
     <string name="notification_channel_name_restore_backup">I-restore ang backup</string>
     <string name="notification_channel_name_app_updates_checker">Tagasuri ng mga update</string>
     <string name="new_app_version_available">May bagong bersyon ng app na available</string>
@@ -352,7 +352,6 @@
     <string name="cloudflare_bypass">Cloudflare bypass</string>
     <string name="cloudflare_bypass_description">Paganahin ang awtomatikong pag-bypass sa Cloudflare challenge</string>
     <string name="cloudflare_bypass_restart_required">Ang setting ng Cloudflare bypass ay ilalapat pagkatapos i-restart ang app</string>
-    <string name="user_agent_restart_required">Binago ang User-Agent. I-restart ang app upang ilapat.</string>
     <string name="cloudflare_challenge_timeout">Timeout ng challenge</string>
     <string name="timeout_seconds">Timeout (segundo)</string>
     <string name="seconds_format">%d segundo</string>
@@ -618,5 +617,7 @@
     <string name="repository_settings">Mga setting ng repository</string>
     <string name="installed">Naka-install</string>
     <string name="available">Available</string>
+
+    <string name="book_fix">Ayusin ang libro</string>
 
 </resources>

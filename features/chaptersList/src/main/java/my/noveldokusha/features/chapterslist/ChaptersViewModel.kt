@@ -7,26 +7,30 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import my.noveldokusha.core.Response
-import my.noveldokusha.coreui.BaseViewModel
+import androidx.lifecycle.ViewModel
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.DownloadManager
 import my.noveldokusha.data.EnqueueResult
 import my.noveldokusha.data.DownloaderRepository
-import my.noveldokusha.data.EpubImporterRepository
+import my.noveldokusha.data.LocalBookImporterRepository
 import my.noveldokusha.chapterslist.R
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppPreferences
+import my.noveldokusha.core.domain.ChapterPagination
 import my.noveldokusha.core.isContentUri
 import my.noveldokusha.core.isLocalUri
 import my.noveldokusha.core.utils.GenreUtils
@@ -37,8 +41,11 @@ import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.feature.local_database.tables.Chapter
 import my.noveldokusha.scraper.Scraper
-import my.noveldokusha.scraper.utils.normalizeBookUrl
+import my.noveldokusha.core.utils.normalizeBookUrl
+import my.noveldokusha.chapterslist.BuildConfig
+import my.noveldokusha.debug.MemoryDiagnostics
 import my.noveldokusha.text_translator.domain.TranslationManager
+import timber.log.Timber
 import javax.inject.Inject
 
 interface ChapterStateBundle {
@@ -54,35 +61,42 @@ internal class ChaptersViewModel @Inject constructor(
     scraper: Scraper,
     private val toasty: Toasty,
     private val appPreferences: AppPreferences,
-    appFileResolver: AppFileResolver,
+    private val appFileResolver: AppFileResolver,
     private val downloaderRepository: DownloaderRepository,
     val downloadManager: DownloadManager,
     private val chaptersRepository: ChaptersRepository,
-    private val epubImporterRepository: EpubImporterRepository,
+    private val localBookImporterRepository: LocalBookImporterRepository,
     private val libraryDao: LibraryDao,
     private val chapterTranslationDao: ChapterTranslationDao,
     private val translationManager: TranslationManager,
     stateHandle: SavedStateHandle,
-) : BaseViewModel(), ChapterStateBundle {
-
-    companion object {
-        private const val TAG = "ChaptersViewModel"
-    }
+) : ViewModel(), ChapterStateBundle {
 
     override val rawBookUrl by StateExtra_String(stateHandle)
     override val bookTitle by StateExtra_String(stateHandle)
 
-    private val bookUrl = normalizeBookUrl(
-        appFileResolver.getLocalIfContentType(rawBookUrl, bookFolderName = bookTitle)
+    private val bookUrlFlow = MutableStateFlow(
+        normalizeBookUrl(
+            appFileResolver.getLocalIfContentType(rawBookUrl, bookFolderName = bookTitle)
+        )
     )
+    private var bookUrl: String
+        get() = bookUrlFlow.value
+        set(value) {
+            bookUrlFlow.value = value
+        }
 
     @Volatile
     private var loadChaptersJob: Job? = null
 
+    private var lastBookmarkClickMs = 0L
+
     @Volatile
     private var lastSelectedChapterUrl: String? = null
     private val source = scraper.getCompatibleSource(bookUrl)
-    private val book = appRepository.libraryBooks.getFlow(bookUrl)
+    private val book = bookUrlFlow.flatMapLatest { url ->
+        appRepository.libraryBooks.getFlow(url)
+    }
         .filterNotNull()
         .map(ChaptersScreenState::BookState)
         .toState(
@@ -153,19 +167,30 @@ internal class ChaptersViewModel @Inject constructor(
     // ─── Инициализация ────────────────────────────────────────────────────────
 
     init {
-        appScope.launch {
-            if (rawBookUrl.isContentUri && appRepository.libraryBooks.get(bookUrl) == null) {
-                importUriContent()
-            }
-        }
-
         viewModelScope.launch {
+            bookUrl = appRepository.libraryBooks.resolveStoredUrl(rawBookUrl)
+            val canonical = normalizeBookUrl(bookUrl)
+            if (canonical != bookUrl) {
+                appRepository.libraryBooks.reparentBookUrl(bookUrl, canonical)
+                bookUrl = canonical
+            }
+
+            if (rawBookUrl.isContentUri) {
+                val localUrl = normalizeBookUrl(
+                    appFileResolver.getLocalIfContentType(rawBookUrl, bookFolderName = bookTitle)
+                )
+                if (appRepository.libraryBooks.get(localUrl) == null) {
+                    importUriContent()
+                }
+                bookUrl = localUrl
+            }
+
             if (state.isLocalSource.value) return@launch
 
             if (!appRepository.bookChapters.hasChapters(bookUrl))
                 updateChaptersList()
 
-            if (appRepository.libraryBooks.get(bookUrl) != null)
+            if (appRepository.libraryBooks.getByUrl(bookUrl) != null)
                 return@launch
 
             chaptersRepository.downloadBookMetadata(bookUrl = bookUrl, bookTitle = bookTitle)
@@ -183,24 +208,33 @@ internal class ChaptersViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            chaptersRepository.getChaptersSortedFlow(bookUrl = bookUrl).collect {
-                state.chapters.clear()
-                state.chapters.addAll(it)
+            bookUrlFlow.collect { url ->
+                chaptersRepository.getChaptersSortedFlow(bookUrl = url).collect {
+                    state.chapters.clear()
+                    state.chapters.addAll(it)
+                }
             }
         }
 
         // Подписываемся на статус загрузки текущей книги
         viewModelScope.launch {
             downloadManager.tasks.collect { tasks ->
-                state.downloadTask.value = tasks.find { it.bookUrl == bookUrl }
+                state.downloadTask.value = tasks.find { it.bookUrl == bookUrlFlow.value }
             }
         }
 
         // Подписываемся на переведённые названия глав из БД
         viewModelScope.launch {
-            appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.flow()
-                .flatMapLatest { targetLang ->
-                    chapterTranslationDao.getTranslatedTitlesFlow(bookUrl, targetLang)
+            combine(
+                appPreferences.GLOBAL_TRANSLATION_ENABLED.flow(),
+                appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.flow()
+            ) { enabled, targetLang -> enabled to targetLang }
+                .flatMapLatest { (enabled, targetLang) ->
+                    if (enabled) {
+                        chapterTranslationDao.getTranslatedTitlesFlow(bookUrl, targetLang)
+                    } else {
+                        flowOf(emptyList())
+                    }
                 }
                 .collectLatest { list ->
                     state.translatedChapterTitles.value = list.associate {
@@ -211,6 +245,9 @@ internal class ChaptersViewModel @Inject constructor(
     }
 
     fun toggleBookmark() {
+        val now = System.currentTimeMillis()
+        if (now - lastBookmarkClickMs < 300L) return
+        lastBookmarkClickMs = now
         viewModelScope.launch {
             val isBookmarked =
                 appRepository.toggleBookmark(bookTitle = bookTitle, bookUrl = bookUrl)
@@ -226,6 +263,20 @@ internal class ChaptersViewModel @Inject constructor(
         viewModelScope.launch {
             val isCompleted = category == "Completed"
             libraryDao.updateCategoryAndCompleted(bookUrl, category, isCompleted)
+        }
+    }
+
+    /**
+     * «Починить книгу»: принудительно сбрасывает кэш-признаки списка глав
+     * (chaptersListHash + chaptersLastPage) и запускает ПОЛНЫЙ репарс глав.
+     * Прогресс (read/позиция) сохраняется — merge берёт его из старых записей.
+     */
+    fun fixBook() {
+        val url = bookUrl
+        viewModelScope.launch {
+            appRepository.libraryBooks.updateChaptersListHash(url, null)
+            appRepository.libraryBooks.updateChaptersLastPage(url, null)
+            updateChaptersList()
         }
     }
 
@@ -287,12 +338,17 @@ internal class ChaptersViewModel @Inject constructor(
         loadChaptersJob = appScope.launch {
             state.error.value = ""
             state.isRefreshing.value = true
-            val isInLibrary = appRepository.libraryBooks.existInLibrary(bookUrl)
-            epubImporterRepository.importEpubFromContentUri(
+            val localUrl = normalizeBookUrl(
+                appFileResolver.getLocalIfContentType(rawBookUrl, bookFolderName = bookTitle)
+            )
+            val isInLibrary = appRepository.libraryBooks.existInLibrary(localUrl)
+            localBookImporterRepository.importFromContentUri(
                 contentUri = rawBookUrl,
                 bookTitle = bookTitle,
                 addToLibrary = isInLibrary
-            ).onError {
+            ).onSuccess {
+                bookUrl = localUrl
+            }.onError {
                 state.error.value = it.message
             }
             state.isRefreshing.value = false
@@ -311,14 +367,24 @@ internal class ChaptersViewModel @Inject constructor(
             // This only re-checks the last known page + loads new pages,
             // instead of re-parsing all pages from scratch.
             val lastPage = book?.chaptersLastPage
-            if (lastPage != null) {
+            val chapterCount = appRepository.bookChapters.countByBookUrl(url)
+            if (lastPage != null &&
+                ChapterPagination.isPageCounterConsistent(lastPage, chapterCount)
+            ) {
                 updateChaptersIncremental(url, lastPage)
             } else {
+                // Счётчик страниц рассинхронизирован с БД (или первый парс/legacy) —
+                // сбрасываем и делаем полный репарс, позиции пересобираются с нуля.
+                if (lastPage != null) {
+                    Timber.w("updateChaptersList: lastPage=$lastPage несогласован с $chapterCount главами, сброс и полный репарс")
+                    appRepository.libraryBooks.updateChaptersLastPage(url, null)
+                }
                 // First time or legacy: try full parsePage, fallback to getChapterList
                 updateChaptersFull(url)
             }
 
             appRepository.libraryBooks.updateLastUpdateEpochTimeMilli(bookUrl = url)
+            if (BuildConfig.DEBUG) MemoryDiagnostics.logMemoryStats("ChaptersList:updateChaptersList")
             state.isRefreshing.value = false
         }
     }
@@ -331,12 +397,12 @@ internal class ChaptersViewModel @Inject constructor(
         val lastPageResult = downloaderRepository.bookChaptersPage(bookUrl, lastKnownPage)
         val lastPageData = (lastPageResult as? Response.Success)?.data
         if (lastPageData == null) {
-            android.util.Log.w(TAG, "updateChaptersIncremental: failed to load lastPage=$lastKnownPage, falling back to full update")
+            Timber.w("updateChaptersIncremental: failed to load lastPage=$lastKnownPage, falling back to full update")
             updateChaptersFull(bookUrl)
             return
         }
 
-        val existingUrls = appRepository.bookChapters.chapters(bookUrl).map { it.url }.toSet()
+        val existingUrls = appRepository.bookChapters.getChapterUrls(bookUrl).toSet()
         var positionOffset = existingUrls.size
         val chaptersToAdd = mutableListOf<Chapter>()
 
@@ -374,6 +440,8 @@ internal class ChaptersViewModel @Inject constructor(
         if (newTotalPages != lastKnownPage) {
             appRepository.libraryBooks.updateChaptersLastPage(bookUrl, newTotalPages)
         }
+
+        if (BuildConfig.DEBUG) MemoryDiagnostics.logMemoryStats("ChaptersList:updateChaptersIncremental")
     }
 
     /**
@@ -390,6 +458,7 @@ internal class ChaptersViewModel @Inject constructor(
                 if (totalPages != null) {
                     appRepository.libraryBooks.updateChaptersLastPage(bookUrl, totalPages)
                 }
+                if (BuildConfig.DEBUG) MemoryDiagnostics.logMemoryStats("ChaptersList:updateChaptersFull")
             }.onError {
                 state.error.value = it.message
             }
@@ -400,14 +469,14 @@ internal class ChaptersViewModel @Inject constructor(
 
     fun setAsUnreadSelected() {
         val list = state.selectedChaptersUrl.toList()
-        appScope.launch(Dispatchers.Default) {
+        appScope.launch {
             appRepository.bookChapters.setAsUnread(list.map { it.first })
         }
     }
 
     fun setAsReadSelected() {
         val list = state.selectedChaptersUrl.toList()
-        appScope.launch(Dispatchers.Default) {
+        appScope.launch {
             appRepository.bookChapters.setAsRead(list.map { it.first })
         }
     }
@@ -420,7 +489,7 @@ internal class ChaptersViewModel @Inject constructor(
 
         if (selectedIndex != -1) {
             val chaptersToMarkAsRead = state.chapters.take(selectedIndex + 1).map { it.chapter.url }
-            appScope.launch(Dispatchers.Default) {
+            appScope.launch {
                 appRepository.bookChapters.setAsRead(chaptersToMarkAsRead)
             }
         }
@@ -434,7 +503,7 @@ internal class ChaptersViewModel @Inject constructor(
 
         if (selectedIndex != -1) {
             val chaptersToMarkAsUnread = state.chapters.take(selectedIndex + 1).map { it.chapter.url }
-            appScope.launch(Dispatchers.Default) {
+            appScope.launch {
                 appRepository.bookChapters.setAsUnread(chaptersToMarkAsUnread)
             }
         }
@@ -486,13 +555,13 @@ internal class ChaptersViewModel @Inject constructor(
     fun deleteDownloadsSelected() {
         if (state.isLocalSource.value) return
         val list = state.selectedChaptersUrl.toList()
-        appScope.launch(Dispatchers.Default) {
+        appScope.launch {
             appRepository.chapterBody.removeRows(list.map { it.first })
         }
     }
 
     fun deleteTranslationsForBook() {
-        appScope.launch(Dispatchers.Default) {
+        appScope.launch {
             chapterTranslationDao.deleteTranslationsByBookUrls(listOf(bookUrl))
         }
     }

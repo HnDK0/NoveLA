@@ -3,8 +3,11 @@ package my.noveldokusha.network.interceptors
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.util.Log
+import android.net.http.SslError
 import android.webkit.CookieManager
+import android.webkit.SslErrorHandler
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -25,6 +28,7 @@ import okio.Buffer
 import okio.BufferedSink
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
+import timber.log.Timber
 import javax.net.ssl.HttpsURLConnection
 import kotlin.concurrent.withLock
 import kotlin.time.Duration.Companion.seconds
@@ -38,31 +42,19 @@ private val CLOUDFLARE_WHITELIST = listOf(
     "raw.githubusercontent.com"
 )
 
-/**
- * Настройки CF-байпаса для конкретного домена.
- * Устанавливается плагином через LuaCfOptionsRegistry.
- *
- * @param whitelist полностью отключить CF-детект для домена
- * @param ignoreMarkers конкретные маркеры которые игнорировать (например listOf("turnstile"))
- */
 data class CfDomainOptions(
     val whitelist: Boolean = false,
     val ignoreMarkers: Set<String> = emptySet()
 )
 
-/**
- * Реестр CF-настроек от Lua плагинов.
- * Плагин при загрузке регистрирует свой домен и опции.
- */
 object LuaCfOptionsRegistry {
     private val options = ConcurrentHashMap<String, CfDomainOptions>()
 
     fun register(domain: String, cfOptions: CfDomainOptions) {
-        // Нормализуем домен — убираем www. и слеши
         val key = domain.removePrefix("https://").removePrefix("http://")
             .removePrefix("www.").trimEnd('/')
         options[key] = cfOptions
-        Log.d(TAG, "CF options registered for $key: $cfOptions")
+        Timber.d( "CF options registered for $key: $cfOptions")
     }
 
     fun getForHost(host: String): CfDomainOptions? {
@@ -97,14 +89,33 @@ internal class CloudFareVerificationInterceptor(
     private val resolvedDomains = mutableSetOf<String>()
     private val manualAttempts = ConcurrentHashMap<String, Int>()
 
-    // Все возможные маркеры CF
     private val ALL_CF_MARKERS = listOf(
         "cf-challenge",
-        "turnstile",
         "requireTurnstile",
+        "action=\"/cdn-cgi/challenge-platform/",
+        "onloadTurnstileCallback",
         "__cf_chl_",
         "but-captcha",
-        "recaptcha-accessible-status"
+        "recaptcha-accessible-status",
+        "cf-browser-verification",
+        "cf-challenge-running",
+        "cf-please-wait",
+        "id=\"challenge-running\"",
+        "id=\"cf-challenge-running\"",
+        "ddos-guard.net",
+        ".ddos-guard.net",
+    )
+
+    /**
+     * URL-маркеры жёсткой блокировки IP Cloudflare (ошибки 1020/1015).
+     * Когда авто-WebView уходит на такой URL, дальнейшая выпечка
+     * cf_clearance бессмысленна — прерываем опрос сразу, не дожидаясь
+     * полного таймаута в 15 с.
+     */
+    private val IP_BLOCKED_URL_MARKERS = listOf(
+        "/cdn-cgi/error/",
+        "error=1020",
+        "error=1015",
     )
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -133,7 +144,7 @@ internal class CloudFareVerificationInterceptor(
             return response
         }
 
-        Log.d(TAG, "CF: Challenge detected. URL: ${bufferedRequest.url}")
+        Timber.d( "CF: Challenge detected. URL: ${bufferedRequest.url}")
 
         return lock.withLock {
             response.close()
@@ -146,7 +157,7 @@ internal class CloudFareVerificationInterceptor(
 
             val existingCookie = cookieManager.getCookie(siteUrl) ?: ""
             if (resolvedDomains.contains(host) || existingCookie.contains("cf_clearance")) {
-                Log.d(TAG, "CF: cf_clearance cached for $host, trying direct retry")
+                Timber.d( "CF: cf_clearance cached for $host, trying direct retry")
                 val retryRequest = bufferedRequest.newBuilder()
                     .header("Cookie", formatCookies(existingCookie))
                     .header("User-Agent", userAgent)
@@ -178,7 +189,7 @@ internal class CloudFareVerificationInterceptor(
             else -> siteUrl
         }
 
-        runBlocking(Dispatchers.Main) {
+        runBlocking {
             withTimeoutOrNull(15_000) {
                 resolveWithWebViewAutomatic(webViewUrl, cookieManager)
             }
@@ -203,12 +214,12 @@ internal class CloudFareVerificationInterceptor(
 
         val attempts = manualAttempts.getOrDefault(host, 0)
         if (attempts >= MAX_MANUAL_ATTEMPTS) {
-            Log.e(TAG, "CF: Max manual attempts ($MAX_MANUAL_ATTEMPTS) reached for $host, giving up")
+            Timber.e( "CF: Max manual attempts ($MAX_MANUAL_ATTEMPTS) reached for $host, giving up")
             manualAttempts.remove(host)
             throw CloudfareVerificationBypassFailedException()
         }
         manualAttempts[host] = attempts + 1
-        Log.d(TAG, "CF: Step 2 - manual attempt ${attempts + 1}/$MAX_MANUAL_ATTEMPTS for $host, webViewUrl=$webViewUrl")
+        Timber.d( "CF: Step 2 - manual attempt ${attempts + 1}/$MAX_MANUAL_ATTEMPTS for $host, webViewUrl=$webViewUrl")
 
         clearCookiesForDomain(siteUrl, cookieManager)
 
@@ -242,35 +253,35 @@ internal class CloudFareVerificationInterceptor(
     private fun isNotCloudflare(response: Response, body: String): Boolean {
         val host = response.request.url.host
 
-        // Статические файлы — никогда не CF-челлендж
         val pathExt = response.request.url.pathSegments.lastOrNull()
             ?.substringAfterLast('.', "")?.lowercase()
         if (pathExt != null && pathExt in STATIC_EXTENSIONS) return true
 
-        // Глобальный whitelist
         if (CLOUDFLARE_WHITELIST.any { host.contains(it) }) return true
 
-        // Настройки от Lua плагина для этого домена
         val domainOptions = LuaCfOptionsRegistry.getForHost(host)
-
-        // Плагин полностью отключил CF-детект для домена
         if (domainOptions?.whitelist == true) return true
 
-        // Маркеры которые игнорируем для этого домена
-        val ignoredMarkers = domainOptions?.ignoreMarkers ?: emptySet()
+        if (response.header("cf-mitigated") == "challenge") return false
 
+        val ignoredMarkers = domainOptions?.ignoreMarkers ?: emptySet()
         val activeMarkers = ALL_CF_MARKERS.filter { it !in ignoredMarkers }
 
         val hasMarkers = activeMarkers.any { body.contains(it, ignoreCase = true) }
-        val isError = response.code in ERROR_CODES || (response.code == 200 && hasMarkers)
-        val isCfServer = response.header("Server")?.contains("cloudflare", true) == true
+        val isCfServer = response.header("Server")?.let {
+            it.contains("cloudflare", true) || it.contains("ddos-guard", true)
+        } == true
 
-        val result = !(isError && (isCfServer || hasMarkers))
-        if (!result) {
-            val foundMarkers = activeMarkers.filter { body.contains(it, ignoreCase = true) }
-            Log.e(TAG, "CF triggered: code=${response.code} isCfServer=$isCfServer foundMarkers=$foundMarkers")
+        val isCf = when {
+            response.code == 200 -> hasMarkers && isCfServer
+            response.code in ERROR_CODES -> hasMarkers && isCfServer
+            else -> false
         }
-        return result
+        if (isCf) {
+            val foundMarkers = activeMarkers.filter { body.contains(it, ignoreCase = true) }
+            Timber.e( "CF triggered: code=${response.code} isCfServer=$isCfServer foundMarkers=$foundMarkers")
+        }
+        return !isCf
     }
 
     private fun clearCookiesForDomain(url: String, cm: CookieManager) {
@@ -294,24 +305,50 @@ internal class CloudFareVerificationInterceptor(
     private suspend fun resolveWithWebViewAutomatic(webViewUrl: String, cm: CookieManager) {
         withContext(Dispatchers.Main) {
             val webView = WebView(appContext)
-            // Cloudflare challenge cookies must be accepted by the bypass WebView too.
             cm.setAcceptCookie(true)
             cm.setAcceptThirdPartyCookies(webView, true)
             webView.settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
                 userAgentString = resolveUserAgent(appPreferences)
-                cacheMode = WebSettings.LOAD_NO_CACHE
+                mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             }
             webView.webViewClient = object : WebViewClient() {
+                override fun onReceivedSslError(
+                    view: WebView?, handler: SslErrorHandler?, error: SslError?
+                ) {
+                    Timber.e("CF WebView SSL error: ${error?.primaryError}")
+                    handler?.cancel()
+                }
+                override fun onReceivedError(
+                    view: WebView?, request: WebResourceRequest?, error: WebResourceError?
+                ) {
+                    Timber.e("CF WebView error: code=${error?.errorCode}, url=${request?.url}")
+                }
                 override fun onPageFinished(view: WebView?, url: String?) { cm.flush() }
             }
             webView.loadUrl(webViewUrl)
             for (i in 1..30) {
                 delay(500)
-                if (cm.getCookie(webViewUrl)?.contains("cf_clearance") == true) {
-                    Log.d(TAG, "CF: Auto WebView success on iteration $i")
+                val currentUrl = webView.url
+                if (currentUrl != null && IP_BLOCKED_URL_MARKERS.any {
+                        currentUrl.contains(it, ignoreCase = true)
+                    }) {
+                    Timber.d("CF: IP blocked ($currentUrl), aborting auto attempt")
                     break
+                }
+                if (cm.getCookie(webViewUrl)?.contains("cf_clearance") == true) {
+                    delay(500)
+                    val urlAfterCookie = webView.url
+                    val stillOnChallenge = urlAfterCookie != null && (
+                        urlAfterCookie.contains("__cf_chl", ignoreCase = true) ||
+                        urlAfterCookie.contains("/cdn-cgi/challenge-platform", ignoreCase = true)
+                    )
+                    if (!stillOnChallenge) {
+                        Timber.d( "CF: Auto WebView success on iteration $i")
+                        break
+                    }
+                    Timber.d("CF: cf_clearance detected but still on challenge page, continuing")
                 }
             }
             webView.stopLoading()

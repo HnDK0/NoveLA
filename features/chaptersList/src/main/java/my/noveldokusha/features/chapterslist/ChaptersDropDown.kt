@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -26,6 +27,7 @@ internal fun ChaptersDropDown(
     onDownloadAllChapters: () -> Unit,
     onMigrateBook: () -> Unit = {},
     onDeleteTranslations: () -> Unit = {},
+    onFixBook: () -> Unit = {},
 ) {
     if (!isLocalSource) DropdownMenuItem(
         onClick = openInBrowser,
@@ -105,6 +107,18 @@ internal fun ChaptersDropDown(
             Icon(
                 Icons.Outlined.DeleteSweep,
                 contentDescription = stringResource(R.string.delete_book_translations),
+            )
+        }
+    )
+    if (!isLocalSource) DropdownMenuItem(
+        onClick = onFixBook,
+        text = {
+            Text(text = stringResource(R.string.book_fix))
+        },
+        leadingIcon = {
+            Icon(
+                Icons.Filled.Build,
+                contentDescription = stringResource(R.string.book_fix),
             )
         }
     )

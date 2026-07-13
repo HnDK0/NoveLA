@@ -11,6 +11,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -88,6 +89,8 @@ internal fun ChaptersScreenBody(
         if (idx == -1) null else idx + 1
     }
 
+    val readChapters by remember { derivedStateOf { state.chapters.count { it.chapter.read } } }
+
     val onScrollToLastRead: (() -> Unit)? = lastReadChapterIndex?.let { index ->
         {
             coroutineScope.launch {
@@ -141,6 +144,7 @@ internal fun ChaptersScreenBody(
                         stringResource(id = state.sourceCatalogNameStrRes.value ?: R.string.invalid_source)
                     },
                     numberOfChapters = state.chapters.size,
+                    readChapters = readChapters,
                     paddingValues = innerPadding,
                     modifier = Modifier,
                     translatedTitle = translatedTitle,

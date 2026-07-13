@@ -21,6 +21,5 @@ dependencies {
     implementation(libs.compose.material3.android)
     implementation(libs.compose.androidx.lifecycle.viewmodel)
     implementation(libs.compose.androidx.material.icons.extended)
-    implementation(libs.compose.landscapist.glide)
     implementation(libs.compose.coil)
 }

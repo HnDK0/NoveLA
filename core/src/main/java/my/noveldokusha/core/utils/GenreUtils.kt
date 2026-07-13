@@ -36,12 +36,4 @@ object GenreUtils {
             .filter { it.isNotBlank() }
     }
 
-    /**
-     * Проверяет, содержит ли строка жанров указанный жанр.
-     */
-    fun contains(genres: String, genre: String): Boolean {
-        if (genres.isBlank() || genre.isBlank()) return false
-        val target = genre.trim().lowercase()
-        return genres.split(SEPARATOR).any { it.trim().lowercase() == target }
-    }
 }

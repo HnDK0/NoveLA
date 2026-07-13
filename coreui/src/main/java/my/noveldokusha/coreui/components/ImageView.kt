@@ -17,6 +17,7 @@ import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import coil.size.Precision
 import my.noveldokusha.coreui.R
 
 @Composable
@@ -27,6 +28,7 @@ fun ImageView(
     contentDescription: String? = null,
     contentScale: ContentScale = ContentScale.Crop,
     @DrawableRes error: Int = R.drawable.default_book_cover,
+    @DrawableRes placeholder: Int? = null,
     colorFilter: ColorFilter? = null,
     forceCache: Boolean = false,
 ) {
@@ -42,7 +44,7 @@ fun ImageView(
     if (LocalInspectionMode.current) {
         val res = when (val modelCopy = model) {
             is Int -> modelCopy
-            else -> error
+            else -> placeholder ?: error
         }
         Image(
             painter = painterResource(res),
@@ -59,10 +61,15 @@ fun ImageView(
                     .Builder(context)
                     .data(model)
                     .crossfade(fadeInDurationMillis)
+                    .size(512)
+                    .precision(Precision.INEXACT)
                     .apply {
                         if (forceCache) {
                             diskCachePolicy(CachePolicy.ENABLED)
                             memoryCachePolicy(CachePolicy.ENABLED)
+                        }
+                        if (placeholder != null) {
+                            placeholder(placeholder)
                         }
                     }
                     .build()
@@ -74,6 +81,8 @@ fun ImageView(
                     .Builder(context)
                     .data(error)
                     .crossfade(fadeInDurationMillis)
+                    .size(512)
+                    .precision(Precision.INEXACT)
                     .build()
             }
         }

@@ -4,7 +4,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -37,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -56,8 +60,9 @@ internal fun LibraryScreenBody(
     onBookClick: (BookWithContext) -> Unit,
     onBookLongClick: (BookWithContext) -> Unit,
     gridColumns: Int = 3,
-    selectedBooks: Set<String> = emptySet(),
+    selectedBooks: Map<String, Boolean> = emptyMap(),
     isSelectionMode: Boolean = false,
+    pendingRemoval: Set<String> = emptySet(),
     showCategories: Boolean = false,
     customCategories: List<String> = emptyList(),
     onCreateCategory: () -> Unit = {},
@@ -196,16 +201,27 @@ internal fun LibraryScreenBody(
 
             // Single list filtered by selected categories
             val list by viewModel.filteredList
-            LibraryPageBody(
-                list = list,
-                onClick = onBookClick,
-                onLongClick = onBookLongClick,
-                getSourceName = { viewModel.getSourceName(it) },
-                gridColumns = gridColumns,
-                selectedBooks = selectedBooks,
-                isSelectionMode = isSelectionMode,
-                gridState = gridState,
-            )
+            val sources by viewModel.luaSources.collectAsState()
+            if (viewModel.isLibraryLoaded) {
+                LibraryPageBody(
+                    list = list,
+                    onClick = onBookClick,
+                    onLongClick = onBookLongClick,
+                    getSourceName = remember(sources) { { viewModel.getSourceName(it) } },
+                    gridColumns = gridColumns,
+                    selectedBooks = selectedBooks,
+                    isSelectionMode = isSelectionMode,
+                    pendingRemoval = pendingRemoval,
+                    gridState = gridState,
+                )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
         }
     }
 

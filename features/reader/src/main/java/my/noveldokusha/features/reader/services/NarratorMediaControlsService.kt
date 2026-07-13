@@ -8,6 +8,7 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.IBinder
+import androidx.media.session.MediaButtonReceiver
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import my.noveldokusha.core.utils.isServiceRunning
@@ -19,6 +20,12 @@ import javax.inject.Inject
 internal class NarratorMediaControlsService : Service() {
 
     companion object {
+        // PlaybackStateCompat.ACTION_* не доступны в этом модуле (нет androidx.media:media
+        // с PlaybackStateCompat), поэтому дублируем стабильные значения action.
+        // buildMediaButtonPendingIntent(Context, long) маппит их в KEYCODE_MEDIA_*.
+        private const val MEDIA_ACTION_PLAY = 4L   // PlaybackStateCompat.ACTION_PLAY
+        private const val MEDIA_ACTION_PAUSE = 2L  // PlaybackStateCompat.ACTION_PAUSE
+
         fun start(ctx: Context) {
             if (!isRunning(ctx))
                 ContextCompat.startForegroundService(
@@ -39,6 +46,15 @@ internal class NarratorMediaControlsService : Service() {
     lateinit var narratorNotification: NarratorMediaControlsNotification
 
     private var audioFocusRequest: AudioFocusRequest? = null
+    private var wasPausedByFocusLoss = false
+
+    private fun dispatchMediaButtonAction(action: Long) {
+        try {
+            MediaButtonReceiver.buildMediaButtonPendingIntent(this, action).send()
+        } catch (_: Exception) {
+            Timber.d("dispatchMediaButtonAction failed for $action")
+        }
+    }
 
     private fun requestAudioFocus() {
         if (audioFocusRequest != null) return
@@ -49,7 +65,22 @@ internal class NarratorMediaControlsService : Service() {
             .build()
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
             .setAudioAttributes(attrs)
-            .setOnAudioFocusChangeListener { }
+            .setOnAudioFocusChangeListener { focusChange ->
+                when (focusChange) {
+                    AudioManager.AUDIOFOCUS_LOSS,
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                        wasPausedByFocusLoss = true
+                        dispatchMediaButtonAction(MEDIA_ACTION_PAUSE)
+                    }
+                    AudioManager.AUDIOFOCUS_GAIN -> {
+                        if (wasPausedByFocusLoss) {
+                            wasPausedByFocusLoss = false
+                            dispatchMediaButtonAction(MEDIA_ACTION_PLAY)
+                        }
+                    }
+                }
+            }
             .build()
         audioFocusRequest = request
         audioManager.requestAudioFocus(request)

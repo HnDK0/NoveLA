@@ -1,13 +1,14 @@
 package my.noveldokusha.features.reader.tools
 
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
-import my.noveldokusha.core.BookTextMapper
 import my.noveldokusha.core.models.RegexRule
 import my.noveldokusha.features.reader.domain.ImgEntry
 import my.noveldokusha.features.reader.domain.ReaderItem
+import org.jsoup.Jsoup
+import timber.log.Timber
+
+private val IMG_TAG_REGEX = Regex("<img\\b", RegexOption.IGNORE_CASE)
 
 internal suspend fun textToItemsConverter(
     chapterUrl: String,
@@ -17,32 +18,117 @@ internal suspend fun textToItemsConverter(
     userRegexRules: List<RegexRule> = emptyList()
 ): List<ReaderItem> = withContext(Dispatchers.Default) {
 
+    val items = mutableListOf<ReaderItem>()
+    var itemPosition = chapterItemPositionDisplacement
+    var remaining = text
+
+    while (true) {
+        val match = IMG_TAG_REGEX.find(remaining) ?: break
+
+        val before = remaining.substring(0, match.range.first)
+        if (before.isNotBlank()) {
+            val bodyItems = buildBodyItems(
+                text = before,
+                chapterUrl = chapterUrl,
+                chapterIndex = chapterIndex,
+                startPosition = itemPosition,
+                userRegexRules = userRegexRules
+            )
+            items.addAll(bodyItems)
+            itemPosition += bodyItems.size
+        }
+
+        val afterMatch = remaining.substring(match.range.first)
+        val imgTag = extractImgTag(afterMatch)
+        if (imgTag != null) {
+            val (src, yrel) = imgTag
+            items.add(ReaderItem.Image(
+                chapterUrl = chapterUrl,
+                chapterIndex = chapterIndex,
+                chapterItemPosition = itemPosition++,
+                location = ReaderItem.Location.MIDDLE,
+                text = "<img src=\"$src\" yrel=\"${"%.2f".format(yrel)}\">",
+                image = ImgEntry(path = src, yrel = yrel)
+            ))
+        }
+
+        val endIdx = afterMatch.indexOf('>')
+        remaining = if (endIdx >= 0) afterMatch.substring(endIdx + 1) else ""
+    }
+
+    if (remaining.isNotBlank()) {
+        val bodyItems = buildBodyItems(
+            text = remaining,
+            chapterUrl = chapterUrl,
+            chapterIndex = chapterIndex,
+            startPosition = itemPosition,
+            userRegexRules = userRegexRules
+        )
+        items.addAll(bodyItems)
+    }
+
+    // Assign locations
+    if (items.isNotEmpty()) {
+        items[0] = items[0].let {
+            when (it) {
+                is ReaderItem.Body -> it.copy(location = ReaderItem.Location.FIRST)
+                is ReaderItem.Image -> it.copy(location = ReaderItem.Location.FIRST)
+                else -> it
+            }
+        }
+        items[items.lastIndex] = items[items.lastIndex].let {
+            when (it) {
+                is ReaderItem.Body -> it.copy(location = ReaderItem.Location.LAST)
+                is ReaderItem.Image -> it.copy(location = ReaderItem.Location.LAST)
+                else -> it
+            }
+        }
+    }
+
+    items
+}
+
+private fun extractImgTag(text: String): Pair<String, Float>? {
+    val endIdx = text.indexOf('>')
+    if (endIdx < 0) return null
+    val tag = text.substring(0, endIdx + 1)
+    return try {
+        val img = Jsoup.parse(tag).selectFirst("img") ?: return null
+        val src = (img.attr("src").ifBlank { img.attr("data-src") }).takeIf { it.isNotBlank() } ?: return null
+        val yrel = img.attr("yrel").toFloatOrNull()?.takeIf { it >= 0.01f } ?: 1.45f
+        Pair(src, yrel)
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun buildBodyItems(
+    text: String,
+    chapterUrl: String,
+    chapterIndex: Int,
+    startPosition: Int,
+    userRegexRules: List<RegexRule>
+): List<ReaderItem.Body> {
     val cleanText = text
-        .replace(Regex("<(?!(imgEntry|/imgEntry))[^>]*>"), "")
+        .replace(Regex("<[^>]*>"), "")
         .replace("\r\n", "\n")
         .replace("\u00A0", " ")
         .replace(Regex("[ ]+"), " ")
 
-    // Применение пользовательских regex-правил
     val processedText = applyUserRegexRules(cleanText, userRegexRules)
-
     val paragraphs = processTextIntoLogicalBlocks(processedText)
 
-    paragraphs.mapIndexed { position, paragraph ->
-        async {
-            generateITEM(
-                chapterUrl = chapterUrl,
-                chapterIndex = chapterIndex,
-                chapterItemPosition = position + chapterItemPositionDisplacement,
-                text = paragraph,
-                location = when (position) {
-                    0 -> ReaderItem.Location.FIRST
-                    paragraphs.lastIndex -> ReaderItem.Location.LAST
-                    else -> ReaderItem.Location.MIDDLE
-                }
-            )
-        }
-    }.awaitAll()
+    return paragraphs.mapIndexedNotNull { i, para ->
+        val trimmed = para.trim()
+        if (trimmed.isBlank()) return@mapIndexedNotNull null
+        ReaderItem.Body(
+            chapterUrl = chapterUrl,
+            chapterIndex = chapterIndex,
+            chapterItemPosition = startPosition + i,
+            text = trimmed,
+            location = ReaderItem.Location.MIDDLE
+        )
+    }
 }
 
 private fun processTextIntoLogicalBlocks(text: String): List<String> {
@@ -50,7 +136,6 @@ private fun processTextIntoLogicalBlocks(text: String): List<String> {
 
     var splitResult = text.split(Regex("\\n\\s*\\n")).filter { it.isNotBlank() }
 
-    // Если двойных переносов нет (ошибка парсинга), используем одиночные
     if (splitResult.size <= 1 && text.contains("\n")) {
         splitResult = text.split("\n").filter { it.isNotBlank() }
     }
@@ -75,7 +160,7 @@ private fun processTextIntoLogicalBlocks(text: String): List<String> {
 }
 
 private fun splitParagraphRespectingLogicalBlocks(paragraph: String): List<String> {
-    if (paragraph.length <= 800 || paragraph.contains("imgEntry")) {
+    if (paragraph.length <= 800) {
         return listOf(paragraph)
     }
 
@@ -110,10 +195,7 @@ private fun splitParagraphRespectingLogicalBlocks(paragraph: String): List<Strin
             }
         }
 
-        // Если превысили 800 с точкой или жесткий предел 2000
         if ((currentChunk.length >= 800 && safeSplitIndexInChunk != -1) || currentChunk.length >= 2000) {
-
-            // Если безопасного индекса нет, ищем ближайший пробел с конца, чтобы не рвать слово
             val splitAt = if (safeSplitIndexInChunk != -1) {
                 safeSplitIndexInChunk.coerceAtMost(currentChunk.length)
             } else {
@@ -121,7 +203,6 @@ private fun splitParagraphRespectingLogicalBlocks(paragraph: String): List<Strin
                 if (lastSpace != -1) (lastSpace + 1).coerceAtMost(currentChunk.length) else currentChunk.length
             }
 
-            // Проверяем, что индекс в допустимом диапазоне перед вызовом substring
             val chunkToTake = if (splitAt > 0 && splitAt <= currentChunk.length) {
                 currentChunk.substring(0, splitAt).trim()
             } else {
@@ -140,7 +221,6 @@ private fun splitParagraphRespectingLogicalBlocks(paragraph: String): List<Strin
             }
 
             currentChunk = StringBuilder(remaining)
-
             bracketDepth = countUnbalancedBrackets(remaining, openingBrackets, closingBrackets)
             quoteState = countQuotes(remaining, quotes) % 2 != 0
             safeSplitIndexInChunk = -1
@@ -176,38 +256,4 @@ private fun applyUserRegexRules(text: String, rules: List<RegexRule>): String {
         }
     }
     return result
-}
-
-private fun generateITEM(
-    chapterUrl: String,
-    chapterIndex: Int,
-    chapterItemPosition: Int,
-    text: String,
-    location: ReaderItem.Location
-): ReaderItem = try {
-    when (val imgEntry = BookTextMapper.ImgEntry.fromXMLString(text)) {
-        null -> ReaderItem.Body(
-            chapterUrl = chapterUrl,
-            chapterIndex = chapterIndex,
-            chapterItemPosition = chapterItemPosition,
-            text = text,
-            location = location
-        )
-        else -> ReaderItem.Image(
-            chapterUrl = chapterUrl,
-            chapterIndex = chapterIndex,
-            chapterItemPosition = chapterItemPosition,
-            text = text,
-            location = location,
-            image = ImgEntry(path = imgEntry.path, yrel = imgEntry.yrel)
-        )
-    }
-} catch (e: Exception) {
-    ReaderItem.Body(
-        chapterUrl = chapterUrl,
-        chapterIndex = chapterIndex,
-        chapterItemPosition = chapterItemPosition,
-        text = text,
-        location = location
-    )
 }

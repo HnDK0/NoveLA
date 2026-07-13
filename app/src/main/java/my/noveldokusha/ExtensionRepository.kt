@@ -14,7 +14,7 @@ import javax.inject.Singleton
 @Singleton
 class ExtensionRepository @Inject constructor(
     private val database: AppDatabase
-) : ExtensionManager, my.noveldokusha.core.ExtensionRepositoryInterface {
+) : ExtensionManager {
 
     private val extensionDao = database.extensionDao()
 

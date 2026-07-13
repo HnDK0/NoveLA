@@ -5,7 +5,7 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
-import android.util.Log
+import timber.log.Timber
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.appPreferences.VoicePredefineState
 import my.noveldokusha.features.reader.domain.ChapterIndex
@@ -363,8 +364,18 @@ internal class ReaderTextToSpeech(
         }
     }
 
+    @Volatile
+    private var activeClaimTrack: AudioTrack? = null
+
+    private val lifecycleLock = java.util.concurrent.locks.ReentrantLock()
+
     private fun claimMediaSession() {
         try {
+            // Освобождаем предыдущий трек, если он ещё не был релизнут
+            // (защита от утечки при множественных вызовах start())
+            activeClaimTrack?.let { runCatching { it.release() } }
+            activeClaimTrack = null
+
             val sampleRate = 44100
             val durationSec = 0.1
             val bufferSize = (sampleRate * durationSec).toInt()
@@ -382,65 +393,87 @@ internal class ReaderTextToSpeech(
                 AudioTrack.MODE_STATIC,
                 AudioManager.AUDIO_SESSION_ID_GENERATE
             )
+            activeClaimTrack = audioTrack
             val silence = ShortArray(bufferSize)
             audioTrack.write(silence, 0, silence.size)
             audioTrack.play()
-            coroutineScope.launch {
-                delay(200)
-                runCatching { audioTrack.stop() }
-                runCatching { audioTrack.release() }
+            // NonCancellable гарантирует, что release() выполнится даже при отмене coroutineScope
+            coroutineScope.launch(NonCancellable) {
+                try {
+                    delay(200)
+                } finally {
+                    runCatching { audioTrack.stop() }
+                    runCatching { audioTrack.release() }
+                    if (activeClaimTrack === audioTrack) activeClaimTrack = null
+                }
             }
-            Log.d("TTS", "claimMediaSession OK")
+            Timber.d("claimMediaSession OK")
         } catch (e: Exception) {
-            Log.w("TTS", "claimMediaSession failed: $e")
+            Timber.w(e, "claimMediaSession failed")
         }
     }
 
-    @Synchronized
     fun start() {
-        Log.d("TTS", "start()")
-        claimMediaSession()
-        switchVoiceForMode()
-        state.isPlaying.value = true
-        updateJob?.cancel()
-        updateJob = coroutineScope.launch {
-            manager
-                .currentTextSpeakFlow
-                .filter { it.playState == Utterance.PlayState.FINISHED }
-                .collect {
-                    Log.d("TTS", "collect FINISHED queueSize=${manager.queueList.size}")
-                    withContext(Dispatchers.Main) {
-                        when (manager.queueList.size) {
-                            halfBuffer -> {
-                                val lastUtterance = manager
-                                    .queueList
-                                    .asSequence()
-                                    .last().value
-                                readChapterNextChunk(
-                                    chapterIndex = lastUtterance.itemPos.chapterIndex,
-                                    chapterItemPosition = lastUtterance.itemPos.chapterItemPosition,
-                                    quantity = halfBuffer
-                                )
-                                onBufferLow?.invoke()
-                            }
-                            0 -> {
-                                launch {
-                                    reachedChapterEndFlowChapterIndex.emit(it.itemPos.chapterIndex)
+        lifecycleLock.lock()
+        try {
+            Timber.d("start()")
+            claimMediaSession()
+            switchVoiceForMode()
+            state.isPlaying.value = true
+            updateJob?.cancel()
+            updateJob = coroutineScope.launch {
+                manager
+                    .currentTextSpeakFlow
+                    .filter { it.playState == Utterance.PlayState.FINISHED }
+                    .collect {
+                        Timber.d("collect FINISHED queueSize=${manager.queueList.size}")
+                        withContext(Dispatchers.Main) {
+                            when (manager.queueList.size) {
+                                halfBuffer -> {
+                                    val lastUtterance = manager
+                                        .queueList
+                                        .asSequence()
+                                        .last().value
+                                    readChapterNextChunk(
+                                        chapterIndex = lastUtterance.itemPos.chapterIndex,
+                                        chapterItemPosition = lastUtterance.itemPos.chapterItemPosition,
+                                        quantity = halfBuffer
+                                    )
+                                    onBufferLow?.invoke()
                                 }
+                                0 -> {
+                                    launch {
+                                        reachedChapterEndFlowChapterIndex.emit(it.itemPos.chapterIndex)
+                                    }
+                                }
+                                else -> Unit
                             }
-                            else -> Unit
                         }
                     }
-                }
+            }
+        } finally {
+            lifecycleLock.unlock()
         }
     }
 
-    @Synchronized
     fun stop() {
-        Log.d("TTS", "stop()")
+        lifecycleLock.lock()
+        try {
+            Timber.d("stop()")
+            state.isPlaying.value = false
+            updateJob?.cancel()
+            manager.stop()
+        } finally {
+            lifecycleLock.unlock()
+        }
+    }
+
+    fun forceResetState(itemPos: ReaderItem.Position?) {
+        if (itemPos == null) return
         state.isPlaying.value = false
-        updateJob?.cancel()
-        manager.stop()
+        manager.setCurrentSpeakState(
+            TextSynthesis(itemPos, Utterance.PlayState.FINISHED)
+        )
     }
 
     suspend fun readChapterStartingFromStart(
@@ -497,31 +530,39 @@ internal class ReaderTextToSpeech(
         nextItems.forEach(::speakItem)
     }
 
-    @Synchronized
     private fun scrollToActiveItem() {
-        coroutineScope.launch {
-            val currentItemPos = state.currentActiveItemState.value.itemPos
-            val itemIndex = indexOfReaderItem(
-                list = items,
-                chapterIndex = currentItemPos.chapterIndex,
-                chapterItemPosition = currentItemPos.chapterItemPosition,
-            )
-            val item = items.getOrNull(itemIndex) ?: return@launch
-            scrollToReaderItem.emit(item)
+        lifecycleLock.lock()
+        try {
+            coroutineScope.launch {
+                val currentItemPos = state.currentActiveItemState.value.itemPos
+                val itemIndex = indexOfReaderItem(
+                    list = items,
+                    chapterIndex = currentItemPos.chapterIndex,
+                    chapterItemPosition = currentItemPos.chapterItemPosition,
+                )
+                val item = items.getOrNull(itemIndex) ?: return@launch
+                scrollToReaderItem.emit(item)
+            }
+        } finally {
+            lifecycleLock.unlock()
         }
     }
 
-    @Synchronized
     fun scrollToCurrentSpeakingItem() {
-        coroutineScope.launch {
-            val currentItemPos = currentTextPlaying.value.itemPos
-            val itemIndex = indexOfReaderItem(
-                list = items,
-                chapterIndex = currentItemPos.chapterIndex,
-                chapterItemPosition = currentItemPos.chapterItemPosition,
-            )
-            val item = items.getOrNull(itemIndex) ?: return@launch
-            scrollToReaderItem.emit(item)
+        lifecycleLock.lock()
+        try {
+            coroutineScope.launch {
+                val currentItemPos = currentTextPlaying.value.itemPos
+                val itemIndex = indexOfReaderItem(
+                    list = items,
+                    chapterIndex = currentItemPos.chapterIndex,
+                    chapterItemPosition = currentItemPos.chapterItemPosition,
+                )
+                val item = items.getOrNull(itemIndex) ?: return@launch
+                scrollToReaderItem.emit(item)
+            }
+        } finally {
+            lifecycleLock.unlock()
         }
     }
 
@@ -568,164 +609,188 @@ internal class ReaderTextToSpeech(
         }
     }
 
-    @Synchronized
     private fun playFirstVisibleItem() {
-        stop()
-        start()
-        coroutineScope.launch {
-            startReadingFromFirstVisibleItem.emit(Unit)
-        }
-    }
-
-    @Synchronized
-    private fun setPlaying(playing: Boolean) {
-        if (!playing) {
+        lifecycleLock.lock()
+        try {
             stop()
-            return
-        }
-        start()
-        val state = state.currentActiveItemState.value
-
-        if (isChapterIndexValid(state.itemPos.chapterIndex)) {
-            coroutineScope.launch {
-                readChapterStartingFromChapterItemPosition(
-                    chapterIndex = state.itemPos.chapterIndex,
-                    chapterItemPosition = state.itemPos.chapterItemPosition
-                )
-            }
-        } else {
+            start()
             coroutineScope.launch {
                 startReadingFromFirstVisibleItem.emit(Unit)
             }
+        } finally {
+            lifecycleLock.unlock()
         }
     }
 
-    @Synchronized
+    private fun setPlaying(playing: Boolean) {
+        lifecycleLock.lock()
+        try {
+            if (!playing) {
+                stop()
+                return
+            }
+            start()
+            val state = state.currentActiveItemState.value
+
+            if (isChapterIndexValid(state.itemPos.chapterIndex)) {
+                coroutineScope.launch {
+                    readChapterStartingFromChapterItemPosition(
+                        chapterIndex = state.itemPos.chapterIndex,
+                        chapterItemPosition = state.itemPos.chapterItemPosition
+                    )
+                }
+            } else {
+                coroutineScope.launch {
+                    startReadingFromFirstVisibleItem.emit(Unit)
+                }
+            }
+        } finally {
+            lifecycleLock.unlock()
+        }
+    }
+
     private fun playNextItem() {
-        if (!state.isThereActiveItem.value) return
+        lifecycleLock.lock()
+        try {
+            if (!state.isThereActiveItem.value) return
 
-        coroutineScope.launch {
-            val currentItemPos = state.currentActiveItemState.value.itemPos
-            val itemIndex = indexOfReaderItem(
-                list = items,
-                chapterIndex = currentItemPos.chapterIndex,
-                chapterItemPosition = currentItemPos.chapterItemPosition,
-            )
-            if (itemIndex <= -1 || itemIndex >= items.lastIndex) return@launch
-            val nextItemRelativeIndex = items
-                .subList(itemIndex + 1, items.size)
-                .indexOfFirst { it is ReaderItem.Position }
-            if (nextItemRelativeIndex == -1) return@launch
-            val nextItemIndex = itemIndex + 1 + nextItemRelativeIndex
-            val nextItem = items.getOrNull(nextItemIndex) as? ReaderItem.Position ?: return@launch
-            stop()
-            start()
-            readChapterStartingFromItemIndex(
-                itemIndex = nextItemIndex,
-                chapterIndex = nextItem.chapterIndex
-            )
-            scrollToReaderItem.emit(nextItem)
+            coroutineScope.launch {
+                val currentItemPos = state.currentActiveItemState.value.itemPos
+                val itemIndex = indexOfReaderItem(
+                    list = items,
+                    chapterIndex = currentItemPos.chapterIndex,
+                    chapterItemPosition = currentItemPos.chapterItemPosition,
+                )
+                if (itemIndex <= -1 || itemIndex >= items.lastIndex) return@launch
+                val nextItemRelativeIndex = items
+                    .subList(itemIndex + 1, items.size)
+                    .indexOfFirst { it is ReaderItem.Position }
+                if (nextItemRelativeIndex == -1) return@launch
+                val nextItemIndex = itemIndex + 1 + nextItemRelativeIndex
+                val nextItem = items.getOrNull(nextItemIndex) as? ReaderItem.Position ?: return@launch
+                stop()
+                start()
+                readChapterStartingFromItemIndex(
+                    itemIndex = nextItemIndex,
+                    chapterIndex = nextItem.chapterIndex
+                )
+                scrollToReaderItem.emit(nextItem)
+            }
+        } finally {
+            lifecycleLock.unlock()
         }
     }
 
-    @Synchronized
     private fun playPreviousItem() {
-        if (!state.isThereActiveItem.value) return
+        lifecycleLock.lock()
+        try {
+            if (!state.isThereActiveItem.value) return
 
-        coroutineScope.launch {
-            val currentItemPos = state.currentActiveItemState.value.itemPos
-            val itemIndex = indexOfReaderItem(
-                list = items,
-                chapterIndex = currentItemPos.chapterIndex,
-                chapterItemPosition = currentItemPos.chapterItemPosition,
-            )
-            if (itemIndex <= 0) return@launch
-            val previousItemRelativeIndex = items
-                .subList(0, itemIndex)
-                .asReversed()
-                .indexOfFirst { it is ReaderItem.Position }
-            if (previousItemRelativeIndex == -1) return@launch
-            val previousItemIndex = itemIndex - 1 - previousItemRelativeIndex
-            val previousItem = items.getOrNull(previousItemIndex) ?: return@launch
-            stop()
-            start()
-            readChapterStartingFromItemIndex(
-                itemIndex = previousItemIndex,
-                chapterIndex = previousItem.chapterIndex
-            )
-            scrollToReaderItem.emit(previousItem)
+            coroutineScope.launch {
+                val currentItemPos = state.currentActiveItemState.value.itemPos
+                val itemIndex = indexOfReaderItem(
+                    list = items,
+                    chapterIndex = currentItemPos.chapterIndex,
+                    chapterItemPosition = currentItemPos.chapterItemPosition,
+                )
+                if (itemIndex <= 0) return@launch
+                val previousItemRelativeIndex = items
+                    .subList(0, itemIndex)
+                    .asReversed()
+                    .indexOfFirst { it is ReaderItem.Position }
+                if (previousItemRelativeIndex == -1) return@launch
+                val previousItemIndex = itemIndex - 1 - previousItemRelativeIndex
+                val previousItem = items.getOrNull(previousItemIndex) ?: return@launch
+                stop()
+                start()
+                readChapterStartingFromItemIndex(
+                    itemIndex = previousItemIndex,
+                    chapterIndex = previousItem.chapterIndex
+                )
+                scrollToReaderItem.emit(previousItem)
+            }
+        } finally {
+            lifecycleLock.unlock()
         }
     }
 
-    @Synchronized
     private fun playNextChapter() {
-        if (!state.isThereActiveItem.value) return
+        lifecycleLock.lock()
+        try {
+            if (!state.isThereActiveItem.value) return
 
-        val currentState = state.currentActiveItemState.value
-        val nextChapterIndex = currentState.itemPos.chapterIndex + 1
-        stop()
-        if (!isChapterIndexValid(nextChapterIndex)) {
+            val currentState = state.currentActiveItemState.value
+            val nextChapterIndex = currentState.itemPos.chapterIndex + 1
+            stop()
+            if (!isChapterIndexValid(nextChapterIndex)) {
+                coroutineScope.launch {
+                    val item = items.findLast {
+                        it is ReaderItem.Position && it.chapterIndex == currentState.itemPos.chapterIndex
+                    } as? ReaderItem.Position ?: return@launch
+
+                    manager.currentActiveItemState.value = currentState.copy(
+                        playState = Utterance.PlayState.FINISHED,
+                        itemPos = item
+                    )
+                    scrolledToTheBottom.emit(Unit)
+                }
+                return
+            }
+            start()
             coroutineScope.launch {
-                val item = items.findLast {
-                    it is ReaderItem.Position && it.chapterIndex == currentState.itemPos.chapterIndex
-                } as? ReaderItem.Position ?: return@launch
-
-                manager.currentActiveItemState.value = currentState.copy(
-                    playState = Utterance.PlayState.FINISHED,
-                    itemPos = item
-                )
-                scrolledToTheBottom.emit(Unit)
+                if (!isChapterIndexLoaded(nextChapterIndex)) {
+                    state.isLoadingChapter.value = true
+                    loadNextChapter()
+                    chapterLoadedFlow
+                        .filter { it.chapterIndex == nextChapterIndex }
+                        .take(1)
+                        .collect()
+                    state.isLoadingChapter.value = false
+                }
+                readChapterStartingFromStart(nextChapterIndex)
+                scrollToChapterTop.emit(nextChapterIndex)
             }
-            return
-        }
-        start()
-        coroutineScope.launch {
-            if (!isChapterIndexLoaded(nextChapterIndex)) {
-                state.isLoadingChapter.value = true
-                loadNextChapter()
-                chapterLoadedFlow
-                    .filter { it.chapterIndex == nextChapterIndex }
-                    .take(1)
-                    .collect()
-                state.isLoadingChapter.value = false
-            }
-            readChapterStartingFromStart(nextChapterIndex)
-            scrollToChapterTop.emit(nextChapterIndex)
+        } finally {
+            lifecycleLock.unlock()
         }
     }
 
-    @Synchronized
     private fun playPreviousChapter() {
-        if (!state.isThereActiveItem.value) return
+        lifecycleLock.lock()
+        try {
+            if (!state.isThereActiveItem.value) return
 
-        val currentItemState = state.currentActiveItemState.value
-        val targetChapterIndex = when (currentItemState.itemPos is ReaderItem.Title) {
-            true -> currentItemState.itemPos.chapterIndex - 1
-            false -> currentItemState.itemPos.chapterIndex
-        }
-        stop()
-        if (!isChapterIndexValid(targetChapterIndex)) {
+            val currentItemState = state.currentActiveItemState.value
+            val targetChapterIndex = when (currentItemState.itemPos is ReaderItem.Title) {
+                true -> currentItemState.itemPos.chapterIndex - 1
+                false -> currentItemState.itemPos.chapterIndex
+            }
+            stop()
+            if (!isChapterIndexValid(targetChapterIndex)) {
+                coroutineScope.launch {
+                    manager.currentActiveItemState.value = currentItemState.copy(
+                        playState = Utterance.PlayState.FINISHED
+                    )
+                    scrolledToTheTop.emit(Unit)
+                }
+                return
+            }
+            start()
             coroutineScope.launch {
-                manager.currentActiveItemState.value = currentItemState.copy(
-                    playState = Utterance.PlayState.FINISHED
-                )
-                scrolledToTheTop.emit(Unit)
+                if (!isChapterIndexLoaded(targetChapterIndex)) {
+                    state.isLoadingChapter.value = true
+                    tryLoadPreviousChapter()
+                    chapterLoadedFlow
+                        .filter { it.chapterIndex == targetChapterIndex }
+                        .take(1)
+                        .collect()
+                    state.isLoadingChapter.value = false
+                }
+                readChapterStartingFromStart(targetChapterIndex)
+                scrollToChapterTop.emit(targetChapterIndex)
             }
-            return
-        }
-        start()
-        coroutineScope.launch {
-            if (!isChapterIndexLoaded(targetChapterIndex)) {
-                state.isLoadingChapter.value = true
-                tryLoadPreviousChapter()
-                chapterLoadedFlow
-                    .filter { it.chapterIndex == targetChapterIndex }
-                    .take(1)
-                    .collect()
-                state.isLoadingChapter.value = false
-            }
-            readChapterStartingFromStart(targetChapterIndex)
-            scrollToChapterTop.emit(targetChapterIndex)
+        } finally {
+            lifecycleLock.unlock()
         }
     }
 
@@ -769,7 +834,7 @@ internal class ReaderTextToSpeech(
     }
 
     private fun setVoicePitch(value: Float) {
-        Log.d("TTS", "setVoicePitch($value)")
+        Timber.d("setVoicePitch($value)")
         val success = manager.trySetVoicePitch(value)
         if (success) {
             setPreferredVoicePitch(value)
@@ -778,7 +843,7 @@ internal class ReaderTextToSpeech(
     }
 
     private fun setVoiceSpeed(value: Float) {
-        Log.d("TTS", "setVoiceSpeed($value)")
+        Timber.d("setVoiceSpeed($value)")
         val success = manager.trySetVoiceSpeed(value)
         if (success) {
             setPreferredVoiceSpeed(value)
@@ -787,12 +852,12 @@ internal class ReaderTextToSpeech(
     }
 
     private fun resumeFromCurrentState() {
-        Log.d("TTS", "resumeFromCurrentState isPlaying=${state.isPlaying.value}")
+        Timber.d("resumeFromCurrentState isPlaying=${state.isPlaying.value}")
         if (!state.isPlaying.value) return
         stop()
         start()
         val currentState = manager.currentActiveItemState.value
-        Log.d("TTS", "resumeFromCurrentState chapterIndex=${currentState.itemPos.chapterIndex}")
+        Timber.d("resumeFromCurrentState chapterIndex=${currentState.itemPos.chapterIndex}")
         if (currentState.itemPos.chapterIndex >= 0) {
             coroutineScope.launch {
                 readChapterStartingFromChapterItemPosition(

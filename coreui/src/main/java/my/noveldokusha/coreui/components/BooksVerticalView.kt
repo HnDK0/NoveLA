@@ -71,7 +71,7 @@ fun BooksVerticalView(
         modifier = Modifier
             .fillMaxWidth()
             .padding(innerPadding),
-        contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 260.dp)
+        contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 160.dp)
     ) {
         items(list) {
             when (layoutMode) {

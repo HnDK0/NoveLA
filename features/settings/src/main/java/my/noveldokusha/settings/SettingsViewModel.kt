@@ -2,19 +2,17 @@ package my.noveldokusha.settings
 
 import android.content.Context
 import android.text.format.Formatter
-import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.viewModelScope
-import com.bumptech.glide.Glide
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import my.noveldokusha.coreui.BaseViewModel
+import androidx.lifecycle.ViewModel
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.core.appPreferences.AppLanguage
@@ -22,12 +20,16 @@ import my.noveldokusha.data.AppRemoteRepository
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
+import my.noveldokusha.core.isCoverValid
 import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.tooling.application_workers.AppWorkersInteractions
 import android.net.Uri
 import android.provider.DocumentsContract
 import java.io.File
+import my.noveldokusha.settings.BuildConfig
+import my.noveldokusha.debug.MemoryDiagnostics
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -40,7 +42,7 @@ internal class SettingsViewModel @Inject constructor(
     private val appRemoteRepository: AppRemoteRepository,
     private val toasty: Toasty,
     private val appWorkersInteractions: AppWorkersInteractions,
-) : BaseViewModel() {
+) : ViewModel() {
 
     var onRestartApp: (() -> Unit)? = null
 
@@ -119,14 +121,12 @@ internal class SettingsViewModel @Inject constructor(
 
     init {
         updateDatabaseSize()
-        // TODO: properly implement images saving
-        // updateImagesFolderSize()
+        updateImagesFolderSize()
         updateChapterCacheSize()
         viewModelScope.launch {
             appRepository.eventDataRestored.collect {
                 updateDatabaseSize()
-                // TODO: properly implement images saving
-                // updateImagesFolderSize()
+                updateImagesFolderSize()
             }
         }
 
@@ -141,16 +141,6 @@ internal class SettingsViewModel @Inject constructor(
             }
         }
 
-        // Show notification when User-Agent setting changes
-        viewModelScope.launch {
-            var previousValue = state.scraperUserAgent.value
-            appPreferences.SCRAPER_USER_AGENT.flow().collect { newValue ->
-                if (newValue != previousValue) {
-                    toasty.show(R.string.user_agent_restart_required)
-                    previousValue = newValue
-                }
-            }
-        }
     }
 
     fun requestCleanDatabase() {
@@ -173,7 +163,7 @@ internal class SettingsViewModel @Inject constructor(
 
         } catch (e: Exception) {
             toasty.show(R.string.database_clean_failed)
-            e.printStackTrace()
+            Timber.e(e)
         } finally {
             isCleaningDatabase.value = false
         }
@@ -204,6 +194,19 @@ internal class SettingsViewModel @Inject constructor(
 
             val booksFolder = appRepository.settings.folderBooks
 
+            // Self-heal: delete corrupt/non-image cover files so they are re-downloaded
+            // on the next library update / cover backfill instead of staying broken forever.
+            booksFolder.listFiles()
+                ?.asSequence()
+                ?.filter { it.isDirectory && it.name in libraryFolderNames }
+                ?.forEach { folder ->
+                    val cover = File(folder, AppFileResolver.COVER_PATH_RELATIVE_TO_BOOK)
+                    if (cover.exists() && !isCoverValid(cover)) {
+                        Timber.d("cleanImagesFolder: deleting corrupt cover in ${folder.name}")
+                        cover.delete()
+                    }
+                }
+
             val foldersToDelete = booksFolder.listFiles()
                 ?.asSequence()
                 ?.filter { it.isDirectory && it.exists() }
@@ -216,14 +219,12 @@ internal class SettingsViewModel @Inject constructor(
                     folder.deleteRecursively()
                     deletedCount++
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Timber.e(e)
                 }
             }
 
-            Glide.get(context).clearDiskCache()
             context.cacheDir.resolve("image_cache").deleteRecursively()
             withContext(Dispatchers.Main) {
-                Glide.get(context).clearMemory()
                 coil.Coil.imageLoader(context).memoryCache?.clear()
             }
 
@@ -238,7 +239,7 @@ internal class SettingsViewModel @Inject constructor(
 
         } catch (e: Exception) {
             toasty.show(R.string.images_folder_clean_failed)
-            e.printStackTrace()
+            Timber.e(e)
         } finally {
             isCleaningImages.value = false
         }
@@ -370,9 +371,16 @@ internal class SettingsViewModel @Inject constructor(
             toasty.show(R.string.chapter_cache_cleaned)
         } catch (e: Exception) {
             toasty.show(R.string.chapter_cache_clean_failed)
-            e.printStackTrace()
+            Timber.e(e)
         } finally {
             isCleaningChapterCache.value = false
+        }
+    }
+
+    fun dumpDebugInfo() = appScope.launch(Dispatchers.IO) {
+        if (BuildConfig.DEBUG) {
+            MemoryDiagnostics.logMemoryStats("SettingsViewModel")
+            toasty.show("Memory stats logged to logcat")
         }
     }
 
@@ -469,10 +477,10 @@ internal class SettingsViewModel @Inject constructor(
     }
 
     fun onAutoBackupEnabledChange(enabled: Boolean) {
-        Log.d("AutoBackup", "onAutoBackupEnabledChange: enabled=$enabled")
+        Timber.d( "onAutoBackupEnabledChange: enabled=$enabled")
         if (enabled) {
             val uri = appPreferences.BACKUP_AUTO_DIRECTORY_URI.value
-            Log.d("AutoBackup", "onAutoBackupEnabledChange: directoryUri='$uri'")
+            Timber.d( "onAutoBackupEnabledChange: directoryUri='$uri'")
             if (uri.isEmpty()) {
                 toasty.show(R.string.auto_backup_select_directory_first)
                 return
@@ -494,9 +502,9 @@ internal class SettingsViewModel @Inject constructor(
                     )
                     if (createdUri != null) {
                         DocumentsContract.deleteDocument(context.contentResolver, createdUri)
-                        Log.d("AutoBackup", "onAutoBackupEnabledChange: permission OK, enabling")
+                        Timber.d( "onAutoBackupEnabledChange: permission OK, enabling")
                         appPreferences.BACKUP_AUTO_ENABLED.value = true
-                        Log.d("AutoBackup", "onAutoBackupEnabledChange: calling runAutoBackupNow")
+                        Timber.d( "onAutoBackupEnabledChange: calling runAutoBackupNow")
                         appWorkersInteractions.runAutoBackupNow()
                         withContext(Dispatchers.Main) {
                             toasty.show(R.string.auto_backup_enabled)
@@ -507,7 +515,7 @@ internal class SettingsViewModel @Inject constructor(
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("AutoBackup", "Permission check failed", e)
+                    Timber.e(e, "Permission check failed")
                     withContext(Dispatchers.Main) {
                         toasty.show(R.string.auto_backup_no_permission)
                     }
@@ -530,10 +538,10 @@ internal class SettingsViewModel @Inject constructor(
     }
 
     fun onAutoBackupIntervalMinutesChange(minutes: Long) {
-        Log.d("AutoBackup", "onAutoBackupIntervalMinutesChange: minutes=$minutes")
+        Timber.d( "onAutoBackupIntervalMinutesChange: minutes=$minutes")
         appPreferences.BACKUP_AUTO_INTERVAL_MINUTES.value = minutes.coerceAtLeast(60L)
         if (appPreferences.BACKUP_AUTO_ENABLED.value) {
-            Log.d("AutoBackup", "onAutoBackupIntervalMinutesChange: auto backup enabled, scheduling")
+            Timber.d( "onAutoBackupIntervalMinutesChange: auto backup enabled, scheduling")
             appWorkersInteractions.scheduleAutoBackup(minutes)
             viewModelScope.launch {
                 withContext(Dispatchers.Main) {

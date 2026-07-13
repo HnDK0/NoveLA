@@ -3,14 +3,15 @@ package my.noveldokusha.extensions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import my.noveldokusha.core.ExtensionManager
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.ExtensionInfoCached
@@ -30,8 +31,6 @@ class ExtensionsManagerViewModel @Inject constructor(
     private val scraperRepository: ScraperRepository,
     private val luaSourceLoader: LuaSourceLoader,          // ← для скачивания .lua
 ) : ViewModel() {
-
-    private val yaml = Yaml()
 
     private val _state = MutableStateFlow(ExtensionsScreenState())
     val state: StateFlow<ExtensionsScreenState> = _state.asStateFlow()
@@ -56,13 +55,11 @@ class ExtensionsManagerViewModel @Inject constructor(
             }
         }
 
-        // Загружаем кеш из SharedPreferences — на фоновом потоке
-        viewModelScope.launch(Dispatchers.IO) {
-            loadCachedExtensions()
+        // Загружаем кеш и (при необходимости) актуальные данные из сети — на фоновом потоке
+        viewModelScope.launch {
+            loadCachedExtensions()        // выставляет cachedAvailableExtensions + lastFetchTime
+            loadAllAvailableExtensions()
         }
-
-        // Загружаем актуальные данные из сети
-        loadAllAvailableExtensions()
     }
 
     fun onEvent(event: ExtensionsScreenEvent) = when (event) {
@@ -93,18 +90,19 @@ class ExtensionsManagerViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, error = null) }
             try {
                 val repoUrl  = _state.value.repositoryUrl
-                // При forceRefresh используем getWithHeaders с Cache-Control: no-cache для обхода HTTP-кеша
-                val response = if (forceRefresh) {
-                    httpClient.getWithHeaders(repoUrl, mapOf("Cache-Control" to "no-cache"))
-                } else {
-                    httpClient.get(repoUrl)
+                val responseBody = withContext(Dispatchers.IO) {
+                    val response = if (forceRefresh) {
+                        httpClient.getWithHeaders(repoUrl, mapOf("Cache-Control" to "no-cache"))
+                    } else {
+                        httpClient.get(repoUrl)
+                    }
+                    response.body.string()
                 }
                 val yaml     = Yaml()
                 @Suppress("UNCHECKED_CAST")
-                val repoIndex = yaml.loadAs(
-                    response.body.string(),
-                    Map::class.java
-                ) as Map<String, Any>
+                val repoIndex = withContext(Dispatchers.Default) {
+                    yaml.loadAs(responseBody, Map::class.java)
+                } as Map<String, Any>
 
                 @Suppress("UNCHECKED_CAST")
                 val languages = repoIndex["languages"] as Map<String, Map<String, Any>>
@@ -113,12 +111,13 @@ class ExtensionsManagerViewModel @Inject constructor(
                 languages.forEach { (langCode, langInfo) ->
                     try {
                         val langUrl = langInfo["url"] as String
-                        val langResp = httpClient.get(langUrl)
+                        val langBody = withContext(Dispatchers.IO) {
+                            httpClient.get(langUrl).body.string()
+                        }
                         @Suppress("UNCHECKED_CAST")
-                        val langData = yaml.loadAs(
-                            langResp.body.string(),
-                            Map::class.java
-                        ) as Map<String, Any>
+                        val langData = withContext(Dispatchers.Default) {
+                            yaml.loadAs(langBody, Map::class.java)
+                        } as Map<String, Any>
 
                         @Suppress("UNCHECKED_CAST")
                         val sources = langData["sources"] as List<Map<String, Any>>
@@ -181,9 +180,10 @@ class ExtensionsManagerViewModel @Inject constructor(
     }
 
     private fun applyCache() {
+        val cached = cachedAvailableExtensions ?: return
         _state.update { state ->
             state.copy(
-                availableExtensions = cachedAvailableExtensions!!.map { ext ->
+                availableExtensions = cached.map { ext ->
                     val installedVer = getInstalledVersion(ext.id)
                     ext.copy(
                         isInstalled       = installedVer != null,
@@ -228,6 +228,8 @@ class ExtensionsManagerViewModel @Inject constructor(
                 )
             }
             Timber.d("Loaded ${extensions.size} extensions from cache")
+            cachedAvailableExtensions = extensions
+            lastFetchTime = System.currentTimeMillis()
         }
     }
 

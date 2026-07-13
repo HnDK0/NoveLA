@@ -7,8 +7,12 @@ import android.util.Log
 import androidx.work.Configuration as WorkConfiguration
 import coil.ImageLoader
 import coil.ImageLoaderFactory
-import coil.decode.BitmapFactoryDecoder
 import dagger.hilt.EntryPoints
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import dagger.hilt.android.HiltAndroidApp
 import my.noveldokusha.core.LocaleManager
 import my.noveldokusha.core.appPreferences.AppLanguage
@@ -18,6 +22,7 @@ import my.noveldokusha.di.HiltAppEntryPoint
 import my.noveldokusha.data.DownloadManager
 import my.noveldokusha.network.NetworkClient
 import my.noveldokusha.network.ScraperNetworkClient
+import my.noveldokusha.debug.MemoryDiagnostics
 import timber.log.Timber
 import javax.inject.Inject
 import java.util.Locale
@@ -25,6 +30,8 @@ import java.util.Locale
 
 @HiltAndroidApp
 class App : Application(), ImageLoaderFactory, WorkConfiguration.Provider {
+
+    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Inject
     lateinit var networkClient: NetworkClient
@@ -60,31 +67,47 @@ class App : Application(), ImageLoaderFactory, WorkConfiguration.Provider {
 
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+            MemoryDiagnostics.logMemoryStats()
+            applicationScope.launch {
+                delay(30_000)
+                while (true) {
+                    MemoryDiagnostics.logMemoryStats()
+                    delay(60_000)
+                }
+            }
         }
     }
 
     override fun newImageLoader(): ImageLoader {
         val diskCache = coil.disk.DiskCache.Builder()
             .directory(cacheDir.resolve("image_cache"))
-            .maxSizeBytes(300L * 1024 * 1024) // 300 MB
+            .maxSizeBytes(100 * 1024 * 1024) // 100 MB
+            .build()
+
+        val memoryCache = coil.memory.MemoryCache.Builder(this)
+            .maxSizeBytes(64 * 1024 * 1024) // 64 MB
             .build()
 
         return when (val networkClient = networkClient) {
             is ScraperNetworkClient -> ImageLoader
                 .Builder(this)
-                .components { add(BitmapFactoryDecoder.Factory()) }
+                .dispatcher(Dispatchers.IO.limitedParallelism(4))
+                .memoryCache(memoryCache)
                 .okHttpClient(networkClient.client)
                 .diskCache(diskCache)
                 .diskCachePolicy(coil.request.CachePolicy.ENABLED)
                 .respectCacheHeaders(false)
+                .addLastModifiedToFileCacheKey(true)
                 .build()
 
             else -> ImageLoader
                 .Builder(this)
-                .components { add(BitmapFactoryDecoder.Factory()) }
+                .dispatcher(Dispatchers.IO.limitedParallelism(4))
+                .memoryCache(memoryCache)
                 .diskCache(diskCache)
                 .diskCachePolicy(coil.request.CachePolicy.ENABLED)
                 .respectCacheHeaders(false)
+                .addLastModifiedToFileCacheKey(true)
                 .build()
         }
     }

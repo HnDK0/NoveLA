@@ -60,28 +60,27 @@ internal fun SettingsData(
             },
             modifier = Modifier.clickable(enabled = !isCleaningDatabase) { onRequestCleanDatabase() }
         )
-        // TODO: properly implement images saving
-        // SlimListItem(
-        //     headlineContent = {
-        //         Text(text = stringResource(R.string.clean_images_folder))
-        //     },
-        //     supportingContent = {
-        //         Column {
-        //             Text(text = stringResource(id = R.string.size) + " " + imagesFolderSize)
-        //         }
-        //     },
-        //     leadingContent = {
-        //         if (isCleaningImages) {
-        //             CircularProgressIndicator(
-        //                 modifier = Modifier.size(24.dp),
-        //                 strokeWidth = 2.dp
-        //             )
-        //         } else {
-        //             Icon(Icons.Outlined.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        //         }
-        //     },
-        //     modifier = Modifier.clickable(enabled = !isCleaningImages) { onRequestCleanImageFolder() }
-        // )
+        SlimListItem(
+            headlineContent = {
+                Text(text = stringResource(R.string.clean_images_folder))
+            },
+            supportingContent = {
+                Column {
+                    Text(text = stringResource(id = R.string.size) + " " + imagesFolderSize)
+                }
+            },
+            leadingContent = {
+                if (isCleaningImages) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(Icons.Outlined.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            modifier = Modifier.clickable(enabled = !isCleaningImages) { onRequestCleanImageFolder() }
+        )
         SlimListItem(
             headlineContent = {
                 Text(text = stringResource(R.string.clean_chapter_cache))

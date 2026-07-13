@@ -21,7 +21,6 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
-    implementation(libs.androidx.lifecycle.common.java8)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.timber)
@@ -31,6 +30,5 @@ dependencies {
     implementation(libs.compose.androidx.lifecycle.viewmodel)
 
     implementation(libs.compose.androidx.material.icons.extended)
-    implementation(libs.compose.landscapist.glide)
     implementation(libs.compose.coil)
 }

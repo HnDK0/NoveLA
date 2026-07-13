@@ -40,12 +40,12 @@
     <string name="open_in_browser">Ouvrir dans le navigateur</string>
     <string name="sources">Sources</string>
     <string name="search_for_sources">Rechercher des sources</string>
-    <string name="import_epub">Importer EPUB</string>
+    <string name="import_epub">Importer un livre</string>
     <string name="failed_get_file">Échec de l\'obtention du fichier</string>
     <string name="local_book_nothing_to_update">Livre local, rien à mettre à jour</string>
-    <string name="failed_to_import_epub">Échec de l\'importation de l\'epub</string>
+    <string name="failed_to_import_epub">Échec de l\'importation du livre</string>
     <string name="image">image</string>
-    <string name="importing_epub">Importation de l\'epub</string>
+    <string name="importing_epub">Importation du livre</string>
     <string name="no_results_found">Aucun résultat trouvé</string>
     <string name="updating_library_notice">Mise à jour de la bibliothèque</string>
     <string name="chapter_downloaded">Chapitre téléchargé</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">Nouveaux chapitres</string>
     <string name="notification_channel_name_failed_updates">Mises à jour échouées</string>
     <string name="notification_channel_name_backup">Sauvegarde</string>
-    <string name="notification_channel_name_import_epub">Importer EPUB</string>
+    <string name="notification_channel_name_import_epub">Importer un livre</string>
     <string name="notification_channel_name_restore_backup">Restaurer la sauvegarde</string>
     <string name="notification_channel_name_app_updates_checker">Vérificateur de mises à jour</string>
     <string name="new_app_version_available">Nouvelle version de l\'application disponible</string>
@@ -352,7 +352,6 @@
     <string name="cloudflare_bypass">Contournement Cloudflare</string>
     <string name="cloudflare_bypass_description">Activer le contournement automatique du défi Cloudflare</string>
     <string name="cloudflare_bypass_restart_required">Le paramètre de contournement Cloudflare sera appliqué après le redémarrage de l\'application</string>
-    <string name="user_agent_restart_required">User-Agent modifié. Redémarrez l\'application pour appliquer.</string>
     <string name="cloudflare_challenge_timeout">Délai d\'attente du défi</string>
     <string name="timeout_seconds">Délai d\'attente (secondes)</string>
     <string name="seconds_format">%d secondes</string>
@@ -618,5 +617,7 @@
     <string name="repository_settings">Paramètres du dépôt</string>
     <string name="installed">Installé</string>
     <string name="available">Disponible</string>
+
+    <string name="book_fix">Réparer le livre</string>
 
 </resources>

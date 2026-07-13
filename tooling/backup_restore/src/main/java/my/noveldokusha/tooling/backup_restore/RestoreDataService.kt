@@ -21,6 +21,7 @@ import my.noveldokusha.coreui.states.text
 import my.noveldokusha.coreui.states.title
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.NovelPromptData
+import my.noveldokusha.core.isCoverValid
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.BookChaptersRepository
 import my.noveldokusha.data.ChapterBodyRepository
@@ -33,6 +34,7 @@ import my.noveldokusha.core.utils.Extra_Boolean
 import my.noveldokusha.core.utils.Extra_Uri
 import my.noveldokusha.core.utils.isServiceRunning
 import my.noveldokusha.feature.local_database.AppDatabase
+import my.noveldokusha.feature.local_database.tables.Book
 import okhttp3.internal.closeQuietly
 import org.json.JSONObject
 import timber.log.Timber
@@ -98,6 +100,7 @@ class RestoreDataService : Service() {
         while (offset < total) {
             val actualSize = minOf(chunkSize, total - offset)
             val chunk = fetchChunk(actualSize, offset)
+            if (chunk.isEmpty()) break
             processChunk(chunk)
             offset += chunk.size
 
@@ -252,7 +255,13 @@ class RestoreDataService : Service() {
                     text = getString(R.string.loading_database)
                 }
 
-                val tempDbFile = File(context.cacheDir, "temp_restore_database.db")
+                // ponytail: Room caches DB instances by filename — reuse of
+                // "temp_restore_database.db" returns a stale instance with phantom
+                // row counts from a prior failed restore. Use a unique name each time.
+                context.cacheDir.listFiles()
+                    ?.filter { it.name.startsWith("temp_restore_database") }
+                    ?.forEach { it.delete() }
+                val tempDbFile = File(context.cacheDir, "temp_restore_database_${System.currentTimeMillis()}.db")
                 try {
                     tempDbFile.outputStream().use { output -> dbInputStream.copyTo(output) }
                     Timber.d("mergeToDatabase: Wrote database to temp file, size: ${tempDbFile.length()}")
@@ -269,7 +278,7 @@ class RestoreDataService : Service() {
                         tempDbFile.delete()
                         throw e
                     }
-                    val bookChapters = BookChaptersRepository(chapterDao = newDatabase.chapterDao())
+                    val bookChapters = BookChaptersRepository(chapterDao = newDatabase.chapterDao(), appDatabase = newDatabase)
                     val chapterBody = ChapterBodyRepository(
                         chapterBodyDao = newDatabase.chapterBodyDao(),
                         appDatabase = newDatabase,
@@ -299,6 +308,15 @@ class RestoreDataService : Service() {
                     }
                 }
 
+                // Verify backup database integrity
+                val backupIntegrity = backupDatabase.newDatabase.integrityCheck()
+                if (backupIntegrity != "ok") {
+                    backupDatabase.close()
+                    backupDatabase.delete()
+                    throw Exception("Backup database integrity check failed: $backupIntegrity")
+                }
+                Timber.d("mergeToDatabase: Backup database integrity OK")
+
                 // Restore library books — chunked
                 notificationsCenter.modifyNotification(
                     notificationBuilder,
@@ -309,6 +327,8 @@ class RestoreDataService : Service() {
                 val restoredBookUrls = mutableSetOf<String>()
                 val totalBooks = backupDatabase.libraryBooks.count()
                 Timber.d("mergeToDatabase: Backup contains $totalBooks total books")
+                // ponytail: load existing books to preserve local categories and avoid downgrades
+                val existingBooks = appRepository.libraryBooks.getAll().associateBy { it.url }
                 processInChunks(
                     total = totalBooks, initialChunkSize = 500, label = "books",
                     fetchChunk = { limit, offset -> backupDatabase.libraryBooks.getChunk(limit, offset) },
@@ -316,19 +336,45 @@ class RestoreDataService : Service() {
                         val valid = chunk
                             .filter { it.inLibrary }
                             .filter { it.url.matches("""^(https?|local)://.*""".toRegex()) }
-                        if (valid.isNotEmpty()) {
+
+                        val toInsert = mutableListOf<Book>()
+                        val toUpdate = mutableListOf<Book>()
+
+                        for (book in valid) {
+                            val existing = existingBooks[book.url]
+                            if (existing == null) {
+                                toInsert.add(book)
+                            } else {
+                                val localCount = appRepository.bookChapters.countByBookUrl(book.url)
+                                val backupCount = backupDatabase.newDatabase.chapterDao().countByBookUrl(book.url)
+                                if (backupCount > localCount) {
+                                    toUpdate.add(book.copy(category = existing.category))
+                                }
+                            }
+                        }
+
+                        if (toInsert.isNotEmpty()) {
                             try {
-                                appRepository.libraryBooks.insertReplace(valid)
+                                appRepository.libraryBooks.insertReplace(toInsert)
                             } catch (e: Exception) {
                                 Timber.e(e, "mergeToDatabase: Bulk book insert failed, trying individual")
-                                valid.forEach { book ->
+                                toInsert.forEach { book ->
                                     try { appRepository.libraryBooks.insertReplace(listOf(book)) }
                                     catch (bookError: Exception) {
                                         Timber.w(bookError, "Failed to insert book: ${book.title}")
                                     }
                                 }
                             }
-                            valid.forEach { restoredBookUrls.add(it.url) }
+                            toInsert.forEach { restoredBookUrls.add(it.url) }
+                        }
+
+                        if (toUpdate.isNotEmpty()) {
+                            try {
+                                toUpdate.forEach { appRepository.libraryBooks.update(it) }
+                            } catch (e: Exception) {
+                                Timber.e(e, "mergeToDatabase: Book update failed")
+                            }
+                            toUpdate.forEach { restoredBookUrls.add(it.url) }
                         }
                     }
                 )
@@ -615,7 +661,13 @@ class RestoreDataService : Service() {
 
         fun mergeToBookFolder(entry: ZipEntry, entryInputStream: InputStream) {
             try {
-                val file = File(appRepository.settings.folderBooks.parentFile, entry.name)
+                val baseDir = appRepository.settings.folderBooks.parentFile ?: return
+                val canonicalBase = baseDir.canonicalFile
+                val file = File(baseDir, entry.name).canonicalFile
+                if (!file.path.startsWith(canonicalBase.path + File.separator)) {
+                    Timber.w("mergeToBookFolder: Zip slip attempt blocked for ${entry.name}")
+                    return
+                }
                 if (file.isDirectory) return
                 file.parentFile?.mkdirs()
                 if (file.parentFile?.exists() != true) {
@@ -654,6 +706,8 @@ class RestoreDataService : Service() {
             text = getString(R.string.adding_images)
         }
 
+        var databaseTempFile: File? = null
+
         try {
             ZipInputStream(bufferedStream).use { zipStream ->
                 generateSequence {
@@ -664,7 +718,11 @@ class RestoreDataService : Service() {
                     .forEach { entry ->
                         try {
                             when {
-                                entry.name == "database.sqlite3" -> mergeToDatabase(zipStream)
+                                entry.name == "database.sqlite3" -> {
+                                    val f = File(context.cacheDir, "restore_db_temp")
+                                    f.outputStream().use { zipStream.copyTo(it) }
+                                    databaseTempFile = f
+                                }
                                 entry.name == "settings.json" -> mergeToSettings(zipStream)
                                 entry.name.startsWith("lua_extensions/") && overwritePlugins -> mergeToLuaExtensions(entry, zipStream)
                                 entry.name.startsWith("lua_extensions/") -> Timber.d("restoreData: Skipping plugin (overwritePlugins=false): ${entry.name}")
@@ -691,6 +749,39 @@ class RestoreDataService : Service() {
         }
 
         inputStream.closeQuietly()
+
+        // ponytail: merge database AFTER all files (covers, plugins) are on disk
+        // so Room observers see valid local covers and don't fetch from network.
+        databaseTempFile?.let { f ->
+            try {
+                f.inputStream().buffered().use { stream ->
+                    mergeToDatabase(stream)
+                }
+            } finally {
+                if (!f.delete()) Timber.w("restoreData: failed to delete temp db file")
+            }
+        }
+
+        // Validate restored covers: any corrupt/non-image cover file is deleted so the DB
+        // never points at a broken image. Valid covers keep their new last-modified timestamp,
+        // which (together with addLastModifiedToFileCacheKey in the ImageLoader) invalidates Coil.
+        try {
+            val booksDir = appRepository.settings.folderBooks
+            if (booksDir.exists()) {
+                booksDir.walkTopDown()
+                    .filter { it.isFile && it.name == AppFileResolver.COVER_PATH_RELATIVE_TO_BOOK }
+                    .forEach { cover ->
+                        if (!isCoverValid(cover)) {
+                            Timber.w("restoreData: deleting corrupt restored cover ${cover.absolutePath}")
+                            cover.delete()
+                        }
+                    }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "restoreData: cover validation failed")
+        }
+
+        File(context.cacheDir, "image_cache").deleteRecursively()
 
         // Clear source cache to force LuaSourceProvider to reload from restored lua_extensions/
         try {

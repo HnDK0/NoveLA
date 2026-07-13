@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
+import timber.log.Timber
 import android.view.KeyEvent
 import android.view.WindowManager
 import android.widget.AbsListView
@@ -35,11 +35,11 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.BaseActivity
 import my.noveldokusha.coreui.composableActions.SetSystemBarTransparent
 import my.noveldokusha.coreui.theme.Theme
 import my.noveldokusha.coreui.theme.readerTheme
-import my.noveldokusha.coreui.theme.colorAttrRes
 import my.noveldokusha.core.utils.Extra_Boolean
 import my.noveldokusha.core.utils.Extra_String
 import my.noveldokusha.core.utils.dpToPx
@@ -83,6 +83,9 @@ class ReaderActivity : BaseActivity() {
 
     @Inject
     lateinit var navigationRoutes: NavigationRoutes
+
+    @Inject
+    lateinit var appPreferences: AppPreferences
 
     @Inject
     internal lateinit var readerViewHandlersActions: ReaderViewHandlersActions
@@ -157,6 +160,9 @@ class ReaderActivity : BaseActivity() {
 
     override fun onDestroy() {
         readerViewHandlersActions.invalidate()
+        if (isFinishing) {
+            viewModel.onCloseManually()
+        }
         super.onDestroy()
     }
 
@@ -574,42 +580,6 @@ class ReaderActivity : BaseActivity() {
         viewAdapter.listView.notifyDataSetChanged()
     }
 
-    /**
-     * FIX: Smooth scroll to TTS position after screen unlock.
-     *
-     * Two bugs fixed here vs the old onResume approach:
-     * 1. Delay/ignored scroll — old code called setSelectionFromTop before the ListView
-     *    finished re-layout after onResume. Now called via post{} so it runs after layout.
-     * 2. Jarring jump — replaced setSelectionFromTop with smoothScrollToPositionFromTop
-     *    for nearby items (<=8 positions away), giving a smooth 350ms animation.
-     *    Items already on screen are skipped entirely (no movement at all).
-     *    Items far away still use instant scroll to avoid a long animation.
-     */
-    private fun scrollToReadingPositionSmooth(chapterIndex: Int, chapterItemPosition: Int) {
-        val itemIndex = indexOfReaderItem(
-            list = viewModel.items,
-            chapterIndex = chapterIndex,
-            chapterItemPosition = chapterItemPosition
-        )
-        if (itemIndex == -1) return
-        val itemPosition = viewAdapter.listView.fromIndexToPosition(itemIndex)
-        val newOffsetPx = 200.dpToPx(this)
-        viewAdapter.listView.notifyDataSetChanged()
-
-        // If item is already visible on screen — no scroll needed, avoids any jarring movement
-        val first = viewBind.listView.firstVisiblePosition
-        val last = viewBind.listView.lastVisiblePosition
-        if (itemPosition in first..last) return
-
-        // Smooth scroll for nearby items, instant jump for distant ones
-        val distance = kotlin.math.abs(itemPosition - first)
-        if (distance <= 8) {
-            viewBind.listView.smoothScrollToPositionFromTop(itemPosition, newOffsetPx, 350)
-        } else {
-            viewBind.listView.setSelectionFromTop(itemPosition, newOffsetPx)
-        }
-    }
-
     private fun updateReadingState() {
         val firstVisibleItem = viewBind.listView.firstVisiblePosition
         val lastVisibleItem = viewBind.listView.lastVisiblePosition
@@ -677,7 +647,7 @@ class ReaderActivity : BaseActivity() {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (event != null) {
-            Log.d("MediaCallback", "onKeyDown: keyCode=$keyCode action=${event.action}")
+            Timber.d("onKeyDown: keyCode=$keyCode action=${event.action}")
         }
         if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || keyCode == KeyEvent.KEYCODE_HEADSETHOOK) {
             if (viewModel.readerSpeaker.isSpeaking.value) {

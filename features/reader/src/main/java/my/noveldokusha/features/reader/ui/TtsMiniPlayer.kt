@@ -158,7 +158,7 @@ private fun MiniPlayerControls(
                 .padding(horizontal = 4.dp)
                 .height(progressHeight)
                 .clip(RoundedCornerShape(4.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
         ) {
             Box(
                 modifier = Modifier

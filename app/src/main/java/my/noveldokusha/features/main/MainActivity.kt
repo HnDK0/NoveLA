@@ -61,13 +61,11 @@ import my.noveldokusha.tooling.application_workers.setup.PeriodicWorkersInitiali
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.theme.Theme
-import my.noveldokusha.coreui.theme.ThemeProvider
-import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.R
 import my.noveldokusha.catalogexplorer.CatalogExplorerScreen
 import my.noveldokusha.libraryexplorer.LibraryScreen
 import my.noveldokusha.settings.SettingsScreen
-import my.noveldokusha.tooling.epub_importer.EpubImportService
+import my.noveldokusha.tooling.epub_importer.BookImportService
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.zIndex
@@ -273,7 +271,11 @@ open class MainActivity : BaseActivity() {
 
         when (action) {
             Intent.ACTION_SEND -> {
-                if (type == "application/epub+zip") {
+                if (type == "application/epub+zip"
+                    || type == "application/octet-stream"
+                    || type == "application/fb2"
+                    || type == "application/x-fictionbook+xml"
+                ) {
                     handleSharedEpub(intent)
                 }
             }
@@ -287,7 +289,7 @@ open class MainActivity : BaseActivity() {
     private fun handleViewedEpub(intent: Intent) {
         val epubUri: Uri? = intent.data
         if (epubUri != null) {
-            EpubImportService.start(ctx = this, uri = epubUri)
+            BookImportService.start(ctx = this, uri = epubUri)
         }
     }
 
@@ -296,7 +298,7 @@ open class MainActivity : BaseActivity() {
             intent, Intent.EXTRA_STREAM, Uri::class.java
         )
         if (epubUri != null) {
-            EpubImportService.start(ctx = this, uri = epubUri)
+            BookImportService.start(ctx = this, uri = epubUri)
         }
     }
 }

@@ -38,6 +38,8 @@ interface AppDatabase {
     fun closeDatabase()
     fun clearDatabase()
     suspend fun vacuum()
+    suspend fun vacuumInto(targetPath: String)
+    suspend fun integrityCheck(): String
 
     /**
      * Execute the whole database calls as an atomic operation
@@ -51,12 +53,22 @@ interface AppDatabase {
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     super.onOpen(db)
-                    db.query("PRAGMA journal_size_limit = 16777216").close()
+                    db.query("PRAGMA journal_size_limit = 134217728").close()
                 }
             })
             .addMigrations(*databaseMigrations())
             .build()
             .also { it.name = name }
+
+        suspend fun checkFileIntegrity(ctx: Context, filePath: String): String = withContext(Dispatchers.IO) {
+            val db = Room.databaseBuilder(ctx, AppRoomDatabase::class.java, filePath)
+                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+                .build()
+            db.openHelper.writableDatabase.query("PRAGMA integrity_check").use { cursor ->
+                cursor.moveToFirst()
+                cursor.getString(0)
+            }.also { db.close() }
+        }
 
         fun createRoomFromStream(
             ctx: Context,
@@ -108,8 +120,22 @@ internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {
 
     override suspend fun vacuum() {
         withContext(Dispatchers.IO) {
-            openHelper.writableDatabase.execSQL("REINDEX")
             openHelper.writableDatabase.execSQL("VACUUM")
+        }
+    }
+
+    override suspend fun vacuumInto(targetPath: String) {
+        withContext(Dispatchers.IO) {
+            openHelper.writableDatabase.execSQL("VACUUM INTO '$targetPath'")
+        }
+    }
+
+    override suspend fun integrityCheck(): String {
+        return withContext(Dispatchers.IO) {
+            openHelper.writableDatabase.query("PRAGMA integrity_check").use { cursor ->
+                cursor.moveToFirst()
+                cursor.getString(0)
+            }
         }
     }
 }

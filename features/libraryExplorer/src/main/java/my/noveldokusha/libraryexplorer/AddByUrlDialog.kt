@@ -3,11 +3,7 @@ package my.noveldokusha.libraryexplorer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -16,7 +12,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -133,21 +128,6 @@ fun AddByUrlDialog(
                     )
                 }
                 FilledTonalButton(
-                    onClick = onDismiss,
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    ),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = stringResource(R.string.cancel),
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
-                FilledTonalButton(
                     onClick = {
                         val validationResult = validateUrls(urlsText, scraper)
                         when (validationResult) {
@@ -162,6 +142,10 @@ fun AddByUrlDialog(
                     },
                     enabled = urlsText.isNotBlank(),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    ),
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(

@@ -53,7 +53,7 @@ import my.noveldokusha.core.Response
 import my.noveldokusha.core.asSequence
 import my.noveldokusha.core.fileImporter
 import my.noveldokusha.core.getOrNull
-import my.noveldokusha.data.EpubImporterRepository
+import my.noveldokusha.data.LocalBookImporterRepository
 import my.noveldokusha.epub_tooling.epubCoverParser
 import my.noveldokusha.epub_tooling.fb2CoverParser
 import my.noveldokusha.epub_tooling.epubParser
@@ -315,7 +315,7 @@ class AppLocalSources @Inject constructor(
             try {
                 val books = scanDirectoryForBooks(dirUri)
                 var imported = 0
-                val epubImporterRepository = EntryPointAccessors.fromApplication<EpubImporterEntryPoint>(appContext).epubImporterRepository()
+                val epubImporterRepository = EntryPointAccessors.fromApplication<LocalBookImporterEntryPoint>(appContext).epubImporterRepository()
                 for ((fileName, fileUri) in books) {
                     importProgress = appContext.getString(
                         R.string.importing_books_progress,
@@ -431,6 +431,6 @@ class AppLocalSources @Inject constructor(
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
-interface EpubImporterEntryPoint {
-    fun epubImporterRepository(): my.noveldokusha.data.EpubImporterRepository
+interface LocalBookImporterEntryPoint {
+    fun epubImporterRepository(): my.noveldokusha.data.LocalBookImporterRepository
 }

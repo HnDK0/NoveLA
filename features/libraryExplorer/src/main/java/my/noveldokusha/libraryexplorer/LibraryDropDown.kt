@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
-import my.noveldokusha.tooling.epub_importer.onDoImportEPUB
+import my.noveldokusha.tooling.epub_importer.onDoImportFile
 
 @Composable
 internal fun LibraryDropDown(
@@ -69,7 +69,7 @@ internal fun LibraryDropDown(
                         Icon(Icons.Filled.FileOpen, stringResource(id = R.string.import_epub))
                     },
                     text = { Text(stringResource(id = R.string.import_epub)) },
-                    onClick = onDoImportEPUB()
+                    onClick = onDoImportFile()
                 )
             }
         }

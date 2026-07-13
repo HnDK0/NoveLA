@@ -48,7 +48,7 @@ internal fun databaseMigrations() = arrayOf(
     migration(7, MigrationsList::_1stKissNovelDomainChange_1_org),
     migration(8) {
         it.execSQL("""
-            CREATE TABLE IF NOT EXISTS ChapterTranslation (
+            CREATE TABLE ChapterTranslation (
                 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                 chapterUrl TEXT NOT NULL,
                 sourceLang TEXT NOT NULL,
@@ -59,7 +59,7 @@ internal fun databaseMigrations() = arrayOf(
             )
         """)
         it.execSQL("""
-            CREATE INDEX IF NOT EXISTS index_ChapterTranslation_chapterUrl_sourceLang_targetLang
+            CREATE INDEX index_ChapterTranslation_chapterUrl_sourceLang_targetLang
             ON ChapterTranslation (chapterUrl, sourceLang, targetLang)
         """)
     },
@@ -72,7 +72,7 @@ internal fun databaseMigrations() = arrayOf(
     },
     migration(11) {
         it.execSQL("""
-            CREATE TABLE IF NOT EXISTS Extension (
+            CREATE TABLE Extension (
                 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                 name TEXT NOT NULL,
                 fileName TEXT NOT NULL,
@@ -121,7 +121,7 @@ internal fun databaseMigrations() = arrayOf(
         // Старые данные переносим, дубли по (chapterUrl, sourceLang, targetLang, originalText)
         // удаляем, оставляя самый свежий (MAX timestamp).
         it.execSQL("""
-            CREATE TABLE IF NOT EXISTS ChapterTranslation_new (
+            CREATE TABLE ChapterTranslation_new (
                 chapterUrl TEXT NOT NULL,
                 sourceLang TEXT NOT NULL,
                 targetLang TEXT NOT NULL,
@@ -140,20 +140,20 @@ internal fun databaseMigrations() = arrayOf(
         it.execSQL("DROP TABLE ChapterTranslation")
         it.execSQL("ALTER TABLE ChapterTranslation_new RENAME TO ChapterTranslation")
         it.execSQL("""
-            CREATE INDEX IF NOT EXISTS index_ChapterTranslation_chapterUrl_sourceLang_targetLang
+            CREATE INDEX index_ChapterTranslation_chapterUrl_sourceLang_targetLang
             ON ChapterTranslation (chapterUrl, sourceLang, targetLang)
         """)
     },
     migration(15) {
         it.execSQL("""
-            CREATE TABLE IF NOT EXISTS BookGenre (
+            CREATE TABLE BookGenre (
                 bookUrl TEXT NOT NULL,
                 genre TEXT NOT NULL,
                 PRIMARY KEY (bookUrl, genre)
             )
         """)
-        it.execSQL("CREATE INDEX IF NOT EXISTS index_BookGenre_bookUrl ON BookGenre (bookUrl)")
-        it.execSQL("CREATE INDEX IF NOT EXISTS index_BookGenre_genre ON BookGenre (genre)")
+        it.execSQL("CREATE INDEX index_BookGenre_bookUrl ON BookGenre (bookUrl)")
+        it.execSQL("CREATE INDEX index_BookGenre_genre ON BookGenre (genre)")
     },
     migration(16) {
         // parsePage support: store the last known page of chapters list per book.
@@ -168,7 +168,7 @@ internal fun databaseMigrations() = arrayOf(
         // This drastically reduces index size since originalText (~500 chars) is no longer part of the PK.
         // Also adds index on Chapter(bookUrl) for faster chapter lookups.
         it.execSQL("""
-            CREATE TABLE IF NOT EXISTS ChapterTranslation_new (
+            CREATE TABLE ChapterTranslation_new (
                 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                 chapterUrl TEXT NOT NULL,
                 sourceLang TEXT NOT NULL,
@@ -193,19 +193,19 @@ internal fun databaseMigrations() = arrayOf(
         it.execSQL("DROP TABLE ChapterTranslation")
         it.execSQL("ALTER TABLE ChapterTranslation_new RENAME TO ChapterTranslation")
         it.execSQL("""
-            CREATE UNIQUE INDEX IF NOT EXISTS index_ChapterTranslation_chapterUrl_sourceLang_targetLang_paragraphIndex
+            CREATE UNIQUE INDEX index_ChapterTranslation_chapterUrl_sourceLang_targetLang_paragraphIndex
             ON ChapterTranslation (chapterUrl, sourceLang, targetLang, paragraphIndex)
         """)
         it.execSQL("""
-            CREATE INDEX IF NOT EXISTS index_ChapterTranslation_chapterUrl_sourceLang_targetLang
+            CREATE INDEX index_ChapterTranslation_chapterUrl_sourceLang_targetLang
             ON ChapterTranslation (chapterUrl, sourceLang, targetLang)
         """)
         // Add index on Chapter(bookUrl) for faster queries
-        it.execSQL("CREATE INDEX IF NOT EXISTS index_Chapter_bookUrl ON Chapter (bookUrl)")
+        it.execSQL("CREATE INDEX index_Chapter_bookUrl ON Chapter (bookUrl)")
     },
     migration(18) {
         // Index on Book.inLibrary for faster library queries (getBooksInLibraryWithContextFlow)
-        it.execSQL("CREATE INDEX IF NOT EXISTS index_Book_inLibrary ON Book (inLibrary)")
+        it.execSQL("CREATE INDEX index_Book_inLibrary ON Book (inLibrary)")
     },
     migration(19) {
         // Перенос жанров из отдельной таблицы BookGenre в поле Book.genres (через запятую)
@@ -225,7 +225,7 @@ internal fun databaseMigrations() = arrayOf(
     migration(20) {
         // Персистентное хранение очереди загрузок DownloadManager
         it.execSQL("""
-            CREATE TABLE IF NOT EXISTS DownloadTask (
+            CREATE TABLE DownloadTask (
                 bookUrl TEXT NOT NULL PRIMARY KEY,
                 bookTitle TEXT NOT NULL,
                 chapterUrlsJson TEXT NOT NULL,
@@ -253,7 +253,7 @@ internal fun databaseMigrations() = arrayOf(
         //   →
         //   (chapterUrl, sourceLang, targetLang, translatedParagraphs JSON, titleTranslation, timestamp)
         db.execSQL("""
-            CREATE TABLE IF NOT EXISTS ChapterTranslation_new (
+            CREATE TABLE ChapterTranslation_new (
                 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                 chapterUrl TEXT NOT NULL,
                 sourceLang TEXT NOT NULL,
@@ -323,13 +323,13 @@ internal fun databaseMigrations() = arrayOf(
         db.execSQL("DROP TABLE ChapterTranslation")
         db.execSQL("ALTER TABLE ChapterTranslation_new RENAME TO ChapterTranslation")
         db.execSQL("""
-            CREATE UNIQUE INDEX IF NOT EXISTS index_ChapterTranslation_chapterUrl_sourceLang_targetLang
+            CREATE UNIQUE INDEX index_ChapterTranslation_chapterUrl_sourceLang_targetLang
             ON ChapterTranslation (chapterUrl, sourceLang, targetLang)
         """)
     },
     migration(23) { db ->
         db.execSQL("""
-            CREATE TABLE IF NOT EXISTS migration_records (
+            CREATE TABLE migration_records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                 oldBookUrl TEXT NOT NULL,
                 newBookUrl TEXT NOT NULL,
@@ -343,8 +343,8 @@ internal fun databaseMigrations() = arrayOf(
                 migratedAt INTEGER NOT NULL
             )
         """)
-        db.execSQL("CREATE INDEX IF NOT EXISTS index_migration_records_oldBookUrl ON migration_records (oldBookUrl)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS index_migration_records_newBookUrl ON migration_records (newBookUrl)")
+        db.execSQL("CREATE INDEX index_migration_records_oldBookUrl ON migration_records (oldBookUrl)")
+        db.execSQL("CREATE INDEX index_migration_records_newBookUrl ON migration_records (newBookUrl)")
     },
     migration(24) {
         // Empty migration to recalculate Room identity hash

@@ -40,12 +40,12 @@
     <string name="open_in_browser">Open in browser</string>
     <string name="sources">Sources</string>
     <string name="search_for_sources">Search for sources</string>
-    <string name="import_epub">Import EPUB</string>
+    <string name="import_epub">Import book</string>
     <string name="failed_get_file">Failed to get the file</string>
     <string name="local_book_nothing_to_update">Local book, nothing to update</string>
-    <string name="failed_to_import_epub">Failed to import epub</string>
+    <string name="failed_to_import_epub">Failed to import book</string>
     <string name="image">image</string>
-    <string name="importing_epub">Importing epub</string>
+    <string name="importing_epub">Importing book</string>
     <string name="no_results_found">No results found</string>
     <string name="updating_library_notice">Updating library</string>
     <string name="chapter_downloaded">Chapter downloaded</string>
@@ -183,6 +183,7 @@
     <string name="new_chapters">New chapters</string>
     <string name="update_error">Update error</string>
     <string name="update_cancelled">Update cancelled</string>
+    <string name="book_fix">Fix book</string>
     <string name="tts_estimated_time_left">Estimated Time Left</string>
     <string name="tts_total_chapter">Total Chapter</string>
     <string name="tts_wpm">WPM</string>
@@ -323,7 +324,7 @@
     <string name="notification_channel_name_new_chapters">New chapters</string>
     <string name="notification_channel_name_failed_updates">Failed updates</string>
     <string name="notification_channel_name_backup">Backup</string>
-    <string name="notification_channel_name_import_epub">Import EPUB</string>
+    <string name="notification_channel_name_import_epub">Import book</string>
     <string name="notification_channel_name_restore_backup">Restore backup</string>
     <string name="notification_channel_name_app_updates_checker">Updates checker</string>
     <string name="new_app_version_available">New app version available</string>
@@ -371,7 +372,6 @@
     <string name="cloudflare_bypass">Cloudflare bypass</string>
     <string name="cloudflare_bypass_description">Enable automatic Cloudflare challenge bypass</string>
     <string name="cloudflare_bypass_restart_required">Cloudflare bypass setting will be applied after app restart</string>
-    <string name="user_agent_restart_required">User-Agent changed. Restart the app to apply.</string>
     <string name="cloudflare_challenge_timeout">Challenge timeout</string>
     <string name="timeout_seconds">Timeout (seconds)</string>
     <string name="seconds_format">%d seconds</string>

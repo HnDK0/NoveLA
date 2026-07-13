@@ -40,12 +40,12 @@
     <string name="open_in_browser">ব্রাউজারে খুলুন</string>
     <string name="sources">উৎস</string>
     <string name="search_for_sources">উৎস অনুসন্ধান করুন</string>
-    <string name="import_epub">EPUB ইম্পোর্ট</string>
+    <string name="import_epub">বই ইম্পোর্ট</string>
     <string name="failed_get_file">ফাইল পেতে ব্যর্থ</string>
     <string name="local_book_nothing_to_update">স্থানীয় বই, আপডেট করার কিছু নেই</string>
-    <string name="failed_to_import_epub">epub ইম্পোর্ট করতে ব্যর্থ</string>
+    <string name="failed_to_import_epub">বই ইম্পোর্ট করতে ব্যর্থ</string>
     <string name="image">ছবি</string>
-    <string name="importing_epub">epub ইম্পোর্ট করা হচ্ছে</string>
+    <string name="importing_epub">বই ইম্পোর্ট করা হচ্ছে</string>
     <string name="no_results_found">কোনো ফলাফল পাওয়া যায়নি</string>
     <string name="updating_library_notice">লাইব্রেরি আপডেট করা হচ্ছে</string>
     <string name="chapter_downloaded">অধ্যায় ডাউনলোড করা হয়েছে</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">নতুন অধ্যায়</string>
     <string name="notification_channel_name_failed_updates">ব্যর্থ আপডেট</string>
     <string name="notification_channel_name_backup">ব্যাকআপ</string>
-    <string name="notification_channel_name_import_epub">EPUB ইম্পোর্ট</string>
+    <string name="notification_channel_name_import_epub">বই ইম্পোর্ট</string>
     <string name="notification_channel_name_restore_backup">ব্যাকআপ পুনরুদ্ধার</string>
     <string name="notification_channel_name_app_updates_checker">আপডেট চেকার</string>
     <string name="new_app_version_available">নতুন অ্যাপ সংস্করণ উপলব্ধ</string>
@@ -352,7 +352,6 @@
     <string name="cloudflare_bypass">Cloudflare বাইপাস</string>
     <string name="cloudflare_bypass_description">স্বয়ংক্রিয় Cloudflare চ্যালেঞ্জ বাইপাস সক্ষম করুন</string>
     <string name="cloudflare_bypass_restart_required">Cloudflare বাইপাস সেটিং অ্যাপ পুনরায় চালু হওয়ার পরে প্রয়োগ করা হবে</string>
-    <string name="user_agent_restart_required">User-Agent পরিবর্তিত হয়েছে। প্রয়োগ করতে অ্যাপ পুনরায় চালু করুন।</string>
     <string name="cloudflare_challenge_timeout">চ্যালেঞ্জ টাইমআউট</string>
     <string name="timeout_seconds">টাইমআউট (সেকেন্ড)</string>
     <string name="seconds_format">%d সেকেন্ড</string>
@@ -618,5 +617,7 @@
     <string name="repository_settings">রিপোজিটরি সেটিংস</string>
     <string name="installed">ইনস্টল করা</string>
     <string name="available">উপলব্ধ</string>
+
+    <string name="book_fix">বuku মেরামত</string>
 
 </resources>

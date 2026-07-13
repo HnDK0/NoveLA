@@ -7,14 +7,6 @@ import android.net.Uri
 import android.os.Parcelable
 import kotlin.reflect.KProperty
 
-class Extra_StringArrayList {
-    operator fun getValue(thisRef: Intent, property: KProperty<*>) =
-        thisRef.extras!!.getStringArrayList(property.name)!!
-
-    operator fun setValue(thisRef: Intent, property: KProperty<*>, value: ArrayList<String>) =
-        thisRef.putExtra(property.name, value)
-}
-
 class Extra_String {
     operator fun getValue(thisRef: Intent, property: KProperty<*>) =
         thisRef.extras!!.getString(property.name)!!
@@ -52,14 +44,6 @@ class Extra_Int {
         thisRef.extras!!.getInt(property.name)
 
     operator fun setValue(thisRef: Intent, property: KProperty<*>, value: Int) =
-        thisRef.putExtra(property.name, value)
-}
-
-class Extra_Float {
-    operator fun getValue(thisRef: Intent, property: KProperty<*>) =
-        thisRef.extras!!.getFloat(property.name)
-
-    operator fun setValue(thisRef: Intent, property: KProperty<*>, value: Float) =
         thisRef.putExtra(property.name, value)
 }
 

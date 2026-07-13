@@ -8,7 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
-import my.noveldokusha.coreui.BaseViewModel
+import androidx.lifecycle.ViewModel
 import my.noveldokusha.coreui.states.PagedListIteratorState
 import my.noveldokusha.data.CatalogItem
 import my.noveldokusha.data.ScraperRepository
@@ -25,7 +25,7 @@ internal interface GlobalSourceSearchStateBundle {
 internal class GlobalSourceSearchViewModel @Inject constructor(
     state: SavedStateHandle,
     private val scraperRepository: ScraperRepository,
-) : BaseViewModel(), GlobalSourceSearchStateBundle {
+) : ViewModel(), GlobalSourceSearchStateBundle {
     override val initialInput by StateExtra_String(state)
 
     @Volatile

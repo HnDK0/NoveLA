@@ -7,6 +7,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.features.reader.domain.ChapterUrl
+import java.util.concurrent.ConcurrentHashMap
 
 internal class ChaptersIsReadRoutine(
     private val appRepository: AppRepository,
@@ -19,26 +20,24 @@ internal class ChaptersIsReadRoutine(
 
     private data class ChapterReadStatus(val startSeen: Boolean, val endSeen: Boolean)
 
-    private val chapterRead = mutableMapOf<ChapterUrl, ChapterReadStatus>()
+    private val chapterRead = ConcurrentHashMap<ChapterUrl, ChapterReadStatus>()
 
     private fun checkLoadStatus(chapterUrl: String, fn: (ChapterReadStatus) -> ChapterReadStatus) =
         scope.launch {
 
             val chapter = appRepository.bookChapters.get(chapterUrl) ?: return@launch
-            val oldStatus = chapterRead.getOrPut(chapterUrl) {
-                when (chapter.read) {
+            // Атомарный RMW через compute: исключает TOCTOU между чтением
+            // старого статуса и последующей записью newStatus из параллельных корутин.
+            val newStatus = chapterRead.compute(chapterUrl) { _, current ->
+                val base = current ?: when (chapter.read) {
                     true -> ChapterReadStatus(startSeen = true, endSeen = true)
                     false -> ChapterReadStatus(startSeen = false, endSeen = false)
                 }
-            }
+            fn(base)
+        } ?: return@launch
 
-            if (oldStatus.startSeen && oldStatus.endSeen) return@launch
-
-            val newStatus = fn(oldStatus)
-            if (newStatus.startSeen && newStatus.endSeen) {
+        if (newStatus.startSeen && newStatus.endSeen) {
                 appRepository.bookChapters.setAsRead(chapterUrl = chapterUrl, read = true)
             }
-
-            chapterRead[chapterUrl] = newStatus
         }
 }

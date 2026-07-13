@@ -24,7 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import my.noveldokusha.coreui.components.ImageViewGlide
+import my.noveldokusha.coreui.components.ImageView
 import my.noveldokusha.coreui.components.SlimListItem
 import my.noveldokusha.scraper.SourceInterface
 import my.noveldokusha.scraper.displayName
@@ -90,7 +90,7 @@ fun MigrationTabContent(
                         )
                     },
                     leadingContent = {
-                        ImageViewGlide(
+                        ImageView(
                             imageModel = source.iconResId ?: source.iconUrl,
                             modifier = Modifier
                                 .size(28.dp)

@@ -1,5 +1,6 @@
 package my.noveldokusha.features.reader.manager
 
+import timber.log.Timber
 import android.content.Context
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -10,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
@@ -208,7 +210,7 @@ internal class ReaderSession(
         scope.launch {
             val book = async(Dispatchers.IO) { appRepository.libraryBooks.get(bookUrl) }
             val chapter = async(Dispatchers.IO) { appRepository.bookChapters.get(chapterUrl) }
-            val chaptersList = async(Dispatchers.Default) {
+            val chaptersList = async(Dispatchers.IO) {
                 orderedChapters.also { it.addAll(appRepository.bookChapters.chapters(bookUrl)) }
             }
             val chapterIndex = async(Dispatchers.Default) {
@@ -252,7 +254,7 @@ internal class ReaderSession(
                     if (readerChaptersLoader.hasLoadingError) return@withContext
                     val nextChapterIndex = chapterIndex + 1
                     val chapterItem = readerChaptersLoader.orderedChapters[nextChapterIndex]
-                    if (readerChaptersLoader.loadedChapters.contains(chapterItem.url)) {
+                    if (readerChaptersLoader.isChapterContentReady(nextChapterIndex)) {
                         readerTextToSpeech.readChapterStartingFromStart(
                             chapterIndex = nextChapterIndex
                         )
@@ -332,6 +334,7 @@ internal class ReaderSession(
 
     fun close() {
         readerChaptersLoader.coroutineContext.cancelChildren()
+        (readerChaptersLoader.coroutineContext[Job])?.cancel()
         if (readerTextToSpeech.isActive.value) {
             saveLastReadPositionStateSpeaker(
                 item = readerTextToSpeech.currentTextPlaying.value.itemPos
@@ -349,6 +352,7 @@ internal class ReaderSession(
         }
         readerTextToSpeech.stop()
         scope.coroutineContext.cancelChildren()
+        (scope.coroutineContext[Job])?.cancel()
         NarratorMediaControlsService.stop(context)
     }
 
@@ -370,10 +374,23 @@ internal class ReaderSession(
         val progress = stats.chapterReadPercentage()
         val chapterIndex = stats.chapterIndex
 
+        if (
+            userHasScrolled &&
+            readerTextToSpeech.isActive.value &&
+            !readerTextToSpeech.isSpeaking.value &&
+            chapterIndex >= ttsCurrentChapterIndex + 1
+        ) {
+            Timber.d("Auto-stop TTS: user on chapter $chapterIndex, TTS was on $ttsCurrentChapterIndex")
+            readerTextToSpeech.stop()
+            readerTextToSpeech.forceResetState(
+                items.getOrNull(itemIndex) as? ReaderItem.Position
+            )
+        }
+
         if (chapterIndex != lastChapterIndex) {
             if (lastChapterIndex != -1 && readerChaptersLoader.hasLoadingError) {
                 readerChaptersLoader.hasLoadingError = false
-                android.util.Log.d("ReaderSession", "Reset hasLoadingError on chapter change: $lastChapterIndex -> $chapterIndex")
+                Timber.d("Reset hasLoadingError on chapter change: $lastChapterIndex -> $chapterIndex")
             }
             lastChapterIndex = chapterIndex
             preloadTriggeredForChapter = -1
@@ -385,7 +402,7 @@ internal class ReaderSession(
         if (
             userHasScrolled &&
             preloadTriggeredForChapter != chapterIndex &&
-            progress >= 80f &&
+            progress >= 30f &&
             !readerChaptersLoader.isLastChapter(chapterIndex) &&
             !readerChaptersLoader.hasLoadingError
         ) {

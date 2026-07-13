@@ -15,4 +15,6 @@ dependencies {
     implementation(libs.material)
 
     implementation(libs.test.junit)
+
+    implementation(libs.timber)
 }

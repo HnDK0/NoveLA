@@ -61,7 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.skydoves.landscapist.glide.GlideImage
+import my.noveldokusha.coreui.components.ImageView
 import my.noveldokusha.core.Extension
 import my.noveldokusha.coreui.components.MyButton
 import my.noveldokusha.coreui.components.SlimListItem
@@ -377,29 +377,11 @@ private fun ExtensionListItem(
                     .clip(RoundedCornerShape(4.dp))
             ) {
                 if (extension.iconUrl.isNotBlank()) {
-                    GlideImage(
-                        imageModel = { "${extension.iconUrl}" },
+                    ImageView(
+                        imageModel = "${extension.iconUrl}",
                         modifier = Modifier.fillMaxSize(),
-                        loading = {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .align(Alignment.Center),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        failure = {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .align(Alignment.Center),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        error = R.drawable.default_icon,
+                        placeholder = R.drawable.default_icon
                     )
                 } else {
                     Icon(

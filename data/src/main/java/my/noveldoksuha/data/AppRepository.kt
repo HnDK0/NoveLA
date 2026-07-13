@@ -6,7 +6,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.Response
 import my.noveldokusha.core.isContentUri
@@ -14,7 +13,8 @@ import my.noveldokusha.feature.local_database.AppDatabase
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.feature.local_database.tables.Chapter
-import my.noveldokusha.scraper.utils.normalizeBookUrl
+import my.noveldokusha.core.utils.normalizeBookUrl
+import java.io.File
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,10 +27,9 @@ class AppRepository @Inject constructor(
     val bookChapters: BookChaptersRepository,
     val chapterBody: ChapterBodyRepository,
     private val appFileResolver: AppFileResolver,
-    private val epubImporterRepository: EpubImporterRepository,
+    private val localBookImporterRepository: LocalBookImporterRepository,
     val downloaderRepository: DownloaderRepository,
     private val libraryDao: LibraryDao,
-    private val appCoroutineScope: AppCoroutineScope,
 ) {
     val settings = Settings()
     val eventDataRestored = MutableSharedFlow<Unit>()
@@ -39,24 +38,13 @@ class AppRepository @Inject constructor(
         val realUrl = appFileResolver.getLocalIfContentType(bookUrl, bookFolderName = bookTitle)
         val normalizedUrl = normalizeBookUrl(realUrl)
         val result = if (bookUrl.isContentUri && libraryBooks.get(normalizedUrl) == null) {
-            epubImporterRepository.importEpubFromContentUri(
+            localBookImporterRepository.importFromContentUri(
                 contentUri = bookUrl,
                 bookTitle = bookTitle,
                 addToLibrary = true
             ) is Response.Success
         } else {
             libraryBooks.toggleBookmark(bookUrl = normalizedUrl, bookTitle = bookTitle)
-        }
-        // Если книга добавлена в библиотеку — загружаем жанры в фоне
-        if (result && !normalizedUrl.isContentUri) {
-            appCoroutineScope.launch {
-                downloaderRepository.bookGenres(bookUrl = normalizedUrl).onSuccess { genres ->
-                    if (genres.isNotEmpty()) {
-                        val normalized = my.noveldokusha.core.utils.GenreUtils.normalize(genres)
-                        libraryDao.updateGenres(normalizedUrl, normalized)
-                    }
-                }
-            }
         }
         return result
     }
@@ -101,18 +89,31 @@ class AppRepository @Inject constructor(
 
             if (nonLibraryBookUrls.isNotEmpty()) {
                 Timber.d("clearNonLibraryData: Removing ${nonLibraryBookUrls.size} non-library books")
-                nonLibraryBookUrls.chunked(500).forEach { chunk ->
-                    db.chapterTranslationDao().deleteTranslationsByBookUrls(chunk)
-                    db.chapterBodyDao().removeChapterBodiesByBookUrls(chunk)
-                    db.chapterDao().removeAllFromBooks(chunk)
+                db.transaction {
+                    nonLibraryBookUrls.chunked(500).forEach { chunk ->
+                        db.chapterTranslationDao().deleteTranslationsByBookUrls(chunk)
+                        db.chapterBodyDao().removeChapterBodiesByBookUrls(chunk)
+                        db.chapterDao().removeAllFromBooks(chunk)
+                    }
+                    db.libraryDao().removeBooksByUrls(nonLibraryBookUrls)
                 }
-                db.libraryDao().removeBooksByUrls(nonLibraryBookUrls)
+
+                // Delete orphan book folders from disk
+                nonLibraryBookUrls.forEach { bookUrl ->
+                    val folderName = appFileResolver.getLocalBookFolderName(bookUrl)
+                    val bookFolder = File(appFileResolver.folderBooks, folderName)
+                    if (bookFolder.exists()) {
+                        bookFolder.deleteRecursively()
+                    }
+                }
             }
 
             // Also clean orphan rows (chapters without books, bodies without chapters)
-            db.chapterDao().removeAllNonLibraryRows()
-            db.chapterBodyDao().removeAllNonChapterRows()
-            db.chapterTranslationDao().removeOrphanedTranslations()
+            db.transaction {
+                db.chapterDao().removeAllNonLibraryRows()
+                db.chapterBodyDao().removeAllNonChapterRows()
+                db.chapterTranslationDao().removeOrphanedTranslations()
+            }
         }
 
         /**

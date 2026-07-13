@@ -40,12 +40,12 @@
     <string name="open_in_browser">Abrir no navegador</string>
     <string name="sources">Fontes</string>
     <string name="search_for_sources">Pesquisar fontes</string>
-    <string name="import_epub">Importar EPUB</string>
+    <string name="import_epub">Importar livro</string>
     <string name="failed_get_file">Falha ao obter o ficheiro</string>
     <string name="local_book_nothing_to_update">Livro local, nada para atualizar</string>
-    <string name="failed_to_import_epub">Falha ao importar epub</string>
+    <string name="failed_to_import_epub">Falha ao importar livro</string>
     <string name="image">imagem</string>
-    <string name="importing_epub">A importar epub</string>
+    <string name="importing_epub">A importar livro</string>
     <string name="no_results_found">Nenhum resultado encontrado</string>
     <string name="updating_library_notice">A atualizar biblioteca</string>
     <string name="chapter_downloaded">Capítulo descarregado</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">Novos capítulos</string>
     <string name="notification_channel_name_failed_updates">Atualizações falhadas</string>
     <string name="notification_channel_name_backup">Backup</string>
-    <string name="notification_channel_name_import_epub">Importar EPUB</string>
+    <string name="notification_channel_name_import_epub">Importar livro</string>
     <string name="notification_channel_name_restore_backup">Restaurar backup</string>
     <string name="notification_channel_name_app_updates_checker">Verificador de atualizações</string>
     <string name="new_app_version_available">Nova versão da aplicação disponível</string>
@@ -352,7 +352,6 @@
     <string name="cloudflare_bypass">Contorno Cloudflare</string>
     <string name="cloudflare_bypass_description">Ativar contorno automático do desafio Cloudflare</string>
     <string name="cloudflare_bypass_restart_required">A configuração de contorno Cloudflare será aplicada após reiniciar a aplicação</string>
-    <string name="user_agent_restart_required">User-Agent alterado. Reinicie a aplicação para aplicar.</string>
     <string name="cloudflare_challenge_timeout">Tempo limite do desafio</string>
     <string name="timeout_seconds">Tempo limite (segundos)</string>
     <string name="seconds_format">%d segundos</string>
@@ -618,5 +617,7 @@
     <string name="repository_settings">Configurações do repositório</string>
     <string name="installed">Instalado</string>
     <string name="available">Disponível</string>
+
+    <string name="book_fix">Reparar livro</string>
 
 </resources>

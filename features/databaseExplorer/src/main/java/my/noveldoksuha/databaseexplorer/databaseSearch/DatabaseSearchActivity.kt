@@ -11,7 +11,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.parcelize.Parcelize
 import my.noveldokusha.coreui.BaseActivity
 import my.noveldokusha.coreui.theme.Theme
-import my.noveldokusha.coreui.theme.colorAttrRes
 import my.noveldokusha.databaseexplorer.R
 import my.noveldokusha.databaseexplorer.databaseBookInfo.DatabaseBookInfoActivity
 import my.noveldokusha.core.utils.Extra_Parcelable

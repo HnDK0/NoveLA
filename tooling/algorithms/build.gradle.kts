@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.noveldokusha.android.library)
+    alias(libs.plugins.noveldokusha.android.library.nohilt)
 }
 
 android {
@@ -7,5 +7,5 @@ android {
 }
 
 dependencies {
-    implementation(libs.test.junit)
+    testImplementation(libs.test.junit)
 }

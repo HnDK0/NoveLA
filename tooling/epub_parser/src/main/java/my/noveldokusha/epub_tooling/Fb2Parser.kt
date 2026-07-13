@@ -11,7 +11,6 @@ import org.w3c.dom.Node
 import org.w3c.dom.NodeList
 import java.io.InputStream
 import java.util.zip.ZipInputStream
-import javax.xml.parsers.DocumentBuilderFactory
 
 // ── XML helpers ────────────────────────────────────────────────────────────
 
@@ -32,7 +31,7 @@ private fun Element.getAttr(name: String): String? =
         ?: getAttributeNS(null, name)?.takeIf { it.isNotEmpty() }
 
 private fun parseFb2(data: ByteArray): Document =
-    DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(data.inputStream())
+    newSecureDocumentBuilder().parse(data.inputStream())
 
 private fun Node.childElements(): List<Element> {
     val c = childNodes
@@ -46,7 +45,7 @@ private fun newByteArray(src: ByteArray): ByteArray = src
 // ── Main parser ─────────────────────────────────────────────────────────────
 
 @Throws(Exception::class)
-suspend fun fb2Parser(inputStream: InputStream): EpubBook = withContext(Dispatchers.Default) {
+suspend fun fb2Parser(inputStream: InputStream): EpubBook = withContext(Dispatchers.IO) {
     val rawData = readFb2Data(inputStream)
     val doc = parseFb2(rawData)
     val root = doc.documentElement ?: throw Exception("FB2: root element missing")
@@ -147,7 +146,7 @@ suspend fun fb2Parser(inputStream: InputStream): EpubBook = withContext(Dispatch
 
 // ── Cover-only parser ───────────────────────────────────────────────────────
 
-suspend fun fb2CoverParser(inputStream: InputStream): EpubBook.Image? = withContext(Dispatchers.Default) {
+suspend fun fb2CoverParser(inputStream: InputStream): EpubBook.Image? = withContext(Dispatchers.IO) {
     val rawData = readFb2Data(inputStream)
     val doc = parseFb2(rawData)
     val root = doc.documentElement ?: return@withContext null
@@ -247,8 +246,9 @@ private fun sectionBody(sec: Element, getBytes: BinaryLookup): String {
                 val href = el.getAttr("href") ?: el.getAttr("l:href") ?: continue
                 val id = href.removePrefix("#")
                 val data = getBytes(id) ?: continue
-                val bmp = BitmapFactory.decodeByteArray(data, 0, data.size)
-                val yrel = bmp?.let { it.height.toFloat().div(it.width.toFloat()) } ?: 1.45f
+                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(data, 0, data.size, options)
+                val yrel = if (options.outWidth > 0) options.outHeight.toFloat() / options.outWidth.toFloat() else 1.45f
                 sb.appendLine()
                 sb.appendLine(BookTextMapper.ImgEntry(path = id, yrel = yrel).toXMLString())
                 sb.appendLine()

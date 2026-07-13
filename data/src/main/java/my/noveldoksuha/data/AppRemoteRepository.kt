@@ -20,7 +20,7 @@ class AppRemoteRepository @Inject constructor(
     private val lastReleaseUrl =
         "https://api.github.com/repos/HnDK0/NoveLA/releases/latest"
     suspend fun getLastAppVersion(
-    ): Response<RemoteAppVersion> = withContext(Dispatchers.Default) {
+    ): Response<RemoteAppVersion> = withContext(Dispatchers.IO) {
         return@withContext my.noveldokusha.network.tryConnect {
             val json = networkClient
                 .get(lastReleaseUrl)

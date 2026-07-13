@@ -40,12 +40,12 @@
     <string name="open_in_browser">Buka dalam pelayar</string>
     <string name="sources">Sumber</string>
     <string name="search_for_sources">Cari sumber</string>
-    <string name="import_epub">Import EPUB</string>
+    <string name="import_epub">Import buku</string>
     <string name="failed_get_file">Gagal mendapatkan fail</string>
     <string name="local_book_nothing_to_update">Buku tempatan, tiada apa untuk dikemas kini</string>
-    <string name="failed_to_import_epub">Gagal mengimport epub</string>
+    <string name="failed_to_import_epub">Gagal mengimport buku</string>
     <string name="image">imej</string>
-    <string name="importing_epub">Mengimport epub</string>
+    <string name="importing_epub">Mengimport buku</string>
     <string name="no_results_found">Tiada hasil ditemui</string>
     <string name="updating_library_notice">Mengemas kini perpustakaan</string>
     <string name="chapter_downloaded">Bab dimuat turun</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">Bab baru</string>
     <string name="notification_channel_name_failed_updates">Kemas kini gagal</string>
     <string name="notification_channel_name_backup">Sandaran</string>
-    <string name="notification_channel_name_import_epub">Import EPUB</string>
+    <string name="notification_channel_name_import_epub">Import buku</string>
     <string name="notification_channel_name_restore_backup">Pulihkan sandaran</string>
     <string name="notification_channel_name_app_updates_checker">Pemeriksa kemas kini</string>
     <string name="new_app_version_available">Versi apl baru tersedia</string>
@@ -352,7 +352,6 @@
     <string name="cloudflare_bypass">Pintasan Cloudflare</string>
     <string name="cloudflare_bypass_description">Dayakan pintasan cabaran Cloudflare automatik</string>
     <string name="cloudflare_bypass_restart_required">Tetapan pintasan Cloudflare akan digunakan selepas apl dimulakan semula</string>
-    <string name="user_agent_restart_required">User-Agent ditukar. Mulakan semula apl untuk menggunakan.</string>
     <string name="cloudflare_challenge_timeout">Masa tamat cabaran</string>
     <string name="timeout_seconds">Masa tamat (saat)</string>
     <string name="seconds_format">%d saat</string>
@@ -618,5 +617,7 @@
     <string name="repository_settings">Tetapan repositori</string>
     <string name="installed">Dipasang</string>
     <string name="available">Tersedia</string>
+
+    <string name="book_fix">Baiki buku</string>
 
 </resources>

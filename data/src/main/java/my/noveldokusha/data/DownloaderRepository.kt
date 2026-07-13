@@ -1,5 +1,6 @@
 package my.noveldokusha.data
 
+import timber.log.Timber
 import android.content.Context
 import androidx.core.os.ConfigurationCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -18,6 +19,7 @@ import net.dankito.readability4j.extended.Readability4JExtended
 import org.jsoup.nodes.Document
 import java.net.SocketTimeoutException
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,7 +32,7 @@ class DownloaderRepository @Inject constructor(
 
     suspend fun bookCoverImageUrl(
         bookUrl: String,
-    ): Response<String?> = withContext(Dispatchers.Default) {
+    ): Response<String?> = withContext(Dispatchers.IO) {
         val error by lazy {
             """
 			Incompatible source.
@@ -50,7 +52,7 @@ class DownloaderRepository @Inject constructor(
 
     suspend fun bookTitle(
         bookUrl: String,
-    ): Response<String?> = withContext(Dispatchers.Default) {
+    ): Response<String?> = withContext(Dispatchers.IO) {
         val error by lazy {
             """
 			Incompatible source.
@@ -93,7 +95,7 @@ class DownloaderRepository @Inject constructor(
 
     suspend fun bookGenres(
         bookUrl: String,
-    ): Response<List<String>> = withContext(Dispatchers.Default) {
+    ): Response<List<String>> = withContext(Dispatchers.IO) {
         val scrap = scraper.getCompatibleSourceCatalog(bookUrl)
             ?: return@withContext Response.Success(emptyList())
 
@@ -104,7 +106,7 @@ class DownloaderRepository @Inject constructor(
 
     suspend fun bookDescription(
         bookUrl: String,
-    ): Response<String?> = withContext(Dispatchers.Default) {
+    ): Response<String?> = withContext(Dispatchers.IO) {
         val error by lazy {
             """
 			Incompatible source.
@@ -124,14 +126,14 @@ class DownloaderRepository @Inject constructor(
 
     suspend fun bookChapter(
         chapterUrl: String,
-    ): Response<my.noveldokusha.scraper.ChapterDownload> = withContext(Dispatchers.Default) {
+    ): Response<my.noveldokusha.scraper.ChapterDownload> = withContext(Dispatchers.IO) {
         val maxRetries = 3
         var lastError: Response<my.noveldokusha.scraper.ChapterDownload>? = null
 
         for (attempt in 0 until maxRetries) {
             if (attempt > 0) {
                 val backoffMs = (1000L * (1L shl (attempt - 1))).coerceAtMost(5000L)
-                android.util.Log.d(TAG, "bookChapter: retry attempt $attempt/$maxRetries for $chapterUrl, waiting ${backoffMs}ms")
+                Timber.d("bookChapter: retry attempt $attempt/$maxRetries for $chapterUrl, waiting ${backoffMs}ms")
                 delay(backoffMs)
             }
 
@@ -181,7 +183,7 @@ class DownloaderRepository @Inject constructor(
                 // Проверяем HTML на JS-редирект (window.location, meta refresh)
                 val redirectUrl = my.noveldokusha.network.JsRedirectResolver.resolveRedirectUrl(doc)
                 if (redirectUrl != null) {
-                    android.util.Log.d(TAG, "JS redirect resolved: $redirectUrl")
+                    Timber.d("JS redirect resolved: $redirectUrl")
                     val redirectedDoc = networkClient.get(redirectUrl).use { it.toDocument() }
                     val chapter = heuristicChapterExtraction(redirectUrl, redirectedDoc)
                     if (chapter != null) {
@@ -219,10 +221,25 @@ class DownloaderRepository @Inject constructor(
         lastError ?: Response.Error("Unknown error", Exception("Unexpected retry loop exit"))
     }
 
+    private val chaptersListCache = ConcurrentHashMap<String, ChaptersListCacheEntry>()
+    private val chaptersListCacheTtlMs = 120_000L
+
+    private data class ChaptersListCacheEntry(
+        val timestamp: Long,
+        val chapters: List<Chapter>
+    )
+
     suspend fun bookChaptersList(
         bookUrl: String,
-    ): Response<List<Chapter>> = withContext(Dispatchers.Default) {
-        println("DownloaderRepository: Loading chapters for book: $bookUrl")
+    ): Response<List<Chapter>> = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        chaptersListCache[bookUrl]?.let { cached ->
+            if (now - cached.timestamp < chaptersListCacheTtlMs) {
+                Timber.d("bookChaptersList: CACHE HIT — ${cached.chapters.size} chapters for $bookUrl")
+                return@withContext Response.Success(cached.chapters)
+            }
+        }
+        Timber.d("bookChaptersList: CACHE MISS — loading chapters for $bookUrl")
 
         val error by lazy {
             """
@@ -235,14 +252,12 @@ class DownloaderRepository @Inject constructor(
 
         val scrap = scraper.getCompatibleSourceCatalog(bookUrl)
         if (scrap == null) {
-            println("DownloaderRepository: No compatible source found for $bookUrl")
+            Timber.d("bookChaptersList: no compatible source for $bookUrl")
             return@withContext Response.Error(error, Exception())
         }
 
-        println("DownloaderRepository: Found source ${scrap.id} for $bookUrl")
+        Timber.d("bookChaptersList: source=${scrap.id}")
 
-        // Если плагин поддерживает parsePage — собираем все страницы через него.
-        // Это нужно для первичной загрузки глав (ChaptersActivity), а не только для обновлений.
         val firstPageResult = try {
             scrap.parsePage(bookUrl, 1)
         } catch (e: Exception) {
@@ -256,7 +271,7 @@ class DownloaderRepository @Inject constructor(
                     (firstPageResult as Response.Error).exception
                 )
 
-            println("DownloaderRepository: Using parsePage, totalPages=${firstPage.totalPages}")
+            Timber.d("bookChaptersList: parsePage supported, totalPages=${firstPage.totalPages}, page1 chapters=${firstPage.chapters.size}")
 
             val allChapters = mutableListOf<Chapter>()
 
@@ -265,25 +280,30 @@ class DownloaderRepository @Inject constructor(
             }
 
             for (page in 2..firstPage.totalPages) {
+                Timber.d("bookChaptersList: loading page $page/${firstPage.totalPages}")
                 val pageData = (bookChaptersPage(bookUrl, page) as? Response.Success)?.data
-                    ?: break
+                if (pageData == null) {
+                    Timber.d("bookChaptersList: FAILED page $page, stopping early")
+                    break
+                }
                 val offset = allChapters.size
                 pageData.chapters.forEachIndexed { idx, ch ->
                     allChapters.add(Chapter(title = ch.title, url = ch.url, bookUrl = bookUrl, position = offset + idx))
                 }
+                Timber.d("bookChaptersList: page $page loaded, cumulative count=${allChapters.size}")
             }
 
-            println("DownloaderRepository: Got ${allChapters.size} chapters via parsePage for $bookUrl")
+            Timber.d("bookChaptersList: total ${allChapters.size} chapters via parsePage, caching...")
+            chaptersListCache[bookUrl] = ChaptersListCacheEntry(now, allChapters)
             return@withContext Response.Success(allChapters)
         }
 
-        // Плагин не объявил parsePage — старый путь через getChapterList.
+        Timber.d("bookChaptersList: parsePage not supported, falling back to getChapterList")
         my.noveldokusha.network.tryFlatConnect {
-            println("DownloaderRepository: Calling getChapterList for $bookUrl")
             scrap.getChapterList(bookUrl)
         }
             .map { chapters ->
-                println("DownloaderRepository: Got ${chapters.size} chapters for $bookUrl")
+                Timber.d("bookChaptersList: getChapterList returned ${chapters.size} chapters")
                 chapters.mapIndexed { index, it ->
                     Chapter(
                         title = it.title,
@@ -292,6 +312,10 @@ class DownloaderRepository @Inject constructor(
                         position = index
                     )
                 }
+            }
+            .onSuccess { chapters ->
+                Timber.d("bookChaptersList: caching ${chapters.size} chapters from getChapterList")
+                chaptersListCache[bookUrl] = ChaptersListCacheEntry(System.currentTimeMillis(), chapters)
             }
     }
 
@@ -302,22 +326,32 @@ class DownloaderRepository @Inject constructor(
     suspend fun bookChaptersPage(
         bookUrl: String,
         page: Int,
-    ): Response<SourceInterface.Catalog.PagedChapterResult>? = withContext(Dispatchers.Default) {
-        val scrap = scraper.getCompatibleSourceCatalog(bookUrl) ?: return@withContext null
-        // parsePage() возвращает null если плагин не объявил функцию.
-        // Оборачиваем исключения вручную — tryFlatConnect не подходит, так как
-        // его лямбда типизирована как () -> Response<T> (non-nullable),
-        // а нам нужно пробросить наружу null от самого parsePage.
+    ): Response<SourceInterface.Catalog.PagedChapterResult>? = withContext(Dispatchers.IO) {
+        val scrap = scraper.getCompatibleSourceCatalog(bookUrl)
+        if (scrap == null) {
+            Timber.d("bookChaptersPage: no source for $bookUrl, page=$page")
+            return@withContext null
+        }
+        Timber.d("bookChaptersPage: loading page=$page for $bookUrl source=${scrap.id}")
         try {
-            scrap.parsePage(bookUrl, page)
+            val result = scrap.parsePage(bookUrl, page)
+            if (result is Response.Success) {
+                Timber.d("bookChaptersPage: page=$page OK, chapters=${result.data.chapters.size}, totalPages=${result.data.totalPages}")
+            } else if (result is Response.Error) {
+                Timber.d("bookChaptersPage: page=$page ERROR — ${result.message}")
+            } else {
+                Timber.d("bookChaptersPage: page=$page → null (not supported)")
+            }
+            result
         } catch (e: Exception) {
+            Timber.e(e, "bookChaptersPage: page=$page exception")
             Response.Error(e.message ?: "Unknown error", e)
         }
     }
 
     suspend fun bookChaptersListHash(
         bookUrl: String,
-    ): Response<String?> = withContext(Dispatchers.Default) {
+    ): Response<String?> = withContext(Dispatchers.IO) {
         val error by lazy {
             """
 			Incompatible source.
@@ -376,8 +410,6 @@ class DownloaderRepository @Inject constructor(
     }
 
     companion object {
-        private const val TAG = "DownloaderRepository"
-
         /** MIME-типы при загрузке HTML — аналог браузерного Accept, не зависит от устройства */
         private const val ACCEPT_HTML =
             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"

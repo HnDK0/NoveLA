@@ -1,6 +1,6 @@
 package my.noveldokusha.features.reader.features
 
-import android.util.Log
+import timber.log.Timber
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateOf
@@ -100,18 +100,18 @@ internal class ReaderLiveTranslation(
     val onDisplaySettingsChanged = _onDisplaySettingsChanged.asSharedFlow()
 
     suspend fun init() {
-        Log.d(TAG, "init: starting")
+        Timber.d("init: starting")
         val source = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
         val target = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
-        Log.d(TAG, "init: source=$source, target=$target")
-        Log.d(TAG, "init: translationAvailable=${translationManager.available}")
+        Timber.d("init: source=$source, target=$target")
+        Timber.d("init: translationAvailable=${translationManager.available}")
 
         state.source.value = getValidTranslatorOrNull(source)
         state.target.value = getValidTranslatorOrNull(target)
-        Log.d(TAG, "init: sourceModel=${state.source.value?.language}, targetModel=${state.target.value?.language}")
+        Timber.d("init: sourceModel=${state.source.value?.language}, targetModel=${state.target.value?.language}")
 
         updateTranslatorState()
-        Log.d(TAG, "init: complete, translatorState=${translatorState != null}")
+        Timber.d("init: complete, translatorState=${translatorState != null}")
     }
 
     private suspend fun getValidTranslatorOrNull(language: String): TranslationModelState? {
@@ -127,35 +127,35 @@ internal class ReaderLiveTranslation(
         val source = state.source.value
         val target = state.target.value
 
-        Log.d(TAG, "updateTranslatorState: enabled=$isEnabled, source=${source?.language}, target=${target?.language}")
+        Timber.d("updateTranslatorState: enabled=$isEnabled, source=${source?.language}, target=${target?.language}")
 
         val old = translatorState
         val new = when {
             !isEnabled -> {
-                Log.d(TAG, "updateTranslatorState: translation disabled")
+                Timber.d("updateTranslatorState: translation disabled")
                 null
             }
             source == null || target == null -> {
-                Log.d(TAG, "updateTranslatorState: missing source or target model")
+                Timber.d("updateTranslatorState: missing source or target model")
                 null
             }
             source.language == target.language -> {
-                Log.d(TAG, "updateTranslatorState: source and target are the same")
+                Timber.d("updateTranslatorState: source and target are the same")
                 null
             }
             else -> {
                 try {
                     val systemPromptOverride = resolveSystemPromptOverride()
-                    Log.d(TAG, "updateTranslatorState: creating translator, override='${systemPromptOverride?.take(200)}'")
+                    Timber.d("updateTranslatorState: creating translator, override='${systemPromptOverride?.take(200)}'")
                     translationManager.getTranslator(
                         source = source.language,
                         target = target.language,
                         systemPromptOverride = systemPromptOverride
                     ).also {
-                        Log.d(TAG, "updateTranslatorState: translator created successfully")
+                        Timber.d("updateTranslatorState: translator created successfully")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "updateTranslatorState: failed to create translator", e)
+                    Timber.e(e, "updateTranslatorState: failed to create translator")
                     throw e
                 }
             }
@@ -174,55 +174,55 @@ internal class ReaderLiveTranslation(
     }
 
     private fun onEnable(it: Boolean) {
-        Log.d(TAG, "onEnable: $it")
+        Timber.d("onEnable: $it")
         try {
             state.enable.value = it
             appPreferences.GLOBAL_TRANSLATION_ENABLED.value = it
             val update = updateTranslatorState()
-            Log.d(TAG, "onEnable: updateRequired=$update")
+            Timber.d("onEnable: updateRequired=$update")
             if (update) scope.launch {
                 _onTranslatorChanged.emit(Unit)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "onEnable: error", e)
+            Timber.e(e, "onEnable: error")
             throw e
         }
     }
 
     private fun onSourceChange(it: TranslationModelState?) {
-        Log.d(TAG, "onSourceChange: ${it?.language}")
+        Timber.d("onSourceChange: ${it?.language}")
         try {
             state.source.value = it
             appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value = it?.language ?: ""
             val update = updateTranslatorState()
-            Log.d(TAG, "onSourceChange: updateRequired=$update")
+            Timber.d("onSourceChange: updateRequired=$update")
             if (update) scope.launch {
                 _onTranslatorChanged.emit(Unit)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "onSourceChange: error", e)
+            Timber.e(e, "onSourceChange: error")
             throw e
         }
     }
 
     private fun onTargetChange(it: TranslationModelState?) {
-        Log.d(TAG, "onTargetChange: ${it?.language}")
+        Timber.d("onTargetChange: ${it?.language}")
         try {
             state.target.value = it
             appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value = it?.language ?: ""
             val update = updateTranslatorState()
-            Log.d(TAG, "onTargetChange: updateRequired=$update")
+            Timber.d("onTargetChange: updateRequired=$update")
             if (update) scope.launch {
                 _onTranslatorChanged.emit(Unit)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "onTargetChange: error", e)
+            Timber.e(e, "onTargetChange: error")
             throw e
         }
     }
 
     private fun onNovelPromptChange(prompt: String) {
-        Log.d(TAG, "onNovelPromptChange: prompt='${prompt.take(200)}'")
+        Timber.d("onNovelPromptChange: prompt='${prompt.take(200)}'")
         state.novelPrompt.value = prompt
         if (bookUrl.isNotBlank()) {
             val current = appPreferences.TRANSLATION_NOVEL_PROMPTS.value.toMutableMap()
@@ -237,12 +237,12 @@ internal class ReaderLiveTranslation(
             }
             appPreferences.TRANSLATION_NOVEL_PROMPTS.value = current
         }
-        Log.d(TAG, "onNovelPromptChange: calling onRedoTranslation()")
+        Timber.d("onNovelPromptChange: calling onRedoTranslation()")
         onRedoTranslation()
     }
 
     private fun onNovelPromptAppendModeChange(appendMode: Boolean) {
-        Log.d(TAG, "onNovelPromptAppendModeChange: appendMode=$appendMode")
+        Timber.d("onNovelPromptAppendModeChange: appendMode=$appendMode")
         state.novelPromptAppendMode.value = appendMode
         if (bookUrl.isNotBlank()) {
             val current = appPreferences.TRANSLATION_NOVEL_PROMPTS.value.toMutableMap()
@@ -250,7 +250,7 @@ internal class ReaderLiveTranslation(
             current[bookUrl] = existing.copy(appendMode = appendMode)
             appPreferences.TRANSLATION_NOVEL_PROMPTS.value = current
         }
-        Log.d(TAG, "onNovelPromptAppendModeChange: calling onRedoTranslation()")
+        Timber.d("onNovelPromptAppendModeChange: calling onRedoTranslation()")
         onRedoTranslation()
     }
 
@@ -282,43 +282,43 @@ internal class ReaderLiveTranslation(
     private fun onRedoTranslation() {
         scope.launch {
             try {
-                Log.d(TAG, "onRedoTranslation: starting, state.novelPrompt='${state.novelPrompt.value.take(200)}'")
+                Timber.d("onRedoTranslation: starting, state.novelPrompt='${state.novelPrompt.value.take(200)}'")
                 val source = state.source.value?.language ?: run {
-                    Log.w(TAG, "onRedoTranslation: source is null")
+                    Timber.w("onRedoTranslation: source is null")
                     return@launch
                 }
                 val target = state.target.value?.language ?: run {
-                    Log.w(TAG, "onRedoTranslation: target is null")
+                    Timber.w("onRedoTranslation: target is null")
                     return@launch
                 }
 
-                Log.d(TAG, "onRedoTranslation: source=$source, target=$target, chapter=$currentChapterUrl")
+                Timber.d("onRedoTranslation: source=$source, target=$target, chapter=$currentChapterUrl")
 
                 if (currentChapterUrl.isNotEmpty()) {
                     chapterTranslationDao?.let { dao ->
                         try {
-                            Log.d(TAG, "onRedoTranslation: clearing translation for current chapter $currentChapterUrl")
+                            Timber.d("onRedoTranslation: clearing translation for current chapter $currentChapterUrl")
                             withContext(Dispatchers.IO) {
                                 dao.deleteChapterTranslations(currentChapterUrl)
                             }
-                            Log.d(TAG, "onRedoTranslation: chapter translation cleared")
+                            Timber.d("onRedoTranslation: chapter translation cleared")
                         } catch (e: Exception) {
-                            Log.e(TAG, "onRedoTranslation: failed to clear chapter translation", e)
+                            Timber.e(e, "onRedoTranslation: failed to clear chapter translation")
                         }
-                    } ?: Log.w(TAG, "onRedoTranslation: chapterTranslationDao is null")
+                    } ?: Timber.w("onRedoTranslation: chapterTranslationDao is null")
                 }
 
-                Log.d(TAG, "onRedoTranslation: forcing translator state update")
+                Timber.d("onRedoTranslation: forcing translator state update")
                 translatorState = null
                 val update = updateTranslatorState()
-                Log.d(TAG, "onRedoTranslation: translator state updated, triggering reload")
+                Timber.d("onRedoTranslation: translator state updated, triggering reload")
 
                 if (update) {
                     _onTranslatorChanged.emit(Unit)
                 }
-                Log.d(TAG, "onRedoTranslation: complete")
+                Timber.d("onRedoTranslation: complete")
             } catch (e: Exception) {
-                Log.e(TAG, "onRedoTranslation: error", e)
+                Timber.e(e, "onRedoTranslation: error")
             }
         }
     }
@@ -331,18 +331,18 @@ internal class ReaderLiveTranslation(
      */
     fun getBatchTranslator(): (suspend (List<String>) -> Map<String, String>)? {
         if (!translationManager.isUsingOnlineTranslation) {
-            Log.d(TAG, "getBatchTranslator: offline provider (MLKit), batch not available")
+            Timber.d("getBatchTranslator: offline provider (MLKit), batch not available")
             return null
         }
         val currentState = translatorState
         if (currentState == null) {
-            Log.w(TAG, "getBatchTranslator: translatorState is null — init() may not have completed yet!")
+            Timber.w("getBatchTranslator: translatorState is null — init() may not have completed yet!")
             return null
         }
         val source = currentState.source
         val target = currentState.target
         val systemPromptOverride = resolveSystemPromptOverride()
-        Log.d(TAG, "getBatchTranslator: returning batch translator ($source → $target), appendMode=${state.novelPromptAppendMode.value}, hasOverride=${systemPromptOverride != null}")
+        Timber.d("getBatchTranslator: returning batch translator ($source → $target), appendMode=${state.novelPromptAppendMode.value}, hasOverride=${systemPromptOverride != null}")
         return { texts ->
             translationManager.translateBatch(texts, source, target, systemPromptOverride)
         }
@@ -361,6 +361,5 @@ internal class ReaderLiveTranslation(
     }
 
     companion object {
-        private const val TAG = "ReaderLiveTranslation"
     }
 }

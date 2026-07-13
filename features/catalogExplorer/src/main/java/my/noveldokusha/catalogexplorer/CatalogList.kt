@@ -31,7 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import my.noveldokusha.coreui.components.AnimatedTransition
-import my.noveldokusha.coreui.components.ImageViewGlide
+import my.noveldokusha.coreui.components.ImageView
 import my.noveldokusha.coreui.components.SlimListItem
 import my.noveldokusha.coreui.theme.InternalTheme
 import my.noveldokusha.coreui.theme.PreviewThemes
@@ -89,7 +89,7 @@ internal fun CatalogList(
                     )
                 },
                 leadingContent = {
-                    ImageViewGlide(
+                    ImageView(
                         imageModel = it.iconUrl,
                         modifier = Modifier
                             .size(28.dp)
@@ -133,7 +133,7 @@ internal fun CatalogList(
                 },
                 leadingContent = {
                     val iconResId = it.catalog.iconResId
-                    ImageViewGlide(
+                    ImageView(
                         imageModel = iconResId ?: it.catalog.iconUrl,
                         modifier = Modifier
                             .size(28.dp)

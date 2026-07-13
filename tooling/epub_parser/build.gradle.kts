@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.noveldokusha.android.library)
+    alias(libs.plugins.noveldokusha.android.library.nohilt)
     alias(libs.plugins.kotlin.parcelize)
 }
 

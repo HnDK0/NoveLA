@@ -1,5 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Color for chapter titles in dark theme - light gray for good contrast on dark background -->
-    <color name="chapter_title_color">#dddddd</color>
 </resources>

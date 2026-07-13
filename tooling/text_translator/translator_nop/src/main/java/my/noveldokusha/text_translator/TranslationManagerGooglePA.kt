@@ -1,7 +1,7 @@
 package my.noveldokusha.text_translator
 
-import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
+import timber.log.Timber
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Deferred
@@ -13,7 +13,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.network.ScraperNetworkClient
 import my.noveldokusha.network.interceptors.resolveUserAgent
@@ -33,7 +32,6 @@ import java.util.concurrent.TimeUnit
  * significantly better quality than the plain-text translate.googleapis.com endpoint.
  */
 class TranslationManagerGooglePA(
-    private val coroutineScope: AppCoroutineScope,
     private val appPreferences: AppPreferences,
     private val networkClient: ScraperNetworkClient
 ) : TranslationManager {
@@ -65,7 +63,7 @@ class TranslationManagerGooglePA(
         models.firstOrNull { it.language == language }
 
     override fun getTranslator(source: String, target: String, systemPromptOverride: String?): TranslatorState {
-        Log.d(TAG, "getTranslator: source=$source, target=$target")
+        Timber.d( "getTranslator: source=$source, target=$target")
         return TranslatorState(
             source = source,
             target = target,
@@ -80,7 +78,7 @@ class TranslationManagerGooglePA(
         val lastChecked = appPreferences.TRANSLATION_GOOGLE_PA_KEY_LAST_CHECKED.value
         val now = System.currentTimeMillis()
         if (cachedKey.isNotBlank() && (now - lastChecked) < KEY_CACHE_DURATION_MS) {
-            Log.d(TAG, "getApiKey: using cached key (age=${(now - lastChecked) / 1000}s)")
+            Timber.d( "getApiKey: using cached key (age=${(now - lastChecked) / 1000}s)")
             return@coroutineScope cachedKey
         }
 
@@ -88,16 +86,16 @@ class TranslationManagerGooglePA(
             val freshKey = appPreferences.TRANSLATION_GOOGLE_PA_CACHED_KEY.value
             val freshChecked = appPreferences.TRANSLATION_GOOGLE_PA_KEY_LAST_CHECKED.value
             if (freshKey.isNotBlank() && (System.currentTimeMillis() - freshChecked) < KEY_CACHE_DURATION_MS) {
-                Log.d(TAG, "getApiKey: cache refreshed while waiting for mutex")
+                Timber.d( "getApiKey: cache refreshed while waiting for mutex")
                 return@coroutineScope freshKey
             }
 
             keyFetchJob?.let { existing ->
-                Log.d(TAG, "getApiKey: joining existing fetch job")
+                Timber.d( "getApiKey: joining existing fetch job")
                 return@withLock existing
             }
 
-            Log.d(TAG, "getApiKey: starting new fetch job")
+            Timber.d( "getApiKey: starting new fetch job")
             val job = async(Dispatchers.IO) { fetchAndCacheKey() }
             keyFetchJob = job
             job
@@ -121,16 +119,16 @@ class TranslationManagerGooglePA(
 
         for (key in keys) {
             if (checkKey(key)) {
-                Log.d(TAG, "fetchAndCacheKey: found working key from preferences")
+                Timber.d( "fetchAndCacheKey: found working key from preferences")
                 cacheKey(key, now)
                 return key
             }
         }
 
-        Log.d(TAG, "fetchAndCacheKey: no working key found, fetching from wtr-lab")
+        Timber.d( "fetchAndCacheKey: no working key found, fetching from wtr-lab")
         val fetchedKey = fetchKeyFromWtrLab()
         if (fetchedKey != null) {
-            Log.d(TAG, "fetchAndCacheKey: got key from wtr-lab, adding to list")
+            Timber.d( "fetchAndCacheKey: got key from wtr-lab, adding to list")
             addKeyToPreferences(fetchedKey)
             cacheKey(fetchedKey, now)
             return fetchedKey
@@ -152,10 +150,10 @@ class TranslationManagerGooglePA(
             val response = client.newCall(request).execute()
             val ok = response.isSuccessful
             response.body.close()
-            Log.d(TAG, "checkKey: ${key.take(12)}… → HTTP ${response.code}")
+            Timber.d( "checkKey: ${key.take(12)}… → HTTP ${response.code}")
             ok
         } catch (e: Exception) {
-            Log.w(TAG, "checkKey failed: ${e.message}")
+            Timber.w( "checkKey failed: ${e.message}")
             false
         }
     }
@@ -182,31 +180,31 @@ class TranslationManagerGooglePA(
                     .header("User-Agent", resolveUserAgent(appPreferences))
                     .build()
             ).execute().body.string().ifBlank {
-                Log.w(TAG, "fetchKeyFromWtrLab: ranking page returned null body")
+                Timber.w( "fetchKeyFromWtrLab: ranking page returned null body")
                 return@withContext null
             }
 
-            Log.d(TAG, "fetchKeyFromWtrLab: ranking page length=${rankingHtml.length}")
+            Timber.d( "fetchKeyFromWtrLab: ranking page length=${rankingHtml.length}")
             val novelMatches = Regex("""href=["']([^"']*/novel/[^"']+)["']""").findAll(rankingHtml).toList()
-            Log.d(TAG, "fetchKeyFromWtrLab: /novel/ matches found=${novelMatches.size}")
+            Timber.d( "fetchKeyFromWtrLab: /novel/ matches found=${novelMatches.size}")
             if (novelMatches.isEmpty()) {
                 val allHrefs = Regex("""href=["']([^"']+)["']""").findAll(rankingHtml)
                     .map { it.groupValues[1] }
                     .take(20)
                     .toList()
-                Log.w(TAG, "fetchKeyFromWtrLab: no /novel/ links, all hrefs sample=$allHrefs")
+                Timber.w( "fetchKeyFromWtrLab: no /novel/ links, all hrefs sample=$allHrefs")
             }
 
             val novelUrl = novelMatches.map {
                 if (it.groupValues[1].startsWith("http")) it.groupValues[1]
                 else "https://wtr-lab.com${it.groupValues[1]}"
             }.firstOrNull() ?: run {
-                Log.w(TAG, "fetchKeyFromWtrLab: no novel link found on ranking page")
+                Timber.w( "fetchKeyFromWtrLab: no novel link found on ranking page")
                 return@withContext null
             }
 
             val chapterUrl = novelUrl.trimEnd('/') + "/chapter-1"
-            Log.d(TAG, "fetchKeyFromWtrLab: loading chapter page: $chapterUrl")
+            Timber.d( "fetchKeyFromWtrLab: loading chapter page: $chapterUrl")
 
             val chapterHtml = client.newCall(
                 Request.Builder()
@@ -216,7 +214,7 @@ class TranslationManagerGooglePA(
             ).execute().body.string().ifBlank { return@withContext null }
 
             keyHeaderRegex.find(chapterHtml)?.groupValues?.get(1)?.let { key ->
-                Log.d(TAG, "fetchKeyFromWtrLab: found key inline in chapter HTML")
+                Timber.d( "fetchKeyFromWtrLab: found key inline in chapter HTML")
                 return@withContext key
             }
 
@@ -228,22 +226,22 @@ class TranslationManagerGooglePA(
                 .distinct()
                 .toList()
 
-            Log.d(TAG, "fetchKeyFromWtrLab: found ${scriptUrls.size} _next scripts on chapter page")
+            Timber.d( "fetchKeyFromWtrLab: found ${scriptUrls.size} _next scripts on chapter page")
 
             if (scriptUrls.isEmpty()) {
-                Log.w(TAG, "fetchKeyFromWtrLab: no _next scripts on chapter page")
+                Timber.w( "fetchKeyFromWtrLab: no _next scripts on chapter page")
                 return@withContext null
             }
 
             searchKeyInScripts(scriptUrls)
         } catch (e: Exception) {
-            Log.e(TAG, "fetchKeyFromWtrLab failed: ${e.message}")
+            Timber.e( "fetchKeyFromWtrLab failed: ${e.message}")
             null
         }
     }
 
     private suspend fun searchKeyInScripts(urls: List<String>): String? = withContext(Dispatchers.IO) {
-        Log.d(TAG, "searchKeyInScripts: searching ${urls.size} scripts (sequential)")
+        Timber.d( "searchKeyInScripts: searching ${urls.size} scripts (sequential)")
         for (url in urls) {
             try {
                 val js = client.newCall(
@@ -251,13 +249,13 @@ class TranslationManagerGooglePA(
                 ).execute().body.string()
                 if (js.isBlank()) continue
                 val key = keyHeaderRegex.find(js)?.groupValues?.get(1) ?: continue
-                Log.d(TAG, "searchKeyInScripts: found key in $url")
+                Timber.d( "searchKeyInScripts: found key in $url")
                 return@withContext key
             } catch (e: Exception) {
-                Log.w(TAG, "searchKeyInScripts: failed $url: ${e.message}")
+                Timber.w( "searchKeyInScripts: failed $url: ${e.message}")
             }
         }
-        Log.w(TAG, "searchKeyInScripts: key not found in any script")
+        Timber.w( "searchKeyInScripts: key not found in any script")
         null
     }
 
@@ -321,7 +319,7 @@ class TranslationManagerGooglePA(
             chunks.add(Chunk(currentIndices.toList(), currentParts.joinToString("<br>")))
         }
 
-        Log.d(TAG, "translateChunks: ${paragraphs.size} paragraphs → ${chunks.size} chunks, $sourceLang→$targetLang")
+        Timber.d( "translateChunks: ${paragraphs.size} paragraphs → ${chunks.size} chunks, $sourceLang→$targetLang")
 
         val apiKey = getApiKey()
         var failedChunks = 0
@@ -332,13 +330,13 @@ class TranslationManagerGooglePA(
             val translated = try {
                 translateHtml(chunk.html, sourceLang, targetLang, apiKey)
             } catch (e: Exception) {
-                Log.e(TAG, "Chunk ${idx + 1}/${chunks.size} failed: ${e.message}")
+                Timber.e( "Chunk ${idx + 1}/${chunks.size} failed: ${e.message}")
                 failedChunks++
                 continue
             }
 
             if (translated == chunk.html) {
-                Log.w(TAG, "Chunk ${idx + 1}: translated == original, skipping update")
+                Timber.w( "Chunk ${idx + 1}: translated == original, skipping update")
                 continue
             }
 
@@ -354,7 +352,7 @@ class TranslationManagerGooglePA(
             }
 
             if (translatedParas.size != chunk.indices.size) {
-                Log.w(TAG, "Chunk ${idx + 1}: expected ${chunk.indices.size} paragraphs, got ${translatedParas.size}")
+                Timber.w( "Chunk ${idx + 1}: expected ${chunk.indices.size} paragraphs, got ${translatedParas.size}")
             }
         }
 
@@ -387,7 +385,7 @@ class TranslationManagerGooglePA(
         if (!response.isSuccessful) {
             val code = response.code
             response.body.close()
-            Log.e(TAG, "translateHtml: HTTP $code")
+            Timber.e( "translateHtml: HTTP $code")
             throw IllegalStateException("Google PA: HTTP error $code")
         }
 
@@ -396,7 +394,7 @@ class TranslationManagerGooglePA(
             val arr = JsonParser.parseString(body).asJsonArray
             arr.get(0).asJsonArray.get(0).asString
         } catch (e: Exception) {
-            Log.e(TAG, "translateHtml: parse error — ${e.message}")
+            Timber.e( "translateHtml: parse error — ${e.message}")
             throw IllegalStateException("Google PA: Failed to parse response — ${e.message}")
         }
     }
@@ -443,7 +441,7 @@ class TranslationManagerGooglePA(
             result[text] = if (translatedLines.isNotEmpty()) translatedLines.joinToString("\n") else text
         }
 
-        Log.d(TAG, "translateBatch: total=${normalizedTexts.size}, translated=${result.size}")
+        Timber.d( "translateBatch: total=${normalizedTexts.size}, translated=${result.size}")
         result
     }
 

@@ -268,7 +268,7 @@ internal fun ReaderScreen(
         val overlayPermissionLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult()
         ) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(context)) {
+            if (Settings.canDrawOverlays(context)) {
                 my.noveldokusha.features.reader.services.FloatingTtsService.activityWindowToken =
                     windowToken
                 my.noveldokusha.features.reader.services.FloatingTtsService.ttsState.value =
@@ -313,9 +313,7 @@ internal fun ReaderScreen(
         ) {
             val floatingEnabled = state.settings.floatingTts.isEnabled.value
             if (floatingEnabled) {
-                val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    Settings.canDrawOverlays(context)
-                } else true
+                val hasPermission = Settings.canDrawOverlays(context)
 
                 if (hasPermission) {
                     my.noveldokusha.features.reader.services.FloatingTtsService.activityWindowToken =

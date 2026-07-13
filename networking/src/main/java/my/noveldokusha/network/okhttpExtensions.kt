@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import com.google.gson.Strictness
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.Callback
@@ -17,10 +18,8 @@ import java.io.IOException
 import java.nio.charset.Charset
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
-
 private suspend fun Call.await(): Response = withContext(Dispatchers.IO) {
-    suspendCoroutine { continuation ->
+    suspendCancellableCoroutine { continuation ->
         enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 continuation.resumeWithException(e)
@@ -30,13 +29,15 @@ private suspend fun Call.await(): Response = withContext(Dispatchers.IO) {
                 continuation.resume(response)
             }
         })
+        continuation.invokeOnCancellation { runCatching { cancel() } }
     }
 }
 
 suspend fun OkHttpClient.call(builder: Request.Builder) = newCall(builder.build()).await()
 
 fun Response.toDocument(): Document {
-    return Jsoup.parse(body.string())
+    val html = body.string()
+    return Jsoup.parse(html, request.url.toString())
 }
 
 fun Response.toDocument(charset: String): Document {

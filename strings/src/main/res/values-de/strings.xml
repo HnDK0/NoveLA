@@ -40,12 +40,12 @@
     <string name="open_in_browser">Im Browser öffnen</string>
     <string name="sources">Quellen</string>
     <string name="search_for_sources">Nach Quellen suchen</string>
-    <string name="import_epub">EPUB importieren</string>
+    <string name="import_epub">Buch importieren</string>
     <string name="failed_get_file">Datei konnte nicht abgerufen werden</string>
     <string name="local_book_nothing_to_update">Lokales Buch, nichts zu aktualisieren</string>
-    <string name="failed_to_import_epub">EPUB-Import fehlgeschlagen</string>
+    <string name="failed_to_import_epub">Buch-Import fehlgeschlagen</string>
     <string name="image">Bild</string>
-    <string name="importing_epub">EPUB wird importiert</string>
+    <string name="importing_epub">Buch wird importiert</string>
     <string name="no_results_found">Keine Ergebnisse gefunden</string>
     <string name="updating_library_notice">Bibliothek wird aktualisiert</string>
     <string name="chapter_downloaded">Kapitel heruntergeladen</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">Neue Kapitel</string>
     <string name="notification_channel_name_failed_updates">Fehlgeschlagene Aktualisierungen</string>
     <string name="notification_channel_name_backup">Backup</string>
-    <string name="notification_channel_name_import_epub">EPUB importieren</string>
+    <string name="notification_channel_name_import_epub">Buch importieren</string>
     <string name="notification_channel_name_restore_backup">Backup wiederherstellen</string>
     <string name="notification_channel_name_app_updates_checker">Update-Prüfung</string>
     <string name="new_app_version_available">Neue App-Version verfügbar</string>
@@ -352,7 +352,6 @@
     <string name="cloudflare_bypass">Cloudflare umgehen</string>
     <string name="cloudflare_bypass_description">Automatische Cloudflare-Challenge-Umgehung aktivieren</string>
     <string name="cloudflare_bypass_restart_required">Die Cloudflare-Umgehungseinstellung wird nach einem App-Neustart übernommen</string>
-    <string name="user_agent_restart_required">User-Agent geändert. Starte die App neu, um die Änderung zu übernehmen.</string>
     <string name="cloudflare_challenge_timeout">Challenge-Timeout</string>
     <string name="timeout_seconds">Timeout (Sekunden)</string>
     <string name="seconds_format">%d Sekunden</string>
@@ -618,5 +617,7 @@
     <string name="repository_settings">Repository-Einstellungen</string>
     <string name="installed">Installiert</string>
     <string name="available">Verfügbar</string>
+
+    <string name="book_fix">Buch reparieren</string>
 
 </resources>

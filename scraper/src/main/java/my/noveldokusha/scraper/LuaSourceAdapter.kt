@@ -7,7 +7,6 @@ import kotlinx.coroutines.withContext
 import my.noveldokusha.core.LanguageCode
 import my.noveldokusha.core.PagedList
 import my.noveldokusha.core.Response
-import my.noveldokusha.core.fromIso639_1
 import my.noveldokusha.scraper.configs.SourceMetadata
 import my.noveldokusha.scraper.domain.BookResult
 import my.noveldokusha.scraper.domain.ChapterResult
@@ -84,7 +83,8 @@ open class LuaSourceAdapter(
 
     override val language: LanguageCode? = when (metadata.language.lowercase().trim()) {
         "mtl", "multi" -> LanguageCode.MTL
-        else -> fromIso639_1(metadata.language)
+        else -> LanguageCode.values().find { it.iso639_1.equals(metadata.language, ignoreCase = true) }
+            ?: LanguageCode.ENGLISH
     }
 
     override val languageTag: String? = metadata.language.takeIf { it.isNotBlank() }

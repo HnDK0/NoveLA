@@ -16,9 +16,13 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media.session.MediaButtonReceiver
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
+import androidx.core.graphics.drawable.toBitmap
+import coil.Coil
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import coil.size.Size
 import dagger.hilt.android.qualifiers.ApplicationContext
+import my.noveldokusha.core.AppFileResolver
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +53,7 @@ internal class NarratorMediaControlsNotification @Inject constructor(
     private val notificationsCenter: NotificationsCenter,
     private val readerManager: ReaderManager,
     private val navigationRoutes: NavigationRoutes,
+    private val appFileResolver: AppFileResolver,
 ) {
     private val scope: CoroutineScope = CoroutineScope(
         SupervisorJob() + Dispatchers.Main.immediate + CoroutineName("NarratorNotificationService")
@@ -77,17 +82,21 @@ internal class NarratorMediaControlsNotification @Inject constructor(
         mediaSession?.setMetadata(builder.build())
     }
 
-    private suspend fun loadCoverBitmap(coverUrl: String?): Bitmap? {
+    private suspend fun loadCoverBitmap(coverUrl: String?, bookUrl: String): Bitmap? {
         if (coverUrl.isNullOrBlank()) return null
         return withContext(Dispatchers.IO) {
             try {
-                val bitmap = Glide.with(context)
-                    .asBitmap()
-                    .load(coverUrl)
-                    .override(512, 512)
-                    .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .submit()
-                    .get(10, java.util.concurrent.TimeUnit.SECONDS)
+                val imageLoader = Coil.imageLoader(context)
+                val localCover = appFileResolver.resolvedBookImagePath(bookUrl, coverUrl, isCover = true)
+                val request = ImageRequest.Builder(context)
+                    .data(localCover)
+                    .size(Size(512, 512))
+                    .allowHardware(false)
+                    .build()
+                val bitmap = when (val result = imageLoader.execute(request)) {
+                    is SuccessResult -> result.drawable.toBitmap()
+                    else -> null
+                } ?: return@withContext null
                 if (bitmap.byteCount > 900_000) {
                     val scale = kotlin.math.sqrt(900_000.0 / bitmap.byteCount)
                     Bitmap.createScaledBitmap(
@@ -377,7 +386,7 @@ internal class NarratorMediaControlsNotification @Inject constructor(
 
         // Load cover image and update session metadata + notification
         scope.launch {
-            val coverBitmap = loadCoverBitmap(readerSession.bookCoverUrl)
+            val coverBitmap = loadCoverBitmap(readerSession.bookCoverUrl, readerSession.bookUrl)
             if (coverBitmap != null) {
                 currentCoverBitmap = coverBitmap
                 refreshMediaSessionMetadata()

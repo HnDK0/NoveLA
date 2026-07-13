@@ -101,8 +101,3 @@ class AppNavigationRoutes @Inject constructor() : NavigationRoutes {
         }
     }
 }
-
-//@Singleton
-//class AppNavigationRoutesViewModel @Inject constructor(
-//    private val appNavigationRoutes: AppNavigationRoutes
-//) : NavigationRouteViewModel(), NavigationRoutes by appNavigationRoutes
