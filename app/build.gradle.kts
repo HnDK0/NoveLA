@@ -45,10 +45,10 @@ android {
     }
 
     defaultConfig {
-        applicationId = "my.novela"
+        applicationId = "my.novelparas"
         versionCode = 34
         versionName = "1.3.3"
-        base.archivesName.set("NoveLA_v$versionName")
+        base.archivesName.set("NoveParas_v$versionName")
     }
 
     signingConfigs {
@@ -74,12 +74,15 @@ android {
         }
 
         named("release") {
-            isMinifyEnabled = true
+            // ponytail: was isMinifyEnabled = true + isShrinkResources = true — R8 full-program
+            // optimization across 30 modules + deps needs >4GB RAM and was OOM-killing the
+            // build. Disabled for the local 4GB build; the CI runner (7GB) can re-enable.
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            isShrinkResources = true
+            isShrinkResources = false
         }
     }
 
