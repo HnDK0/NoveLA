@@ -41,6 +41,12 @@
     <string name="sources">Sources</string>
     <string name="search_for_sources">Search for sources</string>
     <string name="import_epub">Import EPUB</string>
+    <string name="import_txt">Import TXT</string>
+    <string name="import_pdf">Import PDF</string>
+    <string name="importing_local_book">Importing local book</string>
+    <string name="failed_to_import_local_book">Failed to import local book</string>
+    <string name="failed_to_extract_text">Failed to extract readable text</string>
+    <string name="failed_to_extract_text_scanned_pdf">No selectable text was found. Scanned PDFs are not supported.</string>
     <string name="failed_get_file">Failed to get the file</string>
     <string name="local_book_nothing_to_update">Local book, nothing to update</string>
     <string name="failed_to_import_epub">Failed to import epub</string>
