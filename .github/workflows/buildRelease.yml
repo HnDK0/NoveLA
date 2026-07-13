@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -30,24 +31,16 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Generate APK signing key
+      - name: Restore APK signing key
         run: |
-          keytool -genkeypair -v \
-            -keystore app/storeFile.jks \
-            -alias novela \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 36500 \
-            -storepass android \
-            -keypass android \
-            -dname "CN=Vaizero, OU=NoveLA, O=Vaizero, L=Earth, S=Earth, C=US"
+          echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > app/storeFile.jks
 
-          {
-            echo "storeFile=storeFile.jks"
-            echo "storePassword=android"
-            echo "keyAlias=novela"
-            echo "keyPassword=android"
-          } > custom.properties
+          cat > custom.properties <<EOF
+          storeFile=storeFile.jks
+          storePassword=${{ secrets.STORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
 
       - name: Build optimized release APK
         run: ./gradlew assembleRelease -PlocalPropertiesFilePath=custom.properties
@@ -80,48 +73,50 @@ jobs:
             exit 1
           fi
 
-          cp "$APK" \
-            "release-artifacts/NoveLA-v${APP_VERSION}-Vaizero.apk"
-
+          cp "$APK" "release-artifacts/NoveLA-v${APP_VERSION}-Vaizero.apk"
           ls -lah release-artifacts
 
       - name: Generate release description
         run: |
+          git fetch origin --tags --force
+
+          BASE_TAG=$(git tag --sort=-creatordate | head -n 1)
+
+          FEATURES_FILE="$(mktemp)"
+          if [ -f README.md ]; then
+            awk '
+              /^## .*Features/ { in_section=1; next }
+              in_section && /^## / { exit }
+              in_section && /^- / { print }
+            ' README.md > "$FEATURES_FILE"
+          fi
+
           {
             echo "# 📖 NoveLA"
             echo ""
             echo "**Free and open-source web novel reader for Android.**"
             echo ""
-            echo "## 🧩 Local Lua Extension Tools"
+
+            echo "## 🆕 What changed in this build"
             echo ""
-            echo "- 📥 Import local \`.lua\` source extensions directly in NoveLA"
-            echo "- ✏️ Edit installed Lua extension code with a lightweight built-in editor"
-            echo "- 💾 Save Lua changes locally and reload extensions for quick testing"
-            echo "- ♻️ Restore repository extensions to their original Lua source"
-            echo "- 🗑️ Delete individual local Lua extensions"
-            echo "- 🧹 Clear all locally imported Lua extensions"
+            if [ -n "$BASE_TAG" ]; then
+              echo "_Changes since \`${BASE_TAG}\`_"
+              git log --no-merges --pretty=format:'- %s (%h)' "${BASE_TAG}"..HEAD | sed '/^$/d' | head -n 40
+            else
+              echo "_Recent changes from the latest commits_"
+              git log --no-merges -20 --pretty=format:'- %s (%h)' HEAD | sed '/^$/d'
+            fi
             echo ""
-            echo "## ✨ Features"
+
+            echo "## ✨ Feature highlights"
             echo ""
-            echo "- 📚 35+ novel sources with built-in and external Lua plugin support"
-            echo "- 🔎 Global multi-source novel search and add novels by URL"
-            echo "- 🌐 In-reader translation with parallel reading mode"
-            echo "- 🌍 Translation support for 226 languages"
-            echo "- 🤖 Google Gemini and OpenAI-compatible translation backends"
-            echo "- 🔊 Text-to-speech with background playback"
-            echo "- 🎛️ Floating TTS player with draggable controls and paragraph display"
-            echo "- 🎧 Bluetooth and lock-screen media controls"
-            echo "- 🗣️ Original voice selection for parallel mode"
-            echo "- 📜 Infinite chapter scrolling with offline caching"
-            echo "- 📥 Download all chapters for offline reading"
-            echo "- 📖 Local EPUB and FB2 library with bulk import"
-            echo "- 🔄 Novel migration between sources"
-            echo "- ☁️ Automatic Cloudflare Turnstile bypass"
-            echo "- 🧹 Regex text cleanup for ads and injected text"
-            echo "- 💾 Backup, restore, and automatic backup support"
-            echo "- ⏱️ TTS reading timer"
-            echo "- 🌐 20 interface languages"
+            if [ -s "$FEATURES_FILE" ]; then
+              cat "$FEATURES_FILE" | head -n 30
+            else
+              echo "- Feature list could not be extracted from README.md"
+            fi
             echo ""
+
             echo "## 🛠 Build Information"
             echo ""
             echo "- **Version:** ${APP_VERSION}"
@@ -132,12 +127,14 @@ jobs:
             echo ""
             echo "## 📄 License"
             echo ""
-            echo "Based on NoveLA and distributed under the GPL-3.0 license."
+            echo "Based on NoveLA (@HnDK0) and distributed under the GPL-3.0 license."
             echo ""
             echo "---"
             echo ""
             echo "### 📱 APK by : @vaizero126* — **Vaizero**"
           } > release-body.md
+
+          rm -f "$FEATURES_FILE"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v3
