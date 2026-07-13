@@ -310,7 +310,7 @@ class TranslationManagerOpenAI(
         val byIndex = mutableMapOf<Int, String>()
 
         // Matches: "1.", "1)", "**1.**", "№1.", "#1.", "1 ." at start of line
-        val numberPattern = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
+        val numberPattern = NUMBER_PATTERN
 
         val lines = translatedText.split("\n")
         var currentIndex = -1  // -1 = before first numbered item (preamble)
@@ -363,5 +363,7 @@ class TranslationManagerOpenAI(
 
     companion object {
         private const val TAG = "TranslationOpenAI"
+        // ponytail: was: Regex(...) allocated per parseNumberedTranslations call, hoisted: companion object val
+        private val NUMBER_PATTERN = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
     }
 }

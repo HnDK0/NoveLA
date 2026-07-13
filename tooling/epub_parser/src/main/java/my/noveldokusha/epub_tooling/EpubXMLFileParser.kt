@@ -30,14 +30,22 @@ internal class EpubXMLFileParser(
     }
 
     fun parseAsImage(absolutePathImage: String): String {
-        // Use run catching so it can be run locally without crash
-        val bitmap = zipFile[absolutePathImage]?.data?.runCatching {
-            BitmapFactory.decodeByteArray(this, 0, this.size)
-        }?.getOrNull()
+        // ponytail: was: full BitmapFactory.decodeByteArray just to read width/height for yrel,
+        // decoding the entire pixel buffer into a Bitmap. Switched to inJustDecodeBounds which
+        // parses only the header and returns null — no pixel buffer allocated.
+        val imgBytes = zipFile[absolutePathImage]?.data
+        val yrel = imgBytes?.runCatching {
+            val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(this, 0, this.size, opts)
+            if (opts.outWidth > 0 && opts.outHeight > 0)
+                opts.outHeight.toFloat() / opts.outWidth.toFloat()
+            else
+                null
+        }?.getOrNull() ?: 1.45f
 
         val text = BookTextMapper.ImgEntry(
             path = absolutePathImage,
-            yrel = bitmap?.let { it.height.toFloat() / it.width.toFloat() } ?: 1.45f
+            yrel = yrel
         ).toXMLString()
 
         return "\n\n$text\n\n"

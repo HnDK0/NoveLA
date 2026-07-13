@@ -11,6 +11,16 @@ import org.jsoup.nodes.Document
  * и JS-редиректом на реальный сайт. OkHttp не выполняет JS, поэтому нужно
  * извлекать URL редиректа вручную.
  */
+
+// ponytail: was: Regex(...) allocated per call inside resolveRedirectUrl, hoisted: top-level private vals
+private val META_REFRESH_URL = Regex("""url\s*=\s*['"]?(https?://[^'">\s]+)""", RegexOption.IGNORE_CASE)
+private val WINDOW_LOCATION_HREF = Regex("""window\.location\.href\s*=\s*['"]([^'"]+)['"]""")
+private val WINDOW_LOCATION = Regex("""window\.location\s*=\s*['"]([^'"]+)['"]""")
+private val WINDOW_LOCATION_REPLACE = Regex("""window\.location\.replace\s*\(\s*['"]([^'"]+)['"]""")
+private val LOCATION_HREF = Regex("""location\.href\s*=\s*['"]([^'"]+)['"]""")
+private val LOCATION = Regex("""location\s*=\s*['"]([^'"]+)['"]""")
+private val SCRIPT_LOCATION_PATTERN = Regex("""(?:window\.)?location(?:\.href)?\s*=\s*['"]([^'"]+)['"]""")
+
 object JsRedirectResolver {
 
     private const val TAG = "JsRedirectResolver"
@@ -29,8 +39,7 @@ object JsRedirectResolver {
         val metaRefresh = doc.select("meta[http-equiv=refresh]").first()
         if (metaRefresh != null) {
             val content = metaRefresh.attr("content")
-            val urlMatch = Regex("""url\s*=\s*['"]?(https?://[^'">\s]+)""", RegexOption.IGNORE_CASE)
-                .find(content)
+            val urlMatch = META_REFRESH_URL.find(content)
             if (urlMatch != null) {
                 val url = urlMatch.groupValues[1]
                 Log.d(TAG, "Found meta refresh redirect: $url")
@@ -40,11 +49,11 @@ object JsRedirectResolver {
 
         // 2. window.location.href = "..." или window.location = "..."
         val locationPatterns = listOf(
-            Regex("""window\.location\.href\s*=\s*['"]([^'"]+)['"]"""),
-            Regex("""window\.location\s*=\s*['"]([^'"]+)['"]"""),
-            Regex("""window\.location\.replace\s*\(\s*['"]([^'"]+)['"]"""),
-            Regex("""location\.href\s*=\s*['"]([^'"]+)['"]"""),
-            Regex("""location\s*=\s*['"]([^'"]+)['"]"""),
+            WINDOW_LOCATION_HREF,
+            WINDOW_LOCATION,
+            WINDOW_LOCATION_REPLACE,
+            LOCATION_HREF,
+            LOCATION,
         )
 
         for (pattern in locationPatterns) {
@@ -86,8 +95,7 @@ object JsRedirectResolver {
         }
 
         // 3. Поиск в script-тегах через регулярку по всему HTML
-        val scriptPattern = Regex("""(?:window\.)?location(?:\.href)?\s*=\s*['"]([^'"]+)['"]""")
-        val scriptMatch = scriptPattern.find(html)
+        val scriptMatch = SCRIPT_LOCATION_PATTERN.find(html)
         if (scriptMatch != null) {
             val url = scriptMatch.groupValues[1]
             Log.d(TAG, "Found script redirect: $url")

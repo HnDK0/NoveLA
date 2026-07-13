@@ -287,7 +287,7 @@ class TranslationManagerGooglePA(
             .replace("&lt;", "<")
             .replace("&gt;", ">")
             .replace("&nbsp;", " ")
-            .replace(Regex("&#(\\d+);")) {
+            .replace(HTML_NUMERIC_ENTITY) {
                 it.groupValues[1].toIntOrNull()
                     ?.toChar()
                     ?.toString()
@@ -347,7 +347,7 @@ class TranslationManagerGooglePA(
             }
 
             val translatedParas = translated
-                .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+                .replace(BR_TAG, "\n")
                 .split("\n")
                 .map { unescapeHtmlEntities(it.trim()) }
                 .filter { it.isNotBlank() }
@@ -456,5 +456,9 @@ class TranslationManagerGooglePA(
 
     companion object {
         private const val TAG = "TranslationGooglePA"
+        // ponytail: was: Regex("&#(\\d+);") allocated per unescapeHtmlEntities call, hoisted: companion object val
+        private val HTML_NUMERIC_ENTITY = Regex("&#(\\d+);")
+        // ponytail: was: Regex("<br\\s*/?>", IGNORE_CASE) allocated per translated paragraph in translateChunks, hoisted: companion object val
+        private val BR_TAG = Regex("<br\\s*/?>", RegexOption.IGNORE_CASE)
     }
 }

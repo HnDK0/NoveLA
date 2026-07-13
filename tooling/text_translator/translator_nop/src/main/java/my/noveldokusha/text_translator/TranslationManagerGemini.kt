@@ -468,7 +468,7 @@ class TranslationManagerGemini(
 
     private fun parseNumberedTranslations(translatedText: String, originalTexts: List<String>): Map<String, String> {
         val byIndex = mutableMapOf<Int, String>()
-        val numberPattern = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
+        val numberPattern = NUMBER_PATTERN
         val lines = translatedText.split("\n")
         var currentIndex = -1
         var currentText = StringBuilder()
@@ -511,5 +511,7 @@ class TranslationManagerGemini(
     companion object {
         private const val TAG = "TranslationGemini"
         private const val BLOCKED_MARKER = "__GEMINI_BLOCKED__"
+        // ponytail: was: Regex(...) allocated per parseNumberedTranslations call, hoisted: companion object val
+        private val NUMBER_PATTERN = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
     }
 }

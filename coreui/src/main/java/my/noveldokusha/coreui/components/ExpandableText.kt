@@ -48,14 +48,17 @@ fun ExpandableText(
             }
             val textStyle = MaterialTheme.typography.bodyMedium
             // ponytail: was Paragraph(...) constructed on every recomposition — full text
-            // layout just to read lineCount. Remember it keyed on text + constraints.
-            val paragraph = remember(target, constraints.maxWidth) {
+            // layout just to read lineCount. Remember it keyed on text + constraints + density
+            // + fontResolver (the @Composable locals are read OUTSIDE the remember lambda).
+            val density = LocalDensity.current
+            val fontFamilyResolver = LocalFontFamilyResolver.current
+            val paragraph = remember(target, constraints.maxWidth, textStyle, density, fontFamilyResolver) {
                 Paragraph(
                     text = target,
                     style = textStyle,
                     constraints = Constraints(maxWidth = constraints.maxWidth),
-                    density = LocalDensity.current,
-                    fontFamilyResolver = LocalFontFamilyResolver.current
+                    density = density,
+                    fontFamilyResolver = fontFamilyResolver
                 )
             }
             // ponytail: was MutableInteractionSource() per recomposition — hoist to a remembered val.

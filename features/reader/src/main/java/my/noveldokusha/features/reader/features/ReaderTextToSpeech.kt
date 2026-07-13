@@ -897,5 +897,8 @@ internal class ReaderTextToSpeech(
 
 private fun String.wordCount(): Int {
     if (this.isEmpty()) return 0
-    return this.split(Regex("\\s+")).count { it.isNotEmpty() }
+    return this.split(WHITESPACE).count { it.isNotEmpty() }
 }
+
+// ponytail: was: Regex("\\s+") allocated per wordCount() call, hoisted: top-level private val
+private val WHITESPACE = Regex("\\s+")

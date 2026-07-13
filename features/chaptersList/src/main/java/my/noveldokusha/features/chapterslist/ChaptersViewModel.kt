@@ -442,8 +442,8 @@ internal class ChaptersViewModel @Inject constructor(
 
     fun downloadAllChapters() {
         if (state.isLocalSource.value) return
-        val allChapters = state.chapters.toList().sortedBy { it.chapter.position }
-        val chapterUrls = allChapters.map { it.chapter.url }
+        // ponytail: dropped redundant sortedBy — getChaptersSortedFlow already returns SQL-sorted chapters.
+        val chapterUrls = state.chapters.map { it.chapter.url }
         viewModelScope.launch {
             when (val result = downloadManager.enqueue(
                 bookTitle = bookTitle,
@@ -463,11 +463,10 @@ internal class ChaptersViewModel @Inject constructor(
         if (state.isLocalSource.value) return
 
         val selectedUrls = state.selectedChaptersUrl.keys.toSet()
-        val sortedChapters = state.chapters
+        // ponytail: dropped redundant sortedBy — getChaptersSortedFlow already returns SQL-sorted chapters.
+        val chapterUrls = state.chapters
             .filter { selectedUrls.contains(it.chapter.url) }
-            .sortedBy { it.chapter.position }
-
-        val chapterUrls = sortedChapters.map { it.chapter.url }
+            .map { it.chapter.url }
         viewModelScope.launch {
             when (val result = downloadManager.enqueue(
                 bookTitle = bookTitle,
