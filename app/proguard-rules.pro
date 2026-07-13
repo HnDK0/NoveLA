@@ -112,3 +112,11 @@
 -keep class my.noveldokusha.text_translator.TranslationManagerComposite { *; }
 -keep class my.noveldokusha.text_translator.TranslationManagerGemini { *; }
 -keep class my.noveldokusha.text_translator.TranslationManagerGoogleFree { *; }
+# =============================================================================
+# PDFBOX ANDROID
+# =============================================================================
+
+# PDFBox references an optional JPEG2000 decoder for JPX image streams. NoveLA
+# only uses PDFBox for text extraction, so the decoder is not required for the
+# import flow and can be absent in release builds.
+-dontwarn com.gemalto.jp2.**
