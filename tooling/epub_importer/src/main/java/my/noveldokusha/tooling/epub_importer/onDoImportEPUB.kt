@@ -6,14 +6,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 @Composable
-fun onDoImportEPUB(): () -> Unit {
+fun onDoImportEPUB(): () -> Unit = onDoImportLocalBook(LocalBookImportType.EPUB)
+
+@Composable
+fun onDoImportTXT(): () -> Unit = onDoImportLocalBook(LocalBookImportType.TXT)
+
+@Composable
+fun onDoImportPDF(): () -> Unit = onDoImportLocalBook(LocalBookImportType.PDF)
+
+@Composable
+private fun onDoImportLocalBook(type: LocalBookImportType): () -> Unit {
     val context = LocalContext.current
     val fileExplorer = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
         onResult = { uri ->
             if (uri != null)
-                EpubImportService.start(ctx = context, uri = uri)
+                EpubImportService.start(ctx = context, uri = uri, type = type)
         }
     )
-    return { fileExplorer.launch("application/epub+zip") }
+    return { fileExplorer.launch(type.mimeType) }
 }
