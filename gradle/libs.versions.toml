@@ -81,6 +81,7 @@ timber = "5.0.1"
 junitVersion = "1.2.1"
 jetbrainsKotlinJvm = "2.0.21"
 foundationLayout = "1.7.5"
+pdfboxAndroid = "2.0.27.0"
 
 [libraries]
 
@@ -132,6 +133,7 @@ snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 
 # Text extractors
 readability4j = { module = "net.dankito.readability4j:readability4j", version.ref = "readability4j" }
+pdfbox-android = { module = "com.tom-roush:pdfbox-android", version.ref = "pdfboxAndroid" }
 crux = { module = "com.chimbori.crux:crux", version.ref = "crux" }
 
 # Testing
