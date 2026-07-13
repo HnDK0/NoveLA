@@ -1,23 +1,23 @@
 package my.noveldokusha.feature.local_database
 
-import androidx.compose.runtime.Immutable
 import androidx.room.Embedded
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.feature.local_database.tables.Chapter
 
-// ponytail: @Immutable tells the Compose compiler these data classes never mutate after
-// construction, so it can skip recomposition of any composable that takes them as a
-// parameter unless the value (by equals) actually changes. Without this annotation the
-// Compose compiler treats `List<BookMetadata>` / `List<ChapterMetadata>` as unstable
-// and recomposes the entire list-binding composables on every parent update.
+// ponytail: @Immutable (from androidx.compose.runtime) was applied here in the first
+// optimization pass to give the Compose compiler a stability hint, but local_database is
+// a pure Room module with no Compose dependency. Two build failures followed:
+//   1. @Immutable on @Embedded classes broke Room's KSP ("references a type that is not present")
+//   2. @Immutable on the DTOs themselves failed compile ("Unresolved reference 'compose'")
+// The laziest fix that actually works: drop the annotation entirely. These are pure data
+// classes with only String/Int/Boolean fields — the Compose compiler infers them as stable
+// via its @Stable inference for public data classes in many configurations, and the original
+// code shipped without the annotation. No regression.
 //
-// NOTE: @Immutable is only applied to pure DTOs (BookMetadata, ChapterMetadata) that are
-// NOT processed by Room's KSP. BookWithContext and ChapterWithContext use @Embedded and are
-// processed by Room's KSP processor, which fails to resolve androidx.compose.runtime.Immutable
-// on its classpath — see build error "references a type that is not present". Room-processed
-// classes get their Compose stability inferred via the @Stable annotation on the consumer side
-// or by wrapping in a StateFlow-derived immutable list.
-@Immutable
+// If recomposition of library list screens becomes a measured bottleneck, the proper fix is
+// to add `implementation(libs.androidx.compose.runtime)` to this module's build.gradle.kts
+// and re-apply @Immutable — but only then. YAGNI until the profiler says otherwise.
+
 data class BookMetadata(
     val title: String,
     val url: String,
@@ -30,7 +30,6 @@ data class BookMetadata(
     override fun hashCode(): Int = url.hashCode()
 }
 
-@Immutable
 data class ChapterMetadata(val title: String, val url: String) {
     override fun equals(other: Any?): Boolean =
         if (other is ChapterMetadata) (url == other.url) else false
