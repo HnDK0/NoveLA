@@ -7,7 +7,6 @@ on:
     paths-ignore:
       - '**.md'
       - 'screenshots/**'
-
   workflow_dispatch:
 
 permissions:
@@ -49,54 +48,92 @@ jobs:
           keyPassword=${{ secrets.KEY_PASSWORD }}
           EOF
 
-      - name: Set nightly version code
-        run: |
-          VERSION_CODE=$(date +%s)
-          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
-
-          sed -i "s/versionCode = [0-9]\+/versionCode = ${VERSION_CODE}/" app/build.gradle.kts
-
       - name: Set app version
         run: |
-          echo "APP_VERSION=$(sed -n 's/^[[:space:]]*versionName = \"\\(.*\\)\"$/\\1/p' app/build.gradle.kts | head -n 1)" >> "$GITHUB_ENV"
+          APP_VERSION=$(sed -n 's/^[[:space:]]*versionName = "\(.*\)"$/\1/p' app/build.gradle.kts | head -n 1)
+          if [ -z "$APP_VERSION" ]; then
+            echo "Unable to detect app version"
+            exit 1
+          fi
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
 
       - name: Set short SHA
         run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
       - name: Build release APK
-        run: ./gradlew assembleRelease -PlocalPropertiesFilePath=custom.properties
+        run: ./gradlew assembleRelease -PlocalPropertiesFilePath=custom.properties -PsplitByAbi
 
-      - name: Collect APKs
+      - name: Collect APK
         run: |
           mkdir -p release-artifacts
-          find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' \
-            -exec cp {} release-artifacts/ \;
+
+          APK=$(find app/build/outputs/apk/release \
+            -maxdepth 1 \
+            -type f \
+            -name '*arm64-v8a*release.apk' \
+            | head -n 1)
+
+          if [ -z "$APK" ]; then
+            echo "arm64 release APK not found"
+            ls -lah app/build/outputs/apk/release || true
+            exit 1
+          fi
+
+          cp "$APK" "release-artifacts/NoveLA-nightly-v${APP_VERSION}-${SHORT_SHA}-arm64.apk"
           ls -lah release-artifacts
 
-      - name: Build changelog and move nightly tag
+      - name: Build changelog
         run: |
           git fetch origin --tags --force
 
-          BASE_TAG=$(git tag --sort=-creatordate | grep -v -x 'nightly' | head -n1)
+          BASE_TAG=$(git tag --sort=-creatordate | grep -v -x 'nightly' | head -n 1)
+
+          FEATURES_FILE="$(mktemp)"
+          if [ -f README.md ]; then
+            awk '
+              /^## .*Features/ { in_section=1; next }
+              in_section && /^## / { exit }
+              in_section && /^- / { print }
+            ' README.md > "$FEATURES_FILE"
+          fi
 
           {
-            echo "⚠️ Automated build from the latest commit on the \`${{ github.ref_name }}\` branch."
+            echo "# 📖 NoveLA Nightly"
             echo ""
-            echo "**Commit:** \`${{ github.sha }}\`"
-            echo "**Version code:** \`${VERSION_CODE}\`"
+            echo "**Automated nightly build from the latest commit on the \`${{ github.ref_name }}\` branch.**"
             echo ""
-            echo "This is a nightly build and may contain bugs."
+            echo "- **Commit:** \`${{ github.sha }}\`"
+            echo "- **Build type:** Nightly"
+            echo "- **APK:** arm64-v8a split"
             echo ""
 
+            echo "## 🆕 What changed"
+            echo ""
             if [ -n "$BASE_TAG" ]; then
-              echo "## Changes since $BASE_TAG"
-              git log --no-merges --pretty=format:'- %s (%h)' "$BASE_TAG"..HEAD | sed '/^$/d' | head -n 40
+              echo "_Changes since \`${BASE_TAG}\`_"
+              git log --no-merges --pretty=format:'- %s (%h)' "${BASE_TAG}"..HEAD | sed '/^$/d' | head -n 40
             else
-              echo "## Recent changes"
+              echo "_Recent changes from the latest commits_"
               git log --no-merges -20 --pretty=format:'- %s (%h)' HEAD | sed '/^$/d'
             fi
+            echo ""
+
+            echo "## ✨ Feature highlights"
+            echo ""
+            if [ -s "$FEATURES_FILE" ]; then
+              cat "$FEATURES_FILE" | head -n 30
+            else
+              echo "- Feature list could not be extracted from README.md"
+            fi
+            echo ""
+
+            echo "> ⚠️ This is a nightly build and may contain bugs."
           } > release-body.md
 
+          rm -f "$FEATURES_FILE"
+
+      - name: Move nightly tag
+        run: |
           git tag -f nightly "${{ github.sha }}"
           git push origin nightly --force
 
