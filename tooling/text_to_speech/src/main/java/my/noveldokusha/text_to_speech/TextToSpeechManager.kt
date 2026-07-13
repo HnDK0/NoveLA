@@ -274,7 +274,7 @@ class TextToSpeechManager<T : Utterance<T>>(
                 onErrorFinished(utteranceId)
             }
 
-            @Deprecated("Deprecated in Java")
+            @Suppress("OVERRIDE_DEPRECATION")
             override fun onError(utteranceId: String?) {
                 Timber.w( "onError(deprecated) $utteranceId")
                 onErrorFinished(utteranceId)
@@ -290,8 +290,6 @@ class TextToSpeechManager<T : Utterance<T>>(
                     ?: return
                 completeItem(res)
             }
-
-            override fun onError(utteranceId: String?, errorCode: Int) = onFinished(utteranceId)
 
             private fun onFinished(utteranceId: String?) {
                 if (utteranceId == null) {
