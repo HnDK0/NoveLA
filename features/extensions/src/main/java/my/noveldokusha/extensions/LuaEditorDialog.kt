@@ -2,10 +2,12 @@ package my.noveldokusha.extensions
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -20,21 +22,28 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
+import my.noveldokusha.coreui.components.editor.CodeEditorField
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,6 +59,18 @@ fun LuaEditorDialog(
     val clipboardManager = LocalClipboardManager.current
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
+
+    val normalizedCode = remember(code) { code.replace("\r\n", "\n") }
+
+    var textFieldValue by remember {
+        mutableStateOf(TextFieldValue(normalizedCode))
+    }
+    if (textFieldValue.text.replace("\r\n", "\n") != normalizedCode) {
+        textFieldValue = textFieldValue.copy(
+            text = normalizedCode,
+            selection = TextRange(normalizedCode.length)
+        )
+    }
 
     BasicAlertDialog(
         onDismissRequest = onDismiss,
@@ -79,7 +100,7 @@ fun LuaEditorDialog(
                 val compactBtn = Modifier.height(32.dp)
                 val compactPadding = PaddingValues(horizontal = 10.dp)
                 FilledTonalButton(
-                    onClick = { clipboardManager.setText(AnnotatedString(code)) },
+                    onClick = { clipboardManager.setText(AnnotatedString(normalizedCode)) },
                     modifier = compactBtn,
                     contentPadding = compactPadding,
                 ) {
@@ -138,15 +159,29 @@ fun LuaEditorDialog(
                 )
             }
 
-            OutlinedTextField(
-                value = code,
-                onValueChange = onCodeChange,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 280.dp),
-                textStyle = TextStyle(fontFamily = FontFamily.Monospace),
-                maxLines = Int.MAX_VALUE
-            )
+                    .height(350.dp)
+                    .background(
+                        color = Color(0xFF1E1E1E),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .padding(4.dp)
+            ) {
+                CodeEditorField(
+                    value = textFieldValue,
+                    onValueChange = {
+                        textFieldValue = it
+                        onCodeChange(it.text)
+                    },
+                    language = "lua",
+                    fontSize = 14,
+                    showLineNumbers = true,
+                    wordWrap = true,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
