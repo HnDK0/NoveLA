@@ -65,6 +65,8 @@ fun LuaEditorDialog(
     var textFieldValue by remember {
         mutableStateOf(TextFieldValue(normalizedCode))
     }
+
+    var wordWrap by remember { mutableStateOf(false) }
     if (textFieldValue.text.replace("\r\n", "\n") != normalizedCode) {
         textFieldValue = textFieldValue.copy(
             text = normalizedCode,
@@ -122,6 +124,14 @@ fun LuaEditorDialog(
                 ) {
                     Text(stringResource(my.noveldokusha.strings.R.string.clear), fontSize = 11.sp)
                 }
+                Spacer(Modifier.width(4.dp))
+                FilledTonalButton(
+                    onClick = { wordWrap = !wordWrap },
+                    modifier = compactBtn,
+                    contentPadding = compactPadding,
+                ) {
+                    Text(if (wordWrap) "No Wrap" else "Wrap", fontSize = 11.sp)
+                }
                 Spacer(Modifier.weight(1f))
                 FilledTonalButton(
                     onClick = onDismiss,
@@ -178,7 +188,7 @@ fun LuaEditorDialog(
                     language = "lua",
                     fontSize = 14,
                     showLineNumbers = true,
-                    wordWrap = true,
+                    wordWrap = wordWrap,
                     modifier = Modifier.fillMaxSize()
                 )
             }
