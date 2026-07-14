@@ -762,6 +762,31 @@ class LuaSourceLoader @Inject constructor(
 
     fun clearCache() { cache.evictAll(); Timber.d("Lua source cache cleared") }
 
+    fun scriptFile(id: String): File = luaFile(id)
+
+    fun hasScript(id: String): Boolean = scriptFile(id).exists()
+
+    fun readScript(id: String): String? = scriptFile(id)
+        .takeIf { it.exists() }
+        ?.readText(Charsets.UTF_8)
+
+    suspend fun saveScript(id: String, code: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            scriptFile(id).writeText(code, Charsets.UTF_8)
+            cache.remove(id)
+            Timber.d("Saved $id.lua")
+            true
+        }.getOrElse { e ->
+            Timber.e(e, "saveScript failed for $id")
+            false
+        }
+    }
+
+    suspend fun validateScript(code: String, fileName: String = "local.lua"): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching { luaEngine.loadFromScriptWithFileName(code, fileName); Unit }
+        }
+
     suspend fun loadAllSources(): Result<List<SourceInterface>> = withContext(Dispatchers.IO) {
         runCatching {
             val sources = loadInstalledSources()

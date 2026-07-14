@@ -23,6 +23,7 @@ import coil.request.SuccessResult
 import coil.size.Size
 import dagger.hilt.android.qualifiers.ApplicationContext
 import my.noveldokusha.core.AppFileResolver
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 import my.noveldokusha.coreui.R as CoreUiR
 import my.noveldokusha.coreui.states.NotificationsCenter
 import my.noveldokusha.coreui.states.text
@@ -46,6 +48,7 @@ import my.noveldokusha.features.reader.domain.chapterReadPercentage
 import my.noveldokusha.features.reader.manager.ReaderManager
 import my.noveldokusha.navigation.NavigationRoutes
 import my.noveldokusha.reader.R
+import timber.log.Timber
 import javax.inject.Inject
 
 internal class NarratorMediaControlsNotification @Inject constructor(
@@ -56,7 +59,10 @@ internal class NarratorMediaControlsNotification @Inject constructor(
     private val appFileResolver: AppFileResolver,
 ) {
     private val scope: CoroutineScope = CoroutineScope(
-        SupervisorJob() + Dispatchers.Main.immediate + CoroutineName("NarratorNotificationService")
+        SupervisorJob() + Dispatchers.Main.immediate + CoroutineName("NarratorNotificationService") +
+            CoroutineExceptionHandler { _, throwable ->
+                Timber.e(throwable, "NarratorNotificationService: uncaught exception in scope")
+            }
     )
 
     private val channelName = context.getString(R.string.notification_channel_name_reader_narrator)
@@ -68,6 +74,8 @@ internal class NarratorMediaControlsNotification @Inject constructor(
     private var currentChapterTitle: String? = null
     private var currentBookTitle: String? = null
     private var currentCoverBitmap: Bitmap? = null
+
+    val isMediaSessionReady: Boolean get() = mediaSession != null
 
     private fun refreshMediaSessionMetadata() {
         val builder = MediaMetadataCompat.Builder()
@@ -97,6 +105,10 @@ internal class NarratorMediaControlsNotification @Inject constructor(
                     is SuccessResult -> result.drawable.toBitmap()
                     else -> null
                 } ?: return@withContext null
+                // Копия, которой мы владеем: coil может переиспользовать тот же битмап
+                // из своего кэша (toBitmap() для BitmapDrawable не копирует), и он же
+                // рисуется Compose AsyncImage обложки. Ручной recycle() убил бы чужой
+                // кэш-битмап -> "Canvas: trying to use a recycled bitmap" (краш).
                 if (bitmap.byteCount > 900_000) {
                     val scale = kotlin.math.sqrt(900_000.0 / bitmap.byteCount)
                     Bitmap.createScaledBitmap(
@@ -105,7 +117,7 @@ internal class NarratorMediaControlsNotification @Inject constructor(
                         (bitmap.height * scale).toInt().coerceAtLeast(1),
                         true
                     )
-                } else bitmap
+                } else bitmap.copy(bitmap.config ?: Bitmap.Config.ARGB_8888, false)
             } catch (_: Exception) {
                 null
             }
@@ -387,27 +399,29 @@ internal class NarratorMediaControlsNotification @Inject constructor(
         // Load cover image and update session metadata + notification
         scope.launch {
             val coverBitmap = loadCoverBitmap(readerSession.bookCoverUrl, readerSession.bookUrl)
-            if (coverBitmap != null) {
-                currentCoverBitmap = coverBitmap
-                refreshMediaSessionMetadata()
+                ?: return@launch
+            // close() мог сбросить сессию/скоп выполнения пока грузили обложку
+            if (this@NarratorMediaControlsNotification.mediaSession == null || coverBitmap.isRecycled) return@launch
+            currentCoverBitmap = coverBitmap
+            try { refreshMediaSessionMetadata() } catch (e: CancellationException) { throw e } catch (_: Exception) {}
+            try {
                 notificationsCenter.modifyNotification(
                     builder = notificationBuilder,
                     notificationId = notificationId,
                 ) {
                     setLargeIcon(coverBitmap)
                 }
-            }
+            } catch (e: CancellationException) { throw e } catch (_: Exception) {}
         }
 
         return notificationBuilder.build()
     }
 
     fun close() {
+        scope.cancel()
         mediaSession?.release()
         mediaSession = null
-        currentCoverBitmap?.let { runCatching { it.recycle() } }
         currentCoverBitmap = null
-        scope.cancel()
     }
 
     fun createDefaultNotification(context: Context): Notification {

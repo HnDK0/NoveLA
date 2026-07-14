@@ -6,6 +6,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,7 @@ import my.noveldokusha.features.reader.domain.chapterReadPercentage
 import my.noveldokusha.features.reader.features.ReaderChaptersLoader
 import my.noveldokusha.features.reader.features.ReaderLiveTranslation
 import my.noveldokusha.features.reader.features.ReaderTextToSpeech
+import my.noveldokusha.features.reader.services.FloatingTtsService
 import my.noveldokusha.features.reader.services.NarratorMediaControlsService
 import my.noveldokusha.features.reader.tools.ChaptersIsReadRoutine
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
@@ -53,7 +55,10 @@ internal class ReaderSession(
     private val chapterTranslationDao: ChapterTranslationDao,
 ) {
     private val scope: CoroutineScope = CoroutineScope(
-        SupervisorJob() + Dispatchers.Default + CoroutineName("ReaderSession")
+        SupervisorJob() + Dispatchers.Default + CoroutineName("ReaderSession") +
+            CoroutineExceptionHandler { _, throwable ->
+                Timber.e(throwable, "ReaderSession: uncaught exception in TTS scope")
+            }
     )
 
     private var chapterUrl: String = initialChapterUrl
@@ -183,7 +188,8 @@ internal class ReaderSession(
                 ) {
                     val nextChapterIndex = currentChapterIndex + 1
                     if (!readerChaptersLoader.isChapterIndexLoaded(nextChapterIndex)) {
-                        readerChaptersLoader.tryLoadNext()
+                        runCatching { readerChaptersLoader.tryLoadNext() }
+                            .onFailure { Timber.w(it, "onBufferLow: tryLoadNext failed") }
                     }
                 }
             },
@@ -251,25 +257,27 @@ internal class ReaderSession(
         scope.launch {
             readerTextToSpeech.reachedChapterEndFlowChapterIndex.collect { chapterIndex ->
                 withContext(Dispatchers.Main.immediate) {
-                    if (readerChaptersLoader.isLastChapter(chapterIndex)) return@withContext
-                    if (readerChaptersLoader.hasLoadingError) return@withContext
-                    val nextChapterIndex = chapterIndex + 1
-                    val chapterItem = readerChaptersLoader.orderedChapters[nextChapterIndex]
-                    if (readerChaptersLoader.isChapterContentReady(nextChapterIndex)) {
-                        readerTextToSpeech.readChapterStartingFromStart(
-                            chapterIndex = nextChapterIndex
-                        )
-                    } else launch {
-                        readerChaptersLoader.tryLoadNext()
-                        readerChaptersLoader.chapterLoadedFlow
-                            .filter { it.type == ChapterLoaded.Type.Next }
-                            .take(1)
-                            .collect {
-                                readerTextToSpeech.readChapterStartingFromStart(
-                                    chapterIndex = nextChapterIndex
-                                )
-                            }
-                    }
+                    runCatching {
+                        if (readerChaptersLoader.isLastChapter(chapterIndex)) return@withContext
+                        if (readerChaptersLoader.hasLoadingError) return@withContext
+                        val nextChapterIndex = chapterIndex + 1
+                        val chapterItem = readerChaptersLoader.orderedChapters[nextChapterIndex]
+                        if (readerChaptersLoader.isChapterContentReady(nextChapterIndex)) {
+                            readerTextToSpeech.readChapterStartingFromStart(
+                                chapterIndex = nextChapterIndex
+                            )
+                        } else launch {
+                            readerChaptersLoader.tryLoadNext()
+                            readerChaptersLoader.chapterLoadedFlow
+                                .filter { it.type == ChapterLoaded.Type.Next }
+                                .take(1)
+                                .collect {
+                                    readerTextToSpeech.readChapterStartingFromStart(
+                                        chapterIndex = nextChapterIndex
+                                    )
+                                }
+                        }
+                    }.onFailure { Timber.w(it, "reachedChapterEnd handler failed for $chapterIndex") }
                 }
             }
         }
@@ -356,6 +364,11 @@ internal class ReaderSession(
         readerTextToSpeech.shutdownTts()
         scope.cancel()
         NarratorMediaControlsService.stop(context)
+    }
+
+    fun requestTtsStop() {
+        runCatching { readerTextToSpeech.stop() }
+        runCatching { FloatingTtsService.stop(context) }
     }
 
     fun reloadReader() {

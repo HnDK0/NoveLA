@@ -43,18 +43,18 @@ class ExtensionRepository @Inject constructor(
 
     override suspend fun installExtensionFromInfo(id: String, name: String, version: String, language: String, imageUrl: String?, codeUrl: String?) {
         try {
-            // codeUrl должен быть передан из YAML конфигурации
-            val finalCodeUrl = codeUrl ?: throw IllegalArgumentException("codeUrl is required")
-
-            // Используем YAML для settings
-            val settingsYaml = """
-                codeUrl: $finalCodeUrl
-            """.trimIndent()
+            val settingsYaml = buildString {
+                if (!codeUrl.isNullOrBlank()) {
+                    appendLine("codeUrl: $codeUrl")
+                } else {
+                    appendLine("sourceType: local")
+                }
+            }.trim()
 
             val dbExtension = my.noveldokusha.feature.local_database.tables.Extension(
                 id = id,
                 name = name,
-                fileName = "extension_${id}.lua",
+                fileName = "$id.lua",
                 imageURL = imageUrl ?: "",
                 language = language,
                 version = version,
@@ -62,11 +62,11 @@ class ExtensionRepository @Inject constructor(
                 enabled = true,
                 installed = true,
                 chapterType = "HTML",
-                settings = settingsYaml
+                settings = settingsYaml.ifBlank { "{}" }
             )
             extensionDao.insert(dbExtension)
 
-            Timber.d("Extension installed in database: $name with codeUrl: $finalCodeUrl")
+            Timber.d("Extension installed in database: $name")
         } catch (e: Exception) {
             Timber.e(e, "Failed to install extension: $name")
             throw e

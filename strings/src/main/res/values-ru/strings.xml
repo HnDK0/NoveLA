@@ -1022,5 +1022,36 @@
     <string name="installed">Установлено</string>
     <string name="available">Доступно</string>
 
+    <!-- Extensions / Lua Editor -->
+    <string name="import_lua">Импорт Lua</string>
+    <string name="edit_lua">Редактировать</string>
+    <string name="reset">Сбросить</string>
+    <string name="uninstall">Удалить</string>
+    <string name="installing">Установка…</string>
+    <string name="install">Установить</string>
+    <string name="update">Обновить</string>
+    <string name="retry">Повторить</string>
+    <string name="top">↑ Наверх</string>
+    <string name="copy">Копировать</string>
+    <string name="paste">Вставить</string>
+    <string name="clear">Очистить</string>
+    <string name="no_extensions_available">Нет доступных расширений</string>
+    <string name="local_extension_description">Локальное Lua-расширение</string>
+    <string name="extension_author_local">Локальное</string>
+
+    <!-- Errors — Lua / Extensions -->
+    <string name="ext_failed_to_load">Не удалось загрузить расширения: %s</string>
+    <string name="ext_failed_to_download">Не удалось загрузить скрипт для %s</string>
+    <string name="ext_failed_to_install">Не удалось установить %1$s: %2$s</string>
+    <string name="ext_failed_to_uninstall">Не удалось удалить расширение</string>
+    <string name="ext_failed_to_toggle">Не удалось переключить расширение</string>
+    <string name="lua_empty_error">Пустой Lua-файл</string>
+    <string name="lua_compile_error">Ошибка компиляции Lua</string>
+    <string name="lua_save_error">Не удалось сохранить Lua-файл</string>
+    <string name="lua_import_error">Не удалось сохранить импортированный Lua-файл</string>
+    <string name="lua_duplicate_error">Расширение «%s» уже существует локально</string>
+    <string name="lua_not_editable">Исходник недоступен для редактирования</string>
+    <string name="lua_restore_error">Не удалось восстановить Lua из репозитория</string>
+
 </resources>
 
