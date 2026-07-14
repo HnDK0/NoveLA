@@ -1,9 +1,13 @@
 package my.noveldokusha.features.reader.services
 
 import android.annotation.SuppressLint
+import android.app.Notification
+import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
@@ -34,6 +38,7 @@ import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.theme.InternalTheme
 import my.noveldokusha.features.reader.features.TextToSpeechSettingData
+import my.noveldokusha.features.reader.manager.ReaderManager
 import my.noveldokusha.features.reader.ui.FloatingTtsOverlayContent
 import my.noveldokusha.core.utils.isServiceRunning
 import javax.inject.Inject
@@ -44,6 +49,7 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
     companion object {
         private const val NOTIFICATION_ID = 2001
         private const val CHANNEL_ID = "floating_tts_channel"
+        const val ACTION_STOP = "my.noveldokusha.features.reader.services.FloatingTtsService.ACTION_STOP"
 
         var ttsState = mutableStateOf<TextToSpeechSettingData?>(null)
         var showText = mutableStateOf(false)
@@ -61,6 +67,8 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         private var positionInitialized = mutableStateOf(false)
 
         private var instance: FloatingTtsService? = null
+        @Volatile
+        private var explicitStop = false
 
         fun start(ctx: Context) {
             if (!isRunning(ctx)) {
@@ -70,6 +78,7 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         }
 
         fun stop(ctx: Context) {
+            explicitStop = true
             ctx.stopService(Intent(ctx, FloatingTtsService::class.java))
         }
 
@@ -88,6 +97,9 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
     @Inject
     lateinit var appPreferences: AppPreferences
 
+    @Inject
+    lateinit var readerManager: ReaderManager
+
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
 
@@ -101,14 +113,27 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
     private var displayWidth = 0
     private var displayHeight = 0
 
+    private val stopReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            appPreferences.FLOATING_TTS_ENABLED.value = false
+            readerManager.session?.requestTtsStop()
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        explicitStop = false
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
 
         createNotificationChannel()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(stopReceiver, IntentFilter(ACTION_STOP), Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(stopReceiver, IntentFilter(ACTION_STOP))
+        }
 
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         displayDensity = resources.displayMetrics.density
@@ -131,20 +156,33 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         loadSavedState()
 
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
-        showOverlay()
-
-        appPreferences.FLOATING_TTS_ENABLED.value = true
+        if (ttsState.value != null) {
+            showOverlay()
+            appPreferences.FLOATING_TTS_ENABLED.value = true
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, createNotification())
-        return START_STICKY
+        // Защита: сервис запущен без живой сессии (процесс перезапущен) — не держим
+        // зомби-оверлей, сразу останавливаемся.
+        if (ttsState.value == null) {
+            stopSelf()
+        }
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
+        runCatching { unregisterReceiver(stopReceiver) }
+        val wasExplicit = explicitStop
+        explicitStop = false
         instance = null
         removeOverlay()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+        if (!wasExplicit) {
+            runCatching { appPreferences.FLOATING_TTS_ENABLED.value = false }
+            runCatching { readerManager.session?.requestTtsStop() }
+        }
         super.onDestroy()
     }
 
@@ -406,11 +444,23 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         manager.createNotificationChannel(channel)
     }
 
-    private fun createNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setContentTitle(getString(R.string.tts_floating))
-        .setContentText(getString(R.string.tts_floating_overlay_active))
-        .setSmallIcon(android.R.drawable.ic_media_play)
-        .setPriority(NotificationCompat.PRIORITY_LOW)
-        .setOngoing(true)
-        .build()
+    private fun createNotification(): Notification {
+        val stopIntent = Intent(ACTION_STOP)
+        val stopPendingIntent = PendingIntent.getBroadcast(
+            this, 1, stopIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(getString(R.string.tts_floating))
+            .setContentText(getString(R.string.tts_floating_overlay_active))
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setDeleteIntent(stopPendingIntent)
+            .addAction(
+                R.drawable.ic_media_control_stop,
+                getString(R.string.close),
+                stopPendingIntent
+            )
+            .build()
+    }
 }

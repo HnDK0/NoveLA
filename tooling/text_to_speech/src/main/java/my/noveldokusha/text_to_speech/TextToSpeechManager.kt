@@ -8,6 +8,7 @@ import android.speech.tts.Voice
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,7 +41,12 @@ class TextToSpeechManager<T : Utterance<T>>(
     private val appTtsEngine: AppTtsEngine,
     initialItemState: T,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default +
+            CoroutineExceptionHandler { _, throwable ->
+                Timber.e(throwable, "TextToSpeechManager: uncaught exception in scope")
+            }
+    )
     private val _queueList = mutableMapOf<String, T>()
     private val _queueListItemSize = mutableMapOf<String, Int>()
     private val _currentTextSpeakFlow = MutableSharedFlow<T>()
@@ -149,7 +155,6 @@ class TextToSpeechManager<T : Utterance<T>>(
 
     fun shutdown() {
         runCatching { service.stop() }
-        runCatching { service.shutdown() }
         auxiliaryServices.forEach { runCatching { it.shutdown() } }
         auxiliaryServices.clear()
         _queueList.clear()

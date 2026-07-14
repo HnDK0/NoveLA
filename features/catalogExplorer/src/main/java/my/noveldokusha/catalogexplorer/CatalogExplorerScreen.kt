@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.AltRoute
 import androidx.compose.material.icons.automirrored.outlined.AltRoute
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddLink
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
@@ -44,11 +45,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import my.noveldokusha.strings.R
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import my.noveldokusha.coreui.components.ChipOption
@@ -74,6 +77,17 @@ fun CatalogExplorerScreen(
 
     val context = LocalContext.current
     var extensionsChipsVisible by rememberSaveable { mutableStateOf(false) }
+
+    val importLuaLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            val code = input.bufferedReader().readText()
+            val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "local.lua"
+            extensionsViewModel.importLuaFromText(fileName, code)
+        }
+    }
 
     val onDatabaseClick = remember(context) {
         { database: my.noveldokusha.scraper.DatabaseInterface ->
@@ -136,6 +150,7 @@ fun CatalogExplorerScreen(
                                 onRefresh = { extensionsViewModel.onEvent(ExtensionsScreenEvent.OnRefresh) },
                                 onShowRepositoryDialog = { extensionsViewModel.onEvent(ExtensionsScreenEvent.OnShowRepositoryDialog) },
                                 onToggleLanguageChips = { extensionsChipsVisible = !extensionsChipsVisible },
+                                onImportLua = { importLuaLauncher.launch(arrayOf("text/*", "application/octet-stream", "application/x-lua")) },
                             )
                             2 -> MigrationTabActions(
                                 onHistoryClick = {
@@ -254,7 +269,8 @@ fun CatalogExplorerScreen(
                         onExtensionsLanguageFilterDismiss = { },
                         onRefresh = {
                             // Extensions screen handles its own refresh
-                        }
+                        },
+                        onImportLua = { importLuaLauncher.launch(arrayOf("text/*", "application/octet-stream", "application/x-lua")) }
                     )
                 }
                 2 -> {
@@ -341,38 +357,48 @@ private fun MigrationTabActions(
 }
 
 @Composable
-private fun ExtensionsTabActions(
-    onRefresh: () -> Unit,
-    onShowRepositoryDialog: () -> Unit,
-    onToggleLanguageChips: () -> Unit,
-) {
-    Row {
-        // Refresh button
-        IconButton(onClick = onRefresh) {
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = stringResource(R.string.refresh),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
+    private fun ExtensionsTabActions(
+        onRefresh: () -> Unit,
+        onShowRepositoryDialog: () -> Unit,
+        onToggleLanguageChips: () -> Unit,
+        onImportLua: () -> Unit,
+    ) {
+        Row {
+            // Import local Lua source
+            IconButton(onClick = onImportLua) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = stringResource(R.string.import_lua),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
 
-        // Repository settings button
-        IconButton(onClick = onShowRepositoryDialog) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = stringResource(R.string.repository_settings),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
+            // Refresh button
+            IconButton(onClick = onRefresh) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = stringResource(R.string.refresh),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
 
-        // Language filter toggle button
-        IconButton(onClick = onToggleLanguageChips) {
-            Icon(
-                painter = painterResource(id = my.noveldokusha.coreui.R.drawable.ic_baseline_languages_24),
-                contentDescription = stringResource(R.string.languages),
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
+            // Repository settings button
+            IconButton(onClick = onShowRepositoryDialog) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = stringResource(R.string.repository_settings),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // Language filter toggle button
+            IconButton(onClick = onToggleLanguageChips) {
+                Icon(
+                    painter = painterResource(id = my.noveldokusha.coreui.R.drawable.ic_baseline_languages_24),
+                    contentDescription = stringResource(R.string.languages),
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
-    }
 }

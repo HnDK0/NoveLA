@@ -625,4 +625,35 @@
     <string name="installed">Installed</string>
     <string name="available">Available</string>
 
+    <!-- Extensions / Lua Editor -->
+    <string name="import_lua">Import Lua</string>
+    <string name="edit_lua">Edit Lua</string>
+    <string name="reset">Reset</string>
+    <string name="uninstall">Uninstall</string>
+    <string name="installing">Installing…</string>
+    <string name="install">Install</string>
+    <string name="update">Update</string>
+    <string name="retry">Retry</string>
+    <string name="top">↑ Top</string>
+    <string name="copy">Copy</string>
+    <string name="paste">Paste</string>
+    <string name="clear">Clear</string>
+    <string name="no_extensions_available">No extensions available</string>
+    <string name="local_extension_description">Local Lua extension</string>
+    <string name="extension_author_local">Local</string>
+
+    <!-- Errors — Lua / Extensions -->
+    <string name="ext_failed_to_load">Failed to load extensions: %s</string>
+    <string name="ext_failed_to_download">Failed to download script for %s</string>
+    <string name="ext_failed_to_install">Failed to install %1$s: %2$s</string>
+    <string name="ext_failed_to_uninstall">Failed to uninstall extension</string>
+    <string name="ext_failed_to_toggle">Failed to toggle extension</string>
+    <string name="lua_empty_error">Empty Lua file</string>
+    <string name="lua_compile_error">Lua compilation error</string>
+    <string name="lua_save_error">Failed to save Lua file</string>
+    <string name="lua_import_error">Failed to save imported Lua file</string>
+    <string name="lua_duplicate_error">Extension \"%s\" already exists locally</string>
+    <string name="lua_not_editable">Source code unavailable for editing</string>
+    <string name="lua_restore_error">Failed to restore Lua from repository</string>
+
 </resources>

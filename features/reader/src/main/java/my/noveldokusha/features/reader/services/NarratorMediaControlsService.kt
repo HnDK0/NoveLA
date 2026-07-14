@@ -151,9 +151,12 @@ internal class NarratorMediaControlsService : Service() {
     @SuppressLint("MissingSuperCall")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Timber.d("onStartCommand: action=${intent?.action}")
+        if (intent == null && !narratorNotification.isMediaSessionReady) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         narratorNotification.handleCommand(intent)
-        if (intent == null) return START_NOT_STICKY
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onBind(p0: Intent?): IBinder? = null

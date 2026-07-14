@@ -13,6 +13,11 @@ data class ExtensionsScreenState(
     val error: String? = null,
     val showRepositoryDialog: Boolean = false,
     val repositoryUrl: String = "https://raw.githubusercontent.com/HnDK0/external-sources/refs/heads/main/index.yaml",
+    val showLuaEditor: Boolean = false,
+    val luaEditorExtensionId: String? = null,
+    val luaEditorTitle: String = "",
+    val luaEditorCode: String = "",
+    val luaEditorError: String? = null,
 )
 
 @Immutable
@@ -29,7 +34,8 @@ data class ExtensionInfo(
     val isInstalled: Boolean = false,
     val isEnabled: Boolean = false,
     val isInstalling: Boolean = false,
-    val isUpdateAvailable: Boolean = false
+    val isUpdateAvailable: Boolean = false,
+    val isLocal: Boolean = false
 )
 
 @Immutable
@@ -55,4 +61,9 @@ sealed interface ExtensionsScreenEvent {
     data object OnBackPressed : ExtensionsScreenEvent // New event for back navigation
     data class OnExtensionInstall(val extensionId: String) : ExtensionsScreenEvent
     data class OnExtensionUninstallById(val extensionId: String) : ExtensionsScreenEvent
+    data class OnEditLuaClick(val extensionId: String) : ExtensionsScreenEvent
+    data object OnLuaEditorDismiss : ExtensionsScreenEvent
+    data class OnLuaEditorChange(val code: String) : ExtensionsScreenEvent
+    data object OnLuaEditorSave : ExtensionsScreenEvent
+    data class OnResetLuaClick(val extensionId: String) : ExtensionsScreenEvent
 }
