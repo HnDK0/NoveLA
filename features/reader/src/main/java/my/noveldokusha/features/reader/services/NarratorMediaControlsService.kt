@@ -10,7 +10,6 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.IBinder
-import androidx.media.session.MediaButtonReceiver
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import my.noveldokusha.features.reader.features.ReaderTextToSpeech
@@ -23,12 +22,6 @@ import javax.inject.Inject
 internal class NarratorMediaControlsService : Service() {
 
     companion object {
-        // PlaybackStateCompat.ACTION_* не доступны в этом модуле (нет androidx.media:media
-        // с PlaybackStateCompat), поэтому дублируем стабильные значения action.
-        // buildMediaButtonPendingIntent(Context, long) маппит их в KEYCODE_MEDIA_*.
-        private const val MEDIA_ACTION_PLAY = 4L   // PlaybackStateCompat.ACTION_PLAY
-        private const val MEDIA_ACTION_PAUSE = 2L  // PlaybackStateCompat.ACTION_PAUSE
-
         private var serviceInstance: NarratorMediaControlsService? = null
 
         fun start(ctx: Context) {
@@ -47,6 +40,14 @@ internal class NarratorMediaControlsService : Service() {
             serviceInstance?.requestAudioFocus()
         }
 
+        fun reassertActive() {
+            serviceInstance?.narratorNotification?.reassertActive()
+        }
+
+        fun maybeAutoResume() {
+            serviceInstance?.narratorNotification?.maybeAutoResume()
+        }
+
         private fun isRunning(context: Context): Boolean =
             context.isServiceRunning(NarratorMediaControlsService::class.java)
     }
@@ -63,15 +64,7 @@ internal class NarratorMediaControlsService : Service() {
             wasPausedByFocusLoss = true
             ReaderTextToSpeech.isSystemPauseTrigger = true
             ReaderTextToSpeech.pausedBySystem = true
-            dispatchMediaButtonAction(MEDIA_ACTION_PAUSE)
-        }
-    }
-
-    private fun dispatchMediaButtonAction(action: Long) {
-        try {
-            MediaButtonReceiver.buildMediaButtonPendingIntent(this, action).send()
-        } catch (_: Exception) {
-            Timber.d("dispatchMediaButtonAction failed for $action")
+            narratorNotification.pause()
         }
     }
 
@@ -84,25 +77,34 @@ internal class NarratorMediaControlsService : Service() {
                 .build()
             val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(attrs)
+                .setAcceptsDelayedFocusGain(true)
+                // Речь (TTS): при запросе фокуса с duck'ом ставим паузу,
+                // а не понижаем громкость (чинит паузу для Telegram-голосовых).
+                .setWillPauseWhenDucked(true)
                 .setOnAudioFocusChangeListener { focusChange ->
                     when (focusChange) {
                         AudioManager.AUDIOFOCUS_LOSS,
                         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
                         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                            // Любая потеря фокуса -> пауза.
+                            // - Постоянная (LOSS): нас выкинуло из стека фокуса.
+                            //   НЕ перезапрашиваем здесь — правило "последний запрос
+                            //   побеждает" заставило бы нас мгновенно украсть фокус
+                            //   обратно у только что взявшего его приложения
+                            //   (борьба за фокус). Перехват делается позже, по воле
+                            //   пользователя: при onPlay()/возврате в приложение
+                            //   (onResume), где setAcceptsDelayedFocusGain даёт DELAYED
+                            //   и корректное ожидание GAIN без кражи.
+                            // - Временная (TRANSIENT / CAN_DUCK): система сама вернёт
+                            //   фокус через стек при релизе захватившего приложения,
+                            //   перезапрос не нужен. setWillPauseWhenDucked(true) =>
+                            //   при duck тоже пауза, а не понижение громкости.
                             wasPausedByFocusLoss = true
                             ReaderTextToSpeech.isSystemPauseTrigger = true
                             ReaderTextToSpeech.pausedBySystem = true
-                            dispatchMediaButtonAction(MEDIA_ACTION_PAUSE)
+                            narratorNotification.pause()
                         }
-                        AudioManager.AUDIOFOCUS_GAIN -> {
-                            if (wasPausedByFocusLoss && ReaderTextToSpeech.pausedBySystem) {
-                                wasPausedByFocusLoss = false
-                                ReaderTextToSpeech.pausedBySystem = false
-                                dispatchMediaButtonAction(MEDIA_ACTION_PLAY)
-                            } else {
-                                wasPausedByFocusLoss = false
-                            }
-                        }
+                        AudioManager.AUDIOFOCUS_GAIN -> onFocusGained()
                     }
                 }
                 .build()
@@ -110,6 +112,17 @@ internal class NarratorMediaControlsService : Service() {
         }
         audioManager.requestAudioFocus(audioFocusRequest!!)
         Timber.d("AudioFocus requested AUDIOFOCUS_GAIN")
+    }
+
+    private fun onFocusGained() {
+        narratorNotification.reassertActive()
+        if (wasPausedByFocusLoss && ReaderTextToSpeech.pausedBySystem) {
+            wasPausedByFocusLoss = false
+            ReaderTextToSpeech.pausedBySystem = false
+            narratorNotification.play()
+        } else {
+            wasPausedByFocusLoss = false
+        }
     }
 
     private fun abandonAudioFocus() {

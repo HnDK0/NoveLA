@@ -45,6 +45,7 @@ import my.noveldokusha.coreui.states.title
 import my.noveldokusha.feature.local_database.BookMetadata
 import my.noveldokusha.features.reader.ReaderActivity
 import my.noveldokusha.features.reader.domain.chapterReadPercentage
+import my.noveldokusha.features.reader.features.ReaderTextToSpeech
 import my.noveldokusha.features.reader.manager.ReaderManager
 import my.noveldokusha.navigation.NavigationRoutes
 import my.noveldokusha.reader.R
@@ -71,6 +72,7 @@ internal class NarratorMediaControlsNotification @Inject constructor(
     val notificationId: Int = channelId.hashCode()
 
     private var mediaSession: MediaSessionCompat? = null
+    private var mediaSessionCallback: NarratorMediaControlsCallback? = null
     private var currentChapterTitle: String? = null
     private var currentBookTitle: String? = null
     private var currentCoverBitmap: Bitmap? = null
@@ -150,7 +152,9 @@ internal class NarratorMediaControlsNotification @Inject constructor(
             // https://stackoverflow.com/questions/59443133/disable-or-hide-seekbar-in-mediastyle-notifications
             refreshMediaSessionMetadata()
 
-            setCallback(NarratorMediaControlsCallback(readerSession.readerTextToSpeech))
+            val callback = NarratorMediaControlsCallback(readerSession.readerTextToSpeech)
+            setCallback(callback)
+            mediaSessionCallback = callback
             isActive = true
             setPlaybackToLocal(AudioManager.STREAM_MUSIC)
 
@@ -417,10 +421,33 @@ internal class NarratorMediaControlsNotification @Inject constructor(
         return notificationBuilder.build()
     }
 
+    fun pause() {
+        mediaSessionCallback?.onPause()
+    }
+
+    fun play() {
+        mediaSessionCallback?.onPlay()
+    }
+
+    fun reassertActive() {
+        mediaSession?.setActive(true)
+    }
+
+    /**
+     * Авто-возобновление чтения при возврате в приложение, если пауза была
+     * поставлена системой (потеря аудиофокуса / наушники вынуты). Не срабатывает
+     * после ручной паузы пользователем.
+     */
+    fun maybeAutoResume() {
+        val tts = readerManager.session?.readerTextToSpeech ?: return
+        if (ReaderTextToSpeech.pausedBySystem && !ReaderTextToSpeech.userPaused && !tts.isSpeaking.value) play()
+    }
+
     fun close() {
         scope.cancel()
         mediaSession?.release()
         mediaSession = null
+        mediaSessionCallback = null
         currentCoverBitmap = null
     }
 

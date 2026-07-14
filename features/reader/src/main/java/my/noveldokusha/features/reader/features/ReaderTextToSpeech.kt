@@ -108,6 +108,9 @@ internal class ReaderTextToSpeech(
 
         @Volatile
         var isSystemPauseTrigger: Boolean = false
+
+        @Volatile
+        var userPaused: Boolean = false
     }
 
     private val DECORATIVE_CHARS = """\-=*_~+#·•°─-┿"""
@@ -640,9 +643,15 @@ internal class ReaderTextToSpeech(
         lifecycleLock.lock()
         try {
             if (!playing) {
+                if (!ReaderTextToSpeech.isSystemPauseTrigger) {
+                    ReaderTextToSpeech.pausedBySystem = false
+                    ReaderTextToSpeech.userPaused = true
+                }
                 stop()
                 return
             }
+            ReaderTextToSpeech.pausedBySystem = false
+            ReaderTextToSpeech.userPaused = false
             start()
             val state = state.currentActiveItemState.value
 

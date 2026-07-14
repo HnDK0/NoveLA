@@ -53,7 +53,18 @@ interface AppDatabase {
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     super.onOpen(db)
-                    db.query("PRAGMA journal_size_limit = 134217728").close()
+                    // Stability: Enable foreign keys for referential integrity
+                    db.execSQL("PRAGMA foreign_keys = ON")
+                    // Speed: Use NORMAL synchronous mode, optimal and safe under WAL mode
+                    db.execSQL("PRAGMA synchronous = NORMAL")
+                    // Speed: Store temporary tables in memory instead of disk
+                    db.execSQL("PRAGMA temp_store = MEMORY")
+                    // Safe Storage: Limit journal size to 8MB. Must use db.query().close() because
+                    // SQLite PRAGMAs that return results (like journal_size_limit) throw SQLiteException when called via execSQL().
+                    db.query("PRAGMA journal_size_limit = 8388608").close()
+                    // Safe Memory: Bounded SQLite memory cache size. Must use db.query().close() because
+                    // SQLite PRAGMAs that return results (like cache_size) throw SQLiteException when called via execSQL().
+                    db.query("PRAGMA cache_size = -4000").close()
                 }
             })
             .addMigrations(*databaseMigrations())
@@ -79,6 +90,16 @@ interface AppDatabase {
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .createFromInputStream { inputStream }
             .fallbackToDestructiveMigration(false) // Don't apply migrations, database is already at correct version
+            .addCallback(object : RoomDatabase.Callback() {
+                override fun onOpen(db: SupportSQLiteDatabase) {
+                    super.onOpen(db)
+                    db.execSQL("PRAGMA foreign_keys = ON")
+                    db.execSQL("PRAGMA synchronous = NORMAL")
+                    db.execSQL("PRAGMA temp_store = MEMORY")
+                    db.query("PRAGMA journal_size_limit = 8388608").close()
+                    db.query("PRAGMA cache_size = -4000").close()
+                }
+            })
             .build()
             .also { it.name = name }
     }

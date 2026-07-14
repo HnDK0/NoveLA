@@ -48,6 +48,7 @@ import my.noveldokusha.features.reader.domain.ReaderItem
 import my.noveldokusha.features.reader.domain.ReaderItemAdapter
 import my.noveldokusha.features.reader.domain.ReaderState
 import my.noveldokusha.features.reader.domain.indexOfReaderItem
+import my.noveldokusha.features.reader.services.NarratorMediaControlsService
 import my.noveldokusha.features.reader.tools.FontsLoader
 import my.noveldokusha.features.reader.ui.ReaderScreen
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
@@ -646,6 +647,8 @@ class ReaderActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
+
+        NarratorMediaControlsService.maybeAutoResume()
 
         if (viewModel.readerSpeaker.isSpeaking.value) {
             viewModel.readerSpeaker.forceUpdateCurrentItemState()

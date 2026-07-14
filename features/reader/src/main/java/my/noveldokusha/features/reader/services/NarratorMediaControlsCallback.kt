@@ -57,14 +57,15 @@ internal class NarratorMediaControlsCallback(
         if (!ReaderTextToSpeech.isSystemPauseTrigger) {
             ReaderTextToSpeech.pausedBySystem = false
         }
-        ReaderTextToSpeech.isSystemPauseTrigger = false
         readerTextToSpeech.state.setPlaying(false)
+        ReaderTextToSpeech.isSystemPauseTrigger = false
     }
 
     override fun onPlay() {
         Timber.d("onPlay()")
         ReaderTextToSpeech.pausedBySystem = false
         NarratorMediaControlsService.reacquireFocus()
+        NarratorMediaControlsService.reassertActive()
         readerTextToSpeech.state.setPlaying(true)
     }
 
