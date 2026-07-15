@@ -448,9 +448,13 @@ class LuaEngine @Inject constructor(
      */
     private inner class HtmlSelectFunction : TwoArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue): LuaValue = try {
-            val html  = htmlFromValue(a1)
-            val elems = Jsoup.parse(html).select(a2.checkjstring())
-            LuaTable().also { t -> elems.forEachIndexed { i, el -> t.set(i + 1, elementToTable(el)) } }
+            val el = elementFromValue(a1)
+            val elems = if (el != null) {
+                el.select(a2.checkjstring())
+            } else {
+                Jsoup.parse(a1.checkjstring()).select(a2.checkjstring())
+            }
+            LuaTable().also { t -> elems.forEachIndexed { i, e -> t.set(i + 1, elementToTable(e)) } }
         } catch (e: Exception) { Timber.e(e, "html_select"); LuaTable() }
     }
 
@@ -459,9 +463,13 @@ class LuaEngine @Inject constructor(
      */
     private inner class HtmlSelectFirstFunction : TwoArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue): LuaValue = try {
-            val html = htmlFromValue(a1)
-            val el = Jsoup.parse(html).selectFirst(a2.checkjstring())
-            if (el != null) elementToTable(el) else LuaValue.NIL
+            val el = elementFromValue(a1)
+            val first = if (el != null) {
+                el.selectFirst(a2.checkjstring())
+            } else {
+                Jsoup.parse(a1.checkjstring()).selectFirst(a2.checkjstring())
+            }
+            if (first != null) elementToTable(first) else LuaValue.NIL
         } catch (e: Exception) { Timber.e(e, "html_select_first"); LuaValue.NIL }
     }
 
@@ -471,9 +479,13 @@ class LuaEngine @Inject constructor(
      */
     private inner class HtmlAttrFunction : ThreeArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue, a3: LuaValue): LuaValue = try {
-            val html = htmlFromValue(a1)
-            val el   = Jsoup.parse(html).selectFirst(a2.checkjstring())
-            if (el != null) LuaValue.valueOf(el.attr(a3.checkjstring())) else LuaValue.valueOf("")
+            val el = elementFromValue(a1)
+            val target = if (el != null) {
+                el.selectFirst(a2.checkjstring())
+            } else {
+                Jsoup.parse(a1.checkjstring()).selectFirst(a2.checkjstring())
+            }
+            if (target != null) LuaValue.valueOf(target.attr(a3.checkjstring())) else LuaValue.valueOf("")
         } catch (_: Exception) { LuaValue.valueOf("") }
     }
 
@@ -482,17 +494,13 @@ class LuaEngine @Inject constructor(
      */
     private inner class HtmlTextFunction : OneArgFunction() {
         override fun call(arg: LuaValue): LuaValue = try {
-            val html = arg.tojstring()
-
-            // ЛОГ: Проверяем первые 50 символов входящего HTML
-            Timber.d("LuaEngine: html_text input (start): ${html.take(50)}")
-
-            val doc = Jsoup.parseBodyFragment(html)
-            val text = TextExtractor.get(doc.body())
-
-            // ЛОГ: Проверяем результат экстракции
-            Timber.d("LuaEngine: html_text output (start): ${text.take(50)}")
-
+            val el = elementFromValue(arg)
+            val text = if (el != null) {
+                TextExtractor.get(el)
+            } else {
+                val doc = Jsoup.parseBodyFragment(arg.tojstring())
+                TextExtractor.get(doc.body())
+            }
             LuaValue.valueOf(text)
         } catch (e: Exception) {
             Timber.e(e, "html_text failed")
@@ -507,13 +515,23 @@ class LuaEngine @Inject constructor(
     private inner class HtmlRemoveFunction : VarArgFunction() {
         override fun invoke(args: Varargs): Varargs {
             return try {
-                val html = htmlFromValue(args.arg(1))
-                val doc  = Jsoup.parse(html)
-                for (i in 2..args.narg()) {
-                    val selector = args.arg(i).optjstring(null) ?: continue
-                    if (selector.isNotBlank()) doc.select(selector).remove()
+                val arg1 = args.arg(1)
+                val el = elementFromValue(arg1)
+                if (el != null) {
+                    for (i in 2..args.narg()) {
+                        val selector = args.arg(i).optjstring(null) ?: continue
+                        if (selector.isNotBlank()) el.select(selector).remove()
+                    }
+                    LuaValue.valueOf(el.html())
+                } else {
+                    val html = arg1.checkjstring()
+                    val doc  = Jsoup.parse(html)
+                    for (i in 2..args.narg()) {
+                        val selector = args.arg(i).optjstring(null) ?: continue
+                        if (selector.isNotBlank()) doc.select(selector).remove()
+                    }
+                    LuaValue.valueOf(doc.body().html())
                 }
-                LuaValue.valueOf(doc.body().html())
             } catch (e: Exception) {
                 Timber.e(e, "html_remove")
                 args.arg(1)
@@ -535,30 +553,64 @@ class LuaEngine @Inject constructor(
     private fun htmlFromValue(v: LuaValue): String =
         if (v.istable()) v.checktable().get("html").optjstring("") else v.checkjstring()
 
-    private fun elementToTable(el: Element): LuaTable = LuaTable().also { t ->
-        t.set("text",  LuaValue.valueOf(el.text()))
-        t.set("html",  LuaValue.valueOf(el.html()))
-        t.set("href",  LuaValue.valueOf(el.attr("abs:href").ifEmpty { el.attr("href") }))
-        t.set("src",   LuaValue.valueOf(el.attr("abs:src").ifEmpty  { el.attr("src")  }))
-        t.set("title", LuaValue.valueOf(el.attr("title")))
-        t.set("class", LuaValue.valueOf(el.attr("class")))
-        t.set("id",    LuaValue.valueOf(el.attr("id")))
-        t.set("get_text", object : ZeroArgFunction() { override fun call() = LuaValue.valueOf(el.text()) })
-        t.set("get_html", object : ZeroArgFunction() { override fun call() = LuaValue.valueOf(el.html()) })
-        t.set("attr",  object : OneArgFunction() {
-            override fun call(a: LuaValue) = try {
-                LuaValue.valueOf(el.attr(a.checkjstring()))
-            } catch (_: Exception) { LuaValue.valueOf("") }
+    // Extracts the wrapped Jsoup Element directly from the LuaTable userdata.
+    // This allows functions like html_select/html_text to execute queries directly on the DOM tree
+    // instead of serializing the element to HTML and re-parsing it, saving CPU and memory.
+    private fun elementFromValue(v: LuaValue): Element? {
+        if (v.istable()) {
+            val user = v.checktable().get("__element")
+            if (user.isuserdata(Element::class.java)) {
+                return user.touserdata(Element::class.java) as Element
+            }
+        }
+        return null
+    }
+
+    // Converts a Jsoup Element to a LuaTable lazily using Lua metatables.
+    // Eagerly extracting text/html for all elements on every select call created severe GC pressure
+    // and slow JVM execution. Now properties are evaluated on-demand and cached in the table.
+    private fun elementToTable(el: Element): LuaTable {
+        val t = LuaTable()
+        t.set("__element", org.luaj.vm2.LuaUserdata(el))
+
+        val mt = LuaTable()
+        mt.set(LuaValue.INDEX, object : TwoArgFunction() {
+            override fun call(table: LuaValue, key: LuaValue): LuaValue {
+                val keyStr = key.optjstring(null) ?: return LuaValue.NIL
+                val value = when (keyStr) {
+                    "text" -> LuaValue.valueOf(el.text())
+                    "html" -> LuaValue.valueOf(el.html())
+                    "href" -> LuaValue.valueOf(el.attr("abs:href").ifEmpty { el.attr("href") })
+                    "src" -> LuaValue.valueOf(el.attr("abs:src").ifEmpty  { el.attr("src")  })
+                    "title" -> LuaValue.valueOf(el.attr("title"))
+                    "class" -> LuaValue.valueOf(el.attr("class"))
+                    "id" -> LuaValue.valueOf(el.attr("id"))
+                    "get_text" -> object : ZeroArgFunction() { override fun call() = LuaValue.valueOf(el.text()) }
+                    "get_html" -> object : ZeroArgFunction() { override fun call() = LuaValue.valueOf(el.html()) }
+                    "attr" -> object : OneArgFunction() {
+                        override fun call(a: LuaValue) = try {
+                            LuaValue.valueOf(el.attr(a.checkjstring()))
+                        } catch (_: Exception) { LuaValue.valueOf("") }
+                    }
+                    "remove" -> object : ZeroArgFunction() {
+                        override fun call(): LuaValue { el.remove(); return LuaValue.NIL }
+                    }
+                    "select" -> object : OneArgFunction() {
+                        override fun call(a: LuaValue): LuaValue = try {
+                            val elems = el.select(a.checkjstring())
+                            LuaTable().also { t2 -> elems.forEachIndexed { i, e -> t2.set(i + 1, elementToTable(e)) } }
+                        } catch (_: Exception) { LuaTable() }
+                    }
+                    else -> LuaValue.NIL
+                }
+                if (value != LuaValue.NIL) {
+                    table.set(key, value)
+                }
+                return value
+            }
         })
-        t.set("remove", object : ZeroArgFunction() {
-            override fun call(): LuaValue { el.remove(); return LuaValue.NIL }
-        })
-        t.set("select", object : OneArgFunction() {
-            override fun call(a: LuaValue): LuaValue = try {
-                val elems = el.select(a.checkjstring())
-                LuaTable().also { t2 -> elems.forEachIndexed { i, e -> t2.set(i + 1, elementToTable(e)) } }
-            } catch (_: Exception) { LuaTable() }
-        })
+        t.setmetatable(mt)
+        return t
     }
 
     // ── URL ───────────────────────────────────────────────────────────────────
@@ -893,9 +945,9 @@ class LuaSourceLoader @Inject constructor(
     private fun luaFile(id: String) = File(luaDir, "$id.lua")
 
     companion object {
-        // ponytail: 15 VMs max. Each LuaJ Globals ~2-5MB. 15 * 5 = 75MB ceiling.
-        // Upgrade path: increase if user reports slow extension loading.
-        private const val MAX_CACHED_SOURCES = 15
+        // Increased from 15 to 30 to avoid thrashing and unnecessary re-compilation
+        // when more than 15 extensions are active.
+        private const val MAX_CACHED_SOURCES = 30
     }
 }
 
