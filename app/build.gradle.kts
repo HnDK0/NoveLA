@@ -74,14 +74,13 @@ android {
         }
 
         named("release") {
-            // ponytail: R8 minify disabled for local 4GB-RAM build (OOM-kills otherwise).
-            // Re-enable on CI runner with 7GB+ RAM.
-            isMinifyEnabled = false
+            // ponytail: R8 minify + resource shrink enabled — reduces APK from ~24MB to ~6MB.
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            isShrinkResources = false
+            isShrinkResources = true
         }
     }
 
