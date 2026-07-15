@@ -552,19 +552,20 @@ internal class ReaderChaptersLoader(
                             "Content error: Cloudflare, empty chapter, or login required. Try opening in browser.\n\nCode snippet: ${preview.take(100)}..."
 
                         // 2. Атомарно модифицируем список данных, не дёргая адаптер на каждое удаление
-                        // ponytail: O(2n) -> O(n) — modify `items` in-place instead of building a
-                        // full mutable copy via toMutableList().apply { ... } then clear()+addAll()
-                        // (which materialized the list twice: once in toMutableList() and again in
-                        // addAll()). In-place remove + add is the same atomic effect with no double
-                        // materialization. The readerViewHandlersActions.doForceUpdateListViewState()
-                        // call below is the single UI notification, identical to before.
-                        items.remove(itemProgressBar)
-                        items.remove(itemTitle)
-                        items.removeAll { it is ReaderItem.Divider && it.chapterIndex == chapterIndex }
-                        // Добавляем ошибку вместо удаленного прогресс-бара
-                        items.add(ReaderItem.Error(chapterIndex = chapterIndex, chapterUrl = chapter.url, text = userMessage))
+                        // (Предполагается, что remove/insert у тебя работают напрямую с внутренним массивом)
+                        val updatedItems = items.toMutableList().apply {
+                            remove(itemProgressBar)
+                            remove(itemTitle)
+                            removeAll { it is ReaderItem.Divider && it.chapterIndex == chapterIndex }
+                            // Добавляем ошибку вместо удаленного прогресс-бара
+                            add(ReaderItem.Error(chapterIndex = chapterIndex, chapterUrl = chapter.url, text = userMessage))
+                        }
 
-                        // 3. Только тогда уведомляем UI (внутри или сразу после этого блока)
+                        // 3. Перезаписываем список в адаптере целиком
+                        items.clear()
+                        items.addAll(updatedItems)
+
+                        // 4. Только теперь уведомляем UI (внутри или сразу после этого блока)
                         readerViewHandlersActions.doForceUpdateListViewState()
                     }
                     return@_addChapterInternal false
@@ -607,18 +608,7 @@ internal class ReaderChaptersLoader(
 
                             if (batchTranslator != null) {
                                 val bodyTexts = itemsOriginal.filterIsInstance<ReaderItem.Body>().map { it.text }
-                                // ponytail: deduplication fix — previously
-                                //   bodyTexts.withIndex().associate { (idx, text) -> text to idx }
-                                // collapsed duplicate paragraphs to only the LAST index. With
-                                // duplicates present, all Body items sharing the same text would
-                                // read the translation for that single last index, and the
-                                // missing-texts list sent to the translator contained duplicates
-                                // (wasted tokens). groupBy preserves ALL indices per text so we
-                                // can apply translations to every matching paragraph and dedupe
-                                // the translator input.
-                                val textToIndices: Map<String, List<Int>> = bodyTexts.withIndex()
-                                    .groupBy { it.value }
-                                    .mapValues { it.value.map { it.index } }
+                                val bodyTextToIndex = bodyTexts.withIndex().associate { (idx, text) -> text to idx }
 
                                 // Load existing cache entry (single row per chapter+language)
                                 val existingEntry = withContext(Dispatchers.IO) {
@@ -650,14 +640,15 @@ internal class ReaderChaptersLoader(
 
                                     if (missingIndices.isEmpty()) {
                                         android.util.Log.d(TAG, "Using full DB cache for chapter ${chapter.title} (${cachedBody.size} body translations)")
-                                        applyBodyTranslations(itemsOriginal, textToIndices, cachedBody)
+                                        itemsOriginal.map { item ->
+                                            if (item is ReaderItem.Body) {
+                                                val idx = bodyTextToIndex[item.text] ?: return@map item
+                                                item.copy(textTranslated = cachedBody[idx] ?: item.text)
+                                            } else item
+                                        }
                                     } else {
-                                        // ponytail: dedupe missingTexts — previously duplicate
-                                        // paragraphs were sent to the translator N times. Now each
-                                        // unique text is sent once, then the result is applied to
-                                        // every index that shares that text.
-                                        val missingTexts = missingIndices.map { bodyTexts[it] }.distinct()
-                                        android.util.Log.d(TAG, "DB cache partial: ${cachedBody.size}/${bodyTexts.size}, translating ${missingTexts.size} missing body paragraphs (${missingIndices.size} indices)")
+                                        val missingTexts = missingIndices.map { bodyTexts[it] }
+                                        android.util.Log.d(TAG, "DB cache partial: ${cachedBody.size}/${bodyTexts.size}, translating ${missingTexts.size} missing body paragraphs")
                                         val extraTranslations = withContext(Dispatchers.IO) {
                                             kotlinx.coroutines.withTimeout(60_000L) {
                                                 batchTranslator.invoke(missingTexts)
@@ -665,22 +656,20 @@ internal class ReaderChaptersLoader(
                                         }
 
                                         val fullBody = cachedBody.toMutableMap()
-                                        // ponytail: apply translation to ALL indices sharing the
-                                        // same text — previously only missingIndices were filled,
-                                        // but with deduplication we need to fill every index whose
-                                        // text is in extraTranslations.
-                                        missingTexts.forEach { text ->
-                                            val translated = extraTranslations[text] ?: text
-                                            textToIndices[text]?.forEach { idx ->
-                                                if (idx !in cachedBody) fullBody[idx] = translated
-                                            }
+                                        missingIndices.forEach { idx ->
+                                            fullBody[idx] = extraTranslations[bodyTexts[idx]] ?: bodyTexts[idx]
                                         }
                                         translatedParagraphsJson = org.json.JSONArray(
                                             bodyTexts.indices.map { fullBody[it] ?: bodyTexts[it] }
                                         ).toString()
                                         needsSave = true
 
-                                        applyBodyTranslations(itemsOriginal, textToIndices, fullBody)
+                                        itemsOriginal.map { item ->
+                                            if (item is ReaderItem.Body) {
+                                                val idx = bodyTextToIndex[item.text] ?: return@map item
+                                                item.copy(textTranslated = fullBody[idx] ?: item.text)
+                                            } else item
+                                        }
                                     }
                                 } else {
                                     val result = translateAndCacheBodiesOnly(
@@ -907,38 +896,6 @@ internal class ReaderChaptersLoader(
             else item
         }
         return Pair(translatedItems, bodyJson)
-    }
-
-    /**
-     * ponytail: helper that applies per-index translations back onto the original items list.
-     * Replaces the previous inline `itemsOriginal.map { ... bodyTextToIndex[item.text] ... }`
-     * pattern which collapsed duplicate paragraphs (only the last index survived in the map).
-     *
-     * This implementation tracks a per-text position counter so each Body item — even when its
-     * text duplicates a previous item — consumes the next index in [textToIndices]. This makes
-     * every Body item receive the translation for ITS OWN index instead of all duplicates
-     * sharing the last index's translation.
-     *
-     * @param itemsOriginal   the full reader item list (Body items get a copy with textTranslated)
-     * @param textToIndices   map from body text to the list of bodyTexts indices that share it
-     * @param translations    map from bodyTexts index → translated text (e.g. cachedBody / fullBody)
-     */
-    private fun applyBodyTranslations(
-        itemsOriginal: List<ReaderItem>,
-        textToIndices: Map<String, List<Int>>,
-        translations: Map<Int, String>,
-    ): List<ReaderItem> {
-        // Mutable per-text cursor: tracks which index to consume next for each duplicated text.
-        val nextPos = HashMap<String, Int>(textToIndices.size)
-        return itemsOriginal.map { item ->
-            if (item !is ReaderItem.Body) return@map item
-            val indices = textToIndices[item.text] ?: return@map item
-            val pos = nextPos.getOrPut(item.text) { 0 }
-            nextPos[item.text] = pos + 1
-            val idx = indices.getOrElse(pos) { indices.last() }
-            val translated = translations[idx] ?: item.text
-            if (translated == item.text) item else item.copy(textTranslated = translated)
-        }
     }
 
     @Deprecated("Use translateAndCacheBodiesOnly for body and translatorTranslateTitleOrNull for title")

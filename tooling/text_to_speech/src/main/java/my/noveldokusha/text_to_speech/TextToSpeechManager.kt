@@ -122,17 +122,8 @@ class TextToSpeechManager<T : Utterance<T>>(
             return
         }
 
-        // ponytail: cache service.defaultEngine once — previously it was queried inside the
-        // forEach loop on every iteration. defaultEngine is a stable system property (it does
-        // not change between iterations) but each call may do a service lookup. Caching it
-        // removes N-1 redundant lookups for N engines.
-        val defaultEngine = service.defaultEngine
-
         engines.forEach { engineInfo ->
-            if (engineInfo.name == defaultEngine) {
-                // ponytail: use service.voices directly for the default engine — already
-                // initialized, no need to spawn an auxiliary TextToSpeech instance just to
-                // enumerate voices. Auxiliary instances cost ~100ms + ~10MB each.
+            if (engineInfo.name == service.defaultEngine) {
                 val voices = service.voices
                     ?.map { it.toVoiceData(engineInfo.name) }
                     ?: emptyList()

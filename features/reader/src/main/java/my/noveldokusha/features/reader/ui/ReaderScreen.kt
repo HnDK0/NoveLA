@@ -322,12 +322,10 @@ internal fun ReaderScreen(
                         windowToken
                     my.noveldokusha.features.reader.services.FloatingTtsService.ttsState.value =
                         state.settings.textToSpeech
-                    // ponytail: removed redundant showOutsideApp/opacity writes here — they
-                    // are kept in sync by the dedicated LaunchedEffect below keyed on those
-                    // exact values. Previously this block re-wrote them whenever isEnabled
-                    // toggled, even though the dedicated effect already covers initial sync
-                    // (LaunchedEffect runs once on first composition with its keys) and
-                    // subsequent changes. Less work on the enable/disable path.
+                    my.noveldokusha.features.reader.services.FloatingTtsService.showOutsideApp.value =
+                        state.settings.floatingTts.showOutsideApp.value
+                    my.noveldokusha.features.reader.services.FloatingTtsService.opacity.value =
+                        state.settings.floatingTts.opacity.value
                     my.noveldokusha.features.reader.services.FloatingTtsService.start(context)
                 } else {
                     showOverlayPermissionDialog = true

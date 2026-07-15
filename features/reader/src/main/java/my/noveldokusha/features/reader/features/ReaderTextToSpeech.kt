@@ -893,14 +893,5 @@ internal class ReaderTextToSpeech(
 
 private fun String.wordCount(): Int {
     if (this.isEmpty()) return 0
-    // ponytail: hoisted WHITESPACE regex — was Regex("\\s+") inline, compiled fresh on every
-    // call. wordCount is invoked from chapterWordCount and remainingWordCount derivedStateOfs
-    // which re-run whenever currentTextPlaying changes (i.e. on every TTS utterance start), so
-    // for a 500-paragraph chapter this was 500 × Regex compilation per utterance. Hoisting
-    // eliminates the per-call compilation cost (~1ms each on Android).
-    return this.split(WORD_COUNT_WHITESPACE).count { it.isNotEmpty() }
+    return this.split(Regex("\\s+")).count { it.isNotEmpty() }
 }
-
-// ponytail: top-level private val so the Regex is compiled exactly once for the lifetime of
-// the process. Thread-safe (Regex is immutable after compilation).
-private val WORD_COUNT_WHITESPACE = Regex("\\s+")

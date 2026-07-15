@@ -6,9 +6,6 @@ import my.noveldokusha.text_translator.DEFAULT_TRANSLATION_PROMPT
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.appPreferences.AppPreferences
@@ -21,6 +18,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -67,15 +65,6 @@ class TranslationManagerGemini(
 
     private val keyIndex = java.util.concurrent.atomic.AtomicInteger(0)
 
-    // ponytail: hoist the numbered-translation parsing regex — previously a fresh Regex was
-    // compiled on every call to parseNumberedTranslations (called per Gemini response, which
-    // for a chunked chapter is N responses). Regex compilation is ~1ms even for simple patterns.
-    private val numberPattern = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
-
-    // ponytail: bounded parallelism for chunked batch translation — Gemini API has generous
-    // rate limits per key, so we can safely fire up to 4 concurrent batch requests per chapter.
-    private val parallelChunkDispatcher by lazy { Dispatchers.IO.limitedParallelism(4) }
-
     private val apiKeys: List<String>
         get() = appPreferences.TRANSLATION_GEMINI_API_KEY.value
             .split("\n", ";", ",")
@@ -83,8 +72,10 @@ class TranslationManagerGemini(
             .filter { it.isNotBlank() }
 
     private fun getApiEndpoint(key: String): String {
-        val model = appPreferences.TRANSLATION_GEMINI_MODEL.value.ifBlank { "gemini-2.5-flash-lite" }
-        return "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$key"
+        // ponytail: was ?key=$key in URL — Gemini API requires the key via X-Goog-API-Key header,
+        // not as a query param. The ?key= approach returns 403/400. Restored upstream pattern.
+        val model = appPreferences.TRANSLATION_GEMINI_MODEL.value.ifBlank { "gemini-2.5-flash" }
+        return "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent"
     }
 
     override val available = true
@@ -141,14 +132,14 @@ class TranslationManagerGemini(
         val systemPrompt = buildSystemPrompt(templatePrompt, sourceLanguage, targetLanguage, useEnglish)
         val builtFallbackPrompt = buildSystemPrompt(fallbackSystemPrompt, sourceLanguage, targetLanguage, useEnglish)
 
-        val startIndex = keyIndex.getAndIncrement() % keys.size
+        val startIndex = Math.floorMod(keyIndex.getAndIncrement(), keys.size)
         var lastException: Exception? = null
         var usesFallback = false
         val totalAttempts = retryCount * keys.size
 
         for (attempt in 0 until totalAttempts) {
-            val currentKey = keys[(startIndex + attempt) % keys.size]
-            val keyLabel = "key #${(startIndex + attempt) % keys.size + 1}"
+            val currentKey = keys[Math.floorMod(startIndex + attempt, keys.size)]
+            val keyLabel = "key #${Math.floorMod(startIndex + attempt, keys.size) + 1}"
             val activePrompt = if (usesFallback) builtFallbackPrompt else systemPrompt
 
             try {
@@ -186,9 +177,6 @@ class TranslationManagerGemini(
                         continue
                     }
                     429 -> {
-                        // ponytail: close body to avoid connection leak — previously the body
-                        // was already consumed by sendGeminiRequest's logging, now we own it.
-                        response.body.close()
                         Log.w(TAG, "translateWithGemini: rate limit (429) on $keyLabel")
                         lastException = IOException("Gemini: Rate limit exceeded")
                         continue
@@ -231,19 +219,10 @@ class TranslationManagerGemini(
         val normalizedTexts = texts.filter { it.isNotBlank() }
         if (normalizedTexts.isEmpty()) return@withContext emptyMap()
         if (normalizedTexts.size > maxBatchItemsPerRequest) {
-            // ponytail: parallelize the chunked batch — previously sequential forEach over
-            // normalizedTexts.chunked(maxBatchItemsPerRequest). For a long chapter split into
-            // 4+ batches this was 4 × (request latency). Now up to 4 batches run concurrently.
-            // Each chunk's results are merged into a single map; the underlying translateBatch
-            // call uses the same keyIndex round-robin so concurrent calls spread across keys.
-            val chunks = normalizedTexts.chunked(maxBatchItemsPerRequest)
-            val merged = coroutineScope {
-                chunks.map { chunk ->
-                    async(parallelChunkDispatcher) {
-                        translateBatch(chunk, sourceLanguage, targetLanguage, systemPromptOverride)
-                    }
-                }.awaitAll()
-            }.fold(mutableMapOf<String, String>()) { acc, map -> acc.apply { putAll(map) } }
+            val merged = mutableMapOf<String, String>()
+            normalizedTexts.chunked(maxBatchItemsPerRequest).forEach { chunk ->
+                    merged.putAll(translateBatch(chunk, sourceLanguage, targetLanguage, systemPromptOverride))
+            }
             return@withContext merged
         }
 
@@ -262,13 +241,13 @@ class TranslationManagerGemini(
         // Iterate keys sequentially. Switch to next key only on 429 (rate limit) or 401/403 (dead key).
         // Server errors (5xx) retry the same key. Content blocks fail immediately — no retry,
         // no key switch: the content is the problem, not the key.
-        var keyIdx = keyIndex.getAndIncrement() % availableKeys.size
+        var keyIdx = Math.floorMod(keyIndex.getAndIncrement(), availableKeys.size)
         val retryCount = 3
         var lastException: Exception? = null
 
         for (keyAttempt in 0 until availableKeys.size) {
-            val currentApiKey = availableKeys[(keyIdx + keyAttempt) % availableKeys.size]
-            val keyLabel = "key #${(keyIdx + keyAttempt) % availableKeys.size + 1}"
+            val currentApiKey = availableKeys[Math.floorMod(keyIdx + keyAttempt, availableKeys.size)]
+            val keyLabel = "key #${Math.floorMod(keyIdx + keyAttempt, availableKeys.size) + 1}"
 
             for (retry in 0 until retryCount) {
                 try {
@@ -281,8 +260,6 @@ class TranslationManagerGemini(
                     when (code) {
                         429 -> {
                             // Rate limit — move to next key immediately, no point retrying this one.
-                            // ponytail: close body to avoid connection leak (previously consumed by sendGeminiRequest).
-                            response.body.close()
                             Log.w(TAG, "translateBatch: rate limit (429) on $keyLabel, switching key")
                             lastException = IOException("Gemini: Rate limit exceeded on $keyLabel")
                             break
@@ -405,19 +382,17 @@ class TranslationManagerGemini(
         val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
         val request = Request.Builder()
             .url(getApiEndpoint(apiKey))
+            .addHeader("X-Goog-API-Key", apiKey)
             .addHeader("Content-Type", "application/json")
             .post(requestBody)
             .build()
 
         val response = client.newCall(request).execute()
-        // ponytail: stream the body once via charStream() for the preview log instead of
-        // response.body.string() + toResponseBody() round-trip. Previously the entire body was
-        // buffered into a String just to log a 160-char preview, then re-wrapped as a
-        // ResponseBody which the caller would re-buffer again with readBodyOrThrow — two full
-        // copies of the body in memory simultaneously. Now the caller owns the body and reads
-        // it exactly once (via readBodyOrThrow or response.body.string() for error bodies).
-        Log.d(TAG, "sendGeminiRequest: status=${response.code}, contentLength=${response.body.contentLength()}")
-        return response
+        // Read the body once for lightweight diagnostics, then restore it for downstream parsing.
+        val bodyString = response.body.string()
+        Log.d(TAG, "sendGeminiRequest: status=${response.code}, bodyPreview=${bodyString.take(160)}")
+        val newBody = bodyString.toResponseBody("application/json".toMediaType())
+        return response.newBuilder().body(newBody).build()
     }
 
     private fun parseGeminiResponse(responseBody: String): String {
@@ -508,7 +483,7 @@ class TranslationManagerGemini(
 
     private fun parseNumberedTranslations(translatedText: String, originalTexts: List<String>): Map<String, String> {
         val byIndex = mutableMapOf<Int, String>()
-        // ponytail: hoisted regex — was Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""") on every call
+        val numberPattern = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
         val lines = translatedText.split("\n")
         var currentIndex = -1
         var currentText = StringBuilder()

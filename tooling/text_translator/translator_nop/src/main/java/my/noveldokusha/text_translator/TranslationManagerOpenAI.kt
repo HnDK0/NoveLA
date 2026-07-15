@@ -5,11 +5,7 @@ import my.noveldokusha.text_translator.DEFAULT_TRANSLATION_PROMPT
 
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
-import com.google.gson.stream.JsonReader
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.appPreferences.AppPreferences
@@ -77,16 +73,6 @@ class TranslationManagerOpenAI(
 
     // Round-robin counter shared across all calls
     private val keyIndex = AtomicInteger(0)
-
-    // ponytail: hoist the numbered-translation parsing regex — previously a fresh Regex was
-    // compiled on every call to parseNumberedTranslations (called per OpenAI response, which
-    // for a chunked chapter is N responses). Regex compilation is ~1ms even for simple patterns.
-    private val numberPattern = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
-
-    // ponytail: bounded parallelism for chunked batch translation — OpenAI-compatible endpoints
-    // (OpenRouter, DeepSeek, etc.) handle concurrent requests fine. Capped at 4 to avoid
-    // tripping per-key rate limits on smaller providers.
-    private val parallelChunkDispatcher by lazy { Dispatchers.IO.limitedParallelism(4) }
 
     private val apiKeys: List<String>
         get() = appPreferences.TRANSLATION_OPENAI_API_KEYS.value
@@ -170,19 +156,10 @@ class TranslationManagerOpenAI(
         val normalizedTexts = texts.filter { it.isNotBlank() }
         if (normalizedTexts.isEmpty()) return@withContext emptyMap()
         if (normalizedTexts.size > maxBatchItemsPerRequest) {
-            // ponytail: parallelize the chunked batch — previously sequential forEach over
-            // normalizedTexts.chunked(maxBatchItemsPerRequest). For a long chapter split into
-            // 4+ batches this was 4 × (request latency). Now up to 4 batches run concurrently.
-            // Each chunk's results are merged into a single map; the underlying translateBatch
-            // call uses the same keyIndex round-robin so concurrent calls spread across keys.
-            val chunks = normalizedTexts.chunked(maxBatchItemsPerRequest)
-            val merged = coroutineScope {
-                chunks.map { chunk ->
-                    async(parallelChunkDispatcher) {
-                        translateBatch(chunk, sourceLanguage, targetLanguage, systemPromptOverride)
-                    }
-                }.awaitAll()
-            }.fold(mutableMapOf<String, String>()) { acc, map -> acc.apply { putAll(map) } }
+            val merged = mutableMapOf<String, String>()
+            normalizedTexts.chunked(maxBatchItemsPerRequest).forEach { chunk ->
+                merged.putAll(translateBatch(chunk, sourceLanguage, targetLanguage, systemPromptOverride))
+            }
             return@withContext merged
         }
 
@@ -215,15 +192,15 @@ class TranslationManagerOpenAI(
             throw IllegalStateException("OpenAI: No API keys configured. Please add your API key in Settings → Translation.")
         }
 
-        val startIndex = keyIndex.getAndIncrement() % keys.size
+        val startIndex = Math.floorMod(keyIndex.getAndIncrement(), keys.size)
         var lastException: Exception? = null
 
         val retryPolicy = RetryPolicy(maxAttempts = keys.size, baseDelayMs = 250L, maxDelayMs = 1500L)
         Log.d(TAG, "sendWithKeyRotation: systemPrompt='${systemPrompt.take(200)}'")
 
         for (attempt in 0 until retryPolicy.maxAttempts) {
-            val currentKey = keys[(startIndex + attempt) % keys.size]
-            val keyLabel = "key #${(startIndex + attempt) % keys.size + 1}"
+            val currentKey = keys[Math.floorMod(startIndex + attempt, keys.size)]
+            val keyLabel = "key #${Math.floorMod(startIndex + attempt, keys.size) + 1}"
 
             try {
                 val response = sendRequest(systemPrompt, userMessage, currentKey)
@@ -253,14 +230,9 @@ class TranslationManagerOpenAI(
                         throw IllegalStateException("OpenAI: Unexpected error ($code): $errorBody")
                     }
                     else -> {
-                        keyIndex.set((startIndex + attempt + 1) % keys.size)
-                        // ponytail: stream the response body with JsonReader instead of
-                        // response.body.string() + JSONObject. For large translations (100KB+)
-                        // this avoids the memory spike of buffering the entire JSON into a
-                        // String. The OpenAI chat-completion response shape is
-                        // {"choices":[{"message":{"content":"<translated>"}}], ...} — we only
-                        // need choices[0].message.content, so we skip everything else.
-                        return@withContext parseResponseStream(response)
+                        keyIndex.set(Math.floorMod(startIndex + attempt + 1, keys.size))
+                        val body = readBodyOrThrow(response, "OpenAI")
+                        return@withContext parseResponse(body)
                     }
                 }
             } catch (e: IOException) {
@@ -326,65 +298,6 @@ class TranslationManagerOpenAI(
         }
     }
 
-    /**
-     * ponytail: streaming variant of parseResponse — reads the response body incrementally
-     * via JsonReader instead of buffering it fully into a String. Skips all keys except
-     * choices[0].message.content. Throws if the content field is missing or null.
-     *
-     * Kept parseResponse(String) above for any future callers that already have a String body
-     * (e.g. for testing); the hot path uses this streaming variant.
-     */
-    private fun parseResponseStream(response: okhttp3.Response): String {
-        try {
-            response.body.charStream().use { stream ->
-                val reader = JsonReader(stream)
-                reader.beginObject()                          // {
-                var content: String? = null
-                while (reader.hasNext()) {
-                    when (reader.nextName()) {
-                        "choices" -> {
-                            reader.beginArray()               // choices[
-                            if (reader.hasNext()) {
-                                reader.beginObject()          // choices[0] = {
-                                while (reader.hasNext()) {
-                                    if (reader.nextName() == "message") {
-                                        reader.beginObject()  // message = {
-                                        while (reader.hasNext()) {
-                                            if (reader.nextName() == "content") {
-                                                // peek() to tolerate null content (truncated responses)
-                                                content = if (reader.peek() == com.google.gson.stream.JsonToken.NULL) {
-                                                    reader.nextNull()
-                                                    null
-                                                } else {
-                                                    reader.nextString()
-                                                }
-                                            } else {
-                                                reader.skipValue()
-                                            }
-                                        }
-                                        reader.endObject()
-                                    } else {
-                                        reader.skipValue()
-                                    }
-                                }
-                                reader.endObject()
-                            }
-                            // skip any remaining choices
-                            while (reader.hasNext()) reader.skipValue()
-                            reader.endArray()
-                        }
-                        else -> reader.skipValue()
-                    }
-                }
-                return content?.trim()?.takeIf { it.isNotEmpty() }
-                    ?: throw IllegalStateException("OpenAI: No choices/content in response")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "parseResponseStream: failed to parse — ${e.message}")
-            throw IllegalStateException("OpenAI: Failed to parse response — ${e.message}")
-        }
-    }
-
     // ─── Prompt building ───────────────────────────────────────────────────────
 
     private fun buildPrompt(sourceLanguage: String, targetLanguage: String, systemPromptOverride: String? = null): String =
@@ -408,8 +321,8 @@ class TranslationManagerOpenAI(
         // Index-based map: key = 0-based index, value = translated text
         val byIndex = mutableMapOf<Int, String>()
 
-        // ponytail: hoisted regex — was Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""") on every call
         // Matches: "1.", "1)", "**1.**", "№1.", "#1.", "1 ." at start of line
+        val numberPattern = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
 
         val lines = translatedText.split("\n")
         var currentIndex = -1  // -1 = before first numbered item (preamble)
