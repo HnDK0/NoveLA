@@ -134,11 +134,13 @@ internal class ReaderViewModel @Inject constructor(
     val ttsScrolledToTheBottom = readerSession.readerTextToSpeech.scrolledToTheBottom
 
     fun onCloseManually() {
-        if (readerSession.readerTextToSpeech.isActive.value) {
-            readerManager.detachSession()
-        } else {
-            readerManager.close()
-        }
+        // ponytail: the original NovelDokusha kept the session alive when TTS was playing
+        // (detachSession) so background playback could continue. But this fork added
+        // FloatingTtsService which holds companion state pointing into the session's
+        // ReaderTextToSpeech — if we detach, the floating bubble becomes a zombie (buttons
+        // don't work, notification stays forever). Now we always close the session fully,
+        // which stops TTS, removes the notification, and removes the floating bubble.
+        readerManager.close()
     }
 
     fun startSpeaker(itemIndex: Int) =
@@ -161,19 +163,5 @@ internal class ReaderViewModel @Inject constructor(
 
     fun saveCurrentReadingPosition() {
         readerSession.saveCurrentPosition(readingCurrentChapter)
-    }
-
-    override fun onCleared() {
-        // ponytail: readerManager is a @Singleton that holds the ReaderSession across config
-        // changes. Without this override, if the Activity is destroyed without an explicit
-        // close (back press handled elsewhere, process death, OOM-kill), the session's
-        // scopes (ReaderLiveTranslation, ChaptersIsReadRoutine, TextToSpeechManager) and
-        // the TTS engine leak until process death — the single biggest source of memory
-        // growth across reader opens.
-        //
-        // If TTS is still playing we keep the session alive (background playback path).
-        if (!readerSession.readerTextToSpeech.isActive.value) {
-            readerManager.close()
-        }
     }
 }

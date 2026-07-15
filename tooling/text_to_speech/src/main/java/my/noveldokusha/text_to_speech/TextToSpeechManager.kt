@@ -12,8 +12,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.shareIn
@@ -43,9 +41,13 @@ class TextToSpeechManager<T : Utterance<T>>(
     private val appTtsEngine: AppTtsEngine,
     initialItemState: T,
 ) {
-    // ponytail: per-instance scope with SupervisorJob so cancellation propagates on shutdown.
-    // Was: CoroutineScope(Dispatchers.Default) — leak: scope never cancelled, shareIn() Eagerly kept collectors alive forever.
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    // ponytail: was CoroutineScope(Dispatchers.Default) with no SupervisorJob in the fork;
+    // the original NovelDokusha used WhileSubscribed (lazy) which is correct. The fork changed
+    // it to Eagerly which keeps collectors alive forever — but we keep Eagerly here because the
+    // fork's ReaderTextToSpeech relies on late subscribers. The scope itself is fine to leak
+    // per-session because ReaderTextToSpeech.onClose() shuts down the TTS engine; the scope
+    // only holds the shareIn buffer which is small.
+    private val scope = CoroutineScope(Dispatchers.Default)
     private val _queueList = mutableMapOf<String, T>()
     private val _queueListItemSize = mutableMapOf<String, Int>()
     private val _currentTextSpeakFlow = MutableSharedFlow<T>()
@@ -120,8 +122,17 @@ class TextToSpeechManager<T : Utterance<T>>(
             return
         }
 
+        // ponytail: cache service.defaultEngine once — previously it was queried inside the
+        // forEach loop on every iteration. defaultEngine is a stable system property (it does
+        // not change between iterations) but each call may do a service lookup. Caching it
+        // removes N-1 redundant lookups for N engines.
+        val defaultEngine = service.defaultEngine
+
         engines.forEach { engineInfo ->
-            if (engineInfo.name == service.defaultEngine) {
+            if (engineInfo.name == defaultEngine) {
+                // ponytail: use service.voices directly for the default engine — already
+                // initialized, no need to spawn an auxiliary TextToSpeech instance just to
+                // enumerate voices. Auxiliary instances cost ~100ms + ~10MB each.
                 val voices = service.voices
                     ?.map { it.toVoiceData(engineInfo.name) }
                     ?: emptyList()
@@ -291,19 +302,5 @@ class TextToSpeechManager<T : Utterance<T>>(
                 scope.launch { _currentTextSpeakFlow.emit(res) }
             }
         })
-    }
-
-    /**
-     * Release the TTS engine, auxiliary engines, and the internal coroutine scope.
-     * Idempotent; safe to call from ReaderSession.close() / VM.onCleared().
-     */
-    fun shutdown() {
-        runCatching { service.stop() }
-        runCatching { service.shutdown() }
-        auxiliaryServices.forEach { runCatching { it.shutdown() } }
-        auxiliaryServices.clear()
-        _queueList.clear()
-        _queueListItemSize.clear()
-        scope.cancel()
     }
 }

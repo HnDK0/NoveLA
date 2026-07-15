@@ -80,6 +80,9 @@ internal class NarratorMediaControlsService : Service() {
     }
 
     override fun onDestroy() {
+        // ponytail: explicitly remove the foreground notification — without this, on some
+        // Android versions the notification lingers in the bar even after the service stops.
+        stopForeground(STOP_FOREGROUND_REMOVE)
         abandonAudioFocus()
         narratorNotification.close()
         super.onDestroy()
@@ -91,6 +94,15 @@ internal class NarratorMediaControlsService : Service() {
         narratorNotification.handleCommand(intent)
         if (intent == null) return START_NOT_STICKY
         return START_STICKY
+    }
+
+    // ponytail: when the user swipes the app away from recents, stop the narrator service
+    // entirely. Without this, the foreground notification stays in the bar until the user
+    // force-stops the app.
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onBind(p0: Intent?): IBinder? = null

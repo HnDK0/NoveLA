@@ -49,7 +49,6 @@ import my.noveldokusha.features.reader.domain.ReaderItem
 import my.noveldokusha.features.reader.domain.ReaderItemAdapter
 import my.noveldokusha.features.reader.domain.ReaderState
 import my.noveldokusha.features.reader.domain.indexOfReaderItem
-import my.noveldokusha.features.reader.services.FloatingTtsService
 import my.noveldokusha.features.reader.tools.FontsLoader
 import my.noveldokusha.features.reader.ui.ReaderScreen
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
@@ -158,10 +157,6 @@ class ReaderActivity : BaseActivity() {
 
     override fun onDestroy() {
         readerViewHandlersActions.invalidate()
-        // ponytail: clear FloatingTtsService.companion state — without this the captured
-        // TextToSpeechSettingData (function refs into ReaderTextToSpeech) and the Activity's
-        // windowToken are retained for app lifetime, leaking the entire reader graph.
-        FloatingTtsService.clear()
         super.onDestroy()
     }
 

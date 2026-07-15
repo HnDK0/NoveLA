@@ -9,11 +9,6 @@ import my.noveldokusha.core.models.RegexRule
 import my.noveldokusha.features.reader.domain.ImgEntry
 import my.noveldokusha.features.reader.domain.ReaderItem
 
-// ponytail: was: Regex(...) allocated per textToItemsConverter call, hoisted: top-level private vals
-private val STRIP_NON_IMGENTRY_TAGS = Regex("<(?!(imgEntry|/imgEntry))[^>]*>")
-private val COLLAPSE_SPACES = Regex("[ ]+")
-private val PARAGRAPH_BREAK = Regex("\\n\\s*\\n")
-
 internal suspend fun textToItemsConverter(
     chapterUrl: String,
     chapterIndex: Int,
@@ -23,10 +18,10 @@ internal suspend fun textToItemsConverter(
 ): List<ReaderItem> = withContext(Dispatchers.Default) {
 
     val cleanText = text
-        .replace(STRIP_NON_IMGENTRY_TAGS, "")
+        .replace(Regex("<(?!(imgEntry|/imgEntry))[^>]*>"), "")
         .replace("\r\n", "\n")
         .replace("\u00A0", " ")
-        .replace(COLLAPSE_SPACES, " ")
+        .replace(Regex("[ ]+"), " ")
 
     // Применение пользовательских regex-правил
     val processedText = applyUserRegexRules(cleanText, userRegexRules)
@@ -53,7 +48,7 @@ internal suspend fun textToItemsConverter(
 private fun processTextIntoLogicalBlocks(text: String): List<String> {
     val result = mutableListOf<String>()
 
-    var splitResult = text.split(PARAGRAPH_BREAK).filter { it.isNotBlank() }
+    var splitResult = text.split(Regex("\\n\\s*\\n")).filter { it.isNotBlank() }
 
     // Если двойных переносов нет (ошибка парсинга), используем одиночные
     if (splitResult.size <= 1 && text.contains("\n")) {

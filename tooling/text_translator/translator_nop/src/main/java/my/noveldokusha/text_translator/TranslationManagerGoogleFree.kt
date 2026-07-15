@@ -2,6 +2,8 @@ package my.noveldokusha.text_translator
 
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.AppCoroutineScope
@@ -129,11 +131,14 @@ class TranslationManagerGoogleFree(
 
                 val startTime = System.currentTimeMillis()
                 val response = client.newCall(request).execute()
-                val responseBody = response.body.string()
 
+                // ponytail: check status code BEFORE reading the body so we can stream the
+                // success path and only buffer the body on the error/429 paths. Previously
+                // response.body.string() was called unconditionally — buffering the entire
+                // response into a String even on the success path, then re-parsing it.
                 if (response.code == 429 && !cookieSeeded) {
+                    response.body.close()
                     Log.w(TAG, "HTTP 429, seeding cookies via translate.google.com")
-                    response.close()
                     val seedRequest = okhttp3.Request.Builder()
                         .url("https://translate.google.com/?hl=en")
                         .header("User-Agent", resolveUserAgent(appPreferences))
@@ -145,28 +150,62 @@ class TranslationManagerGoogleFree(
                         Log.w(TAG, "Cookie seed failed: ${e.message?.take(50)}")
                     }
                     cookieSeeded = true
+                    response.close()
+                    // ponytail: match original behavior — 429 + cookie seed is a "free" retry,
+                    // attempt is NOT incremented. Only ONE free retry is allowed because
+                    // cookieSeeded becomes true after the first 429.
                     continue
                 }
 
-                if (response.isSuccessful && responseBody.isNotEmpty()) {
-                    val jsonElement = json.parseToJsonElement(responseBody)
-                    val result = buildString {
-                        jsonElement.jsonArray.getOrNull(0)?.jsonArray?.forEach { item ->
-                            append(item.jsonArray.getOrNull(0)?.jsonPrimitive?.contentOrNull ?: "")
-                        }
-                    }.trim()
-
-                    if (result.isNotEmpty()) {
-                        Log.d(TAG, "Translated ${text.length} chars in ${System.currentTimeMillis() - startTime}ms")
-                        return@withContext result
-                    }
-
-                    Log.w(TAG, "translateWithGoogleFree: empty parse result, body preview: ${responseBody.take(200)}")
-                } else if (response.code != 429) {
-                    Log.w(TAG, "translateWithGoogleFree: HTTP ${response.code} ${response.message} for ${text.length} chars, body: ${responseBody.take(100)}")
-                } else if (responseBody.isEmpty()) {
-                    Log.w(TAG, "translateWithGoogleFree: empty response body for ${text.length} chars")
+                if (!response.isSuccessful) {
+                    val errorBody = response.body.string().take(200)
+                    Log.w(TAG, "translateWithGoogleFree: HTTP ${response.code} ${response.message} for ${text.length} chars, body: $errorBody")
+                    response.close()
+                    attempt++
+                    if (attempt < retryCount) kotlinx.coroutines.delay(200L * attempt)
+                    continue
                 }
+
+                // ponytail: stream the success response body with JsonReader instead of
+                // response.body.string() + json.parseToJsonElement(). The Google Free endpoint
+                // returns [[[\"translated\",\"original\",...]],\"detected-lang\",...] — we only
+                // need [0][i][0] (the translated text from each segment). Streaming avoids
+                // buffering the full JSON into a String for large inputs.
+                // The `finally { response.close() }` ensures the body is closed on every path
+                // (success, parse failure, or exception) so we never leak a connection.
+                val result = try {
+                    response.body.charStream().use { stream ->
+                        val reader = JsonReader(stream)
+                        reader.beginArray()                          // outer [
+                        if (!reader.hasNext()) return@use ""
+                        reader.beginArray()                          // [0] = array of [trans, orig, ...] pairs
+                        val sb = StringBuilder()
+                        while (reader.hasNext()) {
+                            reader.beginArray()                      // pair = [
+                            if (reader.hasNext() && reader.peek() != JsonToken.NULL) {
+                                sb.append(reader.nextString())       // pair[0] = translated text
+                            }
+                            // skip the rest of this pair (original text, translit, etc.)
+                            while (reader.hasNext()) reader.skipValue()
+                            reader.endArray()
+                        }
+                        reader.endArray()
+                        sb.toString().trim()
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "translateWithGoogleFree: stream parse failed: ${e.message?.take(100)}")
+                    lastException = e
+                    null
+                } finally {
+                    response.close()
+                }
+
+                if (result != null && result.isNotEmpty()) {
+                    Log.d(TAG, "Translated ${text.length} chars in ${System.currentTimeMillis() - startTime}ms")
+                    return@withContext result
+                }
+
+                Log.w(TAG, "translateWithGoogleFree: empty parse result for ${text.length} chars")
             } catch (e: Exception) {
                 Log.w(TAG, "translateWithGoogleFree: attempt ${attempt + 1} failed: ${e.message?.take(100)}")
                 lastException = e

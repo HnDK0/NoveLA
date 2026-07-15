@@ -97,6 +97,36 @@ internal class CloudFareVerificationInterceptor(
     private val resolvedDomains = mutableSetOf<String>()
     private val manualAttempts = ConcurrentHashMap<String, Int>()
 
+    // ponytail: reuse a single lazily-initialized WebView across Cloudflare challenges
+    // instead of constructing a fresh WebView(appContext) on every challenge. Building a
+    // WebView costs ~50–100ms plus ~10MB resident memory; on a single chapter download
+    // with 5+ CF challenges this adds up quickly. The WebView is created on the Main thread
+    // (callers already wrap resolveWithWebViewAutomatic in withContext(Dispatchers.Main))
+    // and never destroyed — the interceptor is a singleton that lives for the app lifetime.
+    // The CookieManager is shared globally, so cookies persist across loads automatically.
+    @Volatile
+    private var cfWebView: WebView? = null
+
+    private fun getOrCreateCfWebView(cm: CookieManager): WebView {
+        cfWebView?.let { return it }
+        // Must be called on the Main thread — callers guarantee this via
+        // withContext(Dispatchers.Main). Creating a WebView off-Main throws.
+        val webView = WebView(appContext)
+        cm.setAcceptCookie(true)
+        cm.setAcceptThirdPartyCookies(webView, true)
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            userAgentString = resolveUserAgent(appPreferences)
+            cacheMode = WebSettings.LOAD_NO_CACHE
+        }
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) { cm.flush() }
+        }
+        cfWebView = webView
+        return webView
+    }
+
     // Все возможные маркеры CF
     private val ALL_CF_MARKERS = listOf(
         "cf-challenge",
@@ -293,19 +323,12 @@ internal class CloudFareVerificationInterceptor(
     @SuppressLint("SetJavaScriptEnabled")
     private suspend fun resolveWithWebViewAutomatic(webViewUrl: String, cm: CookieManager) {
         withContext(Dispatchers.Main) {
-            val webView = WebView(appContext)
-            // Cloudflare challenge cookies must be accepted by the bypass WebView too.
-            cm.setAcceptCookie(true)
-            cm.setAcceptThirdPartyCookies(webView, true)
-            webView.settings.apply {
-                javaScriptEnabled = true
-                domStorageEnabled = true
-                userAgentString = resolveUserAgent(appPreferences)
-                cacheMode = WebSettings.LOAD_NO_CACHE
-            }
-            webView.webViewClient = object : WebViewClient() {
-                override fun onPageFinished(view: WebView?, url: String?) { cm.flush() }
-            }
+            // ponytail: reuse the lazily-created singleton WebView instead of constructing
+            // and destroying one per challenge. Only loadUrl() and the polling loop run here.
+            val webView = getOrCreateCfWebView(cm)
+            // Clear any leftover page state from a previous challenge before navigating
+            // to the new URL — keeps the JS context clean without recreating the WebView.
+            webView.stopLoading()
             webView.loadUrl(webViewUrl)
             for (i in 1..30) {
                 delay(500)
@@ -317,7 +340,7 @@ internal class CloudFareVerificationInterceptor(
             webView.stopLoading()
             cm.flush()
             delay(200)
-            webView.destroy()
+            // Intentionally do NOT destroy the WebView — it is reused on the next challenge.
         }
     }
 

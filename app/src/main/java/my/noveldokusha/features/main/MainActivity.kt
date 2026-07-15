@@ -13,8 +13,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,9 +66,6 @@ import my.noveldokusha.catalogexplorer.CatalogExplorerScreen
 import my.noveldokusha.libraryexplorer.LibraryScreen
 import my.noveldokusha.settings.SettingsScreen
 import my.noveldokusha.tooling.epub_importer.EpubImportService
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.zIndex
 
 private data class Page(
     @DrawableRes val iconRes: Int,
@@ -125,68 +120,24 @@ open class MainActivity : BaseActivity() {
 
             Theme(themeProvider = themeProvider) {
                 Box(Modifier.fillMaxSize()) {
-                    // All three screens live in composition always.
-                    // Switching is instant — only alpha changes via graphicsLayer.
-                    val libraryAlpha by animateFloatAsState(
-                        targetValue = if (activePageIndex == 0) 1f else 0f,
-                        animationSpec = tween(150), label = "libAlpha"
-                    )
-
-                    val finderAlpha by animateFloatAsState(
-                        targetValue = if (activePageIndex == 1) 1f else 0f,
-                        animationSpec = tween(150), label = "finderAlpha"
-                    )
-
-                    val settingsAlpha by animateFloatAsState(
-                        targetValue = if (activePageIndex == 2) 1f else 0f,
-                        animationSpec = tween(150), label = "settingsAlpha"
-                    )
-
+                    // ponytail: previously all three top-level screens (Library / Catalog /
+                    // Settings) were kept alive in composition simultaneously with
+                    // graphicsLayer.alpha = 0f for the inactive ones. That caused every
+                    // inactive screen to recompose whenever shared state (theme, app prefs,
+                    // download manager flow, etc.) changed — wasting CPU and allocations
+                    // even while not visible. Now only the active screen is composed; the
+                    // other two are removed from composition entirely. HiltViewModel-backed
+                    // state (library list, settings, etc.) is preserved across tab switches
+                    // because the ViewModels survive composition removal.
                     Box(
                         Modifier
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.surface)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer { alpha = libraryAlpha }
-                                .zIndex(if (activePageIndex == 0) 1f else 0f)
-                                .then(
-                                    if (activePageIndex != 0) Modifier.pointerInput(Unit) {
-                                        awaitPointerEventScope { while (true) { awaitPointerEvent() } }
-                                    } else Modifier
-                                )
-                        ) {
-                            LibraryScreen()
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer { alpha = finderAlpha }
-                                .zIndex(if (activePageIndex == 1) 1f else 0f)
-                                .then(
-                                    if (activePageIndex != 1) Modifier.pointerInput(Unit) {
-                                        awaitPointerEventScope { while (true) { awaitPointerEvent() } }
-                                    } else Modifier
-                                )
-                        ) {
-                            CatalogExplorerScreen()
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer { alpha = settingsAlpha }
-                                .zIndex(if (activePageIndex == 2) 1f else 0f)
-                                .then(
-                                    if (activePageIndex != 2) Modifier.pointerInput(Unit) {
-                                        awaitPointerEventScope { while (true) { awaitPointerEvent() } }
-                                    } else Modifier
-                                )
-                        ) {
-                            SettingsScreen(onRestartApp = {
+                        when (activePageIndex) {
+                            0 -> LibraryScreen()
+                            1 -> CatalogExplorerScreen()
+                            2 -> SettingsScreen(onRestartApp = {
                                 recreate()
                             })
                         }

@@ -3,13 +3,12 @@ package my.noveldokusha.text_translator
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import com.google.gson.Gson
-import com.google.gson.JsonParser
+import com.google.gson.stream.JsonReader
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -47,9 +46,22 @@ class TranslationManagerGooglePA(
     private val KEY_CACHE_DURATION_MS = 24 * 60 * 60 * 1000L
     private val keyHeaderRegex = Regex(""""X-Goog-API-Key"\s*:\s*"([^"]+)"""")
 
+    // ponytail: hoist Regex literals to top-level private vals — Regex compilation is ~1ms
+    // per instantiation. Previously these were created on every call to unescapeHtmlEntities,
+    // translateChunks (per chunk), and fetchKeyFromWtrLab (per page parse).
+    private val htmlEntityNumberRegex = Regex("&#(\\d+);")
+    private val brTagRegex = Regex("<br\\s*/?>", RegexOption.IGNORE_CASE)
+    private val hrefNovelRegex = Regex("""href=["']([^"']*/novel/[^"']+)["']""")
+    private val hrefAnyRegex = Regex("""href=["']([^"']+)["']""")
+    private val nextScriptSrcRegex = Regex("""<script[^>]+src=["']([^"']*/_next/[^"']+\.js[^"']*)["']""")
+
     // ponytail: was Gson() per request — Gson reflects on every type at instantiation,
     // expensive on the bulk-translation hot path (every chunk = new Gson). Singleton.
     private val gson = Gson()
+
+    // ponytail: bounded parallelism for chunk translation — Google PA endpoint has high rate
+    // limits, so we can safely fire up to 4 concurrent requests per chapter.
+    private val parallelChunkDispatcher by lazy { Dispatchers.IO.limitedParallelism(4) }
 
     private val keyFetchMutex = Mutex()
     private var keyFetchJob: Deferred<String>? = null
@@ -191,10 +203,12 @@ class TranslationManagerGooglePA(
             }
 
             Log.d(TAG, "fetchKeyFromWtrLab: ranking page length=${rankingHtml.length}")
-            val novelMatches = Regex("""href=["']([^"']*/novel/[^"']+)["']""").findAll(rankingHtml).toList()
+            // ponytail: hoisted regex — was Regex("""href=["']([^"']*/novel/[^"']+)["']""") on every fetch
+            val novelMatches = hrefNovelRegex.findAll(rankingHtml).toList()
             Log.d(TAG, "fetchKeyFromWtrLab: /novel/ matches found=${novelMatches.size}")
             if (novelMatches.isEmpty()) {
-                val allHrefs = Regex("""href=["']([^"']+)["']""").findAll(rankingHtml)
+                // ponytail: hoisted regex — was Regex("""href=["']([^"']+)["']""") inline
+                val allHrefs = hrefAnyRegex.findAll(rankingHtml)
                     .map { it.groupValues[1] }
                     .take(20)
                     .toList()
@@ -224,8 +238,7 @@ class TranslationManagerGooglePA(
                 return@withContext key
             }
 
-            val scriptUrls = Regex("""<script[^>]+src=["']([^"']*/_next/[^"']+\.js[^"']*)["']""")
-                .findAll(chapterHtml)
+            val scriptUrls = nextScriptSrcRegex.findAll(chapterHtml)
                 .map { it.groupValues[1] }
                 .map { if (it.startsWith("http")) it else "https://wtr-lab.com$it" }
                 .filter { !it.contains("_buildManifest") && !it.contains("_ssgManifest") }
@@ -287,7 +300,8 @@ class TranslationManagerGooglePA(
             .replace("&lt;", "<")
             .replace("&gt;", ">")
             .replace("&nbsp;", " ")
-            .replace(HTML_NUMERIC_ENTITY) {
+            // ponytail: hoisted regex — was Regex("&#(\\d+);") on every call
+            .replace(htmlEntityNumberRegex) {
                 it.groupValues[1].toIntOrNull()
                     ?.toChar()
                     ?.toString()
@@ -328,26 +342,41 @@ class TranslationManagerGooglePA(
         Log.d(TAG, "translateChunks: ${paragraphs.size} paragraphs → ${chunks.size} chunks, $sourceLang→$targetLang")
 
         val apiKey = getApiKey()
+
+        // ponytail: parallelize chunk translation with bounded concurrency (4 concurrent requests).
+        // Previously sequential with a 400ms delay between chunks — for an 8-chunk chapter that
+        // was 8 × (request + 400ms). Google PA has high rate limits, so we drop the delay and
+        // run up to 4 chunks concurrently. Failed chunks return null and are skipped; if ALL
+        // chunks fail we throw so the caller can surface the error.
+        val chunkResults: List<Pair<Chunk, String?>> = coroutineScope {
+            chunks.map { chunk ->
+                async(parallelChunkDispatcher) {
+                    try {
+                        chunk to translateHtml(chunk.html, sourceLang, targetLang, apiKey)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Chunk failed: ${e.message}")
+                        chunk to null
+                    }
+                }
+            }.awaitAll()
+        }
+
         var failedChunks = 0
 
-        for ((idx, chunk) in chunks.withIndex()) {
-            if (idx > 0) delay(400L)
-
-            val translated = try {
-                translateHtml(chunk.html, sourceLang, targetLang, apiKey)
-            } catch (e: Exception) {
-                Log.e(TAG, "Chunk ${idx + 1}/${chunks.size} failed: ${e.message}")
+        for ((chunk, translated) in chunkResults) {
+            if (translated == null) {
                 failedChunks++
                 continue
             }
 
             if (translated == chunk.html) {
-                Log.w(TAG, "Chunk ${idx + 1}: translated == original, skipping update")
+                Log.w(TAG, "Chunk: translated == original, skipping update")
                 continue
             }
 
             val translatedParas = translated
-                .replace(BR_TAG, "\n")
+                // ponytail: hoisted regex — was Regex("<br\\s*/?>", RegexOption.IGNORE_CASE) per chunk
+                .replace(brTagRegex, "\n")
                 .split("\n")
                 .map { unescapeHtmlEntities(it.trim()) }
                 .filter { it.isNotBlank() }
@@ -358,7 +387,7 @@ class TranslationManagerGooglePA(
             }
 
             if (translatedParas.size != chunk.indices.size) {
-                Log.w(TAG, "Chunk ${idx + 1}: expected ${chunk.indices.size} paragraphs, got ${translatedParas.size}")
+                Log.w(TAG, "Chunk: expected ${chunk.indices.size} paragraphs, got ${translatedParas.size}")
             }
         }
 
@@ -395,10 +424,25 @@ class TranslationManagerGooglePA(
             throw IllegalStateException("Google PA: HTTP error $code")
         }
 
-        val body = readBodyOrThrow(response, "Google PA")
+        // ponytail: stream the response body with JsonReader instead of response.body.string()
+        // into a String then JsonParser.parseString(). For large translations (100KB+) this
+        // avoids the memory spike of buffering the entire JSON into a String. The Google PA
+        // response shape is [["<translated>"], null, ...] — we only need [0][0].
         try {
-            val arr = JsonParser.parseString(body).asJsonArray
-            arr.get(0).asJsonArray.get(0).asString
+            response.body.charStream().use { stream ->
+                val jsonReader = JsonReader(stream)
+                jsonReader.beginArray()                  // outer [
+                if (!jsonReader.hasNext()) {
+                    throw IllegalStateException("Google PA: Empty outer array")
+                }
+                jsonReader.beginArray()                  // [0] = [
+                val translated = if (jsonReader.hasNext()) {
+                    jsonReader.nextString()              // [0][0] = translated HTML string
+                } else {
+                    throw IllegalStateException("Google PA: Empty inner array")
+                }
+                return@withContext translated
+            }
         } catch (e: Exception) {
             Log.e(TAG, "translateHtml: parse error — ${e.message}")
             throw IllegalStateException("Google PA: Failed to parse response — ${e.message}")
@@ -456,9 +500,5 @@ class TranslationManagerGooglePA(
 
     companion object {
         private const val TAG = "TranslationGooglePA"
-        // ponytail: was: Regex("&#(\\d+);") allocated per unescapeHtmlEntities call, hoisted: companion object val
-        private val HTML_NUMERIC_ENTITY = Regex("&#(\\d+);")
-        // ponytail: was: Regex("<br\\s*/?>", IGNORE_CASE) allocated per translated paragraph in translateChunks, hoisted: companion object val
-        private val BR_TAG = Regex("<br\\s*/?>", RegexOption.IGNORE_CASE)
     }
 }

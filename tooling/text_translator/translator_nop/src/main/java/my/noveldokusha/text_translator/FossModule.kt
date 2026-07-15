@@ -28,10 +28,13 @@ object FossModule {
         appPreferences: AppPreferences,
         networkClient: ScraperNetworkClient
     ): TranslationManager {
-        val geminiManager    = TranslationManagerGemini(appCoroutineScope, appPreferences)
+        // ponytail: pass the shared ScraperNetworkClient to Gemini and OpenAI managers so
+        // they share its OkHttpClient (connection pool, dispatcher, cache, interceptors)
+        // instead of each constructing a standalone OkHttpClient.
+        val geminiManager    = TranslationManagerGemini(appCoroutineScope, appPreferences, networkClient)
         val googleFreeManager= TranslationManagerGoogleFree(appCoroutineScope, appPreferences, networkClient)
         val googlePAManager  = TranslationManagerGooglePA(appCoroutineScope, appPreferences, networkClient)
-        val openAiManager    = TranslationManagerOpenAI(appCoroutineScope, appPreferences)
+        val openAiManager    = TranslationManagerOpenAI(appCoroutineScope, appPreferences, networkClient)
 
         return TranslationManagerComposite(
             coroutineScope    = appCoroutineScope,

@@ -79,6 +79,12 @@ internal class ChaptersViewModel @Inject constructor(
     @Volatile
     private var loadChaptersJob: Job? = null
 
+    // ponytail: track the init-block appScope.launch so it can be cancelled in onCleared().
+    // Without this, the appScope coroutine keeps the ViewModel alive after the user navigates
+    // away (appScope outlives the ViewModel), retaining the entire VM and its state tree.
+    @Volatile
+    private var importJob: Job? = null
+
     @Volatile
     private var lastSelectedChapterUrl: String? = null
     private val source = scraper.getCompatibleSource(bookUrl)
@@ -153,7 +159,8 @@ internal class ChaptersViewModel @Inject constructor(
     // ─── Инициализация ────────────────────────────────────────────────────────
 
     init {
-        appScope.launch {
+        // ponytail: track the import-content-uri launch so onCleared() can cancel it.
+        importJob = appScope.launch {
             if (rawBookUrl.isContentUri && appRepository.libraryBooks.get(bookUrl) == null) {
                 importUriContent()
             }
@@ -208,6 +215,14 @@ internal class ChaptersViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    // ponytail: cancel appScope jobs (which outlive the ViewModel) on cleared so the VM
+    // is not retained after navigation. viewModelScope jobs are cancelled automatically.
+    override fun onCleared() {
+        importJob?.cancel()
+        loadChaptersJob?.cancel()
+        super.onCleared()
     }
 
     fun toggleBookmark() {
@@ -442,8 +457,8 @@ internal class ChaptersViewModel @Inject constructor(
 
     fun downloadAllChapters() {
         if (state.isLocalSource.value) return
-        // ponytail: dropped redundant sortedBy — getChaptersSortedFlow already returns SQL-sorted chapters.
-        val chapterUrls = state.chapters.map { it.chapter.url }
+        val allChapters = state.chapters.toList().sortedBy { it.chapter.position }
+        val chapterUrls = allChapters.map { it.chapter.url }
         viewModelScope.launch {
             when (val result = downloadManager.enqueue(
                 bookTitle = bookTitle,
@@ -463,10 +478,11 @@ internal class ChaptersViewModel @Inject constructor(
         if (state.isLocalSource.value) return
 
         val selectedUrls = state.selectedChaptersUrl.keys.toSet()
-        // ponytail: dropped redundant sortedBy — getChaptersSortedFlow already returns SQL-sorted chapters.
-        val chapterUrls = state.chapters
+        val sortedChapters = state.chapters
             .filter { selectedUrls.contains(it.chapter.url) }
-            .map { it.chapter.url }
+            .sortedBy { it.chapter.position }
+
+        val chapterUrls = sortedChapters.map { it.chapter.url }
         viewModelScope.launch {
             when (val result = downloadManager.enqueue(
                 bookTitle = bookTitle,

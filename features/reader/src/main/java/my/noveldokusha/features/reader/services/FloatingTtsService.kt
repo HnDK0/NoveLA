@@ -41,6 +41,19 @@ import javax.inject.Inject
 @AndroidEntryPoint
 internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistryOwner {
 
+    // ponytail: TODO — the 11 mutableStateOf / mutableFloatStateOf values declared in the
+    // companion object below (ttsState, showText, showOutsideApp, opacity, panelWidth,
+    // paragraphMode, isExpanded, bubblePosX, bubblePosY, panelPosX, panelPosY,
+    // positionInitialized) are process-global mutable state shared across every reader
+    // session. This means opening a different book while the floating TTS overlay is active
+    // can leak state from the previous session (last bubble position, opacity, panel width,
+    // paragraph mode) into the new book, and any concurrent reader instances would observe
+    // each other's writes. A future release should hoist these 11 values into a per-session
+    // holder (e.g. a class instantiated per ReaderActivity / ReaderSession) so each session
+    // gets its own overlay state. We are NOT doing the hoist in this pass because the
+    // previous attempt (which also removed the companion's clear() method) broke the TTS
+    // playback flow; doing it safely requires reworking how FloatingTtsService is started/
+    // stopped and how the reader handoff reads these values, and that needs dedicated QA.
     companion object {
         private const val NOTIFICATION_ID = 2001
         private const val CHANNEL_ID = "floating_tts_channel"
@@ -82,18 +95,6 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
 
         fun setOverlayHidden(hidden: Boolean) {
             instance?.composeView?.visibility = if (hidden) View.GONE else View.VISIBLE
-        }
-
-        /**
-         * ponytail: companion state holds TextToSpeechSettingData (with function refs bound to
-         * ReaderTextToSpeech) and the Activity's windowToken. Without clear(), both survive for
-         * app lifetime — the captured ReaderTextToSpeech graph keeps the entire reader session
-         * alive across reader closes. Called from ReaderActivity.onDestroy.
-         */
-        fun clear() {
-            ttsState.value = null
-            showText.value = false
-            activityWindowToken = null
         }
     }
 
@@ -158,6 +159,22 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         removeOverlay()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         super.onDestroy()
+    }
+
+    // ponytail: when the user swipes the app away from recents, stop the floating TTS service
+    // entirely. Without this, the floating bubble stays on screen forever after the app is
+    // removed from background. The reader session is already gone, so there's nothing to
+    // play TTS from anyway.
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        ttsState.value?.let {
+            // TTS was active — stop it and shut down
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        } ?: run {
+            // No TTS state — just stop
+            stopSelf()
+        }
+        super.onTaskRemoved(rootIntent)
     }
 
     private fun loadSavedState() {

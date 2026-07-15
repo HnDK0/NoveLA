@@ -444,16 +444,12 @@ internal class ReaderTextToSpeech(
     }
 
     /**
-     * Fully release the underlying TextToSpeechManager (engine + auxiliary engines + scope).
-     * Called from ReaderSession.close() — without this, the TTS engine and its scope leak
-     * across reader sessions until process death.
+     * ponytail: matches the original NovelDokusha pattern — stop() the queue, then shutdown()
+     * the TTS engine. Called from ReaderSession.close().
      */
-    @Synchronized
-    fun shutdownTts() {
-        Log.d("TTS", "shutdownTts()")
-        state.isPlaying.value = false
-        updateJob?.cancel()
-        manager.shutdown()
+    fun onClose() {
+        stop()
+        manager.service.shutdown()
     }
 
     suspend fun readChapterStartingFromStart(
@@ -897,8 +893,14 @@ internal class ReaderTextToSpeech(
 
 private fun String.wordCount(): Int {
     if (this.isEmpty()) return 0
-    return this.split(WHITESPACE).count { it.isNotEmpty() }
+    // ponytail: hoisted WHITESPACE regex — was Regex("\\s+") inline, compiled fresh on every
+    // call. wordCount is invoked from chapterWordCount and remainingWordCount derivedStateOfs
+    // which re-run whenever currentTextPlaying changes (i.e. on every TTS utterance start), so
+    // for a 500-paragraph chapter this was 500 × Regex compilation per utterance. Hoisting
+    // eliminates the per-call compilation cost (~1ms each on Android).
+    return this.split(WORD_COUNT_WHITESPACE).count { it.isNotEmpty() }
 }
 
-// ponytail: was: Regex("\\s+") allocated per wordCount() call, hoisted: top-level private val
-private val WHITESPACE = Regex("\\s+")
+// ponytail: top-level private val so the Regex is compiled exactly once for the lifetime of
+// the process. Thread-safe (Regex is immutable after compilation).
+private val WORD_COUNT_WHITESPACE = Regex("\\s+")

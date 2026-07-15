@@ -10,7 +10,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
@@ -29,6 +28,7 @@ import my.noveldokusha.features.reader.domain.chapterReadPercentage
 import my.noveldokusha.features.reader.features.ReaderChaptersLoader
 import my.noveldokusha.features.reader.features.ReaderLiveTranslation
 import my.noveldokusha.features.reader.features.ReaderTextToSpeech
+import my.noveldokusha.features.reader.services.FloatingTtsService
 import my.noveldokusha.features.reader.services.NarratorMediaControlsService
 import my.noveldokusha.features.reader.tools.ChaptersIsReadRoutine
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
@@ -332,9 +332,10 @@ internal class ReaderSession(
     }
 
     fun close() {
-        // ponytail: was cancelChildren() — that leaves the scope itself alive (and any
-        // Eagerly-shared flows keep their collectors). cancel() tears the whole tree down.
-        readerChaptersLoader.coroutineContext.cancel()
+        // ponytail: matches original NovelDokusha pattern — cancelChildren (not cancel) so
+        // the scope itself can be reused if the session is re-opened. The TTS engine is
+        // released via readerTextToSpeech.onClose() which calls manager.service.shutdown().
+        readerChaptersLoader.coroutineContext.cancelChildren()
         if (readerTextToSpeech.isActive.value) {
             saveLastReadPositionStateSpeaker(
                 item = readerTextToSpeech.currentTextPlaying.value.itemPos
@@ -350,15 +351,19 @@ internal class ReaderSession(
                 )
             }
         }
-        readerTextToSpeech.stop()
-        // ponytail: auxiliary components own their own scopes (ReaderLiveTranslation,
-        // ChaptersIsReadRoutine, TextToSpeechManager). Without these calls their scopes
-        // outlive the session and leak QueuedCoroutines + the TTS engine until process death.
+        readerTextToSpeech.onClose()
+        // ponytail: auxiliary component scopes — close() cancels them so they don't outlive
+        // the session. Safe to call because they're only used within this session.
         readerLiveTranslation.close()
         readRoutine.close()
-        readerTextToSpeech.shutdownTts()
-        scope.cancel()
+        scope.coroutineContext.cancelChildren()
         NarratorMediaControlsService.stop(context)
+        // ponytail: always stop the floating TTS service when the reader closes. The floating
+        // bubble holds companion state pointing into this session's ReaderTextToSpeech — if we
+        // don't stop it, the bubble becomes a zombie (buttons don't work) and the notification
+        // stays in the bar forever. Background playback via the reader is not supported in this
+        // fork — use the floating bubble's own play controls while the reader is still open.
+        FloatingTtsService.stop(context)
     }
 
     fun reloadReader() {

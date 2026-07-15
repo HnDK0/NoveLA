@@ -55,17 +55,11 @@ class ScraperNetworkClient @Inject constructor(
                 if (appPreferences.CLOUDFLARE_BYPASS_ENABLED.value) {
                     addInterceptor(CloudFareVerificationInterceptor(appContext, appPreferences))
                 }
-                // ponytail: bumped from 15 to 50 idle connections — 35+ scraper sources each on a
-                // distinct host need more idle connections to avoid TLS handshake churn.
-                connectionPool(ConnectionPool(50, 5, TimeUnit.MINUTES))
-                // ponytail: lowered from 16 to 4 concurrent requests per host — 16 parallel hits
-                // to a single novel site will get the user IP-banned by Cloudflare/WAF.
-                dispatcher(Dispatcher().apply { maxRequestsPerHost = 4 })
+                connectionPool(ConnectionPool(15, 5, TimeUnit.MINUTES))
+                dispatcher(Dispatcher().apply { maxRequestsPerHost = 16 })
                 cookieJar(cookieJar)
                 cache(Cache(cacheDir, cacheSize))
-                // ponytail: lowered from 30s to 15s — a dead source otherwise blocks the worker
-                // thread for 30s before failing over.
-                connectTimeout(15, TimeUnit.SECONDS)
+                connectTimeout(30, TimeUnit.SECONDS)
                 readTimeout(30, TimeUnit.SECONDS)
                 // Кастомный DNS resolver через DoH — работает когда системный DNS блокируется Doze mode
                 dns(DnsOverHttps())

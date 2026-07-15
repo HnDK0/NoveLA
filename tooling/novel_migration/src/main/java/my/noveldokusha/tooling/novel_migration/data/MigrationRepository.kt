@@ -71,10 +71,28 @@ class MigrationRepository @Inject constructor(
 
             val oldChapters = bookChapters.chapters(oldBookUrl)
             val oldChapterMap = oldChapters.associateBy { it.url }
-            val oldBodyMap = matchedChapters
-                .map { (old, _) -> old.url }
-                .mapNotNull { url -> db.chapterBodyDao().get(url)?.let { url to it } }
-                .toMap()
+            val matchedByNewUrl = matchedChapters.associate { (old, new) -> new.url to old }
+
+            // ponytail: batch pre-fetch all old chapter bodies and translations in TWO queries
+            // instead of N+1 single-row queries inside the migration loop. The body batch uses
+            // the new ChapterBodyDao.getByUrls() method; translations use the existing
+            // getTranslationsByChapterUrls() batch query (was previously called once per chapter
+            // with a single-element list).
+            val oldUrlsForBodies = matchedChapters.map { (old, _) -> old.url }
+            val oldBodyMap: Map<String, ChapterBody> = if (oldUrlsForBodies.isEmpty()) {
+                emptyMap()
+            } else {
+                db.chapterBodyDao().getByUrls(oldUrlsForBodies).associateBy { it.url }
+            }
+
+            val oldUrlsForTranslations = matchedChapters.map { (old, _) -> old.url }
+            val oldTranslationsByOldUrl: Map<String, List<ChapterTranslation>> = if (oldUrlsForTranslations.isEmpty()) {
+                emptyMap()
+            } else {
+                db.chapterTranslationDao()
+                    .getTranslationsByChapterUrls(oldUrlsForTranslations)
+                    .groupBy { it.chapterUrl }
+            }
 
             val oldSourceId = scraper.getSourceId(oldBookUrl) ?: "unknown"
             val newSourceId = scraper.getSourceId(newBookUrl) ?: "unknown"
@@ -107,7 +125,13 @@ class MigrationRepository @Inject constructor(
                 libraryBooks.insertReplace(listOf(newBook))
 
                 val oldToNewChapterUrl = mutableMapOf<String, String>()
-                val matchedByNewUrl = matchedChapters.associate { (old, new) -> new.url to old }
+
+                // ponytail: collect new chapters + their bodies + their translations into
+                // lists and do ONE batch insert per table after the loop instead of one
+                // insertReplace() per chapter inside the loop.
+                val newChaptersToInsert = mutableListOf<Chapter>()
+                val newBodiesToInsert = mutableListOf<ChapterBody>()
+                val newTranslationsToInsert = mutableListOf<ChapterTranslation>()
 
                 for ((idx, newResult) in newChapters.withIndex()) {
                     val oldResult = matchedByNewUrl[newResult.url]
@@ -119,27 +143,38 @@ class MigrationRepository @Inject constructor(
                         lastReadPosition = if (options.transferProgress) (oldChapter?.lastReadPosition ?: 0) else 0,
                         lastReadOffset = if (options.transferProgress) (oldChapter?.lastReadOffset ?: 0) else 0,
                     )
-                    db.chapterDao().insertReplace(listOf(newChapter))
+                    newChaptersToInsert.add(newChapter)
                     if (oldResult != null) oldToNewChapterUrl[oldResult.url] = newResult.url
 
                     if (newChapter.read || newChapter.lastReadPosition > 0) chaptersWithProgressCount++
 
                     if (options.transferBodies && oldResult != null) {
                         oldBodyMap[oldResult.url]?.let { body ->
-                            db.chapterBodyDao().insertReplace(ChapterBody(url = newResult.url, body = body.body))
+                            newBodiesToInsert.add(ChapterBody(url = newResult.url, body = body.body))
                             chaptersWithBodyCount++
                         }
                     }
 
                     if (options.transferTranslations && oldResult != null) {
-                        val translations = db.chapterTranslationDao().getTranslationsByChapterUrls(listOf(oldResult.url))
-                        for (t in translations) {
-                            db.chapterTranslationDao().insertReplace(t.copy(
+                        oldTranslationsByOldUrl[oldResult.url]?.forEach { t ->
+                            newTranslationsToInsert.add(t.copy(
                                 id = 0,
                                 chapterUrl = newResult.url
                             ))
                         }
                     }
+                }
+
+                // ponytail: single batch insert per table (was N inserts for chapters, bodies,
+                // and translations before).
+                if (newChaptersToInsert.isNotEmpty()) {
+                    db.chapterDao().insertReplace(newChaptersToInsert)
+                }
+                if (newBodiesToInsert.isNotEmpty()) {
+                    db.chapterBodyDao().insertReplace(newBodiesToInsert)
+                }
+                if (newTranslationsToInsert.isNotEmpty()) {
+                    db.chapterTranslationDao().insertReplace(newTranslationsToInsert)
                 }
 
                 oldBook.lastReadChapter?.let { oldLast ->

@@ -50,11 +50,6 @@ class LuaEngine @Inject constructor(
 ) {
     private val gson = Gson()
 
-    // ponytail: was: context.getSharedPreferences("lua_preferences", MODE_PRIVATE) called on every
-    // Get/SetPreferenceFunction.call() (i.e. every Lua source preference access). SharedPreferences
-    // access is cheap but the lookup is per-call — cache the singleton on the engine.
-    private val luaPrefs by lazy { context.getSharedPreferences("lua_preferences", Context.MODE_PRIVATE) }
-
     suspend fun loadScript(luaCode: String): LuaValue = withContext(Dispatchers.IO) {
         val globals = JsePlatform.standardGlobals()
         registerApi(globals)
@@ -285,13 +280,14 @@ class LuaEngine @Inject constructor(
 
     private inner class GetPreferenceFunction : OneArgFunction() {
         override fun call(arg: LuaValue): LuaValue {
-            return LuaValue.valueOf(luaPrefs.getString(arg.checkjstring(), "") ?: "")
+            val prefs = context.getSharedPreferences("lua_preferences", Context.MODE_PRIVATE)
+            return LuaValue.valueOf(prefs.getString(arg.checkjstring(), "") ?: "")
         }
     }
 
     private inner class SetPreferenceFunction : TwoArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue): LuaValue {
-            luaPrefs
+            context.getSharedPreferences("lua_preferences", Context.MODE_PRIVATE)
                 .edit().putString(a1.checkjstring(), a2.tojstring()).apply()
             return LuaValue.NIL
         }

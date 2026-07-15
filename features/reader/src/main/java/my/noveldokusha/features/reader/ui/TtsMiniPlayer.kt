@@ -26,20 +26,16 @@ import androidx.compose.material.icons.filled.CenterFocusWeak
 import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.automirrored.rounded.TextSnippet
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,9 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.stringResource
 import my.noveldokusha.coreui.composableActions.debouncedAction
-import my.noveldokusha.reader.R
 import my.noveldokusha.features.reader.features.TextToSpeechSettingData
 
 @Composable
@@ -307,7 +301,6 @@ private fun FloatingTtsMiniPlayer(
     val hasParagraphText = showParagraphText && (displayText.isNotBlank() || isBothMode)
 
     val density = LocalDensity.current
-    var showOpacitySlider by remember { mutableStateOf(false) }
 
     val screenWidthDp = LocalConfiguration.current.screenWidthDp.toFloat()
     val minWidth = 100f
@@ -363,22 +356,9 @@ private fun FloatingTtsMiniPlayer(
                 playIconSize = playIconSize,
                 progressHeight = progressHeight,
                 extraAction = {
-                    if (onOpacityChange != null) {
-                        IconButton(
-                            onClick = { showOpacitySlider = !showOpacitySlider },
-                            modifier = Modifier.size(buttonSize)
-                        ) {
-                            Icon(
-                                Icons.Rounded.Tune,
-                                contentDescription = null,
-                                tint = if (showOpacitySlider) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .size(iconSize)
-                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
-                            )
-                        }
-                    }
+                    // ponytail: removed the Tune/opacity/width/paragraph expandable panel from the
+                    // mini-player — it didn't fit in a tiny floating bubble and cluttered the UI.
+                    // Those settings live in VoiceReaderSettingDialog (the full TTS settings sheet).
                 },
                 trailingAction = {
                     if (onShowTextToggle != null) {
@@ -400,108 +380,9 @@ private fun FloatingTtsMiniPlayer(
                 },
             )
 
-            if (onOpacityChange != null && showOpacitySlider) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = stringResource(R.string.tts_floating_opacity),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Slider(
-                            value = opacityValue,
-                            onValueChange = { onOpacityChange(it) },
-                            valueRange = 0.3f..1f,
-                            modifier = Modifier.weight(1f),
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                            )
-                        )
-                    }
-                    if (onPanelWidthChange != null) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = stringResource(R.string.tts_floating_width),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                            Spacer(Modifier.width(8.dp))
-                            Slider(
-                                value = panelWidth,
-                                onValueChange = { onPanelWidthChange(it) },
-                                valueRange = minWidth..maxWidth,
-                                modifier = Modifier.weight(1f),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                )
-                            )
-                        }
-                    }
-                    if (onParagraphModeChange != null && state.parallelEnabled.value) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.tts_floating_paragraph),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(R.string.tts_voice),
-                                color = if (paragraphMode == "tts") MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = if (paragraphMode == "tts") FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier
-                                    .clickable { onParagraphModeChange("tts") }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                            )
-                            Text(
-                                text = "/",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = stringResource(R.string.tts_both),
-                                color = if (paragraphMode == "both") MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = if (paragraphMode == "both") FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier
-                                    .clickable { onParagraphModeChange("both") }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                            )
-                            Text(
-                                text = "/",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = stringResource(R.string.inverse),
-                                color = if (paragraphMode == "inverse") MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = if (paragraphMode == "inverse") FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier
-                                    .clickable { onParagraphModeChange("inverse") }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                            )
-                        }
-                    }
-                }
-            }
+            // ponytail: removed the entire expandable opacity/width/paragraph settings panel
+            // from the mini-player — it didn't fit in a tiny floating bubble. Those settings
+            // are accessible via the full TTS settings dialog (VoiceReaderSettingDialog).
 
             if (hasParagraphText) {
                 Spacer(modifier = Modifier.height(4.dp))

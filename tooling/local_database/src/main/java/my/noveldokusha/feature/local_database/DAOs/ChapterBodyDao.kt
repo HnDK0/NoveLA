@@ -20,6 +20,11 @@ interface ChapterBodyDao {
     @Query("SELECT * FROM ChapterBody WHERE url = :url")
     suspend fun get(url: String): ChapterBody?
 
+    // ponytail: batch fetch chapter bodies by URL list to avoid N+1 single-row queries
+    // during novel migration (was one get(url) per chapter inside the migration loop).
+    @Query("SELECT * FROM ChapterBody WHERE url IN (:urls)")
+    suspend fun getByUrls(urls: List<String>): List<ChapterBody>
+
     @Query("DELETE FROM ChapterBody WHERE ChapterBody.url NOT IN (SELECT Chapter.url FROM Chapter)")
     suspend fun removeAllNonChapterRows()
 

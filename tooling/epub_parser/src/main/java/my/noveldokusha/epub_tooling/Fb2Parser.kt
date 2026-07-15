@@ -247,17 +247,8 @@ private fun sectionBody(sec: Element, getBytes: BinaryLookup): String {
                 val href = el.getAttr("href") ?: el.getAttr("l:href") ?: continue
                 val id = href.removePrefix("#")
                 val data = getBytes(id) ?: continue
-                // ponytail: was: full BitmapFactory.decodeByteArray just to read width/height for yrel,
-                // decoding the entire pixel buffer into a Bitmap. Switched to inJustDecodeBounds which
-                // parses only the header and returns null — no pixel buffer allocated.
-                val yrel = runCatching {
-                    val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    BitmapFactory.decodeByteArray(data, 0, data.size, opts)
-                    if (opts.outWidth > 0 && opts.outHeight > 0)
-                        opts.outHeight.toFloat() / opts.outWidth.toFloat()
-                    else
-                        null
-                }.getOrNull() ?: 1.45f
+                val bmp = BitmapFactory.decodeByteArray(data, 0, data.size)
+                val yrel = bmp?.let { it.height.toFloat().div(it.width.toFloat()) } ?: 1.45f
                 sb.appendLine()
                 sb.appendLine(BookTextMapper.ImgEntry(path = id, yrel = yrel).toXMLString())
                 sb.appendLine()

@@ -74,9 +74,8 @@ android {
         }
 
         named("release") {
-            // ponytail: was isMinifyEnabled = true + isShrinkResources = true — R8 full-program
-            // optimization across 30 modules + deps needs >4GB RAM and was OOM-killing the
-            // build. Disabled for the local 4GB build; the CI runner (7GB) can re-enable.
+            // ponytail: R8 minify disabled for local 4GB-RAM build (OOM-kills otherwise).
+            // Re-enable on CI runner with 7GB+ RAM.
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

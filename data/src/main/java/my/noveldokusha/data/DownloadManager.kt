@@ -41,11 +41,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import javax.net.ssl.SSLException
 
-// ponytail: was: Regex(...) allocated per translateAndSave call, hoisted: top-level private vals
-private val STRIP_NON_IMGENTRY_TAGS = Regex("<(?!(imgEntry|/imgEntry))[^>]*>")
-private val COLLAPSE_SPACES = Regex("[ ]+")
-private val PARAGRAPH_BREAK = Regex("\\n\\s*\\n")
-
 /**
  * Состояние одной задачи на скачивание.
  */
@@ -912,12 +907,12 @@ class DownloadManager @Inject constructor(
 
         return try {
             val paragraphs = body
-                .replace(STRIP_NON_IMGENTRY_TAGS, "")
+                .replace(Regex("<(?!(imgEntry|/imgEntry))[^>]*>"), "")
                 .replace("\r\n", "\n")
                 .replace("\u00A0", " ")
-                .replace(COLLAPSE_SPACES, " ")
+                .replace(Regex("[ ]+"), " ")
                 .let { clean ->
-                    var parts = clean.split(PARAGRAPH_BREAK).filter { it.isNotBlank() }
+                    var parts = clean.split(Regex("\\n\\s*\\n")).filter { it.isNotBlank() }
                     if (parts.size <= 1 && clean.contains("\n"))
                         parts = clean.split("\n").filter { it.isNotBlank() }
                     parts.map { it.trim() }.filter { it.isNotBlank() }
