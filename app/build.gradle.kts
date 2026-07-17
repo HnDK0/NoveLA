@@ -46,8 +46,8 @@ android {
 
     defaultConfig {
         applicationId = "my.novelparas"
-        versionCode = 35
-        versionName = "1.3.4"
+        versionCode = 36
+        versionName = "1.3.5"
         base.archivesName.set("NoveParas_v$versionName")
     }
 
@@ -74,13 +74,12 @@ android {
         }
 
         named("release") {
-            // ponytail: R8 minify + resource shrink enabled — reduces APK from ~24MB to ~6MB.
-            isMinifyEnabled = true
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            isShrinkResources = true
+            isShrinkResources = false
         }
     }
 

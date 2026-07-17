@@ -56,6 +56,15 @@ abstract class BaseScraperTemplate(
         doc.selectFirst(selectChapterContent)?.let { TextExtractor.get(it) } ?: ""
     }
 
+    // ponytail: ported from Paras fork — abstract so subclasses can declare
+    // an optional CSS selector for the chapter title. Default returns null
+    // (reader falls back to <title> tag).
+    protected open val selectChapterTitle: String? = null
+    override suspend fun getChapterTitle(doc: Document): String? =
+        withContext(Dispatchers.Default) {
+            selectChapterTitle?.let { doc.selectFirst(it)?.text() }
+        }
+
     override suspend fun getBookCoverImageUrl(
         bookUrl: String
     ): Response<String?> = withContext(Dispatchers.Default) {

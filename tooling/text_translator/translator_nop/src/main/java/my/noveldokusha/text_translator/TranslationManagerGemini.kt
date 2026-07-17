@@ -72,10 +72,8 @@ class TranslationManagerGemini(
             .filter { it.isNotBlank() }
 
     private fun getApiEndpoint(key: String): String {
-        // ponytail: was ?key=$key in URL — Gemini API requires the key via X-Goog-API-Key header,
-        // not as a query param. The ?key= approach returns 403/400. Restored upstream pattern.
-        val model = appPreferences.TRANSLATION_GEMINI_MODEL.value.ifBlank { "gemini-2.5-flash" }
-        return "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent"
+        val model = appPreferences.TRANSLATION_GEMINI_MODEL.value.ifBlank { "gemini-2.5-flash-lite" }
+        return "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$key"
     }
 
     override val available = true
@@ -132,14 +130,14 @@ class TranslationManagerGemini(
         val systemPrompt = buildSystemPrompt(templatePrompt, sourceLanguage, targetLanguage, useEnglish)
         val builtFallbackPrompt = buildSystemPrompt(fallbackSystemPrompt, sourceLanguage, targetLanguage, useEnglish)
 
-        val startIndex = Math.floorMod(keyIndex.getAndIncrement(), keys.size)
+        val startIndex = keyIndex.getAndIncrement() % keys.size
         var lastException: Exception? = null
         var usesFallback = false
         val totalAttempts = retryCount * keys.size
 
         for (attempt in 0 until totalAttempts) {
-            val currentKey = keys[Math.floorMod(startIndex + attempt, keys.size)]
-            val keyLabel = "key #${Math.floorMod(startIndex + attempt, keys.size) + 1}"
+            val currentKey = keys[(startIndex + attempt) % keys.size]
+            val keyLabel = "key #${(startIndex + attempt) % keys.size + 1}"
             val activePrompt = if (usesFallback) builtFallbackPrompt else systemPrompt
 
             try {
@@ -241,13 +239,13 @@ class TranslationManagerGemini(
         // Iterate keys sequentially. Switch to next key only on 429 (rate limit) or 401/403 (dead key).
         // Server errors (5xx) retry the same key. Content blocks fail immediately — no retry,
         // no key switch: the content is the problem, not the key.
-        var keyIdx = Math.floorMod(keyIndex.getAndIncrement(), availableKeys.size)
+        var keyIdx = keyIndex.getAndIncrement() % availableKeys.size
         val retryCount = 3
         var lastException: Exception? = null
 
         for (keyAttempt in 0 until availableKeys.size) {
-            val currentApiKey = availableKeys[Math.floorMod(keyIdx + keyAttempt, availableKeys.size)]
-            val keyLabel = "key #${Math.floorMod(keyIdx + keyAttempt, availableKeys.size) + 1}"
+            val currentApiKey = availableKeys[(keyIdx + keyAttempt) % availableKeys.size]
+            val keyLabel = "key #${(keyIdx + keyAttempt) % availableKeys.size + 1}"
 
             for (retry in 0 until retryCount) {
                 try {
@@ -382,7 +380,6 @@ class TranslationManagerGemini(
         val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
         val request = Request.Builder()
             .url(getApiEndpoint(apiKey))
-            .addHeader("X-Goog-API-Key", apiKey)
             .addHeader("Content-Type", "application/json")
             .post(requestBody)
             .build()

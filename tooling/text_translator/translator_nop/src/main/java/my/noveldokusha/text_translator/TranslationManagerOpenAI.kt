@@ -192,15 +192,15 @@ class TranslationManagerOpenAI(
             throw IllegalStateException("OpenAI: No API keys configured. Please add your API key in Settings → Translation.")
         }
 
-        val startIndex = Math.floorMod(keyIndex.getAndIncrement(), keys.size)
+        val startIndex = keyIndex.getAndIncrement() % keys.size
         var lastException: Exception? = null
 
         val retryPolicy = RetryPolicy(maxAttempts = keys.size, baseDelayMs = 250L, maxDelayMs = 1500L)
         Log.d(TAG, "sendWithKeyRotation: systemPrompt='${systemPrompt.take(200)}'")
 
         for (attempt in 0 until retryPolicy.maxAttempts) {
-            val currentKey = keys[Math.floorMod(startIndex + attempt, keys.size)]
-            val keyLabel = "key #${Math.floorMod(startIndex + attempt, keys.size) + 1}"
+            val currentKey = keys[(startIndex + attempt) % keys.size]
+            val keyLabel = "key #${(startIndex + attempt) % keys.size + 1}"
 
             try {
                 val response = sendRequest(systemPrompt, userMessage, currentKey)
@@ -230,7 +230,7 @@ class TranslationManagerOpenAI(
                         throw IllegalStateException("OpenAI: Unexpected error ($code): $errorBody")
                     }
                     else -> {
-                        keyIndex.set(Math.floorMod(startIndex + attempt + 1, keys.size))
+                        keyIndex.set((startIndex + attempt + 1) % keys.size)
                         val body = readBodyOrThrow(response, "OpenAI")
                         return@withContext parseResponse(body)
                     }

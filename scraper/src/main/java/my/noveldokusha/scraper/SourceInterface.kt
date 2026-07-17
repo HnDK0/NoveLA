@@ -31,7 +31,18 @@ sealed interface SourceInterface {
         name ?: if (nameStrId != 0) context.getString(nameStrId) else "Unknown"
     suspend fun transformChapterUrl(url: String): String = url
 
+    // ponytail: ported from Paras fork — sources like TimoTxt/TimoTxtTranslate
+    // convert their stored URL into a translate.goog proxy URL when opening in
+    // the in-app WebView browser. The default is a no-op for sources that don't
+    // need a browser-side transform.
+    suspend fun transformWebviewUrl(url: String): String = url
+
     suspend fun getChapterText(doc: Document): String? = null
+
+    // ponytail: ported from Paras fork — sources that can extract a cleaner
+    // chapter title from the loaded Document than the <title> tag override this.
+    // Default returns null so the reader falls back to its existing logic.
+    suspend fun getChapterTitle(doc: Document): String? = null
 
     interface Base : SourceInterface
     interface Catalog : SourceInterface {

@@ -1,20 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string translatable="false" name="source_name_box_novel">Box Novel</string>
-    <string translatable="false" name="source_name_novelhall">NovelHall</string>
+    <!-- ponytail: NovelHall has a Lua plugin duplicate in external-sources/en/novelhall.lua —
+         the Kotlin port is suffixed "(Paras)" to distinguish it in the catalog. -->
+    <string translatable="false" name="source_name_novelhall">NovelHall (Paras)</string>
     <string translatable="false" name="source_name_novel_updates">Novel Updates</string>
-    <string translatable="false" name="source_name_read_novel_full">Read Novel Full</string>
+    <!-- ponytail: ReadNovelFull has a Lua plugin duplicate in external-sources/en/readnovelfull.lua -->
+    <string translatable="false" name="source_name_read_novel_full">Read Novel Full (Paras)</string>
     <string translatable="false" name="source_name_reddit">Reddit</string>
-    <string translatable="false" name="source_name_royal_road">Royal Road</string>
+    <!-- ponytail: RoyalRoad has a Lua plugin duplicate in external-sources/en/royal_road.lua -->
+    <string translatable="false" name="source_name_royal_road">Royal Road (Paras)</string>
     <string translatable="false" name="source_name_saikai">Saikai</string>
     <string translatable="false" name="source_name_sousetsuka">Sousetsuka</string>
-    <string translatable="false" name="source_name_wuxia_world_site">WuxiaWorld.site</string>
+    <string translatable="false" name="source_name_wuxia_world_site">WuxiaWorld.site (Paras)</string>
     <string translatable="false" name="database_name_baka_updates">Baka-Updates</string>
     <string translatable="false" name="database_name_novel_updates">Novel Updates</string>
-    <string translatable="false" name="source_name_indo_webnovel">Indonesia Webnovel</string>
-    <string translatable="false" name="source_name_baca_lightnovel">Baca Lightnovel</string>
+    <!-- ponytail: IndoWebnovel has a Lua plugin duplicate in external-sources/id/indowebnovel.lua -->
+    <string translatable="false" name="source_name_indo_webnovel">Indonesia Webnovel (Paras)</string>
+    <!-- ponytail: BacaLightnovel has a Lua plugin duplicate in external-sources/id/bacalightnovel.lua -->
+    <string translatable="false" name="source_name_baca_lightnovel">Baca Lightnovel (Paras)</string>
     <string translatable="false" name="source_name_sakura_novel">Sakura Novel</string>
-    <string translatable="false" name="source_name_meio_novel">Meio Novel</string>
+    <!-- ponytail: MeioNovel has a Lua plugin duplicate in external-sources/id/meionovels.lua -->
+    <string translatable="false" name="source_name_meio_novel">Meio Novel (Paras)</string>
     <string translatable="false" name="source_name_more_novel">More Novel</string>
     <string translatable="false" name="source_name_novelbin">NovelBin</string>
     <string translatable="false" name="source_name_novelku">NovelKu</string>
@@ -38,9 +45,11 @@
     <string translatable="false" name="source_name_jaomix">Jaomix</string>
     <string translatable="false" name="source_name_ifreedom">Ifreedom</string>
     <string translatable="false" name="source_name_bookhamster">Bookhamster</string>
-    <string translatable="false" name="source_name_novelfire">Novel Fire</string>
+    <!-- ponytail: NovelFire has a Lua plugin duplicate in external-sources/en/novelfire.lua -->
+    <string translatable="false" name="source_name_novelfire">Novel Fire (Paras)</string>
     <string translatable="false" name="source_name_novelbuddy">NovelBuddy.io</string>
-    <string translatable="false" name="source_name_wtrlab">WTR-Lab</string>
+    <!-- ponytail: Wtrlab has a Lua plugin duplicate in external-sources/mtl/wtrlab.lua -->
+    <string translatable="false" name="source_name_wtrlab">WTR-Lab (Paras)</string>
     <string translatable="false" name="source_name_wtrlab_en">WTR-Lab (English)</string>
     <string translatable="false" name="source_name_wtrlab_id">WTR-Lab (Indonesian)</string>
     <string translatable="false" name="source_name_wtrlab_es">WTR-Lab (Spanish)</string>
@@ -48,4 +57,20 @@
     <string translatable="false" name="source_name_novel543">Novel543 (novel543.com)</string>
     <string translatable="false" name="source_name_quanben5">全本小說網 (quanben5.com)</string>
     <string translatable="false" name="source_name_piaotia">飘天文学 (piaotia.com)</string>
+
+    <!-- ponytail: source name strings added when porting the Paras fork sources.
+         These belong to Kotlin-native source classes (no Lua plugin equivalent),
+         so they don't carry the "(Paras)" suffix unless they have a Lua duplicate. -->
+    <string translatable="false" name="source_name_light_novel_world">Light Novel World</string>
+    <string translatable="false" name="source_name_light_novel_translations">Light Novels Translations</string>
+    <string translatable="false" name="source_name_lnori">Lnori</string>
+    <string translatable="false" name="source_name_novel_cool">NovelCool</string>
+    <!-- ponytail: NovelPhoenix has a Lua plugin duplicate in external-sources/en/novelphoenix.lua -->
+    <string translatable="false" name="source_name_novel_phoenix">Novel Phoenix (Paras)</string>
+    <string translatable="false" name="source_name_wuxia">Wuxia</string>
+    <string translatable="false" name="source_name_wuxia_box">WuxiaBox</string>
+    <!-- ponytail: WuxiaWorld (wuxiaworld.site) has a Lua plugin duplicate in external-sources/en/wuxiaworld_site.lua -->
+    <string translatable="false" name="source_name_wuxia_world">WuxiaWorld (Paras)</string>
+    <string translatable="false" name="source_name_timotxt">TimoTxt</string>
+    <string translatable="false" name="source_name_timotxt_translate">TimoTxt Translate</string>
 </resources>
