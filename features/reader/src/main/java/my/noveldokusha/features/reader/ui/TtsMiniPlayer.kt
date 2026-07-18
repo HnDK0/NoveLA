@@ -10,7 +10,9 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitPointerEvent
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -353,15 +355,49 @@ private fun FloatingTtsMiniPlayer(
     val progressHeight = lerpf(3f, 6f, ratio).dp
     val paragraphFontSize = lerpf(9f, 13f, ratio).sp
 
-    val dragModifier = if (onDrag != null) {
+    val interactionModifier = if (onDrag != null) {
         Modifier.pointerInput(Unit) {
-            detectDragGestures(
-                onDrag = { change, dragAmount ->
-                    change.consume()
-                    onDrag(dragAmount.x, dragAmount.y)
-                },
-                onDragEnd = { onDragEnd?.invoke() }
-            )
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                var prevPos = down.position
+                var isPinching = false
+                var initialDistance = 0f
+
+                do {
+                    val event = awaitPointerEvent()
+                    val changes = event.changes.filter { it.pressed }
+
+                    when {
+                        changes.size >= 2 -> {
+                            isPinching = true
+                            val p1 = changes[0].position
+                            val p2 = changes[1].position
+                            val distance = (p1 - p2).getDistance()
+
+                            if (initialDistance == 0f) {
+                                initialDistance = distance
+                            } else if (onPanelWidthChange != null) {
+                                val scale = distance / initialDistance
+                                val newWidth = (panelWidth * scale).coerceIn(minWidth, maxWidth)
+                                onPanelWidthChange(newWidth)
+                                initialDistance = distance
+                            }
+                            changes.forEach { it.consume() }
+                        }
+                        changes.size == 1 && !isPinching -> {
+                            val pos = changes[0].position
+                            val delta = pos - prevPos
+                            onDrag(delta.x, delta.y)
+                            prevPos = pos
+                            changes.forEach { it.consume() }
+                        }
+                    }
+                } while (changes.isNotEmpty())
+
+                if (!isPinching) {
+                    onDragEnd?.invoke()
+                }
+            }
         }
     } else {
         Modifier
@@ -372,7 +408,7 @@ private fun FloatingTtsMiniPlayer(
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = opacity),
         shadowElevation = 0.dp,
         modifier = Modifier
-            .then(dragModifier)
+            .then(interactionModifier)
     ) {
         Column(
             modifier = Modifier.padding(8.dp)
