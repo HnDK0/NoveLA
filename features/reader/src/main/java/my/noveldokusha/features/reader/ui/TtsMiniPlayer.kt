@@ -1,11 +1,17 @@
 package my.noveldokusha.features.reader.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -89,6 +95,8 @@ internal fun TtsMiniPlayer(
     onParagraphModeChange: ((String) -> Unit)? = null,
     ttsHighlightEnabled: Boolean = false,
     ttsHighlightColor: String = "FFFF6D00",
+    menuHidden: Boolean = false,
+    onToggleMenuHidden: (() -> Unit)? = null,
 ) {
     FloatingTtsMiniPlayer(
         state = state,
@@ -110,6 +118,8 @@ internal fun TtsMiniPlayer(
         onParagraphModeChange = onParagraphModeChange,
         ttsHighlightEnabled = ttsHighlightEnabled,
         ttsHighlightColor = ttsHighlightColor,
+        menuHidden = menuHidden,
+        onToggleMenuHidden = onToggleMenuHidden,
     )
 }
 
@@ -303,6 +313,8 @@ private fun FloatingTtsMiniPlayer(
     onParagraphModeChange: ((String) -> Unit)? = null,
     ttsHighlightEnabled: Boolean = false,
     ttsHighlightColor: String = "FFFF6D00",
+    menuHidden: Boolean = false,
+    onToggleMenuHidden: (() -> Unit)? = null,
 ) {
     val total = state.estimatedTotalSeconds.value
     val remaining = state.estimatedRemainingSeconds.value
@@ -365,156 +377,164 @@ private fun FloatingTtsMiniPlayer(
         Column(
             modifier = Modifier.padding(8.dp)
         ) {
-            MiniPlayerControls(
-                state = state,
-                onClose = onClose,
-                onStartHere = onStartHere,
-                chapterCurrentNumber = chapterCurrentNumber,
-                chaptersCount = chaptersCount,
-                animatedProgress = animatedProgress,
-                remaining = remaining,
-                buttonSize = buttonSize,
-                iconSize = iconSize,
-                iconCircleSize = iconCircleSize,
-                playButtonSize = playButtonSize,
-                playIconSize = playIconSize,
-                progressHeight = progressHeight,
-                extraAction = {
-                    if (onOpacityChange != null) {
-                        IconButton(
-                            onClick = { showOpacitySlider = !showOpacitySlider },
-                            modifier = Modifier.size(buttonSize)
-                        ) {
-                            Icon(
-                                Icons.Rounded.Tune,
-                                contentDescription = null,
-                                tint = if (showOpacitySlider) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .size(iconSize)
-                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
-                            )
-                        }
-                    }
-                },
-                trailingAction = {
-                    if (onShowTextToggle != null) {
-                        IconButton(
-                            onClick = onShowTextToggle,
-                            modifier = Modifier.size(buttonSize)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Rounded.TextSnippet,
-                                contentDescription = null,
-                                tint = if (showTextToggle) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .size(iconSize)
-                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
-                            )
-                        }
-                    }
-                },
-            )
+            AnimatedVisibility(
+                visible = !menuHidden,
+                enter = fadeIn(tween(200)) + expandVertically(tween(200)),
+                exit = fadeOut(tween(200)) + shrinkVertically(tween(200)),
+            ) {
+                Column {
+                    MiniPlayerControls(
+                        state = state,
+                        onClose = onClose,
+                        onStartHere = onStartHere,
+                        chapterCurrentNumber = chapterCurrentNumber,
+                        chaptersCount = chaptersCount,
+                        animatedProgress = animatedProgress,
+                        remaining = remaining,
+                        buttonSize = buttonSize,
+                        iconSize = iconSize,
+                        iconCircleSize = iconCircleSize,
+                        playButtonSize = playButtonSize,
+                        playIconSize = playIconSize,
+                        progressHeight = progressHeight,
+                        extraAction = {
+                            if (onOpacityChange != null) {
+                                IconButton(
+                                    onClick = { showOpacitySlider = !showOpacitySlider },
+                                    modifier = Modifier.size(buttonSize)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Tune,
+                                        contentDescription = null,
+                                        tint = if (showOpacitySlider) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .size(iconSize)
+                                            .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
+                                    )
+                                }
+                            }
+                        },
+                        trailingAction = {
+                            if (onShowTextToggle != null) {
+                                IconButton(
+                                    onClick = onShowTextToggle,
+                                    modifier = Modifier.size(buttonSize)
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Rounded.TextSnippet,
+                                        contentDescription = null,
+                                        tint = if (showTextToggle) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .size(iconSize)
+                                            .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
+                                    )
+                                }
+                            }
+                        },
+                    )
 
-            if (onOpacityChange != null && showOpacitySlider) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = stringResource(R.string.tts_floating_opacity),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Slider(
-                            value = opacityValue,
-                            onValueChange = { onOpacityChange(it) },
-                            valueRange = 0.3f..1f,
-                            modifier = Modifier.weight(1f),
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                            )
-                        )
-                    }
-                    if (onPanelWidthChange != null) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = stringResource(R.string.tts_floating_width),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                            Spacer(Modifier.width(8.dp))
-                            Slider(
-                                value = panelWidth,
-                                onValueChange = { onPanelWidthChange(it) },
-                                valueRange = minWidth..maxWidth,
-                                modifier = Modifier.weight(1f),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                )
-                            )
-                        }
-                    }
-                    if (onParagraphModeChange != null && state.parallelEnabled.value) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                    if (onOpacityChange != null && showOpacitySlider) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            Text(
-                                text = stringResource(R.string.tts_floating_paragraph),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(R.string.tts_voice),
-                                color = if (paragraphMode == "tts") MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = if (paragraphMode == "tts") FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier
-                                    .clickable { onParagraphModeChange("tts") }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                            )
-                            Text(
-                                text = "/",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = stringResource(R.string.tts_both),
-                                color = if (paragraphMode == "both") MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = if (paragraphMode == "both") FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier
-                                    .clickable { onParagraphModeChange("both") }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                            )
-                            Text(
-                                text = "/",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = stringResource(R.string.inverse),
-                                color = if (paragraphMode == "inverse") MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = if (paragraphMode == "inverse") FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier
-                                    .clickable { onParagraphModeChange("inverse") }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.tts_floating_opacity),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Slider(
+                                    value = opacityValue,
+                                    onValueChange = { onOpacityChange(it) },
+                                    valueRange = 0.3f..1f,
+                                    modifier = Modifier.weight(1f),
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = MaterialTheme.colorScheme.primary,
+                                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    )
+                                )
+                            }
+                            if (onPanelWidthChange != null) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.tts_floating_width),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Slider(
+                                        value = panelWidth,
+                                        onValueChange = { onPanelWidthChange(it) },
+                                        valueRange = minWidth..maxWidth,
+                                        modifier = Modifier.weight(1f),
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = MaterialTheme.colorScheme.primary,
+                                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                                        )
+                                    )
+                                }
+                            }
+                            if (onParagraphModeChange != null && state.parallelEnabled.value) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.tts_floating_paragraph),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        text = stringResource(R.string.tts_voice),
+                                        color = if (paragraphMode == "tts") MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = if (paragraphMode == "tts") FontWeight.Bold else FontWeight.Normal,
+                                        modifier = Modifier
+                                            .clickable { onParagraphModeChange("tts") }
+                                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                                    )
+                                    Text(
+                                        text = "/",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.tts_both),
+                                        color = if (paragraphMode == "both") MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = if (paragraphMode == "both") FontWeight.Bold else FontWeight.Normal,
+                                        modifier = Modifier
+                                            .clickable { onParagraphModeChange("both") }
+                                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                                    )
+                                    Text(
+                                        text = "/",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.inverse),
+                                        color = if (paragraphMode == "inverse") MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = if (paragraphMode == "inverse") FontWeight.Bold else FontWeight.Normal,
+                                        modifier = Modifier
+                                            .clickable { onParagraphModeChange("inverse") }
+                                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -525,7 +545,13 @@ private fun FloatingTtsMiniPlayer(
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onDoubleTap = { onToggleMenuHidden?.invoke() }
+                            )
+                        }
                 ) {
                     if (isBothMode) {
                         val spokenRange = state.spokenWordRange.value

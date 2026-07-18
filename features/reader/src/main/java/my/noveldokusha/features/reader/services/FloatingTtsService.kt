@@ -59,6 +59,7 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         var paragraphMode by mutableStateOf("tts")
         var ttsHighlightEnabled = mutableStateOf(false)
         var ttsHighlightColor = mutableStateOf("FFFF6D00")
+        var menuHidden = mutableStateOf(false)
         var activityWindowToken: IBinder? = null
 
         private var isExpanded = mutableStateOf(false)
@@ -288,6 +289,7 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
                         showText = showText.value,
                         opacity = opacity.floatValue,
                         onClose = {
+                            menuHidden.value = false
                             isExpanded.value = false
                             val lp = currentLayoutParams ?: return@FloatingTtsOverlayContent
                             lp.width = (32 * displayDensity).toInt()
@@ -305,6 +307,7 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
                         onToggleExpand = {
                             val wasExpanded = isExpanded.value
                             isExpanded.value = !wasExpanded
+                            if (wasExpanded) menuHidden.value = false
                             val lp = currentLayoutParams ?: return@FloatingTtsOverlayContent
                             if (!wasExpanded) {
                                 lp.width = (panelWidth * displayDensity).toInt()
@@ -391,6 +394,10 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
                         },
                         ttsHighlightEnabled = ttsHighlightEnabled.value,
                         ttsHighlightColor = ttsHighlightColor.value,
+                        menuHidden = menuHidden.value,
+                        onToggleMenuHidden = {
+                            menuHidden.value = !menuHidden.value
+                        },
                     )
                 }
             }
