@@ -339,7 +339,10 @@ internal class CloudFareVerificationInterceptor(
     private val appPreferences: AppPreferences
 ) : Interceptor {
 
-    private val lock = ReentrantLock()
+    // ponytail: was a single ReentrantLock — serialized ALL CF-challenged requests app-wide
+    // (up to 240s worst case per challenge). Now per-host locks so different hosts bypass in parallel.
+    private val hostLocks = ConcurrentHashMap<String, ReentrantLock>()
+    private fun lockFor(host: String) = hostLocks.computeIfAbsent(host) { ReentrantLock() }
     private val resolvedDomains = mutableSetOf<String>()
     private val manualAttempts = ConcurrentHashMap<String, Int>()
 
@@ -417,11 +420,12 @@ internal class CloudFareVerificationInterceptor(
 
         Log.d(TAG, "CF: Challenge detected. URL: ${bufferedRequest.url}")
 
-        return lock.withLock {
+        // ponytail: per-host lock — different hosts bypass in parallel, same host serializes.
+        val host = bufferedRequest.url.host
+        return lockFor(host).withLock {
             response.close()
 
             val siteUrl = bufferedRequest.url.toString()
-            val host = bufferedRequest.url.host
             val cookieManager = CookieManager.getInstance()
                 ?: throw WebViewCookieManagerInitializationFailedException()
             val userAgent = resolveUserAgent(appPreferences)

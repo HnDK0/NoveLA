@@ -63,7 +63,7 @@ class IndoWebnovel(private val networkClient: NetworkClient) : SourceInterface.C
 
     override suspend fun getChapterText(doc: Document): String =
         withContext(Dispatchers.Default) {
-            doc.selectFirst(".container .adsads")!!.let { TextExtractor.get(it) }
+            doc.selectFirst(".container .adsads")?.let { TextExtractor.get(it) } ?: ""
         }
 
     override suspend fun getBookCoverImageUrl(bookUrl: String): Response<String?> =

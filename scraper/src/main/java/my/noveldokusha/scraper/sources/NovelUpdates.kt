@@ -74,12 +74,17 @@ class NovelUpdates(
     ): Response<List<ChapterResult>> = withContext(Dispatchers.Default) {
         tryConnect {
             val doc = networkClient.get(bookUrl).toDocument()
+            // ponytail: was 3x forced !! — NPEs chapter-list call if site layout changes.
+            val mygrr = doc.selectFirst("#grr_groups")?.attr("value")
+                ?: throw Exception("NovelUpdates: #grr_groups not found")
+            val mypostid = doc.selectFirst("#mypostid")?.attr("value")
+                ?: throw Exception("NovelUpdates: #mypostid not found")
             val request = postRequest("https://www.novelupdates.com/wp-admin/admin-ajax.php")
                 .postPayload {
                     add("action", "nd_getchapters")
-                    add("mygrr", doc.selectFirst("#grr_groups")!!.attr("value"))
+                    add("mygrr", mygrr)
                     add("mygroupfilter", "")
-                    add("mypostid", doc.selectFirst("#mypostid")!!.attr("value"))
+                    add("mypostid", mypostid)
                 }
 
             networkClient.call(request)
@@ -88,7 +93,7 @@ class NovelUpdates(
                 .asSequence()
                 .filter { it.hasAttr("data-id") }
                 .map {
-                    val title = it.selectFirst("span")!!.attr("title")
+                    val title = it.selectFirst("span")?.attr("title") ?: it.text()
                     val url = "https:" + it.attr("href")
                     ChapterResult(title = title, url = url)
                 }.toList().reversed()

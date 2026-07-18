@@ -45,6 +45,9 @@ class TimoTxt(
     companion object {
         private const val TRANSLATE_PARAMS =
             "_x_tr_sl=zh-CN&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=wapp"
+        // ponytail: hoisted from inline Regex() in toTranslateProxyUrl.
+        private val TRANSLATE_PARAM_REGEX = Regex("[?&]_x_tr_(sl|tl|hl|pto|pto_ctx)=[^&]*")
+        private val TRAILING_QUERY_REGEX = Regex("[?&]$")
 
         val JUNK_PATTERNS = listOf(
             "溫馨提示",
@@ -65,9 +68,10 @@ class TimoTxt(
     private fun toTranslateProxyUrl(url: String): String {
         if (url.isBlank()) return url
         var cleanUrl = url
-            .replace(Regex("[?&]_x_tr_(sl|tl|hl|pto|pto_ctx)=[^&]*"), "")
+            // ponytail: was inline Regex() — compiled per call. Hoisted to companion vals.
+            .replace(TRANSLATE_PARAM_REGEX, "")
             .replace("?&", "?")
-            .replace(Regex("[?&]$"), "")
+            .replace(TRAILING_QUERY_REGEX, "")
             .trimEnd('&', '?')
         cleanUrl = cleanUrl.replace(
             "https://www.timotxt.com",
@@ -223,5 +227,9 @@ fun String.cleanJunk(): String {
     for (pattern in TimoTxt.JUNK_PATTERNS) {
         result = result.replace(pattern, "")
     }
-    return result.replace(Regex("\n{3,}"), "\n\n").trim()
+    // ponytail: was inline Regex() — compiled per call. Hoisted to top-level private val.
+    return result.replace(EXCESS_NEWLINES_REGEX, "\n\n").trim()
 }
+
+// ponytail: hoisted from inline Regex() in cleanJunkText().
+private val EXCESS_NEWLINES_REGEX = Regex("\n{3,}")

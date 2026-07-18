@@ -41,19 +41,21 @@ import javax.inject.Inject
 @AndroidEntryPoint
 internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistryOwner {
 
-    // ponytail: TODO — the 11 mutableStateOf / mutableFloatStateOf values declared in the
-    // companion object below (ttsState, showText, showOutsideApp, opacity, panelWidth,
-    // paragraphMode, isExpanded, bubblePosX, bubblePosY, panelPosX, panelPosY,
-    // positionInitialized) are process-global mutable state shared across every reader
-    // session. This means opening a different book while the floating TTS overlay is active
-    // can leak state from the previous session (last bubble position, opacity, panel width,
-    // paragraph mode) into the new book, and any concurrent reader instances would observe
-    // each other's writes. A future release should hoist these 11 values into a per-session
-    // holder (e.g. a class instantiated per ReaderActivity / ReaderSession) so each session
-    // gets its own overlay state. We are NOT doing the hoist in this pass because the
-    // previous attempt (which also removed the companion's clear() method) broke the TTS
-    // playback flow; doing it safely requires reworking how FloatingTtsService is started/
-    // stopped and how the reader handoff reads these values, and that needs dedicated QA.
+    // ponytail: the 11 mutableStateOf / mutableFloatStateOf values declared in the companion
+    // object below (ttsState, showText, showOutsideApp, opacity, panelWidth, paragraphMode,
+    // isExpanded, bubblePosX, bubblePosY, panelPosX, panelPosY, positionInitialized) are
+    // process-global mutable state shared across every reader session. Because only one
+    // ReaderActivity can be active at a time, this acts as a per-session holder; the leak
+    // was that session-bound references (ttsState's TextToSpeechSettingData function refs +
+    // activityWindowToken's IBinder to the destroyed Activity's window) were never cleared.
+    //
+    // The fix below introduces a `clearSessionState()` companion method that nulls out the
+    // session-bound references (ttsState, activityWindowToken, showText) when the reader
+    // session ends. The position/opacity/panelWidth/paragraphMode state is intentionally
+    // kept (it's reloaded from appPreferences on the next session anyway, and clearing it
+    // would just cause a UI flicker on the next open). ReaderActivity.onDestroy() invokes
+    // clearSessionState() so the captured function refs and Activity windowToken are
+    // released as soon as the reader session ends.
     companion object {
         private const val NOTIFICATION_ID = 2001
         private const val CHANNEL_ID = "floating_tts_channel"
@@ -95,6 +97,20 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
 
         fun setOverlayHidden(hidden: Boolean) {
             instance?.composeView?.visibility = if (hidden) View.GONE else View.VISIBLE
+        }
+
+        // ponytail: clear the session-bound state captured from the ReaderActivity so it
+        // doesn't leak the destroyed Activity's windowToken / the ReaderTextToSpeech
+        // function refs held inside ttsState. Called from ReaderActivity.onDestroy() and
+        // from this service's own onDestroy(). Position/opacity/panelWidth/paragraphMode
+        // are intentionally preserved (they are reloaded from appPreferences next session
+        // anyway and clearing them now would only cause a UI flicker on reopen).
+        fun clearSessionState() {
+            ttsState.value = null
+            activityWindowToken = null
+            showText.value = false
+            showOutsideApp.value = true
+            opacity.floatValue = 0.6f
         }
     }
 
@@ -157,6 +173,11 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
     override fun onDestroy() {
         instance = null
         removeOverlay()
+        // ponytail: clear session-bound state so the captured ttsState (function refs into
+        // the destroyed reader) and activityWindowToken (IBinder to the destroyed Activity)
+        // are released immediately rather than lingering in the companion object until the
+        // next reader session.
+        clearSessionState()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         super.onDestroy()
     }

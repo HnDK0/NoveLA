@@ -66,10 +66,10 @@ class Novelku(private val networkClient: NetworkClient) : SourceInterface.Catalo
 
     override suspend fun getChapterText(doc: Document): String =
         withContext(Dispatchers.Default) {
-            doc.selectFirst(".read-container .text-left")!!.let {
+            doc.selectFirst(".read-container .text-left")?.let {
                 it.select("script").remove()
                 TextExtractor.get(it)
-            }
+            } ?: ""
         }
 
     override suspend fun getBookCoverImageUrl(bookUrl: String): Response<String?> =

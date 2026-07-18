@@ -507,7 +507,9 @@ private fun VoiceSelectorDialog(
                 )
             }
 
-            items(voicesFiltered) { voice ->
+            // ponytail: add key + contentType so insert/remove on the filtered voice list
+            // only recomposes the changed rows instead of every visible voice row.
+            items(voicesFiltered, key = { voice -> voice.id }, contentType = { 1 }) { voice ->
                 val selected by remember(voice.id, currentVoice?.id) {
                     derivedStateOf { voice.id == currentVoice?.id }
                 }

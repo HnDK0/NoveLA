@@ -10,8 +10,7 @@ import com.bumptech.glide.integration.okhttp3.OkHttpLibraryGlideModule
 import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.module.AppGlideModule
-import okhttp3.Interceptor
-import okhttp3.OkHttpClient
+import dagger.hilt.android.EntryPointAccessors
 import java.io.InputStream
 
 @Excludes(OkHttpLibraryGlideModule::class)
@@ -23,22 +22,19 @@ class GlideModule : AppGlideModule() {
     }
 
     override fun registerComponents(context: Context, glide: Glide, registry: Registry) {
-        // Create a simple OkHttpClient for Glide without Hilt dependencies
-        val glideClient = OkHttpClient.Builder()
-            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .addInterceptor { chain ->
-                val request = chain.request().newBuilder()
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-                    .build()
-                chain.proceed(request)
-            }
-            .build()
+        // ponytail: was a standalone OkHttpClient with hardcoded UA — no cookie jar, no CF
+        // interceptor, no shared connection pool. Cover art on CF-protected sources would fail.
+        // Now uses the shared ScraperNetworkClient.client via Hilt EntryPointAccessors.
+        val entryPoint = EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            HiltAppEntryPoint::class.java
+        )
+        val sharedClient = entryPoint.scraperNetworkClient().client
 
         registry.replace(
             GlideUrl::class.java,
             InputStream::class.java,
-            OkHttpUrlLoader.Factory(glideClient)
+            OkHttpUrlLoader.Factory(sharedClient)
         )
     }
 }

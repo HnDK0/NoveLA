@@ -193,15 +193,17 @@ internal class LibraryViewModel @Inject constructor(
 
     fun markAllChaptersAsRead(bookUrl: String) {
         viewModelScope.launch {
-            val chapters = appRepository.bookChapters.chapters(bookUrl)
-            appRepository.bookChapters.setAsRead(chapters.map { it.url })
+            // ponytail: direct UPDATE-by-bookUrl — replaces the fetch-all-chapters-then-
+            // set-by-URL pattern (1 SELECT + N chunked UPDATEs) with a single UPDATE
+            // statement. Avoids loading every Chapter row just to build an IN clause.
+            appRepository.bookChapters.setAllReadByBook(bookUrl)
         }
     }
 
     fun markAllChaptersAsUnread(bookUrl: String) {
         viewModelScope.launch {
-            val chapters = appRepository.bookChapters.chapters(bookUrl)
-            appRepository.bookChapters.setAsUnread(chapters.map { it.url })
+            // ponytail: direct UPDATE-by-bookUrl — see markAllChaptersAsRead above.
+            appRepository.bookChapters.setAllUnreadByBook(bookUrl)
         }
     }
 

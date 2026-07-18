@@ -117,7 +117,9 @@ class LibraryBooksRepository @Inject constructor(
                 chapterTranslationDao.deleteTranslationsByBookUrls(chunk)
                 chapterBodyDao.removeChapterBodiesByBookUrls(chunk)
                 chapterDao.removeAllFromBooks(chunk)
-                chunk.forEach { libraryDao.remove(it) }
+                // ponytail: use the batched removeBooksByUrls(chunk) query instead of
+                // chunk.forEach { libraryDao.remove(it) } — N round-trips collapsed to 1.
+                libraryDao.removeBooksByUrls(chunk)
             }
         }
     }

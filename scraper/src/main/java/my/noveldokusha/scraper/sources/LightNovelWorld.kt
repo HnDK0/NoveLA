@@ -99,9 +99,10 @@ class LightNovelWorld(
     ): Response<PagedList<BookResult>> = withContext(Dispatchers.Default) {
         tryConnect {
             val page = index + 1
-            val url = catalogUrl.toUrlBuilder()!!.apply {
+            // ponytail: was !! — NPEs if catalogUrl is malformed. Now safe with early return.
+            val url = catalogUrl.toUrlBuilder()?.apply {
                 if (page > 1) addPath(page.toString())
-            }
+            } ?: return@tryConnect PagedList.createEmpty(index)
             getBooksList(networkClient.get(url).toDocument(), index)
         }
     }

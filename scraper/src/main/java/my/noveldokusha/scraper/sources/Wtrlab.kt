@@ -205,9 +205,24 @@ class Wtrlab(
             val (rawId, slug, chapterNo) = parseChapterUrl(chapterUrl) ?: return@withContext ""
             val canonicalUrl = "$BASE_URL/$LOCALE/novel/$rawId/$slug/chapter-$chapterNo"
 
-            // Build request body — try with retry=false first, then retry=true
-            val bodyPayload = """{"translate":"ai","language":"none","raw_id":"$rawId","chapter_no":$chapterNo,"retry":false,"force_retry":false}"""
-            val retryPayload = """{"translate":"ai","language":"none","raw_id":"$rawId","chapter_no":$chapterNo,"retry":true,"force_retry":false}"""
+            // ponytail: was raw string interpolation for JSON — malformed if rawId contains
+            // " or \. Now uses JSONObject for proper escaping.
+            val bodyPayload = org.json.JSONObject().apply {
+                put("translate", "ai")
+                put("language", "none")
+                put("raw_id", rawId)
+                put("chapter_no", chapterNo)
+                put("retry", false)
+                put("force_retry", false)
+            }.toString()
+            val retryPayload = org.json.JSONObject().apply {
+                put("translate", "ai")
+                put("language", "none")
+                put("raw_id", rawId)
+                put("chapter_no", chapterNo)
+                put("retry", true)
+                put("force_retry", false)
+            }.toString()
 
             // First attempt
             var data = postReaderGet(canonicalUrl, bodyPayload)

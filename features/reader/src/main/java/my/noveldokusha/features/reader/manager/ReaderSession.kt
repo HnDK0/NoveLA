@@ -209,8 +209,13 @@ internal class ReaderSession(
         scope.launch {
             val book = async(Dispatchers.IO) { appRepository.libraryBooks.get(bookUrl) }
             val chapter = async(Dispatchers.IO) { appRepository.bookChapters.get(chapterUrl) }
+            // ponytail: use the lightweight chapter projection (url+title+position+bookUrl)
+            // for the orderedChapters list — the reader doesn't read `read`/`lastReadPosition`/
+            // `lastReadOffset` from this list (only from the active chapter fetched above via
+            // bookChapters.get(chapterUrl)). For a book with 2000 chapters this skips
+            // ~24KB of cursor data and 2000 Chapter object field initialisations.
             val chaptersList = async(Dispatchers.Default) {
-                orderedChapters.also { it.addAll(appRepository.bookChapters.chapters(bookUrl)) }
+                orderedChapters.also { it.addAll(appRepository.bookChapters.chaptersLightweight(bookUrl)) }
             }
             val chapterIndex = async(Dispatchers.Default) {
                 chaptersList.await().indexOfFirst { it.url == chapterUrl }

@@ -126,8 +126,8 @@ class Lnori(
     }
 
     private fun extractVolumeNumber(title: String): Int {
-        val match = Regex("""(?:Vol(?:ume)?\.?\s*)(\d+)""", RegexOption.IGNORE_CASE)
-            .find(title)
+        // ponytail: was inline Regex() — compiled per call. Hoisted to companion val.
+        val match = VOLUME_REGEX.find(title)
         return match?.groupValues?.get(1)?.toIntOrNull() ?: Int.MAX_VALUE
     }
 
@@ -203,4 +203,7 @@ class Lnori(
             )
         }
     }
+
+    // ponytail: hoisted from inline Regex() in extractVolumeNumber().
+    private val VOLUME_REGEX = Regex("""(?:Vol(?:ume)?\.?\s*)(\d+)""", RegexOption.IGNORE_CASE)
 }

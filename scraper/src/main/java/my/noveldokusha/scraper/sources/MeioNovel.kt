@@ -67,10 +67,10 @@ class MeioNovel(private val networkClient: NetworkClient) : SourceInterface.Cata
 
     override suspend fun getChapterText(doc: Document): String =
         withContext(Dispatchers.Default) {
-            doc.selectFirst(".reading-content")!!.let {
+            doc.selectFirst(".reading-content")?.let {
                 it.selectFirst("h1")?.remove()
                 TextExtractor.get(it)
-            }
+            } ?: ""
         }
 
     override suspend fun getBookCoverImageUrl(bookUrl: String): Response<String?> =

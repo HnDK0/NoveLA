@@ -89,6 +89,22 @@ import my.noveldokusha.text_translator.domain.TranslationModelState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 
+// ponytail: process-wide cache of the system navigation-bar height in Dp. Avoids calling
+// Resources.getIdentifier() (a known slow API that iterates the resource table) on every
+// ReaderScreen first-composition; the value is process-stable so a single lazy init pays
+// the cost exactly once per process lifetime.
+private val SYSTEM_NAV_BAR_HEIGHT_DP: androidx.compose.ui.unit.Dp by lazy {
+    val sys = android.content.res.Resources.getSystem()
+    @Suppress("DiscouragedApi")
+    val id = sys.getIdentifier("navigation_bar_height", "dimen", "android")
+    if (id > 0) {
+        val px = sys.getDimensionPixelSize(id)
+        androidx.compose.ui.unit.Dp(px / sys.displayMetrics.density)
+    } else {
+        androidx.compose.ui.unit.Dp(0f)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ReaderScreen(
@@ -114,14 +130,11 @@ internal fun ReaderScreen(
     val context = LocalContext.current
     val density = LocalDensity.current
     val windowToken = LocalView.current.windowToken
-    val navBarHeightDp = remember {
-        @Suppress("DiscouragedApi")
-        val id = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
-        if (id > 0) {
-            context.resources.getDimensionPixelSize(id)
-                .let { px -> with(density) { px.toDp() } }
-        } else 0.dp
-    }
+    // ponytail: Resources.getIdentifier is a known slow API that iterates the resource
+    // table. Although it was wrapped in `remember`, that still re-ran on every first
+    // composition of ReaderScreen (e.g. after recreate()). Hoist to a process-wide lazy
+    // val backed by Resources.getSystem() so the cost is paid exactly once per process.
+    val navBarHeightDp = SYSTEM_NAV_BAR_HEIGHT_DP
 
 
     // Capture back action when viewing info

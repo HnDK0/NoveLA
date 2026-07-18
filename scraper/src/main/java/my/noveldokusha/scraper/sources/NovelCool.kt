@@ -92,7 +92,8 @@ class NovelCool(
                     val href = a.attr("href").ifBlank { return@mapNotNull null }
                     val title = (a.attr("title").ifBlank { a.text() })
                         .replace("\n", " ")
-                        .replace(Regex("\\s+"), " ")
+                        // ponytail: was inline Regex() — compiled per chapter. Hoisted to companion val.
+                        .replace(WHITESPACE_REGEX, " ")
                         .trim()
                         .ifBlank { return@mapNotNull null }
 
@@ -175,4 +176,7 @@ class NovelCool(
             isLastPage = isLast || books.isEmpty()
         )
     }
+
+    // ponytail: hoisted from inline Regex() in getChapterList — compiled per chapter title.
+    private val WHITESPACE_REGEX = Regex("\\s+")
 }

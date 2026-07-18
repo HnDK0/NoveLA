@@ -233,7 +233,9 @@ internal fun LibraryScreenBody(
                     LazyColumn(
                         modifier = Modifier.height(200.dp)
                     ) {
-                        items(customCategories) { category ->
+                        // ponytail: key by category string so add/remove of a custom category
+                        // only recomposes the changed row, not all visible categories.
+                        items(customCategories, key = { it }, contentType = { "category" }) { category ->
                             androidx.compose.material3.ListItem(
                                 headlineContent = {
                                     Text(

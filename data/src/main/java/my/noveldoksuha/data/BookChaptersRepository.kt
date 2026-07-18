@@ -36,6 +36,12 @@ class BookChaptersRepository @Inject constructor(
     suspend fun setAsUnread(chaptersUrl: List<String>) =
         chaptersUrl.chunked(500).forEach { chapterDao.setAsUnread(it) }
 
+    // ponytail: direct UPDATE-by-bookUrl overloads for markAllChaptersAsRead/Unread —
+    // replaces fetch-all-then-set-by-URL (which loaded every Chapter row just to build an
+    // IN clause) with a single UPDATE statement. Used by LibraryViewModel.
+    suspend fun setAllReadByBook(bookUrl: String) = chapterDao.setAllReadByBook(bookUrl)
+    suspend fun setAllUnreadByBook(bookUrl: String) = chapterDao.setAllUnreadByBook(bookUrl)
+
     suspend fun insert(chapters: List<Chapter>) =
         chapterDao.insert(chapters.filter(::isValid))
 
@@ -44,6 +50,13 @@ class BookChaptersRepository @Inject constructor(
 
     suspend fun removeAllFromBook(bookUrl: String) = chapterDao.removeAllFromBook(bookUrl)
     suspend fun chapters(bookUrl: String) = chapterDao.chapters(bookUrl)
+
+    // ponytail: lightweight chapter projection for reader init — skips read,
+    // lastReadPosition, lastReadOffset columns (the reader fetches those for the
+    // active chapter via get(chapterUrl) anyway, so loading them for every chapter
+    // in the book is wasted work on ReaderSession.initLoadData).
+    suspend fun chaptersLightweight(bookUrl: String) = chapterDao.chaptersLightweight(bookUrl)
+
     suspend fun getFirstChapter(bookUrl: String) = chapterDao.getFirstChapter(bookUrl)
     fun getChaptersWithContextFlow(bookUrl: String) =
         chapterDao.getChaptersWithContextFlow(bookUrl)

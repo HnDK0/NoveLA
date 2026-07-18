@@ -259,7 +259,10 @@ class MigrationActivity : BaseActivity() {
                                     contentPadding = PaddingValues(start = 12.dp, end = 30.dp),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    items(indexedResults) { (flatIndex, result) ->
+                                    // ponytail: key by book url so scrolling the per-source
+                                    // LazyRow doesn't recompose every visible book on each
+                                    // new search result arrival.
+                                    items(indexedResults, key = { (_, r) -> r.book.url }, contentType = { "book" }) { (flatIndex, result) ->
                                         BookImageButtonView(
                                             title = result.book.title,
                                             coverImageModel = rememberResolvedBookImagePath(

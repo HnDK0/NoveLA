@@ -39,3 +39,13 @@ data class ChapterWithContext(
     val downloaded: Boolean,
     val lastReadChapter: Boolean
 )
+
+// ponytail: lightweight projection for chaptersLightweight query — only url+title+bookUrl+position.
+// Used by ReaderSession.initLoadData() to avoid loading full Chapter rows (read, lastReadPosition,
+// lastReadOffset) just for navigation. For a 3000-chapter novel this saves ~24KB per open.
+data class ChapterLight(
+    val url: String,
+    val title: String,
+    val bookUrl: String,
+    val position: Int
+)

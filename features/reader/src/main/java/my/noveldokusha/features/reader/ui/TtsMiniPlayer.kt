@@ -309,13 +309,29 @@ private fun FloatingTtsMiniPlayer(
 
     fun lerpf(a: Float, b: Float, t: Float) = a + (b - a) * t
 
-    val buttonSize = lerpf(20f, 28f, ratio).dp
-    val iconSize = lerpf(14f, 22f, ratio).dp
-    val iconCircleSize = lerpf(16f, 24f, ratio).dp
-    val playButtonSize = lerpf(24f, 34f, ratio).dp
-    val playIconSize = lerpf(20f, 30f, ratio).dp
-    val progressHeight = lerpf(3f, 6f, ratio).dp
-    val paragraphFontSize = lerpf(9f, 13f, ratio).sp
+    // ponytail: the 7 lerpf(...).dp/.sp values below recompute on every recomposition even
+    // though they only depend on (panelWidth, screenWidthDp). The mini-player recomposes
+    // frequently during TTS playback (it reads state.estimatedRemainingSeconds.value), so
+    // wrap the derivations in a remember keyed on the two real inputs to skip the per-frame
+    // lerpf + .dp/.sp allocations.
+    val sizes = remember(panelWidth, screenWidthDp) {
+        val buttonSize = lerpf(20f, 28f, ratio).dp
+        val iconSize = lerpf(14f, 22f, ratio).dp
+        val iconCircleSize = lerpf(16f, 24f, ratio).dp
+        val playButtonSize = lerpf(24f, 34f, ratio).dp
+        val playIconSize = lerpf(20f, 30f, ratio).dp
+        val progressHeight = lerpf(3f, 6f, ratio).dp
+        val paragraphFontSize = lerpf(9f, 13f, ratio).sp
+        MiniPlayerSizes(
+            buttonSize = buttonSize,
+            iconSize = iconSize,
+            iconCircleSize = iconCircleSize,
+            playButtonSize = playButtonSize,
+            playIconSize = playIconSize,
+            progressHeight = progressHeight,
+            paragraphFontSize = paragraphFontSize,
+        )
+    }
 
     val dragModifier = if (onDrag != null) {
         Modifier.pointerInput(Unit) {
@@ -349,12 +365,12 @@ private fun FloatingTtsMiniPlayer(
                 chaptersCount = chaptersCount,
                 animatedProgress = animatedProgress,
                 remaining = remaining,
-                buttonSize = buttonSize,
-                iconSize = iconSize,
-                iconCircleSize = iconCircleSize,
-                playButtonSize = playButtonSize,
-                playIconSize = playIconSize,
-                progressHeight = progressHeight,
+                buttonSize = sizes.buttonSize,
+                iconSize = sizes.iconSize,
+                iconCircleSize = sizes.iconCircleSize,
+                playButtonSize = sizes.playButtonSize,
+                playIconSize = sizes.playIconSize,
+                progressHeight = sizes.progressHeight,
                 extraAction = {
                     // ponytail: removed the Tune/opacity/width/paragraph expandable panel from the
                     // mini-player — it didn't fit in a tiny floating bubble and cluttered the UI.
@@ -364,7 +380,7 @@ private fun FloatingTtsMiniPlayer(
                     if (onShowTextToggle != null) {
                         IconButton(
                             onClick = onShowTextToggle,
-                            modifier = Modifier.size(buttonSize)
+                            modifier = Modifier.size(sizes.buttonSize)
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Rounded.TextSnippet,
@@ -372,7 +388,7 @@ private fun FloatingTtsMiniPlayer(
                                 tint = if (showTextToggle) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
-                                    .size(iconSize)
+                                    .size(sizes.iconSize)
                                     .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
                             )
                         }
@@ -395,20 +411,20 @@ private fun FloatingTtsMiniPlayer(
                         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                             Text(
                                 text = ttsParagraph,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = paragraphFontSize),
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = sizes.paragraphFontSize),
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = inverseParagraph,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = paragraphFontSize * 0.85f),
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = sizes.paragraphFontSize * 0.85f),
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
                             )
                         }
                     } else {
                         Text(
                             text = displayText,
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = paragraphFontSize),
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = sizes.paragraphFontSize),
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
@@ -418,6 +434,20 @@ private fun FloatingTtsMiniPlayer(
         }
     }
 }
+
+// ponytail: holder for the 7 lerpf-derived size values that only depend on (panelWidth,
+// screenWidthDp). Cached via remember(panelWidth, screenWidthDp) in FloatingTtsMiniPlayer
+// to avoid re-running lerpf + .dp/.sp allocations on every recomposition (the mini-player
+// recomposes frequently during TTS playback because it reads state.estimatedRemainingSeconds).
+private data class MiniPlayerSizes(
+    val buttonSize: Dp,
+    val iconSize: Dp,
+    val iconCircleSize: Dp,
+    val playButtonSize: Dp,
+    val playIconSize: Dp,
+    val progressHeight: Dp,
+    val paragraphFontSize: androidx.compose.ui.unit.TextUnit,
+)
 
 private fun formatDuration(seconds: Int): String {
     if (seconds <= 0) return "0:00"

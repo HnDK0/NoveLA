@@ -149,35 +149,18 @@ suspend fun getCatalogSearch(
             if (config.postSearchUseRawBody) {
                 val data = config.postSearchDataBuilder.invoke(input)
                 val charset = config.charset ?: "UTF-8"
-                
+
                 Timber.d("ScraperHelpers: POST data: $data")
                 Timber.d("ScraperHelpers: Charset: $charset")
-                
-                // Build form data with proper charset encoding
-                val formData = data.entries.joinToString("&") { (key, value) ->
-                    val encodedKey = java.net.URLEncoder.encode(key, charset)
-                    val encodedValue = java.net.URLEncoder.encode(value, charset)
-                    "$encodedKey=$encodedValue"
+
+                // ponytail: was Jsoup.connect() which bypasses OkHttp + Cloudflare interceptor +
+                // cookie jar — CF-protected POST search would fail. Now uses networkClient.call()
+                // via POST() helper so the request goes through the full OkHttp stack.
+                val headers = config.searchHeaders.toMutableMap()
+                if (!headers.containsKey("Content-Type")) {
+                    headers["Content-Type"] = "application/x-www-form-urlencoded"
                 }
-                
-                Timber.d("ScraperHelpers: Encoded form data: $formData")
-                Timber.d("ScraperHelpers: Search headers: ${config.searchHeaders}")
-                
-                val conn = org.jsoup.Jsoup.connect(config.postSearchUrl)
-                    .userAgent(GLOBAL_USER_AGENT)
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .requestBody(formData)
-                    .timeout(10000)
-                
-                // Add search headers
-                config.searchHeaders.forEach { (key, value) -> conn.header(key, value) }
-                
-                Timber.d("ScraperHelpers: Executing POST request...")
-                val resultDoc = conn.post()
-                Timber.d("ScraperHelpers: POST response URL: ${resultDoc.location()}")
-                Timber.d("ScraperHelpers: POST response title: ${resultDoc.title()}")
-                Timber.d("ScraperHelpers: POST response body preview: ${resultDoc.body().text().take(500)}")
-                resultDoc
+                POST(config.postSearchUrl, data, headers = headers, networkClient = networkClient)
             } else {
                 // Standard POST request
                 val data = config.postSearchDataBuilder.invoke(input)
@@ -284,14 +267,11 @@ suspend fun getCatalogSearchPost(
         if (input.isBlank()) return@tryConnect PagedList.createEmpty(index)
 
         val doc = if (config.postSearchEnabled && config.postSearchUrl != null && config.postSearchDataBuilder != null) {
-            // Special handling for FreeWebNovel POST search using Jsoup
+            // ponytail: was Jsoup.connect() for FreeWebNovel — bypassed OkHttp/CF. Now uses
+            // the standard POST() helper via networkClient.call() so CF bypass works.
             if (config.postSearchUrl.contains("freewebnovel.com")) {
                 val data = config.postSearchDataBuilder.invoke(input)
-                org.jsoup.Jsoup.connect(config.postSearchUrl)
-                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
-                    .data(data)
-                    .timeout(10000)
-                    .post()
+                POST(config.postSearchUrl, data, headers = config.searchHeaders, networkClient = networkClient)
             } else {
                 // Standard POST request
                 val data = config.postSearchDataBuilder.invoke(input)

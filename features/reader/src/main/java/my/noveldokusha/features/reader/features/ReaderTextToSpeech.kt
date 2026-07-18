@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -385,10 +386,18 @@ internal class ReaderTextToSpeech(
             val silence = ShortArray(bufferSize)
             audioTrack.write(silence, 0, silence.size)
             audioTrack.play()
+            // ponytail: ensure audioTrack is always released even if coroutineScope is
+            // cancelled during the 200 ms delay (cancellation would otherwise skip the
+            // stop()/release() calls and leak the native AudioTrack + audio session id).
             coroutineScope.launch {
-                delay(200)
-                runCatching { audioTrack.stop() }
-                runCatching { audioTrack.release() }
+                try {
+                    delay(200)
+                } finally {
+                    withContext(NonCancellable) {
+                        runCatching { audioTrack.stop() }
+                        runCatching { audioTrack.release() }
+                    }
+                }
             }
             Log.d("TTS", "claimMediaSession OK")
         } catch (e: Exception) {

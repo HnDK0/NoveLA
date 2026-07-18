@@ -157,6 +157,13 @@ class ReaderActivity : BaseActivity() {
 
     override fun onDestroy() {
         readerViewHandlersActions.invalidate()
+        // ponytail: release the FloatingTtsService companion-object references that captured
+        // this Activity's windowToken and the ReaderTextToSpeech function refs (via ttsState).
+        // Without this, the destroyed Activity is retained for app lifetime by the still-
+        // running FloatingTtsService's companion object. The service itself will also call
+        // clearSessionState() from its own onDestroy(), but the activity may be destroyed
+        // while the service continues running (e.g. showOutsideApp = true).
+        my.noveldokusha.features.reader.services.FloatingTtsService.clearSessionState()
         super.onDestroy()
     }
 

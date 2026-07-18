@@ -60,24 +60,27 @@ class Saikai(
                 .toString()
 
             val chaptersDoc = networkClient.get(url).toDocument()
-            val firstChapterData = chaptersDoc
-                .selectFirst("ul.__chapters li")!!
-
-            val fullChapterUrl = firstChapterData.selectFirst("a")?.attr("href")!!
-            val chapterTitle: String = firstChapterData.selectFirst(".__chapters--title")!!.text()
-            val (bookpath, dispUrl, chapterUrl) = Regex("""^.*/(.+)/(\d+)/(.*)$""").find(
-                fullChapterUrl
-            )!!.destructured
+            // ponytail: was 5x forced !! — any site layout change NPEs the whole call.
+            // Now safe calls with early return on null.
+            val firstChapterData = chaptersDoc.selectFirst("ul.__chapters li")
+                ?: throw Exception("Saikai: chapter list layout changed (no ul.__chapters li)")
+            val fullChapterUrl = firstChapterData.selectFirst("a")?.attr("href")
+                ?: throw Exception("Saikai: chapter URL not found")
+            val chapterTitle: String = firstChapterData.selectFirst(".__chapters--title")?.text() ?: ""
+            val match = CHAPTER_URL_REGEX.find(fullChapterUrl)
+            val (bookpath, dispUrl, chapterUrl) = match?.destructured
+                ?: throw Exception("Saikai: chapter URL format changed: $fullChapterUrl")
             val firstChapter = ChapterResult(
                 url = chapterUrl,
                 title = chapterTitle
             )
 
-            val initialVal = dispUrl.toInt()
+            val initialVal = dispUrl.toIntOrNull() ?: throw Exception("Saikai: dispUrl not a number: $dispUrl")
 
             val preList = let {
                 val script =
-                    chaptersDoc.select("script").find { it.data().startsWith("window.__NUXT__") }!!
+                    chaptersDoc.select("script").find { it.data().startsWith("window.__NUXT__") }
+                        ?: throw Exception("Saikai: __NUXT__ script not found")
                 val head = "{return "
                 val start = "{layout:"
                 start + script.data().split(head + start).last()
@@ -175,4 +178,7 @@ class Saikai(
                 }
         }
     }
+
+    // ponytail: hoisted from inline Regex() in getChapterList — compiled once per class load.
+    private val CHAPTER_URL_REGEX = Regex("""^.*/(.+)/(\d+)/(.*)$""")
 }
