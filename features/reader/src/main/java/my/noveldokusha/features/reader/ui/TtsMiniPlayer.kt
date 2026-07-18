@@ -54,6 +54,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -351,6 +352,7 @@ private fun FloatingTtsMiniPlayer(
 
     val density = LocalDensity.current
     var showOpacitySlider by remember { mutableStateOf(false) }
+    val currentPanelWidth by rememberUpdatedState(panelWidth)
 
     val infiniteTransition = rememberInfiniteTransition(label = "glow")
     val glowAlpha by infiniteTransition.animateFloat(
@@ -387,12 +389,12 @@ private fun FloatingTtsMiniPlayer(
                 val touchSlop = viewConfiguration.touchSlop
                 var lastPosition = down.position
                 var pinchStartDistance = 0f
-                var pinchStartWidth = panelWidth
+                var pinchStartWidth = currentPanelWidth
                 var isPinching = false
                 var dragStarted = false
 
                 while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Main)
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
                     val changes = event.changes
                     if (!changes.any { it.pressed }) break
 
@@ -408,7 +410,7 @@ private fun FloatingTtsMiniPlayer(
                         if (!isPinching) {
                             isPinching = true
                             pinchStartDistance = curDist
-                            pinchStartWidth = panelWidth
+                            pinchStartWidth = currentPanelWidth
                             dragStarted = false
                         }
                         if (pinchStartDistance > 0f) {
