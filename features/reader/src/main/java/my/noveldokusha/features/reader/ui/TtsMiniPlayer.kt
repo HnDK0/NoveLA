@@ -18,7 +18,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -381,13 +380,72 @@ private fun FloatingTtsMiniPlayer(
 
     val interactionModifier = if (onDrag != null) {
         Modifier.pointerInput(Unit) {
-            detectDragGestures(
-                onDrag = { change, dragAmount ->
-                    change.consume()
-                    onDrag(dragAmount.x, dragAmount.y)
-                },
-                onDragEnd = { onDragEnd?.invoke() }
-            )
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                down.consume()
+
+                val touchSlop = viewConfiguration.touchSlop
+                var lastPosition = down.position
+                var pinchStartDistance = 0f
+                var pinchStartWidth = panelWidth
+                var isPinching = false
+                var dragStarted = false
+
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Main)
+                    val changes = event.changes
+                    if (!changes.any { it.pressed }) break
+
+                    val pressed = changes.filter { it.pressed }
+
+                    if (pressed.size >= 2 && onPanelWidthChange != null) {
+                        val p0 = pressed[0].position
+                        val p1 = pressed[1].position
+                        val ddx = p0.x - p1.x
+                        val ddy = p0.y - p1.y
+                        val curDist = Math.hypot(ddx.toDouble(), ddy.toDouble()).toFloat()
+
+                        if (!isPinching) {
+                            isPinching = true
+                            pinchStartDistance = curDist
+                            pinchStartWidth = panelWidth
+                            dragStarted = false
+                        }
+                        if (pinchStartDistance > 0f) {
+                            val scale = curDist / pinchStartDistance
+                            val newW = (pinchStartWidth * scale).coerceIn(minWidth, maxWidth)
+                            onPanelWidthChange.invoke(newW)
+                        }
+                        changes.forEach { it.consume() }
+                    } else if (pressed.size == 1) {
+                        val ch = pressed[0]
+
+                        if (isPinching) {
+                            isPinching = false
+                            dragStarted = false
+                            lastPosition = ch.position
+                            continue
+                        }
+
+                        val dx = ch.position.x - lastPosition.x
+                        val dy = ch.position.y - lastPosition.y
+
+                        if (!dragStarted) {
+                            if (dx * dx + dy * dy > touchSlop * touchSlop) {
+                                dragStarted = true
+                            }
+                        }
+                        if (dragStarted) {
+                            lastPosition = ch.position
+                            ch.consume()
+                            onDrag(dx, dy)
+                        } else {
+                            lastPosition = ch.position
+                        }
+                    }
+                }
+                onDragEnd?.invoke()
+            }
         }
     } else {
         Modifier
