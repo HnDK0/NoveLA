@@ -41,8 +41,6 @@ internal fun FloatingTtsOverlayContent(
     onShowTextToggle: (() -> Unit)? = null,
     paragraphMode: String = "tts",
     onParagraphModeChange: ((String) -> Unit)? = null,
-    ttsHighlightEnabled: Boolean = false,
-    ttsHighlightColor: String = "FFFF6D00",
 ) {
     if (isExpanded) {
         TtsMiniPlayer(
@@ -61,8 +59,6 @@ internal fun FloatingTtsOverlayContent(
             onShowTextToggle = onShowTextToggle,
             paragraphMode = paragraphMode,
             onParagraphModeChange = onParagraphModeChange,
-            ttsHighlightEnabled = ttsHighlightEnabled,
-            ttsHighlightColor = ttsHighlightColor,
         )
     } else {
         FloatingBubble(

@@ -3,7 +3,7 @@
 
 	<application>
 		<service
-			android:name=".BookImportService"
+			android:name=".EpubImportService"
 			android:foregroundServiceType="dataSync"
 			android:exported="false"
 			/>

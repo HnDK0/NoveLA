@@ -1,12 +1,13 @@
 package my.noveldokusha.text_translator
 
-import timber.log.Timber
 import my.noveldokusha.text_translator.buildSystemPrompt
 import my.noveldokusha.text_translator.DEFAULT_TRANSLATION_PROMPT
 
+import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.network.ScraperNetworkClient
 import my.noveldokusha.text_translator.domain.GOOGLE_TRANSLATE_LANGUAGES
@@ -14,6 +15,7 @@ import my.noveldokusha.text_translator.domain.TranslationManager
 import my.noveldokusha.text_translator.domain.TranslationModelState
 import my.noveldokusha.text_translator.domain.TranslatorState
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
@@ -37,8 +39,14 @@ import java.util.concurrent.atomic.AtomicInteger
  * No silent fallback — all errors are thrown so the caller and UI can report them.
  */
 class TranslationManagerOpenAI(
+    private val coroutineScope: AppCoroutineScope,
+    private val appPreferences: AppPreferences,
+    // ponytail: inject the shared ScraperNetworkClient and derive our OkHttpClient from
+    // networkClient.client.newBuilder() so we share its connection pool, dispatcher, cache,
+    // cookie jar, and interceptors (Cloudflare, UA, decode) instead of building a standalone
+    // OkHttpClient that maintains its own thread pool and connection pool. The OpenAI API
+    // needs longer timeouts than the scraper default (30s), so we override them here.
     private val networkClient: ScraperNetworkClient,
-    private val appPreferences: AppPreferences
 ) : TranslationManager {
 
     // Keep responses deterministic.
@@ -52,11 +60,16 @@ class TranslationManagerOpenAI(
     private val maxBatchItemsPerRequest: Int
         get() = appPreferences.TRANSLATION_BATCH_SIZE.value.coerceAtLeast(1)
 
-    private val client get() = networkClient.client.newBuilder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
-        .writeTimeout(120, TimeUnit.SECONDS)
-        .build()
+    // ponytail: derive from the shared ScraperNetworkClient.client via newBuilder() so we
+    // inherit its connection pool, dispatcher, cache, cookie jar, and interceptors. We only
+    // override the timeouts (OpenAI-compatible endpoints can take up to 120s for long outputs).
+    private val client: OkHttpClient by lazy {
+        networkClient.client.newBuilder()
+            .connectTimeout(120, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(120, TimeUnit.SECONDS)
+            .build()
+    }
 
     // Round-robin counter shared across all calls
     private val keyIndex = AtomicInteger(0)
@@ -81,12 +94,12 @@ class TranslationManagerOpenAI(
 
     private fun resolveTemplatePrompt(systemPromptOverride: String?): String {
         if (systemPromptOverride != null && systemPromptOverride.isNotBlank()) {
-            Timber.d( "resolveTemplatePrompt: using override '${systemPromptOverride.take(200)}'")
+            Log.d(TAG, "resolveTemplatePrompt: using override '${systemPromptOverride.take(200)}'")
             return systemPromptOverride
         }
         val fallback = appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value
             .ifBlank { DEFAULT_TRANSLATION_PROMPT }
-        Timber.d( "resolveTemplatePrompt: no override, using fallback '${fallback.take(200)}'")
+        Log.d(TAG, "resolveTemplatePrompt: no override, using fallback '${fallback.take(200)}'")
         return fallback
     }
 
@@ -108,7 +121,7 @@ class TranslationManagerOpenAI(
         models.firstOrNull { it.language == language }
 
     override fun getTranslator(source: String, target: String, systemPromptOverride: String?): TranslatorState {
-        Timber.d( "getTranslator: source=$source, target=$target, override=${systemPromptOverride != null}")
+        Log.d(TAG, "getTranslator: source=$source, target=$target, override=${systemPromptOverride != null}")
         return TranslatorState(
             source = source,
             target = target,
@@ -150,10 +163,10 @@ class TranslationManagerOpenAI(
             return@withContext merged
         }
 
-        Timber.d( "translateBatch: ${normalizedTexts.size} paragraphs, $sourceLanguage→$targetLanguage, override='${systemPromptOverride?.take(200)}'")
+        Log.d(TAG, "translateBatch: ${normalizedTexts.size} paragraphs, $sourceLanguage→$targetLanguage, override='${systemPromptOverride?.take(200)}'")
 
         val systemPrompt = buildPrompt(sourceLanguage, targetLanguage, systemPromptOverride)
-        Timber.d( "translateBatch: systemPrompt='${systemPrompt.take(200)}'")
+        Log.d(TAG, "translateBatch: systemPrompt='${systemPrompt.take(200)}'")
 
         // All format instructions are in the system prompt.
         // User message contains only the numbered text — clean and simple.
@@ -179,15 +192,15 @@ class TranslationManagerOpenAI(
             throw IllegalStateException("OpenAI: No API keys configured. Please add your API key in Settings → Translation.")
         }
 
-        val startIndex = Math.floorMod(keyIndex.getAndIncrement(), keys.size)
+        val startIndex = keyIndex.getAndIncrement() % keys.size
         var lastException: Exception? = null
 
         val retryPolicy = RetryPolicy(maxAttempts = keys.size, baseDelayMs = 250L, maxDelayMs = 1500L)
-        Timber.d( "sendWithKeyRotation: systemPrompt='${systemPrompt.take(200)}'")
+        Log.d(TAG, "sendWithKeyRotation: systemPrompt='${systemPrompt.take(200)}'")
 
         for (attempt in 0 until retryPolicy.maxAttempts) {
-            val currentKey = keys[Math.floorMod(startIndex + attempt, keys.size)]
-            val keyLabel = "key #${Math.floorMod(startIndex + attempt, keys.size) + 1}"
+            val currentKey = keys[(startIndex + attempt) % keys.size]
+            val keyLabel = "key #${(startIndex + attempt) % keys.size + 1}"
 
             try {
                 val response = sendRequest(systemPrompt, userMessage, currentKey)
@@ -195,14 +208,14 @@ class TranslationManagerOpenAI(
 
                 when {
                     code == 401 -> {
-                        Timber.w( "sendWithKeyRotation: 401 on $keyLabel, trying next")
+                        Log.w(TAG, "sendWithKeyRotation: 401 on $keyLabel, trying next")
                         response.close()
                         lastException = IllegalStateException("OpenAI: Invalid API key ($keyLabel). Check your key in Settings.")
                         retryPolicy.backoff(attempt)
                         continue
                     }
                     code == 429 -> {
-                        Timber.w( "sendWithKeyRotation: 429 on $keyLabel, trying next")
+                        Log.w(TAG, "sendWithKeyRotation: 429 on $keyLabel, trying next")
                         response.close()
                         lastException = IllegalStateException("OpenAI: Rate limit exceeded ($keyLabel).")
                         retryPolicy.backoff(attempt)
@@ -217,13 +230,13 @@ class TranslationManagerOpenAI(
                         throw IllegalStateException("OpenAI: Unexpected error ($code): $errorBody")
                     }
                     else -> {
-                        keyIndex.set(Math.floorMod(startIndex + attempt + 1, keys.size))
+                        keyIndex.set((startIndex + attempt + 1) % keys.size)
                         val body = readBodyOrThrow(response, "OpenAI")
                         return@withContext parseResponse(body)
                     }
                 }
             } catch (e: IOException) {
-                Timber.e( "sendWithKeyRotation: network error — ${e.message}")
+                Log.e(TAG, "sendWithKeyRotation: network error — ${e.message}")
                 throw e
             }
         }
@@ -280,7 +293,7 @@ class TranslationManagerOpenAI(
                 throw IllegalStateException("OpenAI: No choices in response")
             }
         } catch (e: Exception) {
-            Timber.e( "parseResponse: failed to parse — ${e.message}")
+            Log.e(TAG, "parseResponse: failed to parse — ${e.message}")
             throw IllegalStateException("OpenAI: Failed to parse response — ${e.message}")
         }
     }
@@ -301,8 +314,6 @@ class TranslationManagerOpenAI(
      *  - Alternate numbering formats: "1)", "**1.**", "№1.", "1 ."
      *  - Missing items (falls back to original text)
      */
-    private val numberPattern = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
-
     private fun parseNumberedTranslations(
         translatedText: String,
         originalTexts: List<String>
@@ -311,6 +322,8 @@ class TranslationManagerOpenAI(
         val byIndex = mutableMapOf<Int, String>()
 
         // Matches: "1.", "1)", "**1.**", "№1.", "#1.", "1 ." at start of line
+        val numberPattern = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
+
         val lines = translatedText.split("\n")
         var currentIndex = -1  // -1 = before first numbered item (preamble)
         var currentText = StringBuilder()
@@ -346,12 +359,12 @@ class TranslationManagerOpenAI(
             if (translation != null) {
                 result[originalText] = translation
             } else {
-                Timber.w( "parseNumberedTranslations: missing index $index, using original")
+                Log.w(TAG, "parseNumberedTranslations: missing index $index, using original")
                 result[originalText] = originalText
             }
         }
 
-        Timber.d( "parseNumberedTranslations: ${byIndex.size}/${originalTexts.size} parsed")
+        Log.d(TAG, "parseNumberedTranslations: ${byIndex.size}/${originalTexts.size} parsed")
         return result
     }
 

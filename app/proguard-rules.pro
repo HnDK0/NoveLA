@@ -3,52 +3,61 @@
 # =============================================================================
 
 -keep public class * extends androidx.lifecycle.ViewModel { *; }
-
-# Минимальный набор: нужен для @Serializable и деобфускации крашей.
-# SourceFile / EnclosingMethod убраны — на работу не влияют, только вес.
--keepattributes RuntimeVisibleAnnotations, AnnotationDefault, Signature, LineNumberTable
+-keepattributes SourceFile, LineNumberTable
 
 # =============================================================================
 # ИСПРАВЛЕНИЕ ОШИБОК СБОРКИ (R8 / MISSING CLASSES)
 # =============================================================================
 
+# 1. Глушим ошибки о стандартных Java-классах (Beans, Script)
 -dontwarn java.beans.**
 -dontwarn javax.script.**
+
+# 2. Глушим ошибки BCEL (нужно для LuaJ, так как luajc не используется в Android)
 -dontwarn org.apache.bcel.**
+
+# 3. Глушим ошибки JSpecify (аннотации в новых версиях Jsoup и др.)
 -dontwarn org.jspecify.**
+
+# 4. Глушим ошибки SnakeYAML
 -dontwarn org.yaml.snakeyaml.**
 
 # =============================================================================
-# LUA И СИСТЕМА ПЛАГИНОВ (LuaJ) — грузится динамически, держим целиком
+# LUA И СИСТЕМА ПЛАГИНОВ (LuaJ)
 # =============================================================================
 
+# Сохраняем ядро LuaJ
 -keep class org.luaj.vm2.** { *; }
 
+# Сохраняем функции API внутри LuaEngine
 -keep class my.noveldokusha.scraper.LuaEngine$* { *; }
+
+# Сохраняем адаптеры
 -keep class my.noveldokusha.scraper.LuaSourceAdapter { *; }
 -keep class my.noveldokusha.scraper.LuaSourceAdapterConfigurable { *; }
 -keep interface my.noveldokusha.scraper.SourceInterface** { *; }
 
 # =============================================================================
-# МОДЕЛИ ДАННЫХ — цели Gson/SnakeYAML-рефлексии (имена полей должны сохраниться)
+# МОДЕЛИ ДАННЫХ И СЕРИАЛИЗАЦИЯ
 # =============================================================================
 
 -keep class my.noveldokusha.scraper.domain.** { *; }
 -keep class my.noveldokusha.scraper.configs.** { *; }
+-keep class my.noveldokusha.core.** { *; }
 
-# core сериализуется через kotlinx.serialization (покрыто правилами ниже),
-# тотальный keep всего пакета убран — иначе R8 не сожмёт/не обфусцирует core.
+-keepattributes RuntimeVisibleAnnotations, AnnotationDefault, Signature, EnclosingMethod
 
 # =============================================================================
 # СТОРОННИЕ БИБЛИОТЕКИ
 # =============================================================================
 
-# Jsoup — статический API, рефлексии нет: держать весь jsoup не нужно.
--dontwarn org.jsoup.**
+# Jsoup
+-keep class org.jsoup.** { *; }
 
-# Gson / SnakeYAML — рефлективны, оставлены целиком (консервативно).
-# Кандидаты на сужение после smoke-теста релизной сборки.
+# Gson
 -keep class com.google.gson.** { *; }
+
+# SnakeYAML
 -keep class org.yaml.snakeyaml.** { *; }
 
 # OkHttp
@@ -79,7 +88,7 @@
 }
 
 # =============================================================================
-# ЛОГИРОВАНИЕ — вырезаем debug/verbose/info из релизного dex
+# ЛОГИРОВАНИЕ
 # =============================================================================
 
 -dontwarn org.slf4j.impl.StaticLoggerBinder
@@ -94,12 +103,10 @@
     public static *** d(...);
     public static *** v(...);
     public static *** i(...);
-    public static *** w(...);
-    public static *** e(...);
 }
 
 # =============================================================================
-# TRANSLATION MANAGERS — регистрируются по имени/рефлексией
+# TRANSLATION MANAGERS
 # =============================================================================
 
 -keep class my.noveldokusha.text_translator.TranslationManagerComposite { *; }

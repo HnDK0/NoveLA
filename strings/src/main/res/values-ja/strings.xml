@@ -40,12 +40,12 @@
     <string name="open_in_browser">ブラウザで開く</string>
     <string name="sources">ソース</string>
     <string name="search_for_sources">ソースを検索</string>
-    <string name="import_epub">本をインポート</string>
+    <string name="import_epub">EPUBをインポート</string>
     <string name="failed_get_file">ファイルの取得に失敗しました</string>
     <string name="local_book_nothing_to_update">ローカルブック、更新するものはありません</string>
-    <string name="failed_to_import_epub">本のインポートに失敗しました</string>
+    <string name="failed_to_import_epub">EPUBのインポートに失敗しました</string>
     <string name="image">画像</string>
-    <string name="importing_epub">本をインポート中</string>
+    <string name="importing_epub">EPUBをインポート中</string>
     <string name="no_results_found">結果が見つかりません</string>
     <string name="updating_library_notice">ライブラリを更新中</string>
     <string name="chapter_downloaded">チャプターをダウンロードしました</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">新しいチャプター</string>
     <string name="notification_channel_name_failed_updates">更新失敗</string>
     <string name="notification_channel_name_backup">バックアップ</string>
-    <string name="notification_channel_name_import_epub">本のインポート</string>
+    <string name="notification_channel_name_import_epub">EPUBインポート</string>
     <string name="notification_channel_name_restore_backup">バックアップ復元</string>
     <string name="notification_channel_name_app_updates_checker">アップデートチェッカー</string>
     <string name="new_app_version_available">新しいアプリバージョンがあります</string>
@@ -352,6 +352,7 @@
     <string name="cloudflare_bypass">Cloudflareバイパス</string>
     <string name="cloudflare_bypass_description">自動Cloudflareチャレンジバイパスを有効化</string>
     <string name="cloudflare_bypass_restart_required">Cloudflareバイパス設定はアプリ再起動後に適用されます</string>
+    <string name="user_agent_restart_required">User-Agentが変更されました。適用するにはアプリを再起動してください。</string>
     <string name="cloudflare_challenge_timeout">チャレンジタイムアウト</string>
     <string name="timeout_seconds">タイムアウト（秒）</string>
     <string name="seconds_format">%d秒</string>
@@ -617,67 +618,5 @@
     <string name="repository_settings">リポジトリ設定</string>
     <string name="installed">インストール済み</string>
     <string name="available">利用可能</string>
-
-    <string name="book_fix">本を修正</string>
-
-    <!-- History -->
-    <string name="title_history">履歴</string>
-    <string name="no_history_yet">閲覧履歴はまだありません</string>
-    <string name="no_books_in_library">ライブラリに本がありません</string>
-    <string name="clear_all_history">すべての履歴を消去</string>
-
-    <!-- Display -->
-    <string name="display_options_title">表示</string>
-    <string name="save_settings">設定を保存</string>
-    <string name="save_plugins">プラグインを保存</string>
-    <string name="copying_plugins">プラグインをコピー中…</string>
-
-    <!-- Auto Backup -->
-    <string name="auto_backup_include_settings">設定を含める</string>
-    <string name="auto_backup_include_settings_description">APIキーと設定を自動バックアップに保存</string>
-    <string name="auto_backup_include_plugins">プラグインを含める</string>
-    <string name="auto_backup_include_plugins_description">Luaスクレイパープラグインを自動バックアップに保存</string>
-
-    <!-- Lua Extensions -->
-    <string name="import_lua">Luaをインポート</string>
-    <string name="edit_lua">Luaを編集</string>
-    <string name="reset">リセット</string>
-    <string name="uninstall">アンインストール</string>
-    <string name="installing">インストール中…</string>
-    <string name="install">インストール</string>
-    <string name="update">更新</string>
-    <string name="retry">再試行</string>
-    <string name="top">↑ トップ</string>
-    <string name="copy">コピー</string>
-    <string name="paste">ペースト</string>
-    <string name="clear">クリア</string>
-    <string name="no_extensions_available">利用可能な拡張機能はありません</string>
-    <string name="local_extension_description">ローカルLua拡張機能</string>
-    <string name="extension_author_local">ローカル</string>
-
-    <!-- Extension errors -->
-    <string name="ext_failed_to_load">拡張機能の読み込みに失敗しました: %s</string>
-    <string name="ext_failed_to_download">%s のスクリプトのダウンロードに失敗しました</string>
-    <string name="ext_failed_to_install">%1$s のインストールに失敗しました: %2$s</string>
-    <string name="ext_failed_to_uninstall">拡張機能のアンインストールに失敗しました</string>
-    <string name="ext_failed_to_toggle">拡張機能の切り替えに失敗しました</string>
-
-    <!-- Lua errors -->
-    <string name="lua_empty_error">Luaファイルが空です</string>
-    <string name="lua_compile_error">Luaコンパイルエラー</string>
-    <string name="lua_save_error">Luaファイルの保存に失敗しました</string>
-    <string name="lua_import_error">インポートしたLuaファイルの保存に失敗しました</string>
-    <string name="lua_duplicate_error">拡張機能 \"%s\" は既にローカルに存在します</string>
-    <string name="lua_not_editable">ソースコードは編集できません</string>
-    <string name="lua_restore_error">リポジトリからLuaの復元に失敗しました</string>
-
-    <!-- Time -->
-    <string name="time_just_now">たった今</string>
-    <string name="time_minutes_ago">%dm前</string>
-    <string name="time_hours_ago">%dh前</string>
-    <string name="time_days_ago">%dd前</string>
-    <string name="time_weeks_ago">%dw前</string>
-    <string name="time_months_ago">%dmo前</string>
-    <string name="time_years_ago">%dy前</string>
 
 </resources>

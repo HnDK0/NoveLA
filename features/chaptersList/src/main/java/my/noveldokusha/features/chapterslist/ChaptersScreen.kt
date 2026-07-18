@@ -106,7 +106,6 @@ internal fun ChaptersScreen(
     onDownloadAllChapters: () -> Unit,
     onMigrateBook: () -> Unit = {},
     onDeleteTranslations: () -> Unit = {},
-    onFixBook: () -> Unit = {},
     categories: () -> List<String>,
     onUpdateCategory: (String) -> Unit,
     translatedTitle: String?,
@@ -121,6 +120,10 @@ internal fun ChaptersScreen(
     var showCategoryPicker by rememberSaveable { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val lazyListState = rememberLazyListState()
+    // ponytail: was O(N×M) on every recomposition — `selectedChaptersUrl.keys.all { chapters.find {...} }`
+    // re-scans the entire chapter list once per selected URL. For a 3000-chapter novel with 50
+    // selected, that's 150k comparisons per recomposition. Replaced with an O(N+M) HashMap lookup
+    // wrapped in derivedStateOf so it only recomputes when selection or chapters change.
     val areSelectedChaptersRead by remember {
         derivedStateOf {
             val readUrls = state.chapters.asSequence()
@@ -207,7 +210,6 @@ internal fun ChaptersScreen(
                                         onDownloadAllChapters = onDownloadAllChapters,
                                         onMigrateBook = onMigrateBook,
                                         onDeleteTranslations = onDeleteTranslations,
-                                        onFixBook = onFixBook,
                                     )
                                 }
                             }

@@ -10,7 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.lifecycle.ViewModel
+import my.noveldokusha.coreui.BaseViewModel
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.core.appPreferences.AppPreferences
@@ -35,7 +35,7 @@ internal class ReaderViewModel @Inject constructor(
     appPreferences: AppPreferences,
     private val readerManager: ReaderManager,
     readerViewHandlersActions: ReaderViewHandlersActions,
-) : ViewModel(), ReaderStateBundle {
+) : BaseViewModel(), ReaderStateBundle {
 
     override var bookUrl by StateExtra_String(stateHandler)
     override var chapterUrl by StateExtra_String(stateHandler)
@@ -73,10 +73,6 @@ internal class ReaderViewModel @Inject constructor(
                 isEnabled = appPreferences.FLOATING_TTS_ENABLED.state(viewModelScope),
                 showOutsideApp = appPreferences.FLOATING_TTS_SHOW_OUTSIDE_APP.state(viewModelScope),
                 opacity = appPreferences.FLOATING_TTS_OPACITY.state(viewModelScope),
-            ),
-            ttsHighlight = ReaderScreenState.Settings.TtsHighlightSettingsData(
-                isEnabled = appPreferences.TTS_HIGHLIGHT_ENABLED.state(viewModelScope),
-                highlightColor = appPreferences.TTS_HIGHLIGHT_COLOR.state(viewModelScope),
             ),
             style = ReaderScreenState.Settings.StyleSettingsData(
                 currentDarkMode = mutableStateOf(DarkMode.SYSTEM).also { state ->
@@ -138,11 +134,13 @@ internal class ReaderViewModel @Inject constructor(
     val ttsScrolledToTheBottom = readerSession.readerTextToSpeech.scrolledToTheBottom
 
     fun onCloseManually() {
-        if (readerSession.readerTextToSpeech.isActive.value) {
-            readerManager.detachSession()
-        } else {
-            readerManager.close()
-        }
+        // ponytail: the original NovelDokusha kept the session alive when TTS was playing
+        // (detachSession) so background playback could continue. But this fork added
+        // FloatingTtsService which holds companion state pointing into the session's
+        // ReaderTextToSpeech — if we detach, the floating bubble becomes a zombie (buttons
+        // don't work, notification stays forever). Now we always close the session fully,
+        // which stops TTS, removes the notification, and removes the floating bubble.
+        readerManager.close()
     }
 
     fun startSpeaker(itemIndex: Int) =
@@ -166,6 +164,4 @@ internal class ReaderViewModel @Inject constructor(
     fun saveCurrentReadingPosition() {
         readerSession.saveCurrentPosition(readingCurrentChapter)
     }
-
-    override fun onCleared() = onCloseManually()
 }

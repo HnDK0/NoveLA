@@ -1,12 +1,12 @@
 package my.noveldokusha.tooling.application_workers
 
 import android.content.Context
+import android.util.Log
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.PeriodicWorkRequest
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkerParameters
-import timber.log.Timber
 import dagger.hilt.EntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.InstallIn
@@ -46,7 +46,7 @@ internal class DatabaseMaintenanceWorker(
     }
 
     override suspend fun doWork(): Result {
-        Timber.d("DatabaseMaintenanceWorker: starting")
+        Log.d(TAG, "DatabaseMaintenanceWorker: starting")
         return try {
             val entryPoint = EntryPointAccessors.fromApplication(
                 context.applicationContext,
@@ -55,10 +55,10 @@ internal class DatabaseMaintenanceWorker(
             val appRepository = entryPoint.appRepository()
             appRepository.settings.clearNonLibraryData()
             appRepository.vacuum()
-            Timber.d("DatabaseMaintenanceWorker: completed successfully")
+            Log.d(TAG, "DatabaseMaintenanceWorker: completed successfully")
             Result.success()
         } catch (e: Exception) {
-            Timber.e(e, "DatabaseMaintenanceWorker: failed")
+            Log.e(TAG, "DatabaseMaintenanceWorker: failed", e)
             Result.failure()
         }
     }

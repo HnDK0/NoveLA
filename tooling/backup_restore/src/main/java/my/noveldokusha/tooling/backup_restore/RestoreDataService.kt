@@ -15,7 +15,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import my.noveldokusha.coreui.states.NotificationsCenter
@@ -24,8 +23,6 @@ import my.noveldokusha.coreui.states.text
 import my.noveldokusha.coreui.states.title
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.NovelPromptData
-import my.noveldokusha.core.models.RegexRule
-import my.noveldokusha.core.isCoverValid
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.BookChaptersRepository
 import my.noveldokusha.data.ChapterBodyRepository
@@ -38,7 +35,7 @@ import my.noveldokusha.core.utils.Extra_Boolean
 import my.noveldokusha.core.utils.Extra_Uri
 import my.noveldokusha.core.utils.isServiceRunning
 import my.noveldokusha.feature.local_database.AppDatabase
-import my.noveldokusha.feature.local_database.tables.Book
+import okhttp3.internal.closeQuietly
 import org.json.JSONObject
 import timber.log.Timber
 import java.io.File
@@ -103,7 +100,6 @@ class RestoreDataService : Service() {
         while (offset < total) {
             val actualSize = minOf(chunkSize, total - offset)
             val chunk = fetchChunk(actualSize, offset)
-            if (chunk.isEmpty()) break
             processChunk(chunk)
             offset += chunk.size
 
@@ -140,9 +136,11 @@ class RestoreDataService : Service() {
     private val channelId = "Restore backup"
     private val notificationId = channelId.hashCode()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var notificationBuilder: NotificationCompat.Builder
     private var job: Job? = null
+    // ponytail: was CoroutineScope(Dispatchers.IO).launch per onStartCommand — orphan scope,
+    // onDestroy only cancelled the Job. Promote to a SupervisorJob-backed field and cancel.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -260,13 +258,7 @@ class RestoreDataService : Service() {
                     text = getString(R.string.loading_database)
                 }
 
-                // ponytail: Room caches DB instances by filename — reuse of
-                // "temp_restore_database.db" returns a stale instance with phantom
-                // row counts from a prior failed restore. Use a unique name each time.
-                context.cacheDir.listFiles()
-                    ?.filter { it.name.startsWith("temp_restore_database") }
-                    ?.forEach { it.delete() }
-                val tempDbFile = File(context.cacheDir, "temp_restore_database_${System.currentTimeMillis()}.db")
+                val tempDbFile = File(context.cacheDir, "temp_restore_database.db")
                 try {
                     tempDbFile.outputStream().use { output -> dbInputStream.copyTo(output) }
                     Timber.d("mergeToDatabase: Wrote database to temp file, size: ${tempDbFile.length()}")
@@ -283,7 +275,7 @@ class RestoreDataService : Service() {
                         tempDbFile.delete()
                         throw e
                     }
-                    val bookChapters = BookChaptersRepository(chapterDao = newDatabase.chapterDao(), appDatabase = newDatabase)
+                    val bookChapters = BookChaptersRepository(chapterDao = newDatabase.chapterDao())
                     val chapterBody = ChapterBodyRepository(
                         chapterBodyDao = newDatabase.chapterBodyDao(),
                         appDatabase = newDatabase,
@@ -313,15 +305,6 @@ class RestoreDataService : Service() {
                     }
                 }
 
-                // Verify backup database integrity
-                val backupIntegrity = backupDatabase.newDatabase.integrityCheck()
-                if (backupIntegrity != "ok") {
-                    backupDatabase.close()
-                    backupDatabase.delete()
-                    throw Exception("Backup database integrity check failed: $backupIntegrity")
-                }
-                Timber.d("mergeToDatabase: Backup database integrity OK")
-
                 // Restore library books — chunked
                 notificationsCenter.modifyNotification(
                     notificationBuilder,
@@ -332,8 +315,6 @@ class RestoreDataService : Service() {
                 val restoredBookUrls = mutableSetOf<String>()
                 val totalBooks = backupDatabase.libraryBooks.count()
                 Timber.d("mergeToDatabase: Backup contains $totalBooks total books")
-                // ponytail: load existing books to preserve local categories and avoid downgrades
-                val existingBooks = appRepository.libraryBooks.getAll().associateBy { it.url }
                 processInChunks(
                     total = totalBooks, initialChunkSize = 500, label = "books",
                     fetchChunk = { limit, offset -> backupDatabase.libraryBooks.getChunk(limit, offset) },
@@ -341,47 +322,19 @@ class RestoreDataService : Service() {
                         val valid = chunk
                             .filter { it.inLibrary }
                             .filter { it.url.matches("""^(https?|local)://.*""".toRegex()) }
-
-                        val toInsert = mutableListOf<Book>()
-                        val toUpdate = mutableListOf<Book>()
-
-                        for (book in valid) {
-                            val existing = existingBooks[book.url]
-                            if (existing == null) {
-                                toInsert.add(book)
-                            } else if (!existing.inLibrary) {
-                                toUpdate.add(book.copy(category = existing.category))
-                            } else {
-                                val localCount = appRepository.bookChapters.countByBookUrl(book.url)
-                                val backupCount = backupDatabase.newDatabase.chapterDao().countByBookUrl(book.url)
-                                if (backupCount > localCount) {
-                                    toUpdate.add(book.copy(category = existing.category))
-                                }
-                            }
-                        }
-
-                        if (toInsert.isNotEmpty()) {
+                        if (valid.isNotEmpty()) {
                             try {
-                                appRepository.libraryBooks.insertReplace(toInsert)
+                                appRepository.libraryBooks.insertReplace(valid)
                             } catch (e: Exception) {
                                 Timber.e(e, "mergeToDatabase: Bulk book insert failed, trying individual")
-                                toInsert.forEach { book ->
+                                valid.forEach { book ->
                                     try { appRepository.libraryBooks.insertReplace(listOf(book)) }
                                     catch (bookError: Exception) {
                                         Timber.w(bookError, "Failed to insert book: ${book.title}")
                                     }
                                 }
                             }
-                            toInsert.forEach { restoredBookUrls.add(it.url) }
-                        }
-
-                        if (toUpdate.isNotEmpty()) {
-                            try {
-                                toUpdate.forEach { appRepository.libraryBooks.update(it) }
-                            } catch (e: Exception) {
-                                Timber.e(e, "mergeToDatabase: Book update failed")
-                            }
-                            toUpdate.forEach { restoredBookUrls.add(it.url) }
+                            valid.forEach { restoredBookUrls.add(it.url) }
                         }
                     }
                 )
@@ -503,16 +456,12 @@ class RestoreDataService : Service() {
                         Timber.d("mergeToDatabase: Skipping all extensions (overwritePlugins=false)")
                     }
                 } else {
-                        Timber.d("mergeToDatabase: No extensions in backup")
-                    }
+                    Timber.d("mergeToDatabase: No extensions in backup")
+                }
 
-                    // Restore reading history
-                    backupDatabase.newDatabase.readingHistoryDao().getAllFlow().first()
-                        .forEach { appDatabase.readingHistoryDao().upsert(it) }
-
-                    backupDatabase.close()
-                    backupDatabase.delete()
-                    Timber.d("mergeToDatabase: Database merge completed successfully")
+                backupDatabase.close()
+                backupDatabase.delete()
+                Timber.d("mergeToDatabase: Database merge completed successfully")
 
             }.onError {
                 Timber.e(it.exception, "mergeToDatabase: Failed to merge database")
@@ -663,21 +612,6 @@ class RestoreDataService : Service() {
                     Timber.d("mergeToSettings: Restored ${promptsMap.size} novel prompts")
                 }
 
-                if (settingsJson.has("USER_REGEX_CLEANUP_RULES")) {
-                    val rulesArray = settingsJson.getJSONArray("USER_REGEX_CLEANUP_RULES")
-                    val rules = (0 until rulesArray.length()).map { i ->
-                        val obj = rulesArray.getJSONObject(i)
-                        RegexRule(
-                            pattern = obj.getString("pattern"),
-                            replacement = obj.optString("replacement", ""),
-                            isEnabled = obj.optBoolean("isEnabled", true),
-                            description = obj.optString("description", "")
-                        )
-                    }
-                    appPreferences.USER_REGEX_CLEANUP_RULES.value = rules
-                    Timber.d("mergeToSettings: Restored ${rules.size} regex rules")
-                }
-
                 Timber.d("mergeToSettings: Settings merge completed")
 
             }.onError {
@@ -687,13 +621,7 @@ class RestoreDataService : Service() {
 
         fun mergeToBookFolder(entry: ZipEntry, entryInputStream: InputStream) {
             try {
-                val baseDir = appRepository.settings.folderBooks.parentFile ?: return
-                val canonicalBase = baseDir.canonicalFile
-                val file = File(baseDir, entry.name).canonicalFile
-                if (!file.path.startsWith(canonicalBase.path + File.separator)) {
-                    Timber.w("mergeToBookFolder: Zip slip attempt blocked for ${entry.name}")
-                    return
-                }
+                val file = File(appRepository.settings.folderBooks.parentFile, entry.name)
                 if (file.isDirectory) return
                 file.parentFile?.mkdirs()
                 if (file.parentFile?.exists() != true) {
@@ -732,8 +660,6 @@ class RestoreDataService : Service() {
             text = getString(R.string.adding_images)
         }
 
-        var databaseTempFile: File? = null
-
         try {
             ZipInputStream(bufferedStream).use { zipStream ->
                 generateSequence {
@@ -744,11 +670,7 @@ class RestoreDataService : Service() {
                     .forEach { entry ->
                         try {
                             when {
-                                entry.name == "database.sqlite3" -> {
-                                    val f = File(context.cacheDir, "restore_db_temp")
-                                    f.outputStream().use { zipStream.copyTo(it) }
-                                    databaseTempFile = f
-                                }
+                                entry.name == "database.sqlite3" -> mergeToDatabase(zipStream)
                                 entry.name == "settings.json" -> mergeToSettings(zipStream)
                                 entry.name.startsWith("lua_extensions/") && overwritePlugins -> mergeToLuaExtensions(entry, zipStream)
                                 entry.name.startsWith("lua_extensions/") -> Timber.d("restoreData: Skipping plugin (overwritePlugins=false): ${entry.name}")
@@ -774,40 +696,7 @@ class RestoreDataService : Service() {
             return@withContext
         }
 
-        inputStream.close()
-
-        // ponytail: merge database AFTER all files (covers, plugins) are on disk
-        // so Room observers see valid local covers and don't fetch from network.
-        databaseTempFile?.let { f ->
-            try {
-                f.inputStream().buffered().use { stream ->
-                    mergeToDatabase(stream)
-                }
-            } finally {
-                if (!f.delete()) Timber.w("restoreData: failed to delete temp db file")
-            }
-        }
-
-        // Validate restored covers: any corrupt/non-image cover file is deleted so the DB
-        // never points at a broken image. Valid covers keep their new last-modified timestamp,
-        // which (together with addLastModifiedToFileCacheKey in the ImageLoader) invalidates Coil.
-        try {
-            val booksDir = appRepository.settings.folderBooks
-            if (booksDir.exists()) {
-                booksDir.walkTopDown()
-                    .filter { it.isFile && it.name == AppFileResolver.COVER_PATH_RELATIVE_TO_BOOK }
-                    .forEach { cover ->
-                        if (!isCoverValid(cover)) {
-                            Timber.w("restoreData: deleting corrupt restored cover ${cover.absolutePath}")
-                            cover.delete()
-                        }
-                    }
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "restoreData: cover validation failed")
-        }
-
-        File(context.cacheDir, "image_cache").deleteRecursively()
+        inputStream.closeQuietly()
 
         // Clear source cache to force LuaSourceProvider to reload from restored lua_extensions/
         try {
@@ -828,9 +717,17 @@ class RestoreDataService : Service() {
             text = getString(R.string.data_restored)
         }
 
-        // ponytail: activity restart removed — it caused NPE in deliverResultsIfNeeded
-        // and killed the ViewModel subscription to the Room Flow.
-        // Cache/source cleanup above handles everything the restart was meant to.
+        // Restart Activity to apply all changes (sources, settings, preferences)
+        try {
+            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+                Timber.d("restoreData: Restarting Activity to apply changes")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "restoreData: Failed to restart Activity")
+        }
     }
 
     private fun compareVersions(v1: String, v2: String): Int {

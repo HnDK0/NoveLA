@@ -51,7 +51,9 @@ internal fun MoveToCategoryDialog(
                     .fillMaxWidth()
                     .height(300.dp)
             ) {
-                items(categories) { category ->
+                // ponytail: key by category string so the radio-button selection state
+                // is preserved across recompositions and only changed rows recompose.
+                items(categories, key = { it }, contentType = { "category" }) { category ->
                     val label = when (category) {
                         "" -> stringResource(R.string.reading)
                         "Completed" -> stringResource(R.string.completed)

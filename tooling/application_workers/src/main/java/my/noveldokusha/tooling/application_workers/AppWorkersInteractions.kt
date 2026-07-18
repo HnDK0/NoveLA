@@ -1,10 +1,10 @@
 package my.noveldokusha.tooling.application_workers
 
 import android.content.Context
+import android.util.Log
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import timber.log.Timber
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -22,7 +22,7 @@ class AppWorkersInteractions @Inject constructor(
         get() = WorkManager.getInstance(context)
 
     override fun checkForLibraryUpdates(libraryCategory: LibraryCategory) {
-        Timber.d("checkForLibraryUpdates: called category=$libraryCategory")
+        Log.d("AutoBackup", "checkForLibraryUpdates: called category=$libraryCategory")
         workManager.beginUniqueWork(
             LibraryUpdatesWorker.TAG_MANUAL,
             ExistingWorkPolicy.REPLACE,
@@ -31,7 +31,7 @@ class AppWorkersInteractions @Inject constructor(
     }
 
     override fun cancelLibraryUpdates() {
-        Timber.d("cancelLibraryUpdates: called")
+        Log.d("AutoBackup", "cancelLibraryUpdates: called")
         workManager.cancelUniqueWork(LibraryUpdatesWorker.TAG_MANUAL)
     }
 
@@ -45,17 +45,17 @@ class AppWorkersInteractions @Inject constructor(
     }
 
     fun scheduleAutoBackup(intervalMinutes: Long) {
-        Timber.d("scheduleAutoBackup: called intervalMinutes=$intervalMinutes")
+        Log.d("AutoBackup", "scheduleAutoBackup: called intervalMinutes=$intervalMinutes")
         AutoBackupWorker.setupTask(context, intervalMinutes)
     }
 
     fun cancelAutoBackup() {
-        Timber.d("cancelAutoBackup: called")
+        Log.d("AutoBackup", "cancelAutoBackup: called")
         AutoBackupWorker.setupTask(context, 0)
     }
 
     fun runAutoBackupNow() {
-        Timber.d("runAutoBackupNow: called")
+        Log.d("AutoBackup", "runAutoBackupNow: called")
         AutoBackupWorker.startNow(context)
     }
 }

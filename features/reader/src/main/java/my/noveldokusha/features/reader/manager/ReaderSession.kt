@@ -1,20 +1,15 @@
 package my.noveldokusha.features.reader.manager
 
-import timber.log.Timber
 import android.content.Context
-import android.net.Uri
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
@@ -35,7 +30,6 @@ import my.noveldokusha.features.reader.features.ReaderLiveTranslation
 import my.noveldokusha.features.reader.features.ReaderTextToSpeech
 import my.noveldokusha.features.reader.services.FloatingTtsService
 import my.noveldokusha.features.reader.services.NarratorMediaControlsService
-import my.noveldokusha.network.interceptors.CloudflareBypassSignal
 import my.noveldokusha.features.reader.tools.ChaptersIsReadRoutine
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
 import my.noveldokusha.text_translator.domain.TranslationManager
@@ -57,10 +51,7 @@ internal class ReaderSession(
     private val chapterTranslationDao: ChapterTranslationDao,
 ) {
     private val scope: CoroutineScope = CoroutineScope(
-        SupervisorJob() + Dispatchers.Default + CoroutineName("ReaderSession") +
-            CoroutineExceptionHandler { _, throwable ->
-                Timber.e(throwable, "ReaderSession: uncaught exception in TTS scope")
-            }
+        SupervisorJob() + Dispatchers.Default + CoroutineName("ReaderSession")
     )
 
     private var chapterUrl: String = initialChapterUrl
@@ -190,8 +181,7 @@ internal class ReaderSession(
                 ) {
                     val nextChapterIndex = currentChapterIndex + 1
                     if (!readerChaptersLoader.isChapterIndexLoaded(nextChapterIndex)) {
-                        runCatching { readerChaptersLoader.tryLoadNext() }
-                            .onFailure { Timber.w(it, "onBufferLow: tryLoadNext failed") }
+                        readerChaptersLoader.tryLoadNext()
                     }
                 }
             },
@@ -211,27 +201,21 @@ internal class ReaderSession(
                 bookUrl,
                 System.currentTimeMillis()
             )
-            readerRepository.upsertReadingHistory(bookUrl, chapterUrl)
         }
         initReaderTTSObservers()
-
-        scope.launch {
-            CloudflareBypassSignal.bypassCompleted.collect { host ->
-                val bookHost = Uri.parse(bookUrl).host
-                if (host == bookHost && readerChaptersLoader.hasLoadingError) {
-                    Timber.d("CF bypass completed for $host, retrying failed chapter")
-                    readerChaptersLoader.retryFailed()
-                }
-            }
-        }
     }
 
     private fun initLoadData() {
         scope.launch {
             val book = async(Dispatchers.IO) { appRepository.libraryBooks.get(bookUrl) }
             val chapter = async(Dispatchers.IO) { appRepository.bookChapters.get(chapterUrl) }
-            val chaptersList = async(Dispatchers.IO) {
-                orderedChapters.also { it.addAll(appRepository.bookChapters.chapters(bookUrl)) }
+            // ponytail: use the lightweight chapter projection (url+title+position+bookUrl)
+            // for the orderedChapters list — the reader doesn't read `read`/`lastReadPosition`/
+            // `lastReadOffset` from this list (only from the active chapter fetched above via
+            // bookChapters.get(chapterUrl)). For a book with 2000 chapters this skips
+            // ~24KB of cursor data and 2000 Chapter object field initialisations.
+            val chaptersList = async(Dispatchers.Default) {
+                orderedChapters.also { it.addAll(appRepository.bookChapters.chaptersLightweight(bookUrl)) }
             }
             val chapterIndex = async(Dispatchers.Default) {
                 chaptersList.await().indexOfFirst { it.url == chapterUrl }
@@ -270,27 +254,25 @@ internal class ReaderSession(
         scope.launch {
             readerTextToSpeech.reachedChapterEndFlowChapterIndex.collect { chapterIndex ->
                 withContext(Dispatchers.Main.immediate) {
-                    runCatching {
-                        if (readerChaptersLoader.isLastChapter(chapterIndex)) return@withContext
-                        if (readerChaptersLoader.hasLoadingError) return@withContext
-                        val nextChapterIndex = chapterIndex + 1
-                        val chapterItem = readerChaptersLoader.orderedChapters[nextChapterIndex]
-                        if (readerChaptersLoader.isChapterContentReady(nextChapterIndex)) {
-                            readerTextToSpeech.readChapterStartingFromStart(
-                                chapterIndex = nextChapterIndex
-                            )
-                        } else launch {
-                            readerChaptersLoader.tryLoadNext()
-                            readerChaptersLoader.chapterLoadedFlow
-                                .filter { it.type == ChapterLoaded.Type.Next }
-                                .take(1)
-                                .collect {
-                                    readerTextToSpeech.readChapterStartingFromStart(
-                                        chapterIndex = nextChapterIndex
-                                    )
-                                }
-                        }
-                    }.onFailure { Timber.w(it, "reachedChapterEnd handler failed for $chapterIndex") }
+                    if (readerChaptersLoader.isLastChapter(chapterIndex)) return@withContext
+                    if (readerChaptersLoader.hasLoadingError) return@withContext
+                    val nextChapterIndex = chapterIndex + 1
+                    val chapterItem = readerChaptersLoader.orderedChapters[nextChapterIndex]
+                    if (readerChaptersLoader.loadedChapters.contains(chapterItem.url)) {
+                        readerTextToSpeech.readChapterStartingFromStart(
+                            chapterIndex = nextChapterIndex
+                        )
+                    } else launch {
+                        readerChaptersLoader.tryLoadNext()
+                        readerChaptersLoader.chapterLoadedFlow
+                            .filter { it.type == ChapterLoaded.Type.Next }
+                            .take(1)
+                            .collect {
+                                readerTextToSpeech.readChapterStartingFromStart(
+                                    chapterIndex = nextChapterIndex
+                                )
+                            }
+                    }
                 }
             }
         }
@@ -344,7 +326,6 @@ internal class ReaderSession(
     }
 
     fun startSpeaker(itemIndex: Int) {
-        NarratorMediaControlsService.start(context)
         val startingItem = items.getOrNull(itemIndex) ?: return
         readerTextToSpeech.start()
         scope.launch {
@@ -356,7 +337,10 @@ internal class ReaderSession(
     }
 
     fun close() {
-        readerChaptersLoader.coroutineContext.cancel()
+        // ponytail: matches original NovelDokusha pattern — cancelChildren (not cancel) so
+        // the scope itself can be reused if the session is re-opened. The TTS engine is
+        // released via readerTextToSpeech.onClose() which calls manager.service.shutdown().
+        readerChaptersLoader.coroutineContext.cancelChildren()
         if (readerTextToSpeech.isActive.value) {
             saveLastReadPositionStateSpeaker(
                 item = readerTextToSpeech.currentTextPlaying.value.itemPos
@@ -372,18 +356,19 @@ internal class ReaderSession(
                 )
             }
         }
-        readerTextToSpeech.stop()
+        readerTextToSpeech.onClose()
+        // ponytail: auxiliary component scopes — close() cancels them so they don't outlive
+        // the session. Safe to call because they're only used within this session.
         readerLiveTranslation.close()
         readRoutine.close()
-        readerTextToSpeech.shutdownTts()
+        scope.coroutineContext.cancelChildren()
         NarratorMediaControlsService.stop(context)
-        scope.cancel()
-        runCatching { FloatingTtsService.stop(context) }
-    }
-
-    fun requestTtsStop() {
-        runCatching { readerTextToSpeech.stop() }
-        runCatching { FloatingTtsService.stop(context) }
+        // ponytail: always stop the floating TTS service when the reader closes. The floating
+        // bubble holds companion state pointing into this session's ReaderTextToSpeech — if we
+        // don't stop it, the bubble becomes a zombie (buttons don't work) and the notification
+        // stays in the bar forever. Background playback via the reader is not supported in this
+        // fork — use the floating bubble's own play controls while the reader is still open.
+        FloatingTtsService.stop(context)
     }
 
     fun reloadReader() {
@@ -404,23 +389,10 @@ internal class ReaderSession(
         val progress = stats.chapterReadPercentage()
         val chapterIndex = stats.chapterIndex
 
-        if (
-            userHasScrolled &&
-            readerTextToSpeech.isActive.value &&
-            !readerTextToSpeech.isSpeaking.value &&
-            chapterIndex >= ttsCurrentChapterIndex + 1
-        ) {
-            Timber.d("Auto-stop TTS: user on chapter $chapterIndex, TTS was on $ttsCurrentChapterIndex")
-            readerTextToSpeech.stop()
-            readerTextToSpeech.forceResetState(
-                items.getOrNull(itemIndex) as? ReaderItem.Position
-            )
-        }
-
         if (chapterIndex != lastChapterIndex) {
             if (lastChapterIndex != -1 && readerChaptersLoader.hasLoadingError) {
                 readerChaptersLoader.hasLoadingError = false
-                Timber.d("Reset hasLoadingError on chapter change: $lastChapterIndex -> $chapterIndex")
+                android.util.Log.d("ReaderSession", "Reset hasLoadingError on chapter change: $lastChapterIndex -> $chapterIndex")
             }
             lastChapterIndex = chapterIndex
             preloadTriggeredForChapter = -1
@@ -432,7 +404,7 @@ internal class ReaderSession(
         if (
             userHasScrolled &&
             preloadTriggeredForChapter != chapterIndex &&
-            progress >= 30f &&
+            progress >= 80f &&
             !readerChaptersLoader.isLastChapter(chapterIndex) &&
             !readerChaptersLoader.hasLoadingError
         ) {

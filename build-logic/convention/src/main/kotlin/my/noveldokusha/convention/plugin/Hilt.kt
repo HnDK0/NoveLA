@@ -19,6 +19,5 @@ internal fun Project.applyHilt() {
         implementation(libs.findLibrary("hilt.android").get())
         "ksp"(libs.findLibrary("hilt-compiler").get())
         "ksp"(libs.findLibrary("hilt-androidx-compiler").get())
-        "ksp"(libs.findLibrary("kotlin-metadata-jvm").get())
     }
 }

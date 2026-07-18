@@ -4,9 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -35,14 +32,13 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import my.noveldokusha.coreui.R
 import my.noveldokusha.core.domain.LibraryCategory
@@ -60,9 +56,8 @@ internal fun LibraryScreenBody(
     onBookClick: (BookWithContext) -> Unit,
     onBookLongClick: (BookWithContext) -> Unit,
     gridColumns: Int = 3,
-    selectedBooks: Map<String, Boolean> = emptyMap(),
+    selectedBooks: Set<String> = emptySet(),
     isSelectionMode: Boolean = false,
-    pendingRemoval: Set<String> = emptySet(),
     showCategories: Boolean = false,
     customCategories: List<String> = emptyList(),
     onCreateCategory: () -> Unit = {},
@@ -201,27 +196,16 @@ internal fun LibraryScreenBody(
 
             // Single list filtered by selected categories
             val list by viewModel.filteredList
-            val sources by viewModel.luaSources.collectAsStateWithLifecycle()
-            if (viewModel.isLibraryLoaded) {
-                LibraryPageBody(
-                    list = list,
-                    onClick = onBookClick,
-                    onLongClick = onBookLongClick,
-                    getSourceName = remember(sources) { { viewModel.getSourceName(it) } },
-                    gridColumns = gridColumns,
-                    selectedBooks = selectedBooks,
-                    isSelectionMode = isSelectionMode,
-                    pendingRemoval = pendingRemoval,
-                    gridState = gridState,
-                )
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
+            LibraryPageBody(
+                list = list,
+                onClick = onBookClick,
+                onLongClick = onBookLongClick,
+                getSourceName = { viewModel.getSourceName(it) },
+                gridColumns = gridColumns,
+                selectedBooks = selectedBooks,
+                isSelectionMode = isSelectionMode,
+                gridState = gridState,
+            )
         }
     }
 
@@ -249,7 +233,9 @@ internal fun LibraryScreenBody(
                     LazyColumn(
                         modifier = Modifier.height(200.dp)
                     ) {
-                        items(customCategories) { category ->
+                        // ponytail: key by category string so add/remove of a custom category
+                        // only recomposes the changed row, not all visible categories.
+                        items(customCategories, key = { it }, contentType = { "category" }) { category ->
                             androidx.compose.material3.ListItem(
                                 headlineContent = {
                                     Text(

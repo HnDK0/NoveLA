@@ -40,12 +40,12 @@
     <string name="open_in_browser">Tarayıcıda aç</string>
     <string name="sources">Kaynaklar</string>
     <string name="search_for_sources">Kaynakları ara</string>
-    <string name="import_epub">Kitap İçe Aktar</string>
+    <string name="import_epub">EPUB İçe Aktar</string>
     <string name="failed_get_file">Dosya alınamadı</string>
     <string name="local_book_nothing_to_update">Yerel kitap, güncellenecek bir şey yok</string>
-    <string name="failed_to_import_epub">Kitap içe aktarılamadı</string>
+    <string name="failed_to_import_epub">Epub içe aktarılamadı</string>
     <string name="image">Resim</string>
-    <string name="importing_epub">Kitap içe aktarılıyor</string>
+    <string name="importing_epub">Epub içe aktarılıyor</string>
     <string name="no_results_found">Sonuç bulunamadı</string>
     <string name="updating_library_notice">Kütüphane güncelleniyor</string>
     <string name="chapter_downloaded">Bölüm indirildi</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">Yeni bölümler</string>
     <string name="notification_channel_name_failed_updates">Başarısız güncellemeler</string>
     <string name="notification_channel_name_backup">Yedek</string>
-    <string name="notification_channel_name_import_epub">Kitap İçe Aktar</string>
+    <string name="notification_channel_name_import_epub">EPUB İçe Aktar</string>
     <string name="notification_channel_name_restore_backup">Yedeği geri yükle</string>
     <string name="notification_channel_name_app_updates_checker">Güncelleme denetleyicisi</string>
     <string name="new_app_version_available">Yeni uygulama sürümü mevcut</string>
@@ -352,6 +352,7 @@
     <string name="cloudflare_bypass">Cloudflare atlatma</string>
     <string name="cloudflare_bypass_description">Otomatik Cloudflare doğrulama atlatmayı etkinleştir</string>
     <string name="cloudflare_bypass_restart_required">Cloudflare atlatma ayarı uygulama yeniden başlatıldıktan sonra uygulanacak</string>
+    <string name="user_agent_restart_required">User-Agent değiştirildi. Uygulamak için uygulamayı yeniden başlatın.</string>
     <string name="cloudflare_challenge_timeout">Doğrulama zaman aşımı</string>
     <string name="timeout_seconds">Zaman aşımı (saniye)</string>
     <string name="seconds_format">%d saniye</string>
@@ -617,56 +618,5 @@
     <string name="repository_settings">Depo ayarları</string>
     <string name="installed">Yüklendi</string>
     <string name="available">Kullanılabilir</string>
-
-    <string name="book_fix">Kitabı düzelt</string>
-
-
-    <!-- History -->
-    <string name="title_history">Geçmiş</string>
-    <string name="no_history_yet">Henüz okuma geçmişi yok</string>
-    <string name="no_books_in_library">Kütüphanede kitap yok</string>
-    <string name="clear_all_history">Tüm geçmişi temizle</string>
-    <string name="display_options_title">Görüntüle</string>
-    <string name="save_settings">Ayarları kaydet</string>
-    <string name="save_plugins">Eklentileri kaydet</string>
-    <string name="copying_plugins">Eklentiler kopyalanıyor…</string>
-    <string name="auto_backup_include_settings">Ayarları dahil et</string>
-    <string name="auto_backup_include_settings_description">Otomatik yedekte API anahtarlarını ve tercihleri kaydet</string>
-    <string name="auto_backup_include_plugins">Eklentileri dahil et</string>
-    <string name="auto_backup_include_plugins_description">Otomatik yedekte Lua kazıyıcı eklentilerini kaydet</string>
-    <string name="import_lua">Lua İçe Aktar</string>
-    <string name="edit_lua">Lua Düzenle</string>
-    <string name="reset">Sıfırla</string>
-    <string name="uninstall">Kaldır</string>
-    <string name="installing">Yükleniyor…</string>
-    <string name="install">Yükle</string>
-    <string name="update">Güncelle</string>
-    <string name="retry">Yeniden Dene</string>
-    <string name="top">↑ Üst</string>
-    <string name="copy">Kopyala</string>
-    <string name="paste">Yapıştır</string>
-    <string name="clear">Temizle</string>
-    <string name="no_extensions_available">Kullanılabilir eklenti yok</string>
-    <string name="local_extension_description">Yerel Lua eklentisi</string>
-    <string name="extension_author_local">Yerel</string>
-    <string name="ext_failed_to_load">Eklentiler yüklenemedi: %s</string>
-    <string name="ext_failed_to_download">%s için betik indirilemedi</string>
-    <string name="ext_failed_to_install">%1$s yüklenemedi: %2$s</string>
-    <string name="ext_failed_to_uninstall">Eklenti kaldırılamadı</string>
-    <string name="ext_failed_to_toggle">Eklenti durumu değiştirilemedi</string>
-    <string name="lua_empty_error">Boş Lua dosyası</string>
-    <string name="lua_compile_error">Lua derleme hatası</string>
-    <string name="lua_save_error">Lua dosyası kaydedilemedi</string>
-    <string name="lua_import_error">İçe aktarılan Lua dosyası kaydedilemedi</string>
-    <string name="lua_duplicate_error">\"%s\" eklentisi zaten yerel olarak mevcut</string>
-    <string name="lua_not_editable">Kaynak kod düzenleme için mevcut değil</string>
-    <string name="lua_restore_error">Lua depodan geri yüklenemedi</string>
-    <string name="time_just_now">az önce</string>
-    <string name="time_minutes_ago">%dm önce</string>
-    <string name="time_hours_ago">%dh önce</string>
-    <string name="time_days_ago">%dd önce</string>
-    <string name="time_weeks_ago">%dw önce</string>
-    <string name="time_months_ago">%dmo önce</string>
-    <string name="time_years_ago">%dy önce</string>
 
 </resources>

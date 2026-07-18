@@ -4,22 +4,17 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.RectF
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.ReplacementSpan
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
-import timber.log.Timber
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.view.doOnNextLayout
 import androidx.core.view.updateLayoutParams
-import coil.load
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.utils.inflater
 import my.noveldokusha.features.reader.features.TextSynthesis
@@ -56,9 +51,6 @@ internal class ReaderItemAdapter(
     private val onRetryChapter: (chapterIndex: Int) -> Unit,
     private val onOpenChapterInBrowser: (url: String) -> Unit,
     private val onClick: () -> Unit,
-    private val currentTtsHighlightEnabled: () -> Boolean = { false },
-    private val currentTtsHighlightColor: () -> String = { "FFFF6D00" },
-    private val currentSpokenWordRange: () -> IntRange? = { null },
 ) : ArrayAdapter<ReaderItem>(ctx, 0, list) {
     private val appFileResolver = AppFileResolver(ctx)
     override fun getCount() = super.getCount() + 2
@@ -153,24 +145,13 @@ internal class ReaderItemAdapter(
 
         val parallelEnabled = currentParallelEnabled() && item.textTranslated != null
 
-        val isTtsActiveItem =
-                currentSpeakerActiveItem().itemPos.chapterIndex == item.chapterIndex &&
-                currentSpeakerActiveItem().itemPos.chapterItemPosition == item.chapterItemPosition &&
-                currentSpeakerActiveItem().playState == Utterance.PlayState.PLAYING
-
         if (parallelEnabled) {
             val orderTranslationFirst = currentParallelOrder() == "TRANSLATION_FIRST"
 
             val primaryText = if (orderTranslationFirst) item.textTranslated ?: item.text else item.text
             val secondaryText = if (orderTranslationFirst) item.text else item.textTranslated ?: item.text
 
-            val displayPrimary = if (isTtsActiveItem && currentTtsHighlightEnabled()) {
-                applyWordHighlight(primaryText, currentTtsHighlightColor())
-            } else {
-                primaryText
-            }
-
-            bind.bodyTranslated.text = displayPrimary
+            bind.bodyTranslated.text = primaryText
             bind.bodyTranslated.textSize = currentFontSize()
             bind.bodyTranslated.typeface = currentTypeface()
             bind.bodyTranslated.updateTextSelectability()
@@ -183,13 +164,7 @@ internal class ReaderItemAdapter(
             bind.bodyOriginal.setLineSpacing(0f, currentLineHeight())
             bind.bodyOriginal.visibility = View.VISIBLE
         } else {
-            val displayText = if (isTtsActiveItem && currentTtsHighlightEnabled()) {
-                applyWordHighlight(item.textToDisplay, currentTtsHighlightColor())
-            } else {
-                item.textToDisplay
-            }
-
-            bind.bodyTranslated.text = displayText
+            bind.bodyTranslated.text = item.textToDisplay
             bind.bodyTranslated.textSize = currentFontSize()
             bind.bodyTranslated.typeface = currentTypeface()
             bind.bodyTranslated.updateTextSelectability()
@@ -225,29 +200,15 @@ internal class ReaderItemAdapter(
             dimensionRatio = "1:${item.image.yrel}"
         }
 
-        bind.image.tag = null
+        val imageModel = appFileResolver.resolvedBookImagePath(bookUrl = bookUrl, imagePath = item.image.path)
 
-        val imageModel = appFileResolver.resolvedBookImagePath(bookUrl = bookUrl, imagePath = item.image.path, isCover = false)
-        Timber.d("viewImage called imageModel=%s path=%s", imageModel, item.image.path)
-
-        bind.image.load(imageModel) {
-            crossfade(true)
-            scale(coil.size.Scale.FIT)
-            size(1024)
-            listener(onError = { _,_ ->
-                Timber.d("viewImage: load error for path=%s", item.image.path)
-                if (bind.image.tag == null && item.image.path.startsWith("http")) {
-                    bind.image.tag = true
-                    val proxyUrl = "https://images.weserv.nl/?url=${android.net.Uri.encode(item.image.path)}"
-                    Timber.d("viewImage: trying proxy url=%s", proxyUrl)
-                    bind.image.load(proxyUrl) {
-                        crossfade(true)
-                        scale(coil.size.Scale.FIT)
-                        size(1024)
-                        error(R.drawable.ic_baseline_error_outline_24)
-                    }
-                }
-            })
+        bind.imageContainer.doOnNextLayout {
+            Glide.with(ctx)
+                .load(imageModel)
+                .fitCenter()
+                .error(R.drawable.ic_baseline_error_outline_24)
+                .transition(DrawableTransitionOptions.withCrossFade())
+                .into(bind.image)
         }
 
         when (item.location) {
@@ -391,28 +352,6 @@ internal class ReaderItemAdapter(
         }
     }
 
-    private fun applyWordHighlight(text: String, highlightColorHex: String): CharSequence {
-        if (!currentTtsHighlightEnabled() || text.isBlank()) return text
-        val range = currentSpokenWordRange()
-        if (range == null || range.first >= text.length) return text
-        val color = try {
-            android.graphics.Color.parseColor("#$highlightColorHex")
-        } catch (_: Exception) {
-            android.graphics.Color.parseColor("#FFFF6D00")
-        }
-        val spannable = SpannableString(text)
-        val start = range.first.coerceIn(0, text.length)
-        val end = (range.last + 1).coerceIn(0, text.length)
-        if (start < end) {
-            spannable.setSpan(
-                RoundedBackgroundSpan(color),
-                start, end,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-        }
-        return spannable
-    }
-
     private fun getItemReadingStateBackground(item: ReaderItem): Drawable? {
         val textSynthesis = currentSpeakerActiveItem()
         val isReadingItem = item is ReaderItem.Position &&
@@ -456,27 +395,5 @@ internal class ReaderItemAdapter(
 
     companion object {
         private const val MENU_ID_SEARCH_WEB = 9999
-    }
-}
-
-private class RoundedBackgroundSpan(private val color: Int) : ReplacementSpan() {
-    override fun getSize(paint: Paint, text: CharSequence, start: Int, end: Int, fm: Paint.FontMetricsInt?): Int {
-        return paint.measureText(text, start, end).toInt()
-    }
-
-    override fun draw(canvas: Canvas, text: CharSequence, start: Int, end: Int, x: Float, top: Int, y: Int, bottom: Int, paint: Paint) {
-        val textWidth = paint.measureText(text, start, end)
-        val fm = paint.fontMetricsInt
-        val pad = 3f
-        val rect = RectF(
-            x, (y + fm.ascent).toFloat() - pad,
-            x + textWidth, (y + fm.descent).toFloat() + pad
-        )
-        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = (this@RoundedBackgroundSpan.color and 0x00FFFFFF) or (0x80 shl 24)
-            style = Paint.Style.FILL
-        }
-        canvas.drawRoundRect(rect, 6f, 6f, bgPaint)
-        canvas.drawText(text, start, end, x, y.toFloat(), paint)
     }
 }

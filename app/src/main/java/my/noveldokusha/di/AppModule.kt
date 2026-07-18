@@ -27,6 +27,10 @@ abstract class AppModule {
     @Singleton
     abstract fun bindAppNavigationRoutes(nav: AppNavigationRoutes): NavigationRoutes
 
+//    @Binds
+//    @Singleton
+//    abstract fun bindAppNavigationRoutesViewModel(nav: AppNavigationRoutesViewModel): NavigationRouteViewModel
+
     @Binds
     @Singleton
     abstract fun bindToasty(toast: ToastyToast): Toasty
@@ -34,6 +38,10 @@ abstract class AppModule {
     @Binds
     @Singleton
     abstract fun bindExtensionManager(extensionRepository: ExtensionRepository): ExtensionManager
+
+    @Binds
+    @Singleton
+    abstract fun bindExtensionRepositoryInterface(extensionRepository: ExtensionRepository): my.noveldokusha.core.ExtensionRepositoryInterface
 
     companion object {
 

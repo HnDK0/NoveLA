@@ -89,6 +89,22 @@ import my.noveldokusha.text_translator.domain.TranslationModelState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 
+// ponytail: process-wide cache of the system navigation-bar height in Dp. Avoids calling
+// Resources.getIdentifier() (a known slow API that iterates the resource table) on every
+// ReaderScreen first-composition; the value is process-stable so a single lazy init pays
+// the cost exactly once per process lifetime.
+private val SYSTEM_NAV_BAR_HEIGHT_DP: androidx.compose.ui.unit.Dp by lazy {
+    val sys = android.content.res.Resources.getSystem()
+    @Suppress("DiscouragedApi")
+    val id = sys.getIdentifier("navigation_bar_height", "dimen", "android")
+    if (id > 0) {
+        val px = sys.getDimensionPixelSize(id)
+        androidx.compose.ui.unit.Dp(px / sys.displayMetrics.density)
+    } else {
+        androidx.compose.ui.unit.Dp(0f)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ReaderScreen(
@@ -105,8 +121,6 @@ internal fun ReaderScreen(
     onParagraphSpacingChanged: (Float) -> Unit,
     onPressBack: () -> Unit,
     onOpenChapterInWeb: () -> Unit,
-    onTtsHighlightEnabledChange: (Boolean) -> Unit,
-    onTtsHighlightColorChange: (String) -> Unit,
     readerContent: @Composable (paddingValues: PaddingValues) -> Unit,
 ) {
     val showReaderInfo by state.showReaderInfo
@@ -116,14 +130,11 @@ internal fun ReaderScreen(
     val context = LocalContext.current
     val density = LocalDensity.current
     val windowToken = LocalView.current.windowToken
-    val navBarHeightDp = remember {
-        @Suppress("DiscouragedApi")
-        val id = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
-        if (id > 0) {
-            context.resources.getDimensionPixelSize(id)
-                .let { px -> with(density) { px.toDp() } }
-        } else 0.dp
-    }
+    // ponytail: Resources.getIdentifier is a known slow API that iterates the resource
+    // table. Although it was wrapped in `remember`, that still re-ran on every first
+    // composition of ReaderScreen (e.g. after recreate()). Hoist to a process-wide lazy
+    // val backed by Resources.getSystem() so the cost is paid exactly once per process.
+    val navBarHeightDp = SYSTEM_NAV_BAR_HEIGHT_DP
 
 
     // Capture back action when viewing info
@@ -225,8 +236,6 @@ internal fun ReaderScreen(
                         onKeepScreenOn = onKeepScreenOn,
                         onFullScreen = onFullScreen,
                         onSingleTapToOpenSettingsChange = onSingleTapToOpenSettingsChange,
-                        onTtsHighlightEnabledChange = onTtsHighlightEnabledChange,
-                        onTtsHighlightColorChange = onTtsHighlightColorChange,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     BottomAppBar(
@@ -272,7 +281,7 @@ internal fun ReaderScreen(
         val overlayPermissionLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult()
         ) {
-            if (Settings.canDrawOverlays(context)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(context)) {
                 my.noveldokusha.features.reader.services.FloatingTtsService.activityWindowToken =
                     windowToken
                 my.noveldokusha.features.reader.services.FloatingTtsService.ttsState.value =
@@ -317,7 +326,9 @@ internal fun ReaderScreen(
         ) {
             val floatingEnabled = state.settings.floatingTts.isEnabled.value
             if (floatingEnabled) {
-                val hasPermission = Settings.canDrawOverlays(context)
+                val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    Settings.canDrawOverlays(context)
+                } else true
 
                 if (hasPermission) {
                     my.noveldokusha.features.reader.services.FloatingTtsService.activityWindowToken =
@@ -328,10 +339,6 @@ internal fun ReaderScreen(
                         state.settings.floatingTts.showOutsideApp.value
                     my.noveldokusha.features.reader.services.FloatingTtsService.opacity.value =
                         state.settings.floatingTts.opacity.value
-                    my.noveldokusha.features.reader.services.FloatingTtsService.ttsHighlightEnabled.value =
-                        state.settings.ttsHighlight.isEnabled.value
-                    my.noveldokusha.features.reader.services.FloatingTtsService.ttsHighlightColor.value =
-                        state.settings.ttsHighlight.highlightColor.value
                     my.noveldokusha.features.reader.services.FloatingTtsService.start(context)
                 } else {
                     showOverlayPermissionDialog = true
@@ -345,17 +352,11 @@ internal fun ReaderScreen(
         LaunchedEffect(
             state.settings.floatingTts.showOutsideApp.value,
             state.settings.floatingTts.opacity.value,
-            state.settings.ttsHighlight.isEnabled.value,
-            state.settings.ttsHighlight.highlightColor.value,
         ) {
             my.noveldokusha.features.reader.services.FloatingTtsService.showOutsideApp.value =
                 state.settings.floatingTts.showOutsideApp.value
             my.noveldokusha.features.reader.services.FloatingTtsService.opacity.value =
                 state.settings.floatingTts.opacity.value
-            my.noveldokusha.features.reader.services.FloatingTtsService.ttsHighlightEnabled.value =
-                state.settings.ttsHighlight.isEnabled.value
-            my.noveldokusha.features.reader.services.FloatingTtsService.ttsHighlightColor.value =
-                state.settings.ttsHighlight.highlightColor.value
         }
 
         LaunchedEffect(
@@ -518,7 +519,6 @@ private fun ViewsPreview(
         parallelEnabled = remember { mutableStateOf(false) },
         originalVoiceId = remember { mutableStateOf("") },
         setOriginalVoiceId = {},
-        spokenWordRange = remember { mutableStateOf(null) },
     )
 
     val style = ReaderScreenState.Settings.StyleSettingsData(
@@ -556,10 +556,6 @@ private fun ViewsPreview(
                             showOutsideApp = remember { mutableStateOf(true) },
                             opacity = remember { mutableFloatStateOf(0.6f) },
                         ),
-                        ttsHighlight = ReaderScreenState.Settings.TtsHighlightSettingsData(
-                            isEnabled = remember { mutableStateOf(false) },
-                            highlightColor = remember { mutableStateOf("FFFF6D00") },
-                        ),
                     ),
                     showInvalidChapterDialog = remember { mutableStateOf(false) }
                 ),
@@ -576,8 +572,6 @@ private fun ViewsPreview(
                 onKeepScreenOn = {},
                 onFullScreen = {},
                 onSingleTapToOpenSettingsChange = {},
-                onTtsHighlightEnabledChange = {},
-                onTtsHighlightColorChange = {},
             )
         }
     }

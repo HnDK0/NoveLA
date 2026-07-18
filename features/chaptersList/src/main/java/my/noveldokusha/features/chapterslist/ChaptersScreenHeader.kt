@@ -41,7 +41,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -78,7 +77,6 @@ internal fun ChaptersScreenHeader(
     genres: List<String>,
     sourceCatalogName: String,
     numberOfChapters: Int,
-    readChapters: Int,
     paddingValues: PaddingValues,
     translatedTitle: String?,
     translatedDescription: String?,
@@ -192,7 +190,7 @@ internal fun ChaptersScreenHeader(
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    // Прогресс прочитанных глав
+                    // Chapters count
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.List,
@@ -201,26 +199,13 @@ internal fun ChaptersScreenHeader(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "$readChapters / $numberOfChapters",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        LinearProgressIndicator(
-                            progress = { if (numberOfChapters > 0) readChapters.toFloat() / numberOfChapters else 0f },
-                            modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-                            gapSize = 0.dp,
-                            drawStopIndicator = {},
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${if (numberOfChapters > 0) readChapters * 100 / numberOfChapters else 0}%",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        SelectionContainer {
+                            Text(
+                                text = stringResource(id = R.string.chapters) + " " + numberOfChapters.toString(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     // Category chip
                     Spacer(modifier = Modifier.height(4.dp))
@@ -259,8 +244,18 @@ internal fun ChaptersScreenHeader(
                         modifier = Modifier.padding(vertical = 8.dp),
                         thickness = Dp.Hairline,
                     )
+                    // Description
+                    val displayDesc = (translatedDescription ?: bookState.description).trim()
+                    val descText by remember(displayDesc) { derivedStateOf { displayDesc } }
+                    SelectionContainer {
+                        ExpandableText(
+                            text = descText,
+                            linesForExpand = 3,
+                        )
+                    }
                     // Genres
                     if (genres.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
                         val genresCollapsedCount = 4
                         var genresExpanded by rememberSaveable { mutableStateOf(false) }
                         val visibleGenres = if (genresExpanded || genres.size <= genresCollapsedCount)
@@ -315,19 +310,6 @@ internal fun ChaptersScreenHeader(
                             }
                         }
                     }
-                }
-            }
-
-            // Description
-            val displayDesc = (translatedDescription ?: bookState.description).trim()
-            if (displayDesc.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                val descText by remember(displayDesc) { derivedStateOf { displayDesc } }
-                SelectionContainer {
-                    ExpandableText(
-                        text = descText,
-                        linesForExpand = 3,
-                    )
                 }
             }
 

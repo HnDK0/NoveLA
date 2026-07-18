@@ -9,15 +9,18 @@ import dagger.hilt.android.AndroidEntryPoint
 import my.noveldokusha.core.LocaleManager
 import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppLanguageProvider
+import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.theme.DarkMode
-import my.noveldokusha.coreui.AppThemeProvider
+import my.noveldokusha.coreui.theme.ThemeProvider
 import javax.inject.Inject
 
 @AndroidEntryPoint
 open class BaseActivity : AppCompatActivity() {
 
+    val appPreferences: AppPreferences by lazy { AppPreferences(applicationContext) }
+
     @Inject
-    lateinit var themeProvider: AppThemeProvider
+    lateinit var themeProvider: ThemeProvider
 
     @Inject
     lateinit var toasty: Toasty
@@ -37,9 +40,8 @@ open class BaseActivity : AppCompatActivity() {
     }
 
     private fun getAppTheme(): Int {
-        val prefs = getSharedPreferences(packageName + "_preferences", Context.MODE_PRIVATE)
         val darkMode = runCatching {
-            enumValueOf<DarkMode>(prefs.getString("THEME_DARK_MODE", "SYSTEM") ?: "SYSTEM")
+            enumValueOf<DarkMode>(appPreferences.THEME_DARK_MODE.value)
         }.getOrDefault(DarkMode.SYSTEM)
 
         val isSystemDark = isSystemInDarkTheme()

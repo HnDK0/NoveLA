@@ -1,6 +1,5 @@
 package my.noveldokusha
 
-import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import my.noveldokusha.core.Extension
@@ -15,7 +14,7 @@ import javax.inject.Singleton
 @Singleton
 class ExtensionRepository @Inject constructor(
     private val database: AppDatabase
-) : ExtensionManager {
+) : ExtensionManager, my.noveldokusha.core.ExtensionRepositoryInterface {
 
     private val extensionDao = database.extensionDao()
 
@@ -44,16 +43,18 @@ class ExtensionRepository @Inject constructor(
 
     override suspend fun installExtensionFromInfo(id: String, name: String, version: String, language: String, imageUrl: String?, codeUrl: String?) {
         try {
-            val settingsJson = if (!codeUrl.isNullOrBlank()) {
-                Gson().toJson(mapOf("codeUrl" to codeUrl))
-            } else {
-                """{"sourceType": "local"}"""
-            }
+            // codeUrl должен быть передан из YAML конфигурации
+            val finalCodeUrl = codeUrl ?: throw IllegalArgumentException("codeUrl is required")
+
+            // Используем YAML для settings
+            val settingsYaml = """
+                codeUrl: $finalCodeUrl
+            """.trimIndent()
 
             val dbExtension = my.noveldokusha.feature.local_database.tables.Extension(
                 id = id,
                 name = name,
-                fileName = "$id.lua",
+                fileName = "extension_${id}.lua",
                 imageURL = imageUrl ?: "",
                 language = language,
                 version = version,
@@ -61,11 +62,11 @@ class ExtensionRepository @Inject constructor(
                 enabled = true,
                 installed = true,
                 chapterType = "HTML",
-                settings = settingsJson
+                settings = settingsYaml
             )
             extensionDao.insert(dbExtension)
 
-            Timber.d("Extension installed in database: $name")
+            Timber.d("Extension installed in database: $name with codeUrl: $finalCodeUrl")
         } catch (e: Exception) {
             Timber.e(e, "Failed to install extension: $name")
             throw e

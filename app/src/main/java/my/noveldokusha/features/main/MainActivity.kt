@@ -13,8 +13,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,15 +59,13 @@ import my.noveldokusha.tooling.application_workers.setup.PeriodicWorkersInitiali
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.theme.Theme
+import my.noveldokusha.coreui.theme.ThemeProvider
+import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.R
 import my.noveldokusha.catalogexplorer.CatalogExplorerScreen
 import my.noveldokusha.libraryexplorer.LibraryScreen
 import my.noveldokusha.settings.SettingsScreen
-import my.noveldokusha.tooling.epub_importer.BookImportService
-import my.noveldokusha.historyexplorer.HistoryScreen
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.zIndex
+import my.noveldokusha.tooling.epub_importer.EpubImportService
 
 private data class Page(
     @DrawableRes val iconRes: Int,
@@ -79,7 +75,6 @@ private data class Page(
 private val pages = listOf(
     Page(iconRes = R.drawable.ic_baseline_home_24, stringRes = R.string.title_library),
     Page(iconRes = R.drawable.ic_baseline_menu_book_24, stringRes = R.string.title_finder),
-    Page(iconRes = R.drawable.ic_baseline_history_24, stringRes = R.string.title_history),
     Page(iconRes = R.drawable.ic_twotone_settings_24, stringRes = R.string.title_settings),
 )
 
@@ -125,87 +120,24 @@ open class MainActivity : BaseActivity() {
 
             Theme(themeProvider = themeProvider) {
                 Box(Modifier.fillMaxSize()) {
-                    // All screens live in composition always.
-                    // Switching is instant — only alpha changes via graphicsLayer.
-                    val libraryAlpha by animateFloatAsState(
-                        targetValue = if (activePageIndex == 0) 1f else 0f,
-                        animationSpec = tween(150), label = "libAlpha"
-                    )
-
-                    val finderAlpha by animateFloatAsState(
-                        targetValue = if (activePageIndex == 1) 1f else 0f,
-                        animationSpec = tween(150), label = "finderAlpha"
-                    )
-
-                    val historyAlpha by animateFloatAsState(
-                        targetValue = if (activePageIndex == 2) 1f else 0f,
-                        animationSpec = tween(150), label = "historyAlpha"
-                    )
-
-                    val settingsAlpha by animateFloatAsState(
-                        targetValue = if (activePageIndex == 3) 1f else 0f,
-                        animationSpec = tween(150), label = "settingsAlpha"
-                    )
-
+                    // ponytail: previously all three top-level screens (Library / Catalog /
+                    // Settings) were kept alive in composition simultaneously with
+                    // graphicsLayer.alpha = 0f for the inactive ones. That caused every
+                    // inactive screen to recompose whenever shared state (theme, app prefs,
+                    // download manager flow, etc.) changed — wasting CPU and allocations
+                    // even while not visible. Now only the active screen is composed; the
+                    // other two are removed from composition entirely. HiltViewModel-backed
+                    // state (library list, settings, etc.) is preserved across tab switches
+                    // because the ViewModels survive composition removal.
                     Box(
                         Modifier
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.surface)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer { alpha = libraryAlpha }
-                                .zIndex(if (activePageIndex == 0) 1f else 0f)
-                                .then(
-                                    if (activePageIndex != 0) Modifier.pointerInput(Unit) {
-                                        awaitPointerEventScope { while (true) { awaitPointerEvent() } }
-                                    } else Modifier
-                                )
-                        ) {
-                            LibraryScreen()
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer { alpha = finderAlpha }
-                                .zIndex(if (activePageIndex == 1) 1f else 0f)
-                                .then(
-                                    if (activePageIndex != 1) Modifier.pointerInput(Unit) {
-                                        awaitPointerEventScope { while (true) { awaitPointerEvent() } }
-                                    } else Modifier
-                                )
-                        ) {
-                            CatalogExplorerScreen()
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer { alpha = historyAlpha }
-                                .zIndex(if (activePageIndex == 2) 1f else 0f)
-                                .then(
-                                    if (activePageIndex != 2) Modifier.pointerInput(Unit) {
-                                        awaitPointerEventScope { while (true) { awaitPointerEvent() } }
-                                    } else Modifier
-                                )
-                        ) {
-                            HistoryScreen()
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer { alpha = settingsAlpha }
-                                .zIndex(if (activePageIndex == 3) 1f else 0f)
-                                .then(
-                                    if (activePageIndex != 3) Modifier.pointerInput(Unit) {
-                                        awaitPointerEventScope { while (true) { awaitPointerEvent() } }
-                                    } else Modifier
-                                )
-                        ) {
-                            SettingsScreen(onRestartApp = {
+                        when (activePageIndex) {
+                            0 -> LibraryScreen()
+                            1 -> CatalogExplorerScreen()
+                            2 -> SettingsScreen(onRestartApp = {
                                 recreate()
                             })
                         }
@@ -292,11 +224,7 @@ open class MainActivity : BaseActivity() {
 
         when (action) {
             Intent.ACTION_SEND -> {
-                if (type == "application/epub+zip"
-                    || type == "application/octet-stream"
-                    || type == "application/fb2"
-                    || type == "application/x-fictionbook+xml"
-                ) {
+                if (type == "application/epub+zip") {
                     handleSharedEpub(intent)
                 }
             }
@@ -310,7 +238,7 @@ open class MainActivity : BaseActivity() {
     private fun handleViewedEpub(intent: Intent) {
         val epubUri: Uri? = intent.data
         if (epubUri != null) {
-            BookImportService.start(ctx = this, uri = epubUri)
+            EpubImportService.start(ctx = this, uri = epubUri)
         }
     }
 
@@ -319,7 +247,7 @@ open class MainActivity : BaseActivity() {
             intent, Intent.EXTRA_STREAM, Uri::class.java
         )
         if (epubUri != null) {
-            BookImportService.start(ctx = this, uri = epubUri)
+            EpubImportService.start(ctx = this, uri = epubUri)
         }
     }
 }

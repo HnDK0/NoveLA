@@ -6,7 +6,6 @@ import okhttp3.Request
 import timber.log.Timber
 import java.net.InetAddress
 import java.net.UnknownHostException
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /**
@@ -81,7 +80,7 @@ class DnsOverHttps : Dns {
         .build()
 
     // In-memory кэш — TTL 5 минут
-    private val cache = ConcurrentHashMap<String, CacheEntry>()
+    private val cache = mutableMapOf<String, CacheEntry>()
 
     private data class CacheEntry(
         val addresses: List<InetAddress>,

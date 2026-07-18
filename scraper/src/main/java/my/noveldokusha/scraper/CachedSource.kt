@@ -19,7 +19,6 @@ class CachedSource(
     override val isLocalSource: Boolean = false,
     override val language: LanguageCode? = null,
     override val catalogUrl: String = baseUrl,
-    override val iconUrl: String? = null,
 ) : SourceInterface.Catalog {
 
     override suspend fun getChapterList(bookUrl: String): Response<List<ChapterResult>> =

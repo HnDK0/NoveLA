@@ -6,9 +6,6 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
-plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
-}
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
@@ -50,10 +47,8 @@ include(":features:sourceExplorer")
 include(":features:catalogExplorer")
 include(":features:settings")
 include(":features:libraryExplorer")
-include(":features:historyExplorer")
 include(":tooling:application_workers")
 include(":features:webview")
 include(":tooling:local_source")
 include(":tooling:algorithms")
 include(":tooling:novel_migration")
-

@@ -66,11 +66,14 @@ fun TopAppBarSearch(
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     var dropdownExpanded by remember { mutableStateOf(false) }
+    // ponytail: was MutableInteractionSource() inside the modifier — fresh instance per
+    // recomposition. Hoist to a remembered val.
+    val topBarInteractionSource = remember { MutableInteractionSource() }
 
     // Many hacks going on here to make it scrollBehavior compatible
     TopAppBar(
         modifier = modifier.clickable(
-            interactionSource = MutableInteractionSource(),
+            interactionSource = topBarInteractionSource,
             indication = null
         ) {
             focusRequester.requestFocus()

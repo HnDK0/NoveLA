@@ -26,12 +26,10 @@ dependencies {
     implementation(libs.compose.androidx.animation)
     implementation(libs.compose.androidx.runtime.livedata)
     implementation(libs.compose.androidx.lifecycle.viewmodel)
+    implementation(libs.compose.androidx.constraintlayout)
     implementation(libs.compose.androidx.material.icons.extended)
     implementation(libs.compose.material3.android)
+    implementation(libs.compose.landscapist.glide)
     implementation(libs.compose.coil)
     implementation(libs.compose.lazyColumnScrollbar)
-
-    // Sora Editor — LGPL v2.1, (C) 2020-2026 Rosemoe (https://github.com/Rosemoe/sora-editor)
-    implementation(platform(libs.sora.editor.bom))
-    implementation(libs.sora.editor.core)
 }

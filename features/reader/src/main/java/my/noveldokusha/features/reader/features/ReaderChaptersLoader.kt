@@ -1,16 +1,12 @@
 package my.noveldokusha.features.reader.features
 
-import timber.log.Timber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.Response
 import my.noveldokusha.core.isValidChapterContent
@@ -53,6 +49,7 @@ internal class ReaderChaptersLoader(
     private val chapterTranslationDao: ChapterTranslationDao,
     private val regexRulesProvider: () -> List<my.noveldokusha.core.models.RegexRule> = { emptyList() },
 ) : CoroutineScope {
+
     override val coroutineContext: CoroutineContext = SupervisorJob() + Dispatchers.Main.immediate
 
     private sealed interface LoadChapter {
@@ -69,13 +66,10 @@ internal class ReaderChaptersLoader(
     private val items: MutableList<ReaderItem> = ArrayList()
     private val loaderQueue = mutableSetOf<LoadChapter.Type>()
     private val chapterLoaderFlow = MutableSharedFlow<LoadChapter>(extraBufferCapacity = 1)
-    private val loadedChaptersMutex = Mutex()
 
     private @Volatile var _hasLoadingError = false
     private var autoResetJob: kotlinx.coroutines.Job? = null
     private var errorRetryCount = 0
-    @Volatile var failedChapterIndex: Int = -1
-    private @Volatile var retryInProgress = false
     private @Volatile var pendingPruneChapterIndex: Int? = null
 
     var hasLoadingError: Boolean
@@ -89,12 +83,10 @@ internal class ReaderChaptersLoader(
                 val delayMs = (5_000L * errorRetryCount).coerceAtMost(60_000L)
                 autoResetJob = launch {
                     delay(delayMs)
-                    ensureActive()
                     _hasLoadingError = false
                     autoResetJob = null
-                    Timber.d("Auto-reset hasLoadingError after ${delayMs/1000}s timeout (attempt $errorRetryCount), retrying chapter $failedChapterIndex")
-                    val idx = failedChapterIndex
-                    if (idx >= 0) retryChapter(idx) else tryLoadNext()
+                    android.util.Log.d(TAG, "Auto-reset hasLoadingError after ${delayMs/1000}s timeout (attempt $errorRetryCount), resuming preload")
+                    tryLoadNext()
                 }
             } else {
                 errorRetryCount = 0
@@ -148,11 +140,9 @@ internal class ReaderChaptersLoader(
             ?: false
     }
     fun isChapterIndexValid(chapterIndex: Int) = chapterIndex in 0 until orderedChapters.size
-    fun isChapterContentReady(chapterIndex: Int): Boolean =
-        items.any { it is ReaderItem.Body && it.chapterIndex == chapterIndex }
 
     @Synchronized fun tryLoadInitial(chapterIndex: Int) {
-        Timber.d("tryLoadInitial called, chapterIndex=$chapterIndex, stack=${Thread.currentThread().stackTrace[2]}")
+        android.util.Log.d("READER_DEBUG", "tryLoadInitial called, chapterIndex=$chapterIndex, stack=${Thread.currentThread().stackTrace[2]}")
         if (LoadChapter.Type.Initial in loaderQueue) return
         loaderQueue.add(LoadChapter.Type.Initial)
         launch { chapterLoaderFlow.emit(LoadChapter.Initial(chapterIndex = chapterIndex)) }
@@ -172,7 +162,7 @@ internal class ReaderChaptersLoader(
 
     @Synchronized fun tryLoadNext() {
         if (hasLoadingError) {
-            Timber.d("tryLoadNext: blocked due to previous loading error")
+            android.util.Log.d(TAG, "tryLoadNext: blocked due to previous loading error")
             return
         }
         if (LoadChapter.Type.Next in loaderQueue) return
@@ -185,33 +175,16 @@ internal class ReaderChaptersLoader(
         tryLoadNext()
     }
 
-    fun retryFailed() {
-        if (retryInProgress || !_hasLoadingError) return
-        val idx = failedChapterIndex
-        if (idx < 0) return
-        autoResetJob?.cancel()
-        autoResetJob = null
-        retryChapter(idx)
-    }
-
     fun retryChapter(chapterIndex: Int) {
-        if (retryInProgress) {
-            Timber.d("retryChapter: already in progress, skipping chapter $chapterIndex")
-            return
-        }
-        retryInProgress = true
-        failedChapterIndex = -1
         if (chapterIndex < 0 || chapterIndex >= orderedChapters.size) {
-            Timber.e("retryChapter: invalid chapterIndex $chapterIndex, size ${orderedChapters.size}")
-            retryInProgress = false
+            android.util.Log.e(TAG, "retryChapter: invalid chapterIndex $chapterIndex, size ${orderedChapters.size}")
             return
         }
 
         launch(Dispatchers.Main.immediate) {
-            try {
             val chapterUrl = orderedChapters[chapterIndex].url
 
-            _hasLoadingError = false
+            hasLoadingError = false
             chaptersStats.remove(chapterUrl)
             loadedChapters.remove(chapterUrl)
             loaderQueue.remove(LoadChapter.Type.Next)
@@ -250,11 +223,8 @@ internal class ReaderChaptersLoader(
             flushPendingPrune()
 
             if (success == true && !hasLoadingError) {
-                Timber.d("retryChapter: auto-resuming preload for next chapter")
+                android.util.Log.d(TAG, "retryChapter: auto-resuming preload for next chapter")
                 tryLoadNext()
-            }
-            } finally {
-                retryInProgress = false
             }
         }
     }
@@ -349,7 +319,7 @@ internal class ReaderChaptersLoader(
     private suspend fun loadInitialChapter(
         chapterIndex: Int
     ) = withContext(Dispatchers.Main.immediate) {
-        Timber.d("loadInitialChapter START, chapterIndex=$chapterIndex")
+        android.util.Log.d("READER_DEBUG", "loadInitialChapter START, chapterIndex=$chapterIndex")
         readerState = ReaderState.INITIAL_LOAD
         items.clear()
         readerViewHandlersActions.doForceUpdateListViewState()
@@ -488,9 +458,9 @@ internal class ReaderChaptersLoader(
     ): Boolean? = withContext(Dispatchers.Default) {
         val chapter = orderedChapters.getOrNull(chapterIndex) ?: return@withContext null
 
-        loadedChaptersMutex.withLock {
+        synchronized(loadedChapters) {
             if (!skipLoadedCheck && loadedChapters.contains(chapter.url)) {
-                Timber.d("addChapter: chapter ${chapter.url} already loaded or loading, skipping")
+                android.util.Log.d(TAG, "addChapter: chapter ${chapter.url} already loaded or loading, skipping")
                 return@withContext null
             }
             loadedChapters.add(chapter.url)
@@ -499,14 +469,14 @@ internal class ReaderChaptersLoader(
         try {
             _addChapterInternal(chapter, chapterIndex, insert, insertAll, remove, maintainPosition, showLoadingState, maintainOnSuccess)
         } catch (e: kotlinx.coroutines.CancellationException) {
-            Timber.w("addChapter: cancelled for chapter ${chapter.url}, cleaning up")
-            loadedChaptersMutex.withLock {
+            android.util.Log.w(TAG, "addChapter: cancelled for chapter ${chapter.url}, cleaning up")
+            synchronized(loadedChapters) {
                 loadedChapters.remove(chapter.url)
             }
             null
         } catch (e: Throwable) {
-            Timber.e(e, "addChapter: unexpected error for chapter ${chapter.url}")
-            loadedChaptersMutex.withLock {
+            android.util.Log.e(TAG, "addChapter: unexpected error for chapter ${chapter.url}", e)
+            synchronized(loadedChapters) {
                 loadedChapters.remove(chapter.url)
             }
             false
@@ -543,7 +513,7 @@ internal class ReaderChaptersLoader(
                 }
                 if (cachedTitle != null) {
                     titleTranslated = cachedTitle
-                    Timber.d("Title translation found in DB: '$titleOriginal' -> '$titleTranslated'")
+                    android.util.Log.d(TAG, "Title translation found in DB: '$titleOriginal' -> '$titleTranslated'")
                 }
             }
         }
@@ -557,7 +527,7 @@ internal class ReaderChaptersLoader(
         chapterItemPosition += 1
 
         if (showLoadingState) {
-            Timber.d("inserting Progressbar for chapterIndex=$chapterIndex")
+            android.util.Log.d("READER_DEBUG", "inserting Progressbar for chapterIndex=$chapterIndex")
             maintainPosition {
                 insert(ReaderItem.Divider(chapterIndex = chapterIndex))
                 insert(itemTitle)
@@ -569,12 +539,10 @@ internal class ReaderChaptersLoader(
         when (val res = readerRepository.downloadChapter(chapter.url)) {
             is Response.Success -> {
                 if (!isValidChapterContent(res.data)) {
-                    failedChapterIndex = chapterIndex
                     withContext(Dispatchers.Main.immediate) {
                         hasLoadingError = true
-                        Timber.w("Chapter content invalid (possibly Cloudflare or Login), stopping auto-loading. Preview: ${res.data.take(160)}")
+                        android.util.Log.w(TAG, "Chapter content invalid (possibly Cloudflare or Login), stopping auto-loading. Preview: ${res.data.take(160)}")
                     }
-                    readerRepository.deleteChapterBody(chapter.url)
                     maintainPosition {
                         // 1. Сначала подготавливаем сообщения
                         val preview = res.data.take(400).ifBlank { "<empty body>" }
@@ -583,13 +551,21 @@ internal class ReaderChaptersLoader(
                         else
                             "Content error: Cloudflare, empty chapter, or login required. Try opening in browser.\n\nCode snippet: ${preview.take(100)}..."
 
-                        // 2. Модифицируем список на месте
-                        items.remove(itemProgressBar)
-                        items.remove(itemTitle)
-                        items.removeAll { it is ReaderItem.Divider && it.chapterIndex == chapterIndex }
-                        items.add(ReaderItem.Error(chapterIndex = chapterIndex, chapterUrl = chapter.url, text = userMessage))
+                        // 2. Атомарно модифицируем список данных, не дёргая адаптер на каждое удаление
+                        // (Предполагается, что remove/insert у тебя работают напрямую с внутренним массивом)
+                        val updatedItems = items.toMutableList().apply {
+                            remove(itemProgressBar)
+                            remove(itemTitle)
+                            removeAll { it is ReaderItem.Divider && it.chapterIndex == chapterIndex }
+                            // Добавляем ошибку вместо удаленного прогресс-бара
+                            add(ReaderItem.Error(chapterIndex = chapterIndex, chapterUrl = chapter.url, text = userMessage))
+                        }
 
-                        // 3. Уведомляем UI
+                        // 3. Перезаписываем список в адаптере целиком
+                        items.clear()
+                        items.addAll(updatedItems)
+
+                        // 4. Только теперь уведомляем UI (внутри или сразу после этого блока)
                         readerViewHandlersActions.doForceUpdateListViewState()
                     }
                     return@_addChapterInternal false
@@ -632,7 +608,7 @@ internal class ReaderChaptersLoader(
 
                             if (batchTranslator != null) {
                                 val bodyTexts = itemsOriginal.filterIsInstance<ReaderItem.Body>().map { it.text }
-                                val textToIndices = bodyTexts.withIndex().groupBy({ it.value }, { it.index })
+                                val bodyTextToIndex = bodyTexts.withIndex().associate { (idx, text) -> text to idx }
 
                                 // Load existing cache entry (single row per chapter+language)
                                 val existingEntry = withContext(Dispatchers.IO) {
@@ -663,16 +639,16 @@ internal class ReaderChaptersLoader(
                                     val missingIndices = bodyTexts.indices.filter { it !in cachedBody }
 
                                     if (missingIndices.isEmpty()) {
-                                        Timber.d("Using full DB cache for chapter ${chapter.title} (${cachedBody.size} body translations)")
+                                        android.util.Log.d(TAG, "Using full DB cache for chapter ${chapter.title} (${cachedBody.size} body translations)")
                                         itemsOriginal.map { item ->
                                             if (item is ReaderItem.Body) {
-                                                val indices = textToIndices[item.text] ?: return@map item
-                                                item.copy(textTranslated = indices.firstNotNullOfOrNull { cachedBody[it] } ?: item.text)
+                                                val idx = bodyTextToIndex[item.text] ?: return@map item
+                                                item.copy(textTranslated = cachedBody[idx] ?: item.text)
                                             } else item
                                         }
                                     } else {
-                                        val missingTexts = missingIndices.map { bodyTexts[it] }.distinct()
-                                        Timber.d("DB cache partial: ${cachedBody.size}/${bodyTexts.size}, translating ${missingTexts.size} missing body paragraphs")
+                                        val missingTexts = missingIndices.map { bodyTexts[it] }
+                                        android.util.Log.d(TAG, "DB cache partial: ${cachedBody.size}/${bodyTexts.size}, translating ${missingTexts.size} missing body paragraphs")
                                         val extraTranslations = withContext(Dispatchers.IO) {
                                             kotlinx.coroutines.withTimeout(60_000L) {
                                                 batchTranslator.invoke(missingTexts)
@@ -690,8 +666,8 @@ internal class ReaderChaptersLoader(
 
                                         itemsOriginal.map { item ->
                                             if (item is ReaderItem.Body) {
-                                                val indices = textToIndices[item.text] ?: return@map item
-                                                item.copy(textTranslated = indices.firstNotNullOfOrNull { fullBody[it] } ?: item.text)
+                                                val idx = bodyTextToIndex[item.text] ?: return@map item
+                                                item.copy(textTranslated = fullBody[idx] ?: item.text)
                                             } else item
                                         }
                                     }
@@ -715,7 +691,7 @@ internal class ReaderChaptersLoader(
                                             titleTranslated = translated
                                         }
                                     } catch (e: Exception) {
-                                        Timber.w("Title translation failed (offline?): ${e.message}")
+                                        android.util.Log.w(TAG, "Title translation failed (offline?): ${e.message}")
                                     }
                                 }
                                 if (titleTranslated != titleOriginal && titleSaved != titleTranslated) {
@@ -742,7 +718,7 @@ internal class ReaderChaptersLoader(
                             } else {
                                 // Батч недоступен
                                 if (translatorIsOnline()) {
-                                    Timber.e("Batch translator unavailable for online provider — refusing per-paragraph fallback")
+                                    android.util.Log.e(TAG, "Batch translator unavailable for online provider — refusing per-paragraph fallback")
                                     throw IllegalStateException(
                                         if (java.util.Locale.getDefault().language == "ru")
                                             "Переводчик ещё не готов. Попробуйте ещё раз."
@@ -751,7 +727,7 @@ internal class ReaderChaptersLoader(
                                     )
                                 }
                                 // MLKit — поабзацный перевод допустим, заголовок не трогаем
-                                Timber.d("Using paragraph-by-paragraph translation (MLKit offline)")
+                                android.util.Log.d(TAG, "Using paragraph-by-paragraph translation (MLKit offline)")
                                 itemsOriginal.map {
                                     if (it is ReaderItem.Body) it.copy(textTranslated = translatorTranslateOrNull(it.text))
                                     else it
@@ -761,9 +737,7 @@ internal class ReaderChaptersLoader(
                         else -> itemsOriginal
                     }
                 } catch (e: Exception) {
-                    if (e is kotlinx.coroutines.CancellationException) throw e
-                    Timber.e(e, "Translation failed for chapter ${chapter.title}: ${e.message}")
-                    failedChapterIndex = chapterIndex
+                    android.util.Log.e(TAG, "Translation failed for chapter ${chapter.title}: ${e.message}", e)
                     withContext(Dispatchers.Main.immediate) {
                         chaptersStats[chapter.url] = ChapterStats(
                             chapter = chapter,
@@ -831,7 +805,6 @@ internal class ReaderChaptersLoader(
                 return@_addChapterInternal true
             }
             is Response.Error -> {
-                failedChapterIndex = chapterIndex
                 withContext(Dispatchers.Main.immediate) {
                     chaptersStats[chapter.url] = ChapterStats(
                         chapter = chapter,
@@ -839,14 +812,14 @@ internal class ReaderChaptersLoader(
                         orderedChaptersIndex = chapterIndex
                     )
                     hasLoadingError = true
-                    Timber.w("Chapter load error: ${res.message}, stopping further auto-loading")
+                    android.util.Log.w(TAG, "Chapter load error: ${res.message}, stopping further auto-loading")
                 }
                 maintainPosition {
                     remove(itemProgressBar)
                     remove(itemTitle)
                     items.removeAll { it is ReaderItem.Divider && it.chapterIndex == chapterIndex }
                     val rawDetail = res.exception.message?.takeIf { it.isNotBlank() } ?: res.message
-                    val detail = ERROR_DETAIL_PATTERN
+                    val detail = Regex(""":\d+\s+(\[?\w.*?)$""", RegexOption.DOT_MATCHES_ALL)
                         .find(rawDetail)?.groupValues?.get(1)?.trim()
                         ?: rawDetail.lines().lastOrNull { it.isNotBlank() }?.trim()
                         ?: rawDetail
@@ -911,7 +884,7 @@ internal class ReaderChaptersLoader(
         targetLang: String,
     ): Pair<List<ReaderItem>, String> {
         val bodyTexts = itemsOriginal.filterIsInstance<ReaderItem.Body>().map { it.text }
-        Timber.d("translateAndCacheBodiesOnly: ${bodyTexts.size} body paragraphs")
+        android.util.Log.d(TAG, "translateAndCacheBodiesOnly: ${bodyTexts.size} body paragraphs")
         val translations = batchTranslator.invoke(bodyTexts)
 
         val bodyJson = org.json.JSONArray(
@@ -936,11 +909,11 @@ internal class ReaderChaptersLoader(
     ): List<ReaderItem> {
         if (textsToTranslate.isEmpty()) return itemsOriginal
 
-        Timber.d("translateAndCache: translating ${textsToTranslate.size} paragraphs")
+        android.util.Log.d(TAG, "translateAndCache: translating ${textsToTranslate.size} paragraphs")
         val translations = batchTranslator.invoke(textsToTranslate)
 
         val missing = textsToTranslate.size - translations.size
-        if (missing > 0) Timber.w("translateAndCache: $missing paragraphs missing, saving original as fallback")
+        if (missing > 0) android.util.Log.w(TAG, "translateAndCache: $missing paragraphs missing, saving original as fallback")
 
         val bodyJson = org.json.JSONArray(
             textsToTranslate.map { translations[it] ?: it }
@@ -955,7 +928,7 @@ internal class ReaderChaptersLoader(
                     translatedParagraphs = bodyJson,
                 )
             )
-            Timber.d("translateAndCache: saved translation to DB")
+            android.util.Log.d(TAG, "translateAndCache: saved translation to DB")
         }
 
         return itemsOriginal.map {
@@ -965,8 +938,8 @@ internal class ReaderChaptersLoader(
     }
 
     companion object {
+        private const val TAG = "ReaderChaptersLoader"
         private const val WINDOW_AHEAD = 10
         private const val WINDOW_BEHIND = 10
-        private val ERROR_DETAIL_PATTERN = Regex(""":\d+\s+(\[?\w.*?)$""", RegexOption.DOT_MATCHES_ALL)
     }
 }

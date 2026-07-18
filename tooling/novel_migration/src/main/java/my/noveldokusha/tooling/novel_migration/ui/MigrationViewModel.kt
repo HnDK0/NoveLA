@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -84,12 +87,18 @@ class MigrationViewModel @Inject constructor(
 
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
-            val rawResults = mutableListOf<PickerResult>()
-
-            for (source in sources) {
-                val results = searchCatalogWithRetry(source, _uiState.value.bookTitle)
-                rawResults.addAll(results)
-            }
+            // ponytail: parallelize catalog searches across all sources with bounded concurrency
+            // (limitedParallelism(8)) so 50 sources no longer take up to 16 minutes sequentially.
+            // Each source's 20s timeout still applies per-source; failures are isolated per source.
+            val rawResults = withContext(Dispatchers.IO.limitedParallelism(8)) {
+                coroutineScope {
+                    sources.map { source ->
+                        async {
+                            searchCatalogWithRetry(source, _uiState.value.bookTitle)
+                        }
+                    }.awaitAll()
+                }
+            }.flatten()
 
             Timber.e("searchAllSources: total rawResults=${rawResults.size}")
             _uiState.update {

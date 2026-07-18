@@ -21,10 +21,7 @@ import my.noveldokusha.coreui.states.removeProgressBar
 import my.noveldokusha.coreui.states.text
 import my.noveldokusha.coreui.states.title
 import my.noveldokusha.core.appPreferences.AppPreferences
-import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.data.AppRepository
-import my.noveldokusha.data.CoverRepository
-import my.noveldokusha.data.backfillCovers
 import my.noveldokusha.core.tryAsResponse
 import my.noveldokusha.core.utils.Extra_Boolean
 import my.noveldokusha.core.utils.Extra_Int
@@ -32,6 +29,7 @@ import my.noveldokusha.core.utils.Extra_Uri
 import my.noveldokusha.core.utils.Extra_String
 import my.noveldokusha.core.utils.isServiceRunning
 import my.noveldokusha.feature.local_database.AppDatabase
+import okhttp3.internal.closeQuietly
 import java.io.File
 import java.io.FileNotFoundException
 import org.json.JSONObject
@@ -57,12 +55,6 @@ class BackupDataService : Service() {
 
     @Inject
     lateinit var appPreferences: AppPreferences
-
-    @Inject
-    lateinit var appFileResolver: AppFileResolver
-
-    @Inject
-    lateinit var coverRepository: CoverRepository
 
     private val channelName by lazy { getString(R.string.notification_channel_name_backup) }
     private val channelId = "Backup"
@@ -163,9 +155,11 @@ class BackupDataService : Service() {
             context.isServiceRunning(BackupDataService::class.java)
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var notificationBuilder: NotificationCompat.Builder
     private var job: Job? = null
+    // ponytail: was CoroutineScope(Dispatchers.IO).launch {...} per onStartCommand — orphan
+    // scope with no SupervisorJob; onDestroy only cancelled the launched Job, not the scope.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -301,38 +295,17 @@ class BackupDataService : Service() {
             text = getString(R.string.cleaning_database)
         }
 
-        // Step 1: clean non-library data
-        Timber.d("BackupDataService: Cleaning non-library data before backup")
-        appRepository.settings.clearNonLibraryData()
-        Timber.d("BackupDataService: Non-library data cleaned")
-
-        // Step 2: verify source database integrity
-        val sourceIntegrity = appDatabase.integrityCheck()
-        if (sourceIntegrity != "ok") {
-            throw Exception("Source database integrity check failed: $sourceIntegrity")
-        }
-        Timber.d("BackupDataService: Source database integrity OK")
-
-        // Step 3: VACUUM INTO temporary file (creates a clean snapshot without touching the original)
-        val tempDbFile = File(this@BackupDataService.cacheDir, "backup_vacuum_into_${System.currentTimeMillis()}.db")
         try {
-            appDatabase.vacuumInto(tempDbFile.absolutePath)
-            Timber.d("BackupDataService: VACUUM INTO completed, temp file size: ${tempDbFile.length()}")
+            Timber.d("BackupDataService: Cleaning non-library data before backup")
+            appRepository.settings.clearNonLibraryData()
+            Timber.d("BackupDataService: Running VACUUM")
+            appRepository.vacuum()
+            Timber.d("BackupDataService: Database ready for backup")
         } catch (e: Exception) {
-            tempDbFile.delete()
-            throw e
+            Timber.e(e, "BackupDataService: Failed to clean database before backup, continuing anyway")
         }
 
-        // Step 4: verify the snapshot integrity
-        val snapshotIntegrity = AppDatabase.checkFileIntegrity(this@BackupDataService, tempDbFile.absolutePath)
-        if (snapshotIntegrity != "ok") {
-            tempDbFile.delete()
-            throw Exception("Backup snapshot integrity check failed: $snapshotIntegrity")
-        }
-        Timber.d("BackupDataService: Snapshot integrity OK")
-
-        try {
-            contentResolver.openOutputStream(uri)?.use { outputStream ->
+        contentResolver.openOutputStream(uri)?.use { outputStream ->
             val zip = ZipOutputStream(outputStream)
 
             notificationsCenter.modifyNotification(
@@ -342,15 +315,16 @@ class BackupDataService : Service() {
                 text = getString(R.string.copying_database)
             }
 
-            // Save database snapshot to ZIP
+            // Save database — now contains only library books
             run {
                 val entry = ZipEntry("database.sqlite3")
+                val file = this@BackupDataService.getDatabasePath(appDatabase.name)
                 entry.method = ZipOutputStream.DEFLATED
-                tempDbFile.inputStream().use {
+                file.inputStream().use {
                     zip.putNextEntry(entry)
                     it.copyTo(zip)
                 }
-                Timber.d("BackupDataService: Database backed up (${tempDbFile.length()} bytes)")
+                Timber.d("BackupDataService: Database backed up (${file.length()} bytes)")
             }
 
             // Save settings (API keys + categories)
@@ -391,16 +365,6 @@ class BackupDataService : Service() {
                                 })
                             }
                         })
-                        put("USER_REGEX_CLEANUP_RULES", org.json.JSONArray(
-                            appPreferences.USER_REGEX_CLEANUP_RULES.value.map { rule ->
-                                org.json.JSONObject().apply {
-                                    put("pattern", rule.pattern)
-                                    put("replacement", rule.replacement)
-                                    put("isEnabled", rule.isEnabled)
-                                    put("description", rule.description)
-                                }
-                            }
-                        ))
                     }.toString()
                     zip.putNextEntry(entry)
                     zip.write(settingsJson.toByteArray())
@@ -442,14 +406,6 @@ class BackupDataService : Service() {
 
             // Save books extra data (like images) — only for library books
             if (backupImages) {
-                // Best-effort: make sure local covers exist before we back them up
-                try {
-                    val books = appRepository.libraryBooks.getAllInLibrary()
-                    backfillCovers(books, appFileResolver, coverRepository)
-                } catch (e: Exception) {
-                    Timber.e(e, "BackupDataService: cover backfill failed, continuing backup")
-                }
-
                 notificationsCenter.modifyNotification(
                     notificationBuilder,
                     notificationId = notificationId
@@ -457,17 +413,16 @@ class BackupDataService : Service() {
                     text = getString(R.string.copying_images)
                 }
 
-                Timber.d("BackupDataService: backing up images...")
-
                 // Get library book folder names to filter images
                 val libraryBooks = appRepository.libraryBooks.getAllInLibrary()
                 val libraryFolderNames = libraryBooks
-                    .map { book -> appFileResolver.getLocalBookFolderName(book.url) }
+                    .map { book ->
+                        // Extract folder name from URL (same logic as AppFileResolver)
+                        book.url.substringAfterLast("/").substringBefore("?")
+                    }
                     .toSet()
-                Timber.d("BackupDataService: ${libraryBooks.size} library books, ${libraryFolderNames.size} unique folders")
 
                 val basePath = appRepository.settings.folderBooks.toPath().parent
-                var imageCount = 0
                 appRepository.settings.folderBooks.walkBottomUp()
                     .filterNot { it.isDirectory }
                     .filter { file ->
@@ -475,7 +430,7 @@ class BackupDataService : Service() {
                         val relativePath = basePath.relativize(file.toPath()).toString()
                         // "books" is the root folder, second segment is the book folder
                         val bookFolder = relativePath.split("/", "\\").getOrNull(1) ?: ""
-                        bookFolder in libraryFolderNames
+                        bookFolder in libraryFolderNames || libraryFolderNames.isEmpty()
                     }
                     .forEach { file ->
                         val name = basePath.relativize(file.toPath()).toString()
@@ -485,14 +440,10 @@ class BackupDataService : Service() {
                             zip.putNextEntry(entry)
                             it.copyTo(zip)
                         }
-                        imageCount++
                     }
-                Timber.d("BackupDataService: $imageCount images backed up")
-            } else {
-                Timber.d("BackupDataService: images not included in backup")
             }
 
-            zip.close()
+            zip.closeQuietly()
             notificationsCenter.showNotification(
                 notificationId = "Backup saved success".hashCode(),
                 channelId = channelId,
@@ -509,9 +460,6 @@ class BackupDataService : Service() {
         ) {
             removeProgressBar()
             text = getString(R.string.failed_to_make_backup)
-        }
-        } finally {
-            tempDbFile.delete()
         }
     }
 }

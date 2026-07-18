@@ -1,7 +1,8 @@
 package my.noveldokusha.data.storage
 
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.Response
@@ -10,25 +11,27 @@ import my.noveldokusha.core.flatMapError
 import my.noveldokusha.core.tryAsResponse
 import timber.log.Timber
 import java.io.File
-import java.lang.reflect.Type
 
 class PersistentCacheDataLoader<T>(
     private val cacheFile: File,
-    private val type: Type,
+    adapterProvider: (moshi: Moshi) -> JsonAdapter<T>
 ) {
-    private val gson = Gson()
+    private val moshi: Moshi = Moshi.Builder()
+        .addLast(KotlinJsonAdapterFactory())
+        .build()
+    private val jsonAdapter: JsonAdapter<T> = adapterProvider(moshi)
+
 
     private suspend fun hasFile(): Boolean = withContext(Dispatchers.IO) { cacheFile.exists() }
     private suspend fun getFileContent(): Response<T> = tryAsResponse {
         withContext(Dispatchers.IO) {
-            val content: T = gson.fromJson(cacheFile.readText(), type)
-            content
+            jsonAdapter.fromJson(cacheFile.readText())
         }
     }.asNotNull()
 
     private suspend fun set(value: T) = tryAsResponse {
         withContext(Dispatchers.IO) {
-            cacheFile.writeText(gson.toJson(value, type))
+            cacheFile.writeText(jsonAdapter.toJson(value))
         }
     }
 

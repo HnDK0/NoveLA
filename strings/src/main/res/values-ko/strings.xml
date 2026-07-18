@@ -40,12 +40,12 @@
     <string name="open_in_browser">브라우저에서 열기</string>
     <string name="sources">소스</string>
     <string name="search_for_sources">소스 검색</string>
-    <string name="import_epub">책 가져오기</string>
+    <string name="import_epub">EPUB 가져오기</string>
     <string name="failed_get_file">파일을 가져오지 못함</string>
     <string name="local_book_nothing_to_update">로컬 도서, 업데이트할 내용 없음</string>
-    <string name="failed_to_import_epub">책 가져오기 실패</string>
+    <string name="failed_to_import_epub">epub 가져오기 실패</string>
     <string name="image">이미지</string>
-    <string name="importing_epub">책 가져오는 중</string>
+    <string name="importing_epub">epub 가져오는 중</string>
     <string name="no_results_found">결과를 찾을 수 없음</string>
     <string name="updating_library_notice">라이브러리 업데이트 중</string>
     <string name="chapter_downloaded">화 다운로드됨</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">새 화</string>
     <string name="notification_channel_name_failed_updates">업데이트 실패</string>
     <string name="notification_channel_name_backup">백업</string>
-    <string name="notification_channel_name_import_epub">책 가져오기</string>
+    <string name="notification_channel_name_import_epub">EPUB 가져오기</string>
     <string name="notification_channel_name_restore_backup">백업 복원</string>
     <string name="notification_channel_name_app_updates_checker">업데이트 확인</string>
     <string name="new_app_version_available">새 앱 버전 사용 가능</string>
@@ -352,6 +352,7 @@
     <string name="cloudflare_bypass">Cloudflare 우회</string>
     <string name="cloudflare_bypass_description">자동 Cloudflare 챌린지 우회 활성화</string>
     <string name="cloudflare_bypass_restart_required">Cloudflare 우회 설정은 앱 재시작 후 적용됩니다</string>
+    <string name="user_agent_restart_required">User-Agent가 변경되었습니다. 적용하려면 앱을 다시 시작하세요.</string>
     <string name="cloudflare_challenge_timeout">챌린지 시간 초과</string>
     <string name="timeout_seconds">시간 초과(초)</string>
     <string name="seconds_format">%d초</string>
@@ -617,67 +618,5 @@
     <string name="repository_settings">저장소 설정</string>
     <string name="installed">설치됨</string>
     <string name="available">사용 가능</string>
-
-    <string name="book_fix">책 수정</string>
-
-    <!-- History -->
-    <string name="title_history">기록</string>
-    <string name="no_history_yet">아직 읽은 기록이 없습니다</string>
-    <string name="no_books_in_library">라이브러리에 책이 없습니다</string>
-    <string name="clear_all_history">모든 기록 지우기</string>
-
-    <!-- Display -->
-    <string name="display_options_title">표시</string>
-    <string name="save_settings">설정 저장</string>
-    <string name="save_plugins">플러그인 저장</string>
-    <string name="copying_plugins">플러그인 복사 중…</string>
-
-    <!-- Auto Backup -->
-    <string name="auto_backup_include_settings">설정 포함</string>
-    <string name="auto_backup_include_settings_description">API 키 및 환경설정을 자동 백업에 저장</string>
-    <string name="auto_backup_include_plugins">플러그인 포함</string>
-    <string name="auto_backup_include_plugins_description">Lua 스크래퍼 플러그인을 자동 백업에 저장</string>
-
-    <!-- Lua Extensions -->
-    <string name="import_lua">Lua 가져오기</string>
-    <string name="edit_lua">Lua 편집</string>
-    <string name="reset">초기화</string>
-    <string name="uninstall">제거</string>
-    <string name="installing">설치 중…</string>
-    <string name="install">설치</string>
-    <string name="update">업데이트</string>
-    <string name="retry">재시도</string>
-    <string name="top">↑ 맨 위</string>
-    <string name="copy">복사</string>
-    <string name="paste">붙여넣기</string>
-    <string name="clear">지우기</string>
-    <string name="no_extensions_available">사용 가능한 확장 프로그램이 없습니다</string>
-    <string name="local_extension_description">로컬 Lua 확장 프로그램</string>
-    <string name="extension_author_local">로컬</string>
-
-    <!-- Extension errors -->
-    <string name="ext_failed_to_load">확장 프로그램을 불러오지 못했습니다: %s</string>
-    <string name="ext_failed_to_download">%s의 스크립트 다운로드 실패</string>
-    <string name="ext_failed_to_install">%1$s 설치 실패: %2$s</string>
-    <string name="ext_failed_to_uninstall">확장 프로그램 제거 실패</string>
-    <string name="ext_failed_to_toggle">확장 프로그램 전환 실패</string>
-
-    <!-- Lua errors -->
-    <string name="lua_empty_error">빈 Lua 파일</string>
-    <string name="lua_compile_error">Lua 컴파일 오류</string>
-    <string name="lua_save_error">Lua 파일 저장 실패</string>
-    <string name="lua_import_error">가져온 Lua 파일 저장 실패</string>
-    <string name="lua_duplicate_error">확장 프로그램 \"%s\"이(가) 이미 로컬에 존재합니다</string>
-    <string name="lua_not_editable">소스 코드를 편집할 수 없습니다</string>
-    <string name="lua_restore_error">리포지토리에서 Lua 복원 실패</string>
-
-    <!-- Time -->
-    <string name="time_just_now">방금</string>
-    <string name="time_minutes_ago">%dm 전</string>
-    <string name="time_hours_ago">%dh 전</string>
-    <string name="time_days_ago">%dd 전</string>
-    <string name="time_weeks_ago">%dw 전</string>
-    <string name="time_months_ago">%dmo 전</string>
-    <string name="time_years_ago">%dy 전</string>
 
 </resources>

@@ -12,8 +12,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,10 +34,11 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.MoreVert
 import my.noveldokusha.coreui.components.AnimatedTransition
 import my.noveldokusha.coreui.components.ToolbarMode
+import my.noveldokusha.strings.R as StringsR
 import my.noveldokusha.coreui.components.TopAppBarSearch
 import my.noveldokusha.navigation.NavigationRouteViewModel
 import my.noveldokusha.feature.local_database.BookMetadata
@@ -100,76 +99,78 @@ fun LibraryScreen(
     Scaffold(
         topBar = {
             if (uiState.isSelectionMode) {
-                Column {
-                    TopAppBar(
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                        title = {
-                            Text(
-                                text = stringResource(R.string.selected_count, libraryModel.selectedBooks.size),
-                                style = MaterialTheme.typography.headlineSmall
-                            )
-                        },
-                        actions = {
-                            IconButton(
-                                onClick = {
-                                    val currentBooks = pageViewModel.filteredList.value
-                                    libraryModel.selectAllBooks(currentBooks)
-                                }
-                            ) {
-                                Icon(Icons.Filled.SelectAll, stringResource(R.string.select_all))
-                            }
-                            IconButton(
-                                onClick = { showMoveToCategoryDialog = true },
-                                enabled = libraryModel.selectedBooks.isNotEmpty()
-                            ) {
-                                Icon(
-                                    Icons.Filled.DriveFileRenameOutline,
-                                    stringResource(R.string.move_to),
-                                    tint = if (libraryModel.selectedBooks.isNotEmpty())
-                                        MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                )
-                            }
-                            IconButton(
-                                onClick = { libraryModel.deleteSelectedBooks() },
-                                enabled = libraryModel.selectedBooks.isNotEmpty()
-                            ) {
-                                Icon(
-                                    Icons.Filled.Delete,
-                                    stringResource(R.string.delete),
-                                    tint = if (libraryModel.selectedBooks.isNotEmpty())
-                                        MaterialTheme.colorScheme.error
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                )
-                            }
-                            IconButton(
-                                onClick = { libraryModel.fixSelectedBooks() },
-                                enabled = libraryModel.selectedBooks.isNotEmpty()
-                            ) {
-                                Icon(
-                                    Icons.Filled.Build,
-                                    stringResource(R.string.book_fix),
-                                    tint = if (libraryModel.selectedBooks.isNotEmpty())
-                                        MaterialTheme.colorScheme.error
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                )
-                            }
-                            IconButton(onClick = { libraryModel.toggleSelectionMode() }) {
-                                Icon(Icons.Filled.CheckCircle, stringResource(R.string.cancel))
-                            }
-                        }
-                    )
-                    if (uiState.isFixingBooks) {
-                        LinearProgressIndicator(
-                            progress = { if (uiState.fixTotal > 0) uiState.fixProgress.toFloat() / uiState.fixTotal.toFloat() else 0f },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.error,
-                            trackColor = MaterialTheme.colorScheme.errorContainer,
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                    title = {
+                        Text(
+                            text = stringResource(R.string.selected_count, uiState.selectedBooks.size),
+                            style = MaterialTheme.typography.headlineSmall
                         )
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                val currentBooks = pageViewModel.filteredList.value
+                                libraryModel.selectAllBooks(currentBooks)
+                            }
+                        ) {
+                            Icon(Icons.Filled.SelectAll, stringResource(R.string.select_all))
+                        }
+                        IconButton(
+                            onClick = { showMoveToCategoryDialog = true },
+                            enabled = uiState.selectedBooks.isNotEmpty()
+                        ) {
+                            Icon(
+                                Icons.Filled.DriveFileRenameOutline,
+                                stringResource(R.string.move_to),
+                                tint = if (uiState.selectedBooks.isNotEmpty())
+                                    MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                        }
+                        IconButton(
+                            onClick = { libraryModel.deleteSelectedBooks() },
+                            enabled = uiState.selectedBooks.isNotEmpty()
+                        ) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                stringResource(R.string.delete),
+                                tint = if (uiState.selectedBooks.isNotEmpty())
+                                    MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                val selectedUrls = uiState.selectedBooks.toList()
+                                if (selectedUrls.isNotEmpty()) {
+                                    // Launch mass migration with the first selected book's source
+                                    val sourceUrl = selectedUrls.firstOrNull()?.let { url ->
+                                        url.substringBeforeLast("/")
+                                    } ?: ""
+                                    navigationRouteViewModel.massMigration(
+                                        context = context,
+                                        sourceBaseUrl = sourceUrl
+                                    ).let(context::startActivity)
+                                }
+                            },
+                            enabled = uiState.selectedBooks.isNotEmpty()
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                stringResource(StringsR.string.migration_tab),
+                                tint = if (uiState.selectedBooks.isNotEmpty())
+                                    MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                        }
+                        IconButton(onClick = { libraryModel.toggleSelectionMode() }) {
+                            Icon(Icons.Filled.CheckCircle, stringResource(R.string.cancel))
+                        }
                     }
-                }
+                )
             } else {
                 Column(
                     modifier = Modifier.background(MaterialTheme.colorScheme.background)
@@ -237,7 +238,7 @@ fun LibraryScreen(
                                                 Icon(Icons.Filled.FileOpen, stringResource(id = R.string.import_epub))
                                             },
                                             text = { Text(stringResource(id = R.string.import_epub)) },
-                                            onClick = my.noveldokusha.tooling.epub_importer.onDoImportFile()
+                                            onClick = my.noveldokusha.tooling.epub_importer.onDoImportEPUB()
                                         )
                                     }
                                 }
@@ -265,9 +266,8 @@ fun LibraryScreen(
                 onBookClick = handleBookClick,
                 onBookLongClick = handleBookLongClick,
                 gridColumns = gridColumns,
-                selectedBooks = libraryModel.selectedBooks,
+                selectedBooks = uiState.selectedBooks,
                 isSelectionMode = uiState.isSelectionMode,
-                pendingRemoval = libraryModel.pendingRemoval.keys.toSet(),
                 showCategories = uiState.showCategories,
                 customCategories = uiState.customCategories,
                 onCreateCategory = { showCreateCategoryDialog = true },
@@ -317,7 +317,7 @@ fun LibraryScreen(
             categories = libraryModel.getCategories(),
             onDismiss = { showMoveToCategoryDialog = false },
             onCategorySelected = { category ->
-                libraryModel.moveBooksToCategory(category)
+                libraryModel.moveBooksToCategory(uiState.selectedBooks, category)
                 showMoveToCategoryDialog = false
             }
         )

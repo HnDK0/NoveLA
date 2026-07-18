@@ -61,7 +61,11 @@ fun MyButton(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     indication: Indication = LocalIndication.current,
-    interactionSource: MutableInteractionSource = MutableInteractionSource(),
+    // ponytail: default param was MutableInteractionSource() — fresh instance allocated at
+    // every call site on every recomposition, breaking press/focus continuity and adding GC
+    // pressure. Default to a remembered instance per-call-site by making the default null
+    // and remembering inside the body.
+    interactionSource: MutableInteractionSource? = null,
     content: @Composable BoxScope.() -> Unit = {
 
         val color = when {
@@ -119,9 +123,10 @@ private fun InternalButton(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
     indication: Indication,
-    interactionSource: MutableInteractionSource,
+    interactionSource: MutableInteractionSource?,
     content: @Composable BoxScope.() -> Unit
 ) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
     val background by animateColorAsState(
         targetValue = if (selected) selectedBackgroundColor else backgroundColor, label = ""
     )
@@ -134,7 +139,7 @@ private fun InternalButton(
             .border(borderWidth, borderColor, shape)
             .clip(shape)
             .combinedClickable(
-                interactionSource = interactionSource,
+                interactionSource = resolvedInteractionSource,
                 indication = indication,
                 enabled = enabled,
                 role = Role.Button,

@@ -40,12 +40,12 @@
     <string name="open_in_browser">Buka di peramban</string>
     <string name="sources">Sumber</string>
     <string name="search_for_sources">Cari sumber</string>
-    <string name="import_epub">Impor buku</string>
+    <string name="import_epub">Impor EPUB</string>
     <string name="failed_get_file">Gagal mendapatkan berkas</string>
     <string name="local_book_nothing_to_update">Buku lokal, tidak ada yang diperbarui</string>
-    <string name="failed_to_import_epub">Gagal mengimpor buku</string>
+    <string name="failed_to_import_epub">Gagal mengimpor epub</string>
     <string name="image">gambar</string>
-    <string name="importing_epub">Mengimpor buku</string>
+    <string name="importing_epub">Mengimpor epub</string>
     <string name="no_results_found">Tidak ada hasil ditemukan</string>
     <string name="updating_library_notice">Memperbarui perpustakaan</string>
     <string name="chapter_downloaded">Bab diunduh</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">Bab baru</string>
     <string name="notification_channel_name_failed_updates">Pembaruan gagal</string>
     <string name="notification_channel_name_backup">Cadangan</string>
-    <string name="notification_channel_name_import_epub">Impor buku</string>
+    <string name="notification_channel_name_import_epub">Impor EPUB</string>
     <string name="notification_channel_name_restore_backup">Pulihkan cadangan</string>
     <string name="notification_channel_name_app_updates_checker">Pemeriksa pembaruan</string>
     <string name="new_app_version_available">Versi aplikasi baru tersedia</string>
@@ -352,6 +352,7 @@
     <string name="cloudflare_bypass">Bypass Cloudflare</string>
     <string name="cloudflare_bypass_description">Aktifkan bypass tantangan Cloudflare otomatis</string>
     <string name="cloudflare_bypass_restart_required">Pengaturan bypass Cloudflare akan diterapkan setelah aplikasi dimulai ulang</string>
+    <string name="user_agent_restart_required">User-Agen diubah. Mulai ulang aplikasi untuk menerapkan.</string>
     <string name="cloudflare_challenge_timeout">Waktu tunggu tantangan</string>
     <string name="timeout_seconds">Waktu tunggu (detik)</string>
     <string name="seconds_format">%d detik</string>
@@ -617,56 +618,5 @@
     <string name="repository_settings">Pengaturan repositori</string>
     <string name="installed">Terinstal</string>
     <string name="available">Tersedia</string>
-
-    <string name="book_fix">Perbaiki buku</string>
-
-
-    <!-- History -->
-    <string name="title_history">Riwayat</string>
-    <string name="no_history_yet">Belum ada riwayat baca</string>
-    <string name="no_books_in_library">Tidak ada buku di perpustakaan</string>
-    <string name="clear_all_history">Hapus semua riwayat</string>
-    <string name="display_options_title">Tampilan</string>
-    <string name="save_settings">Simpan pengaturan</string>
-    <string name="save_plugins">Simpan plugin</string>
-    <string name="copying_plugins">Menyalin plugin…</string>
-    <string name="auto_backup_include_settings">Sertakan pengaturan</string>
-    <string name="auto_backup_include_settings_description">Simpan kunci API dan preferensi di cadangan otomatis</string>
-    <string name="auto_backup_include_plugins">Sertakan plugin</string>
-    <string name="auto_backup_include_plugins_description">Simpan plugin scraper Lua di cadangan otomatis</string>
-    <string name="import_lua">Impor Lua</string>
-    <string name="edit_lua">Edit Lua</string>
-    <string name="reset">Atur ulang</string>
-    <string name="uninstall">Copot</string>
-    <string name="installing">Memasang…</string>
-    <string name="install">Pasang</string>
-    <string name="update">Perbarui</string>
-    <string name="retry">Coba lagi</string>
-    <string name="top">↑ Atas</string>
-    <string name="copy">Salin</string>
-    <string name="paste">Tempel</string>
-    <string name="clear">Hapus</string>
-    <string name="no_extensions_available">Tidak ada ekstensi tersedia</string>
-    <string name="local_extension_description">Ekstensi Lua lokal</string>
-    <string name="extension_author_local">Lokal</string>
-    <string name="ext_failed_to_load">Gagal memuat ekstensi: %s</string>
-    <string name="ext_failed_to_download">Gagal mengunduh skrip untuk %s</string>
-    <string name="ext_failed_to_install">Gagal memasang %1$s: %2$s</string>
-    <string name="ext_failed_to_uninstall">Gagal mencopot ekstensi</string>
-    <string name="ext_failed_to_toggle">Gagal mengaktifkan ekstensi</string>
-    <string name="lua_empty_error">Berkas Lua kosong</string>
-    <string name="lua_compile_error">Galat kompilasi Lua</string>
-    <string name="lua_save_error">Gagal menyimpan berkas Lua</string>
-    <string name="lua_import_error">Gagal menyimpan berkas Lua impor</string>
-    <string name="lua_duplicate_error">Ekstensi \"%s\" sudah ada secara lokal</string>
-    <string name="lua_not_editable">Kode sumber tidak tersedia untuk diedit</string>
-    <string name="lua_restore_error">Gagal memulihkan Lua dari repositori</string>
-    <string name="time_just_now">baru saja</string>
-    <string name="time_minutes_ago">%dm lalu</string>
-    <string name="time_hours_ago">%dj lalu</string>
-    <string name="time_days_ago">%dh lalu</string>
-    <string name="time_weeks_ago">%dmg lalu</string>
-    <string name="time_months_ago">%dbln lalu</string>
-    <string name="time_years_ago">%dth lalu</string>
 
 </resources>

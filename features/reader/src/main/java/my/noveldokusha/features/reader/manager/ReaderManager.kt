@@ -1,6 +1,5 @@
 package my.noveldokusha.features.reader.manager
 
-import kotlinx.coroutines.channels.Channel
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,7 +12,6 @@ internal class ReaderManager @Inject constructor(
     var session: ReaderSession? = null
         private set
 
-    val onCloseRequested = Channel<Unit>(Channel.CONFLATED)
 
     fun initiateOrGetSession(
         bookUrl: String,
@@ -41,11 +39,6 @@ internal class ReaderManager @Inject constructor(
     fun close() {
         session?.close()
         session = null
-    }
-
-    fun closeReader() {
-        close()
-        onCloseRequested.trySend(Unit)
     }
 
     fun detachSession() {

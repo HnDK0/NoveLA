@@ -10,7 +10,6 @@ import kotlinx.coroutines.withContext
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.fileImporter
-import my.noveldokusha.core.utils.normalizeBookUrl
 import my.noveldokusha.feature.local_database.AppDatabase
 import my.noveldokusha.feature.local_database.DAOs.ChapterBodyDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterDao
@@ -74,9 +73,6 @@ class LibraryBooksRepository @Inject constructor(
     suspend fun updateCategory(bookUrl: String, category: String) =
         libraryDao.updateCategory(bookUrl, category)
 
-    suspend fun toggleCompleted(bookUrl: String) =
-        libraryDao.toggleCompleted(bookUrl)
-
     suspend fun updateCategoryAndCompleted(bookUrl: String, category: String, isCompleted: Boolean) =
         libraryDao.updateCategoryAndCompleted(bookUrl, category, isCompleted)
 
@@ -121,26 +117,10 @@ class LibraryBooksRepository @Inject constructor(
                 chapterTranslationDao.deleteTranslationsByBookUrls(chunk)
                 chapterBodyDao.removeChapterBodiesByBookUrls(chunk)
                 chapterDao.removeAllFromBooks(chunk)
+                // ponytail: use the batched removeBooksByUrls(chunk) query instead of
+                // chunk.forEach { libraryDao.remove(it) } — N round-trips collapsed to 1.
                 libraryDao.removeBooksByUrls(chunk)
             }
-        }
-    }
-
-    suspend fun setNotInLibrary(bookUrl: String) = withContext(Dispatchers.IO) {
-        libraryDao.setNotInLibrary(bookUrl)
-    }
-
-    suspend fun setNotInLibrary(bookUrls: List<String>) = withContext(Dispatchers.IO) {
-        bookUrls.chunked(500).forEach { chunk -> libraryDao.setNotInLibrary(chunk) }
-    }
-
-    suspend fun batchUpdateCategoryAndCompleted(
-        bookUrls: List<String>,
-        category: String,
-        isCompleted: Boolean
-    ) = withContext(Dispatchers.IO) {
-        bookUrls.chunked(500).forEach { chunk ->
-            libraryDao.updateCategoryAndCompleted(chunk, category, isCompleted)
         }
     }
 
@@ -149,7 +129,7 @@ class LibraryBooksRepository @Inject constructor(
         bookTitle: String
     ): Boolean = appDatabase.transaction {
         val currentTime = System.currentTimeMillis()
-        when (val existing = getByUrl(bookUrl)) {
+        when (val book = get(bookUrl)) {
             null -> {
                 insert(
                     Book(
@@ -163,98 +143,32 @@ class LibraryBooksRepository @Inject constructor(
                 true
             }
             else -> {
-                libraryDao.toggleInLibrary(existing.url, currentTime)
-                !existing.inLibrary
+                val newInLibrary = !book.inLibrary
+                update(
+                    book.copy(
+                        inLibrary = newInLibrary,
+                        addedToLibraryEpochTimeMilli = if (newInLibrary) currentTime else book.addedToLibraryEpochTimeMilli,
+                        lastUpdateEpochTimeMilli = currentTime
+                    )
+                )
+                newInLibrary
             }
         }
     }
 
     fun saveImageAsCover(imageUri: Uri, bookUrl: String) {
         appCoroutineScope.launch {
-            val imageData = withContext(Dispatchers.IO) {
-                context.contentResolver.openInputStream(imageUri)?.use { it.readBytes() }
-            } ?: return@launch
+            val imageData = context.contentResolver.openInputStream(imageUri)
+                ?.use { it.readBytes() } ?: return@launch
             val bookFolderName = appFileResolver.getLocalBookFolderName(
                 bookUrl = bookUrl
             )
             val bookCoverFile = appFileResolver.getStorageBookCoverImageFile(
                 bookFolderName = bookFolderName
             )
-            withContext(Dispatchers.IO) {
-                fileImporter(targetFile = bookCoverFile, imageData = imageData)
-            }
+            fileImporter(targetFile = bookCoverFile, imageData = imageData)
             delay(timeMillis = 1_000)
             updateCover(bookUrl = bookUrl, coverUrl = appFileResolver.getLocalBookCoverPath())
         }
     }
-
-    /**
-     * Локальный поиск книги по URL с учётом нормализации:
-     * проверяет и «как есть», и [normalizeBookUrl].
-     * Нужно, чтобы старая книга с не-нормализованным URL
-     * (например, с завершающим слешем) находилась по нормализованному
-     * ключу и не создавала дубль.
-     */
-    suspend fun getByUrl(rawUrl: String): Book? {
-        val canonical = normalizeBookUrl(rawUrl)
-        return libraryDao.get(rawUrl) ?: libraryDao.get(canonical)
-    }
-
-    /**
-     * Возвращает реальный (сохранённый) URL книги по переданному [rawUrl],
-     * перебирая варианты нормализации и завершающего слэша. Если книги нет
-     * в БД — возвращает канонический URL (для новых книг).
-     *
-     * Только чтение: никаких записей в БД, никакой нагрузки. Нужен, чтобы
-     * ChaptersViewModel мог работать с тем URL, под которым книга реально
-     * лежит (её главы/прогресс), не создавая дублей и не запуская репарс.
-     */
-    suspend fun resolveStoredUrl(rawUrl: String): String {
-        val candidates = listOf(
-            rawUrl,
-            normalizeBookUrl(rawUrl),
-            rawUrl.removeSuffix("/"),
-            rawUrl + "/"
-        )
-        return candidates.firstNotNullOfOrNull { libraryDao.get(it)?.url }
-            ?: normalizeBookUrl(rawUrl)
-    }
-
-    /**
-     * Вставка/обновление книги с канонизацией URL.
-     * Если книга (по raw или нормализованному URL) уже есть —
-     * переименовываем её URL в канонический и дополняем метаданные,
-     * не создавая дубля.
-     */
-    suspend fun upsertCanonical(book: Book) = withContext(Dispatchers.IO) {
-        val canonical = normalizeBookUrl(book.url)
-        val existing = getByUrl(book.url)
-        if (existing == null) {
-            insert(book.copy(url = canonical))
-        } else {
-            if (existing.url != canonical) reparentBookUrl(existing.url, canonical)
-            update(
-                existing.copy(
-                    url = canonical,
-                    title = book.title.ifBlank { existing.title },
-                    coverImageUrl = book.coverImageUrl.ifBlank { existing.coverImageUrl },
-                    description = book.description.ifBlank { existing.description },
-                )
-            )
-        }
-    }
-
-    suspend fun reparentBookUrl(oldUrl: String, newUrl: String) =
-        withContext(Dispatchers.IO) {
-            if (oldUrl == newUrl) return@withContext
-            appDatabase.transaction {
-                chapterDao.updateBookUrl(oldUrl, newUrl)
-                libraryDao.updateUrl(oldUrl, newUrl)
-                val downloadTaskDao = appDatabase.downloadTaskDao()
-                downloadTaskDao.get(oldUrl)?.let { task ->
-                    downloadTaskDao.delete(oldUrl)
-                    downloadTaskDao.insert(task.copy(bookUrl = newUrl))
-                }
-            }
-        }
 }

@@ -1,46 +1,33 @@
 package my.noveldokusha.libraryexplorer
 
-import android.app.NotificationManager
-import android.content.Context
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.core.app.NotificationCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.LibrarySortOption
 import my.noveldokusha.core.appPreferences.TernaryState
 import my.noveldokusha.core.appPreferences.SortConfig
-import my.noveldokusha.core.isLocalUri
 import my.noveldokusha.core.utils.asMutableStateOf
-import androidx.lifecycle.ViewModel
+import my.noveldokusha.coreui.BaseViewModel
 import my.noveldokusha.coreui.components.ToolbarMode
-import my.noveldokusha.coreui.states.NotificationsCenter
-import my.noveldokusha.coreui.states.text
-import my.noveldokusha.coreui.states.title
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.ScraperRepository
 import my.noveldokusha.feature.local_database.BookWithContext
-import my.noveldokusha.feature.local_database.DAOs.ReadingHistoryDao
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.feature.local_database.tables.Chapter
-import my.noveldokusha.feature.local_database.tables.ReadingHistory
-import my.noveldokusha.interactor.LibraryUpdatesInteractions
-import my.noveldokusha.strings.R
 import javax.inject.Inject
 
 @Immutable
@@ -48,9 +35,7 @@ internal data class LibraryUiState(
     val bookActionsSheetBook: Book? = null,
     val showAddByUrlDialog: Boolean = false,
     val isSelectionMode: Boolean = false,
-    val isFixingBooks: Boolean = false,
-    val fixProgress: Int = 0,
-    val fixTotal: Int = 0,
+    val selectedBooks: Set<String> = emptySet(),
     val gridColumns: Int = 3,
     val showBottomSheet: Boolean = false,
     val readFilter: TernaryState = TernaryState.Inactive,
@@ -60,26 +45,24 @@ internal data class LibraryUiState(
     val showCategories: Boolean = false,
 )
 
+internal sealed interface LibraryUiEffect {
+    data class ShowMessage(val message: String) : LibraryUiEffect
+}
+
 @HiltViewModel
 internal class LibraryViewModel @Inject constructor(
     private val appPreferences: AppPreferences,
     private val appRepository: AppRepository,
+    private val appScope: AppCoroutineScope,
     private val scraperRepository: ScraperRepository,
-    @ApplicationContext private val context: Context,
-    private val libraryUpdatesInteractions: LibraryUpdatesInteractions,
-    private val notificationsCenter: NotificationsCenter,
-    private val readingHistoryDao: ReadingHistoryDao,
     stateHandle: SavedStateHandle,
-) : ViewModel() {
+) : BaseViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
 
-    private val _selectedBooks = mutableStateMapOf<String, Boolean>()
-    val selectedBooks: Map<String, Boolean> = _selectedBooks
-
-    private val _pendingRemoval = mutableStateMapOf<String, Boolean>()
-    val pendingRemoval: Map<String, Boolean> = _pendingRemoval
+    private val _uiEffect = Channel<LibraryUiEffect>(Channel.BUFFERED)
+    val uiEffect = _uiEffect.receiveAsFlow()
 
     init {
         // Sync with preferences
@@ -130,113 +113,40 @@ internal class LibraryViewModel @Inject constructor(
     fun toggleSelectionMode() {
         _uiState.update {
             val nextMode = !it.isSelectionMode
-            if (!nextMode) _selectedBooks.clear()
-            it.copy(isSelectionMode = nextMode)
+            it.copy(
+                isSelectionMode = nextMode,
+                selectedBooks = if (!nextMode) emptySet() else it.selectedBooks
+            )
         }
     }
 
     fun toggleBookSelection(bookUrl: String) {
-        if (_selectedBooks.containsKey(bookUrl)) {
-            _selectedBooks.remove(bookUrl)
-        } else {
-            _selectedBooks[bookUrl] = true
+        _uiState.update {
+            val nextSelected = if (it.selectedBooks.contains(bookUrl)) {
+                it.selectedBooks - bookUrl
+            } else {
+                it.selectedBooks + bookUrl
+            }
+            it.copy(selectedBooks = nextSelected)
         }
     }
 
     fun selectAllBooks(books: List<BookWithContext>) {
-        _selectedBooks.clear()
-        books.forEach { _selectedBooks[it.book.url] = true }
+        _uiState.update { it.copy(selectedBooks = books.map { b -> b.book.url }.toSet()) }
     }
 
     fun clearSelection() {
-        _selectedBooks.clear()
-        _pendingRemoval.clear()
-    }
-
-    fun fixSelectedBooks() {
-        val channelId = "FixBooks"
-        val notificationId = channelId.hashCode()
-        viewModelScope.launch {
-            val selectedUrls = _selectedBooks.keys.toList()
-            _selectedBooks.clear()
-            _uiState.update { it.copy(isSelectionMode = false) }
-
-            val books = selectedUrls.mapNotNull { appRepository.libraryBooks.get(it) }
-                .filter { !it.url.isLocalUri }
-            if (books.isEmpty()) return@launch
-            _uiState.update { it.copy(isFixingBooks = true, fixProgress = 0, fixTotal = books.size) }
-
-            // Обнуляем кэш-признаки
-            books.forEach { book ->
-                appRepository.libraryBooks.updateChaptersListHash(book.url, null)
-                appRepository.libraryBooks.updateChaptersLastPage(book.url, null)
-            }
-
-            // Перечитываем книги — теперь с null-кэшем, чтобы updateBook сделал полный репарс
-            val freshBooks = books.map { it.copy(chaptersListHash = null, chaptersLastPage = null) }
-
-            // Прогресс-потоки
-            val countingUpdating = MutableStateFlow<LibraryUpdatesInteractions.CountingUpdating?>(null)
-            val currentUpdating = MutableStateFlow<Set<Book>>(setOf())
-            val newUpdates = MutableStateFlow<Set<LibraryUpdatesInteractions.NewUpdate>>(setOf())
-            val failedUpdates = MutableStateFlow<Set<Book>>(setOf())
-
-            // Показываем нотификацию с прогрессом
-            val notificationBuilder = notificationsCenter.showNotification(
-                channelId = channelId,
-                channelName = context.getString(R.string.book_fix),
-                notificationId = notificationId,
-                importance = NotificationManager.IMPORTANCE_LOW
-            ) {
-                title = context.getString(R.string.book_fix)
-                setStyle(NotificationCompat.BigTextStyle())
-            }
-
-            // Подписка на обновление нотификации
-            val notifyJob = launch {
-                combine(
-                    countingUpdating,
-                    currentUpdating,
-                ) { counting, current ->
-                    if (counting != null) {
-                        _uiState.update { it.copy(fixProgress = counting.updated, fixTotal = counting.total) }
-                        notificationsCenter.modifyNotification(notificationBuilder, notificationId) {
-                            title = context.getString(R.string.updating_library, counting.updated, counting.total)
-                            text = current.joinToString("\n") { "· " + it.title }
-                            setProgress(counting.total, counting.updated, false)
-                        }
-                    }
-                }.collect()
-            }
-
-            libraryUpdatesInteractions.updateSpecificBooks(
-                books = freshBooks,
-                countingUpdating = countingUpdating,
-                currentUpdating = currentUpdating,
-                newUpdates = newUpdates,
-                failedUpdates = failedUpdates,
-            )
-
-            notifyJob.cancel()
-            notificationsCenter.close(notificationId)
-
-            // Итог
-            val failCount = failedUpdates.value.size
-            val successCount = freshBooks.size - failCount
-            _uiState.update { it.copy(isFixingBooks = false) }
-        }
+        _uiState.update { it.copy(selectedBooks = emptySet()) }
     }
 
     fun deleteSelectedBooks() {
-        val toDelete = _selectedBooks.keys.toList()
-        if (toDelete.isEmpty()) return
-        _selectedBooks.clear()
-        _uiState.update { it.copy(isSelectionMode = false) }
-        toDelete.forEach { _pendingRemoval[it] = true }
         viewModelScope.launch {
-            delay(300)
-            appRepository.libraryBooks.setNotInLibrary(toDelete)
-            toDelete.forEach { _pendingRemoval.remove(it) }
+            val toDelete = _uiState.value.selectedBooks.toList()
+            _uiState.update { it.copy(selectedBooks = emptySet(), isSelectionMode = false) }
+            toDelete.forEach { bookUrl ->
+                val book = appRepository.libraryBooks.get(bookUrl) ?: return@forEach
+                appRepository.libraryBooks.update(book.copy(inLibrary = false))
+            }
         }
     }
 
@@ -266,53 +176,34 @@ internal class LibraryViewModel @Inject constructor(
 
     fun bookCompletedToggle(bookUrl: String) {
         viewModelScope.launch {
-            appRepository.libraryBooks.toggleCompleted(bookUrl)
+            val book = appRepository.libraryBooks.get(bookUrl) ?: return@launch
+            appRepository.libraryBooks.update(book.copy(completed = !book.completed))
         }
     }
 
     fun deleteBook(bookUrl: String) {
-        _pendingRemoval[bookUrl] = true
-        if (_uiState.value.bookActionsSheetBook?.url == bookUrl) {
-            _uiState.update { it.copy(bookActionsSheetBook = null) }
-        }
         viewModelScope.launch {
-            delay(300)
-            appRepository.libraryBooks.setNotInLibrary(bookUrl)
-            _pendingRemoval.remove(bookUrl)
+            val book = appRepository.libraryBooks.get(bookUrl) ?: return@launch
+            appRepository.libraryBooks.update(book.copy(inLibrary = false))
+            if (_uiState.value.bookActionsSheetBook?.url == bookUrl) {
+                _uiState.update { it.copy(bookActionsSheetBook = null) }
+            }
         }
     }
 
     fun markAllChaptersAsRead(bookUrl: String) {
         viewModelScope.launch {
-            appRepository.bookChapters.setAllAsReadByBookUrl(bookUrl)
-            refreshReadingHistory(bookUrl)
+            // ponytail: direct UPDATE-by-bookUrl — replaces the fetch-all-chapters-then-
+            // set-by-URL pattern (1 SELECT + N chunked UPDATEs) with a single UPDATE
+            // statement. Avoids loading every Chapter row just to build an IN clause.
+            appRepository.bookChapters.setAllReadByBook(bookUrl)
         }
     }
 
     fun markAllChaptersAsUnread(bookUrl: String) {
         viewModelScope.launch {
-            appRepository.bookChapters.setAllAsUnreadByBookUrl(bookUrl)
-            refreshReadingHistory(bookUrl)
-        }
-    }
-
-    private fun refreshReadingHistory(bookUrl: String) {
-        viewModelScope.launch {
-            val total = appRepository.bookChapters.countByBookUrl(bookUrl)
-            val read = appRepository.bookChapters.countReadByBookUrl(bookUrl)
-            val book = appRepository.libraryBooks.get(bookUrl)
-            readingHistoryDao.upsert(
-                ReadingHistory(
-                    bookUrl = bookUrl,
-                    bookTitle = book?.title ?: "",
-                    bookCoverUrl = book?.coverImageUrl ?: "",
-                    lastReadChapterUrl = book?.lastReadChapter,
-                    lastReadChapterTitle = null,
-                    lastReadEpochTimeMilli = System.currentTimeMillis(),
-                    totalChapters = total,
-                    readChapters = read,
-                )
-            )
+            // ponytail: direct UPDATE-by-bookUrl — see markAllChaptersAsRead above.
+            appRepository.bookChapters.setAllUnreadByBook(bookUrl)
         }
     }
 
@@ -338,15 +229,15 @@ internal class LibraryViewModel @Inject constructor(
         appPreferences.LIBRARY_CUSTOM_CATEGORIES.value = current - name
     }
 
-    fun moveBooksToCategory(category: String) {
+    fun moveBooksToCategory(bookUrls: Set<String>, category: String) {
         viewModelScope.launch {
-            val toMove = _selectedBooks.keys.toList()
-            if (toMove.isEmpty()) return@launch
-            appRepository.libraryBooks.batchUpdateCategoryAndCompleted(
-                toMove, category, category == "Completed"
-            )
-            _selectedBooks.clear()
-            _uiState.update { it.copy(isSelectionMode = false) }
+            bookUrls.forEach { bookUrl ->
+                val book = appRepository.libraryBooks.get(bookUrl) ?: return@forEach
+                appRepository.libraryBooks.updateCategoryAndCompleted(
+                    bookUrl, category, category == "Completed"
+                )
+            }
+            _uiState.update { it.copy(selectedBooks = emptySet(), isSelectionMode = false) }
         }
     }
 

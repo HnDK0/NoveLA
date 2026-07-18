@@ -40,12 +40,12 @@
     <string name="open_in_browser">Abrir en el navegador</string>
     <string name="sources">Fuentes</string>
     <string name="search_for_sources">Buscar fuentes</string>
-    <string name="import_epub">Importar libro</string>
+    <string name="import_epub">Importar EPUB</string>
     <string name="failed_get_file">Error al obtener el archivo</string>
     <string name="local_book_nothing_to_update">Libro local, nada que actualizar</string>
-    <string name="failed_to_import_epub">Error al importar libro</string>
+    <string name="failed_to_import_epub">Error al importar epub</string>
     <string name="image">imagen</string>
-    <string name="importing_epub">Importando libro</string>
+    <string name="importing_epub">Importando epub</string>
     <string name="no_results_found">No se encontraron resultados</string>
     <string name="updating_library_notice">Actualizando biblioteca</string>
     <string name="chapter_downloaded">Capítulo descargado</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">Nuevos capítulos</string>
     <string name="notification_channel_name_failed_updates">Actualizaciones fallidas</string>
     <string name="notification_channel_name_backup">Copia de seguridad</string>
-    <string name="notification_channel_name_import_epub">Importar libro</string>
+    <string name="notification_channel_name_import_epub">Importar EPUB</string>
     <string name="notification_channel_name_restore_backup">Restaurar copia de seguridad</string>
     <string name="notification_channel_name_app_updates_checker">Verificador de actualizaciones</string>
     <string name="new_app_version_available">Nueva versión de la app disponible</string>
@@ -352,6 +352,7 @@
     <string name="cloudflare_bypass">Omisión de Cloudflare</string>
     <string name="cloudflare_bypass_description">Activar omisión automática del desafío de Cloudflare</string>
     <string name="cloudflare_bypass_restart_required">La configuración de omisión de Cloudflare se aplicará tras reiniciar la app</string>
+    <string name="user_agent_restart_required">User-Agent cambiado. Reinicia la app para aplicar.</string>
     <string name="cloudflare_challenge_timeout">Tiempo de espera del desafío</string>
     <string name="timeout_seconds">Tiempo de espera (segundos)</string>
     <string name="seconds_format">%d segundos</string>
@@ -617,66 +618,5 @@
     <string name="repository_settings">Ajustes del repositorio</string>
     <string name="installed">Instalado</string>
     <string name="available">Disponible</string>
-
-    <string name="book_fix">Reparar libro</string>
-
-
-    <!-- History -->
-    <string name="title_history">Historial</string>
-    <string name="no_history_yet">Aún no hay historial de lectura</string>
-    <string name="no_books_in_library">No hay libros en la biblioteca</string>
-    <string name="clear_all_history">Borrar todo el historial</string>
-
-    <!-- Display -->
-    <string name="display_options_title">Pantalla</string>
-
-    <!-- Saving -->
-    <string name="save_settings">Guardar ajustes</string>
-    <string name="save_plugins">Guardar plugins</string>
-    <string name="copying_plugins">Copiando plugins…</string>
-
-    <!-- Auto Backup -->
-    <string name="auto_backup_include_settings">Incluir ajustes</string>
-    <string name="auto_backup_include_settings_description">Guardar claves API y preferencias en la copia de seguridad automática</string>
-    <string name="auto_backup_include_plugins">Incluir plugins</string>
-    <string name="auto_backup_include_plugins_description">Guardar plugins Lua scraper en la copia de seguridad automática</string>
-
-    <!-- Lua Editor / Extensions -->
-    <string name="import_lua">Importar Lua</string>
-    <string name="edit_lua">Editar Lua</string>
-    <string name="reset">Restablecer</string>
-    <string name="uninstall">Desinstalar</string>
-    <string name="installing">Instalando…</string>
-    <string name="install">Instalar</string>
-    <string name="update">Actualizar</string>
-    <string name="retry">Reintentar</string>
-    <string name="top">↑ Inicio</string>
-    <string name="copy">Copiar</string>
-    <string name="paste">Pegar</string>
-    <string name="clear">Limpiar</string>
-    <string name="no_extensions_available">No hay extensiones disponibles</string>
-    <string name="local_extension_description">Extensión Lua local</string>
-    <string name="extension_author_local">Local</string>
-    <string name="ext_failed_to_load">Error al cargar extensiones: %s</string>
-    <string name="ext_failed_to_download">Error al descargar script para %s</string>
-    <string name="ext_failed_to_install">Error al instalar %1$s: %2$s</string>
-    <string name="ext_failed_to_uninstall">Error al desinstalar extensión</string>
-    <string name="ext_failed_to_toggle">Error al cambiar extensión</string>
-    <string name="lua_empty_error">Archivo Lua vacío</string>
-    <string name="lua_compile_error">Error de compilación Lua</string>
-    <string name="lua_save_error">Error al guardar archivo Lua</string>
-    <string name="lua_import_error">Error al guardar archivo Lua importado</string>
-    <string name="lua_duplicate_error">La extensión \"%s\" ya existe localmente</string>
-    <string name="lua_not_editable">Código fuente no disponible para editar</string>
-    <string name="lua_restore_error">Error al restaurar Lua desde el repositorio</string>
-
-    <!-- Relative Time -->
-    <string name="time_just_now">justo ahora</string>
-    <string name="time_minutes_ago">hace %dm</string>
-    <string name="time_hours_ago">hace %dh</string>
-    <string name="time_days_ago">hace %dd</string>
-    <string name="time_weeks_ago">hace %dw</string>
-    <string name="time_months_ago">hace %dmo</string>
-    <string name="time_years_ago">hace %dy</string>
 
 </resources>

@@ -1,9 +1,10 @@
 package my.noveldokusha.text_translator
 
-import timber.log.Timber
+import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.network.ScraperNetworkClient
 import my.noveldokusha.network.interceptors.resolveUserAgent
@@ -18,6 +19,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 
 class TranslationManagerGoogleFree(
+    private val coroutineScope: AppCoroutineScope,
     private val appPreferences: AppPreferences,
     private val networkClient: ScraperNetworkClient
 ) : TranslationManager {
@@ -38,7 +40,7 @@ class TranslationManagerGoogleFree(
     }
 
     override fun getTranslator(source: String, target: String, systemPromptOverride: String?): TranslatorState {
-        Timber.d( "getTranslator: source=$source, target=$target")
+        Log.d(TAG, "getTranslator: source=$source, target=$target")
         return TranslatorState(
             source = source,
             target = target,
@@ -130,7 +132,7 @@ class TranslationManagerGoogleFree(
                 val responseBody = response.body.string()
 
                 if (response.code == 429 && !cookieSeeded) {
-                    Timber.w( "HTTP 429, seeding cookies via translate.google.com")
+                    Log.w(TAG, "HTTP 429, seeding cookies via translate.google.com")
                     response.close()
                     val seedRequest = okhttp3.Request.Builder()
                         .url("https://translate.google.com/?hl=en")
@@ -138,9 +140,9 @@ class TranslationManagerGoogleFree(
                         .build()
                     try {
                         client.newCall(seedRequest).execute().close()
-                        Timber.d( "Cookie seed request completed")
+                        Log.d(TAG, "Cookie seed request completed")
                     } catch (e: Exception) {
-                        Timber.w( "Cookie seed failed: ${e.message?.take(50)}")
+                        Log.w(TAG, "Cookie seed failed: ${e.message?.take(50)}")
                     }
                     cookieSeeded = true
                     continue
@@ -155,25 +157,25 @@ class TranslationManagerGoogleFree(
                     }.trim()
 
                     if (result.isNotEmpty()) {
-                        Timber.d( "Translated ${text.length} chars in ${System.currentTimeMillis() - startTime}ms")
+                        Log.d(TAG, "Translated ${text.length} chars in ${System.currentTimeMillis() - startTime}ms")
                         return@withContext result
                     }
 
-                    Timber.w( "translateWithGoogleFree: empty parse result, body preview: ${responseBody.take(200)}")
+                    Log.w(TAG, "translateWithGoogleFree: empty parse result, body preview: ${responseBody.take(200)}")
                 } else if (response.code != 429) {
-                    Timber.w( "translateWithGoogleFree: HTTP ${response.code} ${response.message} for ${text.length} chars, body: ${responseBody.take(100)}")
+                    Log.w(TAG, "translateWithGoogleFree: HTTP ${response.code} ${response.message} for ${text.length} chars, body: ${responseBody.take(100)}")
                 } else if (responseBody.isEmpty()) {
-                    Timber.w( "translateWithGoogleFree: empty response body for ${text.length} chars")
+                    Log.w(TAG, "translateWithGoogleFree: empty response body for ${text.length} chars")
                 }
             } catch (e: Exception) {
-                Timber.w( "translateWithGoogleFree: attempt ${attempt + 1} failed: ${e.message?.take(100)}")
+                Log.w(TAG, "translateWithGoogleFree: attempt ${attempt + 1} failed: ${e.message?.take(100)}")
                 lastException = e
             }
 
             attempt++
             if (attempt < retryCount) kotlinx.coroutines.delay(200L * attempt)
         }
-        Timber.w( "translateWithGoogleFree: failed after $retryCount attempts - ${lastException?.message?.take(50)}")
+        Log.w(TAG, "translateWithGoogleFree: failed after $retryCount attempts - ${lastException?.message?.take(50)}")
         null
     }
 
@@ -209,7 +211,7 @@ class TranslationManagerGoogleFree(
             result[text] = if (translatedLines.isNotEmpty()) translatedLines.joinToString("\n") else text
         }
 
-        Timber.d( "translateBatch: total=${normalizedTexts.size}, translated=${result.size}")
+        Log.d(TAG, "translateBatch: total=${normalizedTexts.size}, translated=${result.size}")
 
         if (result.isEmpty() && normalizedTexts.isNotEmpty()) {
             throw IllegalStateException("Google Translate: Failed to translate. Check your internet connection.")
@@ -252,7 +254,7 @@ class TranslationManagerGoogleFree(
             chunks.add(Chunk(currentIndices.toList(), currentParts.joinToString("\n")))
         }
 
-        Timber.d( "translateChunks: ${paragraphs.size} paragraphs → ${chunks.size} chunks, $sourceLanguage→$targetLanguage")
+        Log.d(TAG, "translateChunks: ${paragraphs.size} paragraphs → ${chunks.size} chunks, $sourceLanguage→$targetLanguage")
 
         var failedChunks = 0
 
@@ -262,7 +264,7 @@ class TranslationManagerGoogleFree(
             val translated = translateWithGoogleFree(chunk.text, sourceLanguage, targetLanguage)
 
             if (translated == null) {
-                Timber.e( "Chunk ${idx + 1}/${chunks.size} failed")
+                Log.e(TAG, "Chunk ${idx + 1}/${chunks.size} failed")
                 failedChunks++
                 continue
             }
@@ -277,7 +279,7 @@ class TranslationManagerGoogleFree(
             }
 
             if (translatedLines.size != chunk.indices.size) {
-                Timber.w( "Chunk ${idx + 1}: expected ${chunk.indices.size} paragraphs, got ${translatedLines.size}")
+                Log.w(TAG, "Chunk ${idx + 1}: expected ${chunk.indices.size} paragraphs, got ${translatedLines.size}")
             }
         }
 

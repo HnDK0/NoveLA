@@ -71,13 +71,12 @@ fun BooksVerticalView(
         modifier = Modifier
             .fillMaxWidth()
             .padding(innerPadding),
-        contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 160.dp)
+        contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 260.dp)
     ) {
-        items(
-            items = list,
-            key = { it.url },
-            contentType = { if (layoutMode == ListLayoutMode.VerticalList) 1 else 2 }
-        ) {
+        // ponytail: add key + contentType so insert/remove on the books list only
+        // recomposes the changed rows instead of every visible book row (important for
+        // library/catalog scroll performance on long lists).
+        items(list, key = { it.url }, contentType = { "book" }) {
             when (layoutMode) {
                 ListLayoutMode.VerticalList -> MyButton(
                     text = it.title,

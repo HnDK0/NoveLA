@@ -40,7 +40,7 @@ fun MyOutlinedTextField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
         ),
-        interactionSource = MutableInteractionSource()
+        interactionSource = remember { MutableInteractionSource() }
     )
 }
 

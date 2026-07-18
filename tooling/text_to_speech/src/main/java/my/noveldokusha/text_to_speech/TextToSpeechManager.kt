@@ -5,19 +5,17 @@ import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
+import android.util.Log
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import me.nanihadesuka.algorithms.delimiterAwareTextSplitter
 
 interface Utterance<T : Utterance<T>> {
@@ -28,6 +26,8 @@ interface Utterance<T : Utterance<T>> {
     fun copyWithState(playState: PlayState): T
 }
 
+// ponytail: @Immutable so Compose skips recomposition of voice list items unless value changes.
+@Immutable
 data class VoiceData(
     val id: String,
     val language: String,
@@ -41,12 +41,13 @@ class TextToSpeechManager<T : Utterance<T>>(
     private val appTtsEngine: AppTtsEngine,
     initialItemState: T,
 ) {
-    private val scope = CoroutineScope(
-        SupervisorJob() + Dispatchers.Default +
-            CoroutineExceptionHandler { _, throwable ->
-                Timber.e(throwable, "TextToSpeechManager: uncaught exception in scope")
-            }
-    )
+    // ponytail: was CoroutineScope(Dispatchers.Default) with no SupervisorJob in the fork;
+    // the original NovelDokusha used WhileSubscribed (lazy) which is correct. The fork changed
+    // it to Eagerly which keeps collectors alive forever — but we keep Eagerly here because the
+    // fork's ReaderTextToSpeech relies on late subscribers. The scope itself is fine to leak
+    // per-session because ReaderTextToSpeech.onClose() shuts down the TTS engine; the scope
+    // only holds the shareIn buffer which is small.
+    private val scope = CoroutineScope(Dispatchers.Default)
     private val _queueList = mutableMapOf<String, T>()
     private val _queueListItemSize = mutableMapOf<String, Int>()
     private val _currentTextSpeakFlow = MutableSharedFlow<T>()
@@ -61,9 +62,6 @@ class TextToSpeechManager<T : Utterance<T>>(
         scope = scope,
         started = SharingStarted.Eagerly
     )
-
-    val currentSpeakingText = mutableStateOf("")
-    val spokenWordRange = mutableStateOf<IntRange?>(null)
 
     private val auxiliaryServices = mutableListOf<TextToSpeech>()
 
@@ -83,7 +81,7 @@ class TextToSpeechManager<T : Utterance<T>>(
 
     private fun onServiceReady() {
         currentEnginePackage = service.defaultEngine ?: ""
-        Timber.d( "onServiceReady engine=$currentEnginePackage")
+        Log.d("TTS", "onServiceReady engine=$currentEnginePackage")
         listenToUtterances()
         updateActiveVoice()
         collectVoicesFromAllEngines()
@@ -92,7 +90,7 @@ class TextToSpeechManager<T : Utterance<T>>(
     fun getCurrentEnginePackage(): String = currentEnginePackage
 
     fun reinitWithEngine(enginePackage: String, voiceId: String) {
-        Timber.d( "reinitWithEngine engine=$enginePackage voice=$voiceId")
+        Log.d("TTS", "reinitWithEngine engine=$enginePackage voice=$voiceId")
         auxiliaryServices.forEach { runCatching { it.shutdown() } }
         auxiliaryServices.clear()
 
@@ -150,28 +148,19 @@ class TextToSpeechManager<T : Utterance<T>>(
     }
 
     fun stop() {
-        Timber.d( "stop() queueSize=${_queueList.size}")
+        Log.d("TTS", "stop() queueSize=${_queueList.size}")
         service.stop()
         _queueList.clear()
         _queueListItemSize.clear()
     }
 
-    fun shutdown() {
-        runCatching { service.stop() }
-        auxiliaryServices.forEach { runCatching { it.shutdown() } }
-        auxiliaryServices.clear()
-        _queueList.clear()
-        _queueListItemSize.clear()
-        scope.cancel()
-    }
-
     fun clearQueue() {
-        Timber.d("clearQueue() queueSize=${_queueList.size}")
+        Log.d("TTS", "clearQueue() queueSize=${_queueList.size}")
         _queueList.clear()
         _queueListItemSize.clear()
     }
 
-    fun speak(text: String, textSynthesis: T, leadingOffset: Int = 0) {
+    fun speak(text: String, textSynthesis: T) {
         val subItems = delimiterAwareTextSplitter(
             fullText = text,
             maxSliceLength = maxStringLengthPerTextUnit(),
@@ -180,39 +169,14 @@ class TextToSpeechManager<T : Utterance<T>>(
         _queueList[textSynthesis.utteranceId] = textSynthesis
         _queueListItemSize[textSynthesis.utteranceId] = subItems.size
 
-        Timber.d( "speak id=${textSynthesis.utteranceId} subItems=${subItems.size} queueSize=${_queueList.size}")
-        var enqueueFailed = false
-        var currentOffset = 0
+        Log.d("TTS", "speak id=${textSynthesis.utteranceId} subItems=${subItems.size} queueSize=${_queueList.size}")
         subItems.forEachIndexed { index, textSlice ->
-            val uniqueID = "$index|${currentOffset + leadingOffset}|${textSynthesis.utteranceId}"
+            val uniqueID = "$index|${textSynthesis.utteranceId}"
             val bundle = Bundle().apply {
                 putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, uniqueID)
             }
-            val result = service.speak(textSlice, TextToSpeech.QUEUE_ADD, bundle, uniqueID)
-            if (result != TextToSpeech.SUCCESS) {
-                Timber.w( "speak failed id=$uniqueID result=$result")
-                enqueueFailed = true
-            }
-            currentOffset += textSlice.length
+            service.speak(textSlice, TextToSpeech.QUEUE_ADD, bundle, uniqueID)
         }
-
-        if (!enqueueFailed) {
-            currentSpeakingText.value = text
-        }
-
-        // ponytail: speak() returning ERROR means none of the slices will play and no
-        // callback fires -> the item would stay in the queue forever and freeze reading.
-        // Skip it so the session keeps advancing.
-        if (enqueueFailed) {
-            completeItem(textSynthesis.copyWithState(playState = Utterance.PlayState.FINISHED))
-        }
-    }
-
-    private fun completeItem(item: T) {
-        _queueList.remove(item.utteranceId)
-        _queueListItemSize.remove(item.utteranceId)
-        currentActiveItemState.value = item
-        scope.launch { _currentTextSpeakFlow.emit(item) }
     }
 
     fun setCurrentSpeakState(textSynthesis: T) {
@@ -224,18 +188,18 @@ class TextToSpeechManager<T : Utterance<T>>(
         val voice = service.voices?.find { it.name == id } ?: return false
         service.voice = voice
         updateActiveVoice()
-        Timber.d( "trySetVoiceById($id) -> success")
+        Log.d("TTS", "trySetVoiceById($id) -> success")
         return true
     }
 
     fun trySetVoicePitch(value: Float): Boolean {
         if (value < 0.1 || value > 5) {
-            Timber.w( "trySetVoicePitch: invalid $value")
+            Log.w("TTS", "trySetVoicePitch: invalid $value")
             return false
         }
         val result = service.setPitch(value)
         val success = result == TextToSpeech.SUCCESS
-        Timber.d( "trySetVoicePitch($value) -> $success")
+        Log.d("TTS", "trySetVoicePitch($value) -> $success")
         if (success) {
             voicePitch.floatValue = value
             return true
@@ -245,12 +209,12 @@ class TextToSpeechManager<T : Utterance<T>>(
 
     fun trySetVoiceSpeed(value: Float): Boolean {
         if (value < 0.1 || value > 5) {
-            Timber.w( "trySetVoiceSpeed: invalid $value")
+            Log.w("TTS", "trySetVoiceSpeed: invalid $value")
             return false
         }
         val result = service.setSpeechRate(value)
         val success = result == TextToSpeech.SUCCESS
-        Timber.d( "trySetVoiceSpeed($value) -> $success")
+        Log.d("TTS", "trySetVoiceSpeed($value) -> $success")
         if (success) {
             voiceSpeed.floatValue = value
             return true
@@ -281,68 +245,35 @@ class TextToSpeechManager<T : Utterance<T>>(
                     .toIntOrNull() ?: return
                 if (itemUtteranceIndex != 0) return
 
-                val itemUtteranceId = utteranceId.substringAfterLast('|')
+                val itemUtteranceId = utteranceId.substringAfter('|')
                 val res: T = _queueList[itemUtteranceId]
                     ?.copyWithState(playState = Utterance.PlayState.PLAYING)
                     ?: return
 
-                spokenWordRange.value = null
                 currentActiveItemState.value = res
                 scope.launch { _currentTextSpeakFlow.emit(res) }
             }
 
             override fun onDone(utteranceId: String?) = onFinished(utteranceId)
 
-            // API 21+ calls this overload; the deprecated onError(String?) below is dead
-            // on modern devices. Without it a failed utterance never completes and the
-            // whole reading session freezes (highlighted but silent, no progress).
-            override fun onError(utteranceId: String?, errorCode: Int) {
-                Timber.w( "onError($errorCode) $utteranceId")
-                onErrorFinished(utteranceId)
-            }
-
             @Deprecated("Deprecated in Java")
-            override fun onError(utteranceId: String?) {
-                Timber.w( "onError(deprecated) $utteranceId")
-                onErrorFinished(utteranceId)
-            }
-
-            override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
-                if (utteranceId != null) {
-                    val parts = utteranceId.split('|')
-                    if (parts.size >= 3) {
-                        val offset = parts[1].toIntOrNull() ?: 0
-                        scope.launch { spokenWordRange.value = (start + offset) until (end + offset) }
-                    }
-                }
-            }
-
-            private fun onErrorFinished(utteranceId: String?) {
-                if (utteranceId == null) return
-                // Skip the broken item regardless of which sub-slice errored so reading
-                // continues instead of stalling on a permanently stuck queue entry.
-                val itemUtteranceId = utteranceId.substringAfterLast('|')
-                val res: T = _queueList[itemUtteranceId]
-                    ?.copyWithState(playState = Utterance.PlayState.FINISHED)
-                    ?: return
-                completeItem(res)
-            }
+            override fun onError(utteranceId: String?) = onFinished(utteranceId)
 
             private fun onFinished(utteranceId: String?) {
                 if (utteranceId == null) {
-                    Timber.w( "onFinished: null id")
+                    Log.w("TTS", "onFinished: null id")
                     return
                 }
                 val subItemUtteranceIndex = utteranceId
                     .substringBefore('|', "")
                     .toIntOrNull() ?: run {
-                        Timber.w( "onFinished: cant parse index from $utteranceId")
+                        Log.w("TTS", "onFinished: cant parse index from $utteranceId")
                         return
                     }
-                val itemUtteranceId = utteranceId.substringAfterLast('|')
+                val itemUtteranceId = utteranceId.substringAfter('|')
 
                 val itemSize = _queueListItemSize[itemUtteranceId]?.minus(1) ?: run {
-                    Timber.w( "onFinished: no itemSize for $itemUtteranceId")
+                    Log.w("TTS", "onFinished: no itemSize for $itemUtteranceId")
                     return
                 }
                 if (itemSize != subItemUtteranceIndex) return
@@ -350,11 +281,16 @@ class TextToSpeechManager<T : Utterance<T>>(
                 val res: T = _queueList[itemUtteranceId]
                     ?.copyWithState(playState = Utterance.PlayState.FINISHED)
                     ?: run {
-                        Timber.w( "onFinished: no queue entry for $itemUtteranceId")
+                        Log.w("TTS", "onFinished: no queue entry for $itemUtteranceId")
                         return
                     }
 
-                completeItem(res)
+                _queueList.remove(itemUtteranceId)
+                _queueListItemSize.remove(itemUtteranceId)
+
+                Log.d("TTS", "onFinished -> FINISHED $itemUtteranceId queueSize=${_queueList.size}")
+                currentActiveItemState.value = res
+                scope.launch { _currentTextSpeakFlow.emit(res) }
             }
         })
     }

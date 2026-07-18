@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.*
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.net.http.SslError
 import android.webkit.*
 import androidx.activity.ComponentActivity
@@ -12,19 +13,18 @@ import androidx.compose.runtime.*
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import my.noveldokusha.coreui.theme.Theme
-import my.noveldokusha.coreui.AppThemeProvider
+import my.noveldokusha.coreui.theme.ThemeProvider
 import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.network.interceptors.CloudflareBypassSignal
 import my.noveldokusha.network.interceptors.resolveUserAgent
-import timber.log.Timber
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class WebViewActivity : ComponentActivity() {
 
     @Inject lateinit var toasty: Toasty
-    @Inject lateinit var themeProvider: AppThemeProvider
+    @Inject lateinit var themeProvider: ThemeProvider
     @Inject lateinit var appPreferences: AppPreferences
 
     private var currentTargetUrl: String = ""
@@ -42,8 +42,7 @@ class WebViewActivity : ComponentActivity() {
                 javaScriptEnabled = true
                 domStorageEnabled = true
                 userAgentString = resolveUserAgent(appPreferences)
-                setAllowFileAccess(false)
-                mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             }
         }
 
@@ -67,7 +66,7 @@ class WebViewActivity : ComponentActivity() {
                     handler: SslErrorHandler?,
                     error: SslError?
                 ) {
-                    Timber.e("SSL error: ${error?.primaryError}, cancelling request")
+                    Log.e("WebViewActivity", "SSL error: ${error?.primaryError}, cancelling request")
                     handler?.cancel()
                     toasty.show("Secure connection failed")
                 }
@@ -81,7 +80,7 @@ class WebViewActivity : ComponentActivity() {
                     return when (scheme) {
                         "http", "https" -> false
                         else -> {
-                            Timber.d("Ignoring unsupported scheme: $url")
+                            Log.d("WebViewActivity", "Ignoring unsupported scheme: $url")
                             true
                         }
                     }
@@ -92,7 +91,7 @@ class WebViewActivity : ComponentActivity() {
                     CookieManager.getInstance().flush()
                     val cookies = CookieManager.getInstance().getCookie(url) ?: ""
                     if (cookies.contains("cf_clearance")) {
-                        Timber.d("CF Cookie detected!")
+                        Log.d("WebViewActivity", "CF Cookie detected!")
                         pageLoadedOnce = true
                     }
                 }
@@ -104,7 +103,10 @@ class WebViewActivity : ComponentActivity() {
                     errorResponse: WebResourceResponse?
                 ) {
                     super.onReceivedHttpError(view, request, errorResponse)
-                    Timber.w("HTTP error ${errorResponse?.statusCode} for ${request?.url}")
+                    Log.w(
+                        "WebViewActivity",
+                        "HTTP error ${errorResponse?.statusCode} for ${request?.url}"
+                    )
                 }
 
                 // ✅ ИСПРАВЛЕНИЕ: логируем сетевые ошибки для диагностики
@@ -114,7 +116,10 @@ class WebViewActivity : ComponentActivity() {
                     error: WebResourceError?
                 ) {
                     super.onReceivedError(view, request, error)
-                    Timber.e("Network error: code=${error?.errorCode}, desc=${error?.description}, url=${request?.url}")
+                    Log.e(
+                        "WebViewActivity",
+                        "Network error: code=${error?.errorCode}, desc=${error?.description}, url=${request?.url}"
+                    )
                 }
             }
 
@@ -128,7 +133,7 @@ class WebViewActivity : ComponentActivity() {
                         ?: ""
                     if (currentCfClearance.isNotEmpty() && currentCfClearance != oldCfClearance) {
                         isReady = true
-                        if (isBypassMode) {
+                        if (isBypassMode && pageLoadedOnce) {
                             delay(500)
                             CookieManager.getInstance().flush()
                             CloudflareBypassSignal.channel.trySend(Unit)
@@ -178,7 +183,7 @@ class WebViewActivity : ComponentActivity() {
         val url = intent.data?.toString()
             ?: intent.getStringExtra("url")
             ?: return
-        Timber.d("onNewIntent: loading $url")
+        Log.d("WebViewActivity", "onNewIntent: loading $url")
         currentTargetUrl = url
         webView.loadUrl(url)
     }

@@ -21,7 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -34,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -53,7 +53,7 @@ import my.noveldokusha.core.Response
 import my.noveldokusha.core.asSequence
 import my.noveldokusha.core.fileImporter
 import my.noveldokusha.core.getOrNull
-import my.noveldokusha.data.LocalBookImporterRepository
+import my.noveldokusha.data.EpubImporterRepository
 import my.noveldokusha.epub_tooling.epubCoverParser
 import my.noveldokusha.epub_tooling.fb2CoverParser
 import my.noveldokusha.epub_tooling.epubParser
@@ -315,7 +315,7 @@ class AppLocalSources @Inject constructor(
             try {
                 val books = scanDirectoryForBooks(dirUri)
                 var imported = 0
-                val epubImporterRepository = EntryPointAccessors.fromApplication<LocalBookImporterEntryPoint>(appContext).epubImporterRepository()
+                val epubImporterRepository = EntryPointAccessors.fromApplication<EpubImporterEntryPoint>(appContext).epubImporterRepository()
                 for ((fileName, fileUri) in books) {
                     importProgress = appContext.getString(
                         R.string.importing_books_progress,
@@ -431,6 +431,6 @@ class AppLocalSources @Inject constructor(
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
-interface LocalBookImporterEntryPoint {
-    fun epubImporterRepository(): my.noveldokusha.data.LocalBookImporterRepository
+interface EpubImporterEntryPoint {
+    fun epubImporterRepository(): my.noveldokusha.data.EpubImporterRepository
 }

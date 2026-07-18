@@ -36,6 +36,4 @@ interface ExtensionManager {
     suspend fun updateExtensionSettings(extensionId: String, settings: String)
 
     suspend fun isExtensionInstalled(extensionId: String): Boolean
-
-    suspend fun getExtensionSettings(extensionId: String): String?
 }

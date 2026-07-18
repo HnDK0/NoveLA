@@ -36,6 +36,13 @@ inline fun <T, R> Response<T>.syncMap(crossinline call: (T) -> R): Response<R> =
     }
 
 @Suppress("unused")
+suspend inline fun <T> Response<T>.mapError(crossinline call: suspend (Error) -> T): Response<T> =
+    when (this) {
+        is Error -> Success(call(this))
+        is Success -> Success(data)
+    }
+
+@Suppress("unused")
 suspend inline fun <T, R> Response<T>.flatMap(crossinline call: suspend (T) -> Response<R>): Response<R> =
     when (this) {
         is Error -> this
@@ -63,5 +70,32 @@ fun <T> Response<Response<T>>.flatten(): Response<T> =
                     this.data
                 }
             }
+        }
     }
+
+@Suppress("unused")
+fun <T> Response<T>.toResult() = when (this) {
+    is Error -> Result.failure<T>(exception)
+    is Success -> Result.success(this.data)
+}
+
+/**
+ * Check if content is valid for processing.
+ * Returns false if content is too short OR contains Cloudflare markers.
+ */
+fun isValidChapterContent(text: String): Boolean {
+    if (text.length < 100) return false
+    
+    val lowerText = text.lowercase()
+    val cloudflareMarkers = listOf(
+        "cf-content",
+        "turnstile",
+        "but-captcha",
+        "cf-browser-verification",
+        "challenge-running",
+        "captcha-container",
+        "hcaptcha",
+    )
+    
+    return !cloudflareMarkers.any { lowerText.contains(it) }
 }

@@ -1,8 +1,13 @@
 package my.noveldokusha.text_translator.domain
 
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import java.util.Locale
 
+// ponytail: @Immutable — the Locale field is derived from `language` in init and never mutates
+// afterward. Marking the class immutable lets the Compose compiler treat lists of these as
+// stable and skip recomposition when the list reference is unchanged.
+@Immutable
 data class TranslationModelState(
     val language: String,
     val available: Boolean,

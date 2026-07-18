@@ -252,6 +252,9 @@ internal fun VoiceReaderSettingDialog(
                 }
 
                 if (floatingTtsState != null) {
+                    // ponytail: was a single Row crammed with "Floating TTS" + Switch + "Show
+                    // outside app" + Switch — overflowed on narrow screens. Now a proper vertical
+                    // section with two rows, matching the rest of the dialog's style.
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         shape = RoundedCornerShape(12.dp),
@@ -260,7 +263,8 @@ internal fun VoiceReaderSettingDialog(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -277,21 +281,22 @@ internal fun VoiceReaderSettingDialog(
                                     onCheckedChange = { floatingTtsState.isEnabled.value = it }
                                 )
                             }
-                            HorizontalDivider()
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.tts_floating_show_outside_app),
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Switch(
-                                    checked = floatingTtsState.showOutsideApp.value,
-                                    onCheckedChange = { floatingTtsState.showOutsideApp.value = it },
-                                    enabled = floatingTtsState.isEnabled.value
-                                )
+                            if (floatingTtsState.isEnabled.value) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.tts_floating_show_outside_app),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Switch(
+                                        checked = floatingTtsState.showOutsideApp.value,
+                                        onCheckedChange = { floatingTtsState.showOutsideApp.value = it }
+                                    )
+                                }
                             }
                         }
                     }
@@ -502,7 +507,9 @@ private fun VoiceSelectorDialog(
                 )
             }
 
-            items(voicesFiltered) { voice ->
+            // ponytail: add key + contentType so insert/remove on the filtered voice list
+            // only recomposes the changed rows instead of every visible voice row.
+            items(voicesFiltered, key = { voice -> voice.id }, contentType = { 1 }) { voice ->
                 val selected by remember(voice.id, currentVoice?.id) {
                     derivedStateOf { voice.id == currentVoice?.id }
                 }

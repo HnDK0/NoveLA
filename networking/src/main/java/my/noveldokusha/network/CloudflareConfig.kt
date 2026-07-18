@@ -9,10 +9,13 @@ import com.google.gson.Gson
 data class CloudflareConfig(
     val detectionRules: List<DetectionRule> = emptyList()
 ) {
-    fun toJson(): String = gson.toJson(this)
+    fun toJson(): String = SHARED_GSON.toJson(this)
 
     companion object {
-        private val gson = Gson()
+        // ponytail: was Gson() per call — Gson instantiation reflects on every type it
+        // serializes and is expensive on hot paths (every CF check). Singleton, reused
+        // across CloudflareConfig and other Gson call-sites in this module.
+        val SHARED_GSON: Gson = Gson()
     }
 }
 

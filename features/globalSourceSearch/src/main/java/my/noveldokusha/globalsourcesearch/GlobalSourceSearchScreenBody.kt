@@ -48,7 +48,13 @@ internal fun GlobalSourceSearchScreenBody(
         modifier = Modifier.padding(contentPadding),
         contentPadding = PaddingValues(top = 12.dp, bottom = 240.dp)
     ) {
-        items(items = listSources, key = { it.source.catalog.id }) { entry ->
+        // ponytail: key by source catalog baseUrl so a source dropping in/out of
+        // the result list doesn't recompose every visible source row.
+        items(
+            listSources,
+            key = { it.source.catalog.baseUrl },
+            contentType = { "source_results" }
+        ) { entry ->
             Column(modifier = Modifier.padding(bottom = 16.dp)) {
                 Text(
                     text = entry.source.catalog.name
@@ -95,7 +101,9 @@ private fun SourceListView(
             .animateContentSize()
             .fillMaxWidth(),
     ) {
-        items(items = list, key = { it.url }) {
+        // ponytail: key by book url so scrolling the per-source LazyRow doesn't
+        // recompose every visible book on each new search-result page arrival.
+        items(list, key = { it.url }, contentType = { "book" }) {
             BookImageButtonView(
                 title = it.title,
                 coverImageModel = rememberResolvedBookImagePath(

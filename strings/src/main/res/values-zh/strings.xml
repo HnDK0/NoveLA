@@ -40,12 +40,12 @@
     <string name="open_in_browser">在浏览器中打开</string>
     <string name="sources">来源</string>
     <string name="search_for_sources">搜索来源</string>
-    <string name="import_epub">导入书籍</string>
+    <string name="import_epub">导入 EPUB</string>
     <string name="failed_get_file">获取文件失败</string>
     <string name="local_book_nothing_to_update">本地书籍，无需更新</string>
-    <string name="failed_to_import_epub">导入书籍失败</string>
+    <string name="failed_to_import_epub">导入 epub 失败</string>
     <string name="image">图片</string>
-    <string name="importing_epub">正在导入书籍</string>
+    <string name="importing_epub">正在导入 epub</string>
     <string name="no_results_found">未找到结果</string>
     <string name="updating_library_notice">正在更新书库</string>
     <string name="chapter_downloaded">章节已下载</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">新章节</string>
     <string name="notification_channel_name_failed_updates">更新失败</string>
     <string name="notification_channel_name_backup">备份</string>
-    <string name="notification_channel_name_import_epub">导入书籍</string>
+    <string name="notification_channel_name_import_epub">导入 EPUB</string>
     <string name="notification_channel_name_restore_backup">恢复备份</string>
     <string name="notification_channel_name_app_updates_checker">更新检查</string>
     <string name="new_app_version_available">新版本可用</string>
@@ -352,6 +352,7 @@
     <string name="cloudflare_bypass">Cloudflare 绕过</string>
     <string name="cloudflare_bypass_description">启用自动 Cloudflare 挑战绕过</string>
     <string name="cloudflare_bypass_restart_required">Cloudflare 绕过设置将在应用重启后生效</string>
+    <string name="user_agent_restart_required">User-Agent 已更改。请重启应用以生效。</string>
     <string name="cloudflare_challenge_timeout">挑战超时</string>
     <string name="timeout_seconds">超时（秒）</string>
     <string name="seconds_format">%d 秒</string>
@@ -617,67 +618,5 @@
     <string name="repository_settings">仓库设置</string>
     <string name="installed">已安装</string>
     <string name="available">可用</string>
-
-    <string name="book_fix">修复书籍</string>
-
-    <!-- History -->
-    <string name="title_history">历史</string>
-    <string name="no_history_yet">暂无阅读历史</string>
-    <string name="no_books_in_library">图书馆中没有书籍</string>
-    <string name="clear_all_history">清除所有历史</string>
-
-    <!-- Display -->
-    <string name="display_options_title">显示</string>
-    <string name="save_settings">保存设置</string>
-    <string name="save_plugins">保存插件</string>
-    <string name="copying_plugins">正在复制插件…</string>
-
-    <!-- Auto Backup -->
-    <string name="auto_backup_include_settings">包含设置</string>
-    <string name="auto_backup_include_settings_description">在自动备份中保存 API 密钥和偏好设置</string>
-    <string name="auto_backup_include_plugins">包含插件</string>
-    <string name="auto_backup_include_plugins_description">在自动备份中保存 Lua 抓取插件</string>
-
-    <!-- Lua Extensions -->
-    <string name="import_lua">导入 Lua</string>
-    <string name="edit_lua">编辑 Lua</string>
-    <string name="reset">重置</string>
-    <string name="uninstall">卸载</string>
-    <string name="installing">正在安装…</string>
-    <string name="install">安装</string>
-    <string name="update">更新</string>
-    <string name="retry">重试</string>
-    <string name="top">↑ 顶部</string>
-    <string name="copy">复制</string>
-    <string name="paste">粘贴</string>
-    <string name="clear">清除</string>
-    <string name="no_extensions_available">没有可用的扩展</string>
-    <string name="local_extension_description">本地 Lua 扩展</string>
-    <string name="extension_author_local">本地</string>
-
-    <!-- Extension errors -->
-    <string name="ext_failed_to_load">加载扩展失败: %s</string>
-    <string name="ext_failed_to_download">下载 %s 的脚本失败</string>
-    <string name="ext_failed_to_install">安装 %1$s 失败: %2$s</string>
-    <string name="ext_failed_to_uninstall">卸载扩展失败</string>
-    <string name="ext_failed_to_toggle">切换扩展失败</string>
-
-    <!-- Lua errors -->
-    <string name="lua_empty_error">Lua 文件为空</string>
-    <string name="lua_compile_error">Lua 编译错误</string>
-    <string name="lua_save_error">保存 Lua 文件失败</string>
-    <string name="lua_import_error">保存导入的 Lua 文件失败</string>
-    <string name="lua_duplicate_error">扩展 \"%s\" 已存在于本地</string>
-    <string name="lua_not_editable">源代码不可编辑</string>
-    <string name="lua_restore_error">从仓库恢复 Lua 失败</string>
-
-    <!-- Time -->
-    <string name="time_just_now">刚刚</string>
-    <string name="time_minutes_ago">%dm 前</string>
-    <string name="time_hours_ago">%dh 前</string>
-    <string name="time_days_ago">%dd 前</string>
-    <string name="time_weeks_ago">%dw 前</string>
-    <string name="time_months_ago">%dmo 前</string>
-    <string name="time_years_ago">%dy 前</string>
 
 </resources>

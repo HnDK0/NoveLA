@@ -17,20 +17,17 @@ class NoveldokushaAndroidComposeBestPracticesConventionPlugin : Plugin<Project> 
                 ?: extensions.getByType<LibraryExtension>()
 
             extension.apply {
-                buildFeatures.apply {
+                buildFeatures {
                     compose = true
                 }
 
                 dependencies {
-                    val bom = platform(libs.findLibrary("compose-bom").get())
-                    implementation(bom)
                     implementation(libs.findLibrary("compose-androidx-ui").get())
                     implementation(libs.findLibrary("compose-androidx-ui-tooling").get())
-                    implementation(libs.findLibrary("compose-foundation-layout").get())
                 }
 
-                testOptions.apply {
-                    unitTests.apply {
+                testOptions {
+                    unitTests {
                         // For Robolectric
                         isIncludeAndroidResources = true
                     }

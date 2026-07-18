@@ -6,7 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import androidx.lifecycle.ViewModel
+import my.noveldokusha.coreui.BaseViewModel
 import my.noveldokusha.core.utils.StateExtra_String
 import my.noveldokusha.scraper.DatabaseInterface
 import my.noveldokusha.scraper.Scraper
@@ -31,14 +31,12 @@ interface DatabaseBookInfoStateBundle {
 class DatabaseBookInfoViewModel @Inject constructor(
     stateHandle: SavedStateHandle,
     scraper: Scraper
-) : ViewModel(), DatabaseBookInfoStateBundle {
+) : BaseViewModel(), DatabaseBookInfoStateBundle {
     override var databaseUrlBase: String by StateExtra_String(stateHandle)
     override var bookUrl: String by StateExtra_String(stateHandle)
     override var bookTitle: String by StateExtra_String(stateHandle)
 
-    val database = requireNotNull(scraper.getCompatibleDatabase(databaseUrlBase)) {
-        "No compatible database for base URL: $databaseUrlBase"
-    }
+    val database = scraper.getCompatibleDatabase(databaseUrlBase)!!
 
     internal val state = DatabaseBookInfoState(
         databaseNameStrId = mutableIntStateOf(database.nameStrId),

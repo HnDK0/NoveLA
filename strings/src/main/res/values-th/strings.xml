@@ -40,12 +40,12 @@
     <string name="open_in_browser">เปิดในเบราว์เซอร์</string>
     <string name="sources">แหล่งที่มา</string>
     <string name="search_for_sources">ค้นหาแหล่งที่มา</string>
-    <string name="import_epub">นำเข้าหนังสือ</string>
+    <string name="import_epub">นำเข้า EPUB</string>
     <string name="failed_get_file">ไม่สามารถรับไฟล์ได้</string>
     <string name="local_book_nothing_to_update">หนังสือในเครื่อง ไม่มีอะไรให้อัปเดต</string>
-    <string name="failed_to_import_epub">นำเข้าหนังสือล้มเหลว</string>
+    <string name="failed_to_import_epub">นำเข้า epub ล้มเหลว</string>
     <string name="image">รูปภาพ</string>
-    <string name="importing_epub">กำลังนำเข้าหนังสือ</string>
+    <string name="importing_epub">กำลังนำเข้า epub</string>
     <string name="no_results_found">ไม่พบผลลัพธ์</string>
     <string name="updating_library_notice">กำลังอัปเดตห้องสมุด</string>
     <string name="chapter_downloaded">ดาวน์โหลดบทแล้ว</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">บทใหม่</string>
     <string name="notification_channel_name_failed_updates">อัปเดตล้มเหลว</string>
     <string name="notification_channel_name_backup">สำรองข้อมูล</string>
-    <string name="notification_channel_name_import_epub">นำเข้าหนังสือ</string>
+    <string name="notification_channel_name_import_epub">นำเข้า EPUB</string>
     <string name="notification_channel_name_restore_backup">กู้คืนข้อมูลสำรอง</string>
     <string name="notification_channel_name_app_updates_checker">ตรวจสอบอัปเดต</string>
     <string name="new_app_version_available">มีเวอร์ชันแอปใหม่</string>
@@ -352,6 +352,7 @@
     <string name="cloudflare_bypass">การบายพาส Cloudflare</string>
     <string name="cloudflare_bypass_description">เปิดใช้งานการบายพาสความท้าทาย Cloudflare อัตโนมัติ</string>
     <string name="cloudflare_bypass_restart_required">การตั้งค่าการบายพาส Cloudflare จะมีผลหลังจากรีสตาร์ทแอป</string>
+    <string name="user_agent_restart_required">เปลี่ยน User-Agent แล้ว รีสตาร์ทแอปเพื่อใช้</string>
     <string name="cloudflare_challenge_timeout">หมดเวลาความท้าทาย</string>
     <string name="timeout_seconds">หมดเวลา (วินาที)</string>
     <string name="seconds_format">%d วินาที</string>
@@ -617,56 +618,5 @@
     <string name="repository_settings">การตั้งค่าที่เก็บ</string>
     <string name="installed">ติดตั้งแล้ว</string>
     <string name="available">พร้อมใช้งาน</string>
-
-    <string name="book_fix">ซ่อมหนังสือ</string>
-
-
-    <!-- History -->
-    <string name="title_history">ประวัติ</string>
-    <string name="no_history_yet">ยังไม่มีประวัติการอ่าน</string>
-    <string name="no_books_in_library">ไม่มีหนังสือในห้องสมุด</string>
-    <string name="clear_all_history">ล้างประวัติทั้งหมด</string>
-    <string name="display_options_title">การแสดงผล</string>
-    <string name="save_settings">บันทึกการตั้งค่า</string>
-    <string name="save_plugins">บันทึกปลั๊กอิน</string>
-    <string name="copying_plugins">กำลังคัดลอกปลั๊กอิน…</string>
-    <string name="auto_backup_include_settings">รวมการตั้งค่า</string>
-    <string name="auto_backup_include_settings_description">บันทึกคีย์ API และการตั้งค่าในการสำรองข้อมูลอัตโนมัติ</string>
-    <string name="auto_backup_include_plugins">รวมปลั๊กอิน</string>
-    <string name="auto_backup_include_plugins_description">บันทึกปลั๊กอินขูดข้อมูล Lua ในการสำรองข้อมูลอัตโนมัติ</string>
-    <string name="import_lua">นำเข้า Lua</string>
-    <string name="edit_lua">แก้ไข Lua</string>
-    <string name="reset">รีเซ็ต</string>
-    <string name="uninstall">ถอนการติดตั้ง</string>
-    <string name="installing">กำลังติดตั้ง…</string>
-    <string name="install">ติดตั้ง</string>
-    <string name="update">อัปเดต</string>
-    <string name="retry">ลองอีกครั้ง</string>
-    <string name="top">↑ บนสุด</string>
-    <string name="copy">คัดลอก</string>
-    <string name="paste">วาง</string>
-    <string name="clear">ล้าง</string>
-    <string name="no_extensions_available">ไม่มีส่วนขยาย</string>
-    <string name="local_extension_description">ส่วนขยาย Lua ในเครื่อง</string>
-    <string name="extension_author_local">ในเครื่อง</string>
-    <string name="ext_failed_to_load">ไม่สามารถโหลดส่วนขยาย: %s</string>
-    <string name="ext_failed_to_download">ไม่สามารถดาวน์โหลดสคริปต์สำหรับ %s</string>
-    <string name="ext_failed_to_install">ไม่สามารถติดตั้ง %1$s: %2$s</string>
-    <string name="ext_failed_to_uninstall">ไม่สามารถถอนการติดตั้งส่วนขยาย</string>
-    <string name="ext_failed_to_toggle">ไม่สามารถเปิด/ปิดส่วนขยาย</string>
-    <string name="lua_empty_error">ไฟล์ Lua ว่างเปล่า</string>
-    <string name="lua_compile_error">ข้อผิดพลาดการคอมไพล์ Lua</string>
-    <string name="lua_save_error">ไม่สามารถบันทึกไฟล์ Lua</string>
-    <string name="lua_import_error">ไม่สามารถบันทึกไฟล์ Lua ที่นำเข้า</string>
-    <string name="lua_duplicate_error">ส่วนขยาย \"%s\" มีอยู่แล้วในเครื่อง</string>
-    <string name="lua_not_editable">ไม่มีซอร์สโค้ดให้แก้ไข</string>
-    <string name="lua_restore_error">ไม่สามารถกู้คืน Lua จากที่เก็บ</string>
-    <string name="time_just_now">เมื่อกี้</string>
-    <string name="time_minutes_ago">%d นาทีที่แล้ว</string>
-    <string name="time_hours_ago">%d ชม.ที่แล้ว</string>
-    <string name="time_days_ago">%d วันที่แล้ว</string>
-    <string name="time_weeks_ago">%d สัปดาห์ที่แล้ว</string>
-    <string name="time_months_ago">%d เดือนที่แล้ว</string>
-    <string name="time_years_ago">%d ปีที่แล้ว</string>
 
 </resources>

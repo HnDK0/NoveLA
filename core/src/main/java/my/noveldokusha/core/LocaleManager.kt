@@ -37,6 +37,11 @@ object LocaleManager {
     }
 
     fun getCurrentLocale(context: Context): Locale {
-        return context.resources.configuration.locales[0]
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            context.resources.configuration.locales[0]
+        } else {
+            @Suppress("DEPRECATION")
+            context.resources.configuration.locale
+        }
     }
 }

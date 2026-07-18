@@ -7,12 +7,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
-import my.noveldokusha.core.ExtensionManager
+import my.noveldokusha.core.ExtensionRepositoryInterface
 import my.noveldokusha.network.NetworkClient
 import my.noveldokusha.network.postRequest
 import my.noveldokusha.scraper.configs.SourceMetadata
@@ -33,14 +31,12 @@ import org.luaj.vm2.lib.jse.JsePlatform
 import org.yaml.snakeyaml.Yaml
 import androidx.core.os.ConfigurationCompat
 import timber.log.Timber
-import my.noveldokusha.core.atomicWrite
 import java.io.File
-import java.net.InetAddress
 import java.net.URI
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
-import android.util.LruCache
 
 
 // =============================================================================
@@ -53,58 +49,28 @@ class LuaEngine @Inject constructor(
     private val networkClient: NetworkClient
 ) {
     private val gson = Gson()
-    private val luaPrefs by lazy { context.getSharedPreferences("lua_preferences", Context.MODE_PRIVATE) }
-
-    /**
-     * Создаёт globals с минимально необходимым набором библиотек.
-     * Удаляет глобалы, дающие RCE / доступ к файловой системе / загрузку произвольного кода,
-     * чтобы внешние Lua-плагины не могли выйти из песочницы.
-     */
-    private fun createSandboxGlobals(): Globals {
-        val globals = JsePlatform.standardGlobals()
-        // Полностью удаляем опасные библиотеки/функции
-        globals.set("luajava", LuaValue.NIL)
-        globals.set("io", LuaValue.NIL)
-        globals.set("load", LuaValue.NIL)
-        globals.set("loadfile", LuaValue.NIL)
-        globals.set("loadstring", LuaValue.NIL)
-        globals.set("dofile", LuaValue.NIL)
-        globals.set("require", LuaValue.NIL)
-        globals.set("package", LuaValue.NIL)
-        globals.set("debug", LuaValue.NIL)
-        // Из os оставляем только безопасные хелперы (os.time, os.date, ...),
-        // убираем всё, что даёт доступ к ОС/файлам.
-        (globals.get("os") as? LuaTable)?.apply {
-            set("execute", LuaValue.NIL)
-            set("getenv", LuaValue.NIL)
-            set("rename", LuaValue.NIL)
-            set("remove", LuaValue.NIL)
-            set("tmpname", LuaValue.NIL)
-        }
-        return globals
-    }
 
     suspend fun loadScript(luaCode: String): LuaValue = withContext(Dispatchers.IO) {
-        val globals = createSandboxGlobals()
+        val globals = JsePlatform.standardGlobals()
         registerApi(globals)
-        val result = withTimeout(10_000) { globals.load(luaCode).call() }
+        val result = globals.load(luaCode).call()
         // Если скрипт вернул таблицу (return { ... }) — используем её,
         // иначе — функции объявлены как глобальные (function name() ... end)
         if (result.istable()) result else globals
     }
 
     suspend fun loadFromScript(scriptContent: String, iconUrl: String? = null): SourceInterface.Catalog {
-        val globals = createSandboxGlobals()
+        val globals = JsePlatform.standardGlobals()
         registerApi(globals)
-        val result = withTimeout(10_000) { globals.load(scriptContent).call() }
+        val result = globals.load(scriptContent).call()
         val luaScript = if (result.istable()) result else globals
         return createLuaSourceAdapter(context, luaScript, this, iconUrl, null)
     }
 
     suspend fun loadFromScriptWithFileName(scriptContent: String, fileName: String, iconUrl: String? = null): SourceInterface.Catalog {
-        val globals = createSandboxGlobals()
+        val globals = JsePlatform.standardGlobals()
         registerApi(globals)
-        val result = withTimeout(10_000) { globals.load(scriptContent).call() }
+        val result = globals.load(scriptContent).call()
         val luaScript = if (result.istable()) result else globals
         return createLuaSourceAdapter(context, luaScript, this, iconUrl, fileName)
     }
@@ -167,22 +133,17 @@ class LuaEngine @Inject constructor(
     private inner class HttpGetFunction : TwoArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue): LuaValue = runBlocking {
             val url           = a1.checkjstring()
-            if (!isSsrfSafe(url)) return@runBlocking ssrfErrorTable(url)
             val config        = if (a2.istable()) a2.checktable() else LuaTable()
             val pluginHeaders = convertHeaders(config.get("headers").opttable(LuaTable()))
             val charset       = config.get("charset").optjstring("UTF-8")
+            // Дефолтные заголовки: плагин переопределяет только то что ему нужно
             val headers       = defaultHeaders(url) + pluginHeaders
             try {
-                withContext(Dispatchers.IO) {
-                    networkClient.getWithHeaders(url, headers).use { r ->
-                        val bytes = r.body.bytes()
-                        val body  = String(bytes, java.nio.charset.Charset.forName(charset))
-                        responseTable(r.isSuccessful, body, r.code, r.headers.toMultimap())
-                    }
+                networkClient.getWithHeaders(url, headers).use { r ->
+                    val bytes = r.body.bytes()
+                    val body  = String(bytes, java.nio.charset.Charset.forName(charset))
+                    responseTable(r.isSuccessful, body, r.code)
                 }
-            } catch (e: CancellationException) {
-                Timber.e(e, "http_get cancelled: $url")
-                throw e
             } catch (e: Exception) {
                 Timber.e(e, "http_get failed: $url")
                 errorTable(e)
@@ -198,25 +159,20 @@ class LuaEngine @Inject constructor(
     private inner class HttpPostFunction : ThreeArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue, a3: LuaValue): LuaValue = runBlocking {
             val url           = a1.checkjstring()
-            if (!isSsrfSafe(url)) return@runBlocking ssrfErrorTable(url)
             val bodyStr       = a2.checkjstring()
             val config        = if (a3.istable()) a3.checktable() else LuaTable()
             val pluginHeaders = convertHeaders(config.get("headers").opttable(LuaTable()))
             val charset       = config.get("charset").optjstring("UTF-8")
+            // Дефолтные заголовки: плагин переопределяет только то что ему нужно
             val headers       = defaultHeaders(url) + pluginHeaders
             try {
-                withContext(Dispatchers.IO) {
-                    val mediaType = (headers["Content-Type"] ?: detectContentType(bodyStr)).toMediaType()
-                    val body = bodyStr.toRequestBody(mediaType)
-                    networkClient.call(postRequest(url, body = body, headers = headers.toHeaders())).use { r ->
-                        val bytes = r.body.bytes()
-                        val s     = String(bytes, java.nio.charset.Charset.forName(charset))
-                        responseTable(r.isSuccessful, s, r.code, r.headers.toMultimap())
-                    }
+                val mediaType = (headers["Content-Type"] ?: detectContentType(bodyStr)).toMediaType()
+                val body = bodyStr.toRequestBody(mediaType)
+                networkClient.call(postRequest(url, body = body, headers = headers.toHeaders())).use { r ->
+                    val bytes = r.body.bytes()
+                    val s     = String(bytes, java.nio.charset.Charset.forName(charset))
+                    responseTable(r.isSuccessful, s, r.code)
                 }
-            } catch (e: CancellationException) {
-                Timber.e(e, "http_post cancelled: $url")
-                throw e
             } catch (e: Exception) {
                 Timber.e(e, "http_post failed: $url")
                 errorTable(e)
@@ -224,17 +180,10 @@ class LuaEngine @Inject constructor(
         }
     }
 
-    private fun responseTable(success: Boolean, body: String, code: Int, headers: Map<String, List<String>> = emptyMap()) = LuaTable().also { t ->
+    private fun responseTable(success: Boolean, body: String, code: Int) = LuaTable().also { t ->
         t.set("success", LuaValue.valueOf(success))
         t.set("body",    LuaValue.valueOf(body))
         t.set("code",    LuaValue.valueOf(code))
-        val h = LuaTable()
-        headers.forEach { (k, values) ->
-            val vt = LuaTable()
-            values.forEachIndexed { i, v -> vt.set(i + 1, LuaValue.valueOf(v)) }
-            h.set(k.lowercase(), vt)
-        }
-        t.set("headers", h)
     }
 
     private fun errorTable(e: Exception) = LuaTable().also { t ->
@@ -283,32 +232,6 @@ class LuaEngine @Inject constructor(
     )
 
     /**
-     * Блокирует SSRF: запрещает обращаться к loopback / приватным / link-local / any-local
-     * адресам (localhost, 127.0.0.1, 10.0.2.2, внутренние сети и т.д.).
-     * Резолвит имя хоста и проверяет ВСЕ полученные адреса.
-     */
-    private fun isSsrfSafe(url: String): Boolean {
-        val host = try { URI(url).host } catch (_: Exception) { null } ?: return false
-        if (host.isEmpty()) return false
-        return try {
-            InetAddress.getAllByName(host).all { addr ->
-                !addr.isLoopbackAddress &&
-                    !addr.isSiteLocalAddress &&
-                    !addr.isLinkLocalAddress &&
-                    !addr.isAnyLocalAddress
-            }
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    private fun ssrfErrorTable(url: String) = LuaTable().also { t ->
-        t.set("success", LuaValue.FALSE)
-        t.set("body", LuaValue.valueOf("SSRF blocked: private/loopback address not allowed ($url)"))
-        t.set("code", LuaValue.valueOf(-1))
-    }
-
-    /**
      * Определяет Content-Type по телу запроса если плагин его не указал.
      * JSON-тело (начинается с { или [) → application/json
      * Иначе → application/x-www-form-urlencoded
@@ -333,25 +256,21 @@ class LuaEngine @Inject constructor(
                 urls.map { url ->
                     async(Dispatchers.IO) {
                         try {
-                            if (!isSsrfSafe(url)) return@async false to Triple("", 0, emptyMap<String, List<String>>())
                             networkClient.getWithHeaders(url, defaultHeaders(url)).use { r ->
                                 val body = r.body.string()
-                                r.isSuccessful to Triple(body, r.code, r.headers.toMultimap())
+                                Triple(r.isSuccessful, body, r.code)
                             }
-                        } catch (e: CancellationException) {
-                            throw e
                         } catch (e: Exception) {
                             Timber.e(e, "http_get_batch failed: $url")
-                            false to Triple("", 0, emptyMap<String, List<String>>())
+                            Triple(false, "", 0)
                         }
                     }
                 }.awaitAll()
             }
 
             return LuaTable().also { out ->
-                results.forEachIndexed { i, (success, triple) ->
-                    val (body, code, headers) = triple
-                    out.set(i + 1, responseTable(success, body, code, headers))
+                results.forEachIndexed { i, (success, body, code) ->
+                    out.set(i + 1, responseTable(success, body, code))
                 }
             }
         }
@@ -361,13 +280,15 @@ class LuaEngine @Inject constructor(
 
     private inner class GetPreferenceFunction : OneArgFunction() {
         override fun call(arg: LuaValue): LuaValue {
-            return LuaValue.valueOf(luaPrefs.getString(arg.checkjstring(), "") ?: "")
+            val prefs = context.getSharedPreferences("lua_preferences", Context.MODE_PRIVATE)
+            return LuaValue.valueOf(prefs.getString(arg.checkjstring(), "") ?: "")
         }
     }
 
     private inner class SetPreferenceFunction : TwoArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue): LuaValue {
-            luaPrefs.edit().putString(a1.checkjstring(), a2.tojstring()).apply()
+            context.getSharedPreferences("lua_preferences", Context.MODE_PRIVATE)
+                .edit().putString(a1.checkjstring(), a2.tojstring()).apply()
             return LuaValue.NIL
         }
     }
@@ -457,13 +378,9 @@ class LuaEngine @Inject constructor(
      */
     private inner class HtmlSelectFunction : TwoArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue): LuaValue = try {
-            val el = elementFromValue(a1)
-            val elems = if (el != null) {
-                el.select(a2.checkjstring())
-            } else {
-                Jsoup.parse(a1.checkjstring()).select(a2.checkjstring())
-            }
-            LuaTable().also { t -> elems.forEachIndexed { i, e -> t.set(i + 1, elementToTable(e)) } }
+            val html  = htmlFromValue(a1)
+            val elems = Jsoup.parse(html).select(a2.checkjstring())
+            LuaTable().also { t -> elems.forEachIndexed { i, el -> t.set(i + 1, elementToTable(el)) } }
         } catch (e: Exception) { Timber.e(e, "html_select"); LuaTable() }
     }
 
@@ -472,13 +389,9 @@ class LuaEngine @Inject constructor(
      */
     private inner class HtmlSelectFirstFunction : TwoArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue): LuaValue = try {
-            val el = elementFromValue(a1)
-            val first = if (el != null) {
-                el.selectFirst(a2.checkjstring())
-            } else {
-                Jsoup.parse(a1.checkjstring()).selectFirst(a2.checkjstring())
-            }
-            if (first != null) elementToTable(first) else LuaValue.NIL
+            val html = htmlFromValue(a1)
+            val el = Jsoup.parse(html).selectFirst(a2.checkjstring())
+            if (el != null) elementToTable(el) else LuaValue.NIL
         } catch (e: Exception) { Timber.e(e, "html_select_first"); LuaValue.NIL }
     }
 
@@ -488,13 +401,9 @@ class LuaEngine @Inject constructor(
      */
     private inner class HtmlAttrFunction : ThreeArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue, a3: LuaValue): LuaValue = try {
-            val el = elementFromValue(a1)
-            val target = if (el != null) {
-                el.selectFirst(a2.checkjstring())
-            } else {
-                Jsoup.parse(a1.checkjstring()).selectFirst(a2.checkjstring())
-            }
-            if (target != null) LuaValue.valueOf(target.attr(a3.checkjstring())) else LuaValue.valueOf("")
+            val html = htmlFromValue(a1)
+            val el   = Jsoup.parse(html).selectFirst(a2.checkjstring())
+            if (el != null) LuaValue.valueOf(el.attr(a3.checkjstring())) else LuaValue.valueOf("")
         } catch (_: Exception) { LuaValue.valueOf("") }
     }
 
@@ -503,13 +412,17 @@ class LuaEngine @Inject constructor(
      */
     private inner class HtmlTextFunction : OneArgFunction() {
         override fun call(arg: LuaValue): LuaValue = try {
-            val el = elementFromValue(arg)
-            val text = if (el != null) {
-                TextExtractor.get(el)
-            } else {
-                val doc = Jsoup.parseBodyFragment(arg.tojstring())
-                TextExtractor.get(doc.body())
-            }
+            val html = arg.tojstring()
+
+            // ЛОГ: Проверяем первые 50 символов входящего HTML
+            Timber.d("LuaEngine: html_text input (start): ${html.take(50)}")
+
+            val doc = Jsoup.parseBodyFragment(html)
+            val text = TextExtractor.get(doc.body())
+
+            // ЛОГ: Проверяем результат экстракции
+            Timber.d("LuaEngine: html_text output (start): ${text.take(50)}")
+
             LuaValue.valueOf(text)
         } catch (e: Exception) {
             Timber.e(e, "html_text failed")
@@ -524,23 +437,13 @@ class LuaEngine @Inject constructor(
     private inner class HtmlRemoveFunction : VarArgFunction() {
         override fun invoke(args: Varargs): Varargs {
             return try {
-                val arg1 = args.arg(1)
-                val el = elementFromValue(arg1)
-                if (el != null) {
-                    for (i in 2..args.narg()) {
-                        val selector = args.arg(i).optjstring(null) ?: continue
-                        if (selector.isNotBlank()) el.select(selector).remove()
-                    }
-                    LuaValue.valueOf(el.html())
-                } else {
-                    val html = arg1.checkjstring()
-                    val doc  = Jsoup.parse(html)
-                    for (i in 2..args.narg()) {
-                        val selector = args.arg(i).optjstring(null) ?: continue
-                        if (selector.isNotBlank()) doc.select(selector).remove()
-                    }
-                    LuaValue.valueOf(doc.body().html())
+                val html = htmlFromValue(args.arg(1))
+                val doc  = Jsoup.parse(html)
+                for (i in 2..args.narg()) {
+                    val selector = args.arg(i).optjstring(null) ?: continue
+                    if (selector.isNotBlank()) doc.select(selector).remove()
                 }
+                LuaValue.valueOf(doc.body().html())
             } catch (e: Exception) {
                 Timber.e(e, "html_remove")
                 args.arg(1)
@@ -562,64 +465,30 @@ class LuaEngine @Inject constructor(
     private fun htmlFromValue(v: LuaValue): String =
         if (v.istable()) v.checktable().get("html").optjstring("") else v.checkjstring()
 
-    // Extracts the wrapped Jsoup Element directly from the LuaTable userdata.
-    // This allows functions like html_select/html_text to execute queries directly on the DOM tree
-    // instead of serializing the element to HTML and re-parsing it, saving CPU and memory.
-    private fun elementFromValue(v: LuaValue): Element? {
-        if (v.istable()) {
-            val user = v.checktable().get("__element")
-            if (user.isuserdata(Element::class.java)) {
-                return user.touserdata(Element::class.java) as Element
-            }
-        }
-        return null
-    }
-
-    // Converts a Jsoup Element to a LuaTable lazily using Lua metatables.
-    // Eagerly extracting text/html for all elements on every select call created severe GC pressure
-    // and slow JVM execution. Now properties are evaluated on-demand and cached in the table.
-    private fun elementToTable(el: Element): LuaTable {
-        val t = LuaTable()
-        t.set("__element", org.luaj.vm2.LuaUserdata(el))
-
-        val mt = LuaTable()
-        mt.set(LuaValue.INDEX, object : TwoArgFunction() {
-            override fun call(table: LuaValue, key: LuaValue): LuaValue {
-                val keyStr = key.optjstring(null) ?: return LuaValue.NIL
-                val value = when (keyStr) {
-                    "text" -> LuaValue.valueOf(el.text())
-                    "html" -> LuaValue.valueOf(el.html())
-                    "href" -> LuaValue.valueOf(el.attr("abs:href").ifEmpty { el.attr("href") })
-                    "src" -> LuaValue.valueOf(el.attr("abs:src").ifEmpty  { el.attr("src")  })
-                    "title" -> LuaValue.valueOf(el.attr("title"))
-                    "class" -> LuaValue.valueOf(el.attr("class"))
-                    "id" -> LuaValue.valueOf(el.attr("id"))
-                    "get_text" -> object : ZeroArgFunction() { override fun call() = LuaValue.valueOf(el.text()) }
-                    "get_html" -> object : ZeroArgFunction() { override fun call() = LuaValue.valueOf(el.html()) }
-                    "attr" -> object : OneArgFunction() {
-                        override fun call(a: LuaValue) = try {
-                            LuaValue.valueOf(el.attr(a.checkjstring()))
-                        } catch (_: Exception) { LuaValue.valueOf("") }
-                    }
-                    "remove" -> object : ZeroArgFunction() {
-                        override fun call(): LuaValue { el.remove(); return LuaValue.NIL }
-                    }
-                    "select" -> object : OneArgFunction() {
-                        override fun call(a: LuaValue): LuaValue = try {
-                            val elems = el.select(a.checkjstring())
-                            LuaTable().also { t2 -> elems.forEachIndexed { i, e -> t2.set(i + 1, elementToTable(e)) } }
-                        } catch (_: Exception) { LuaTable() }
-                    }
-                    else -> LuaValue.NIL
-                }
-                if (value != LuaValue.NIL) {
-                    table.set(key, value)
-                }
-                return value
-            }
+    private fun elementToTable(el: Element): LuaTable = LuaTable().also { t ->
+        t.set("text",  LuaValue.valueOf(el.text()))
+        t.set("html",  LuaValue.valueOf(el.html()))
+        t.set("href",  LuaValue.valueOf(el.attr("abs:href").ifEmpty { el.attr("href") }))
+        t.set("src",   LuaValue.valueOf(el.attr("abs:src").ifEmpty  { el.attr("src")  }))
+        t.set("title", LuaValue.valueOf(el.attr("title")))
+        t.set("class", LuaValue.valueOf(el.attr("class")))
+        t.set("id",    LuaValue.valueOf(el.attr("id")))
+        t.set("get_text", object : ZeroArgFunction() { override fun call() = LuaValue.valueOf(el.text()) })
+        t.set("get_html", object : ZeroArgFunction() { override fun call() = LuaValue.valueOf(el.html()) })
+        t.set("attr",  object : OneArgFunction() {
+            override fun call(a: LuaValue) = try {
+                LuaValue.valueOf(el.attr(a.checkjstring()))
+            } catch (_: Exception) { LuaValue.valueOf("") }
         })
-        t.setmetatable(mt)
-        return t
+        t.set("remove", object : ZeroArgFunction() {
+            override fun call(): LuaValue { el.remove(); return LuaValue.NIL }
+        })
+        t.set("select", object : OneArgFunction() {
+            override fun call(a: LuaValue): LuaValue = try {
+                val elems = el.select(a.checkjstring())
+                LuaTable().also { t2 -> elems.forEachIndexed { i, e -> t2.set(i + 1, elementToTable(e)) } }
+            } catch (_: Exception) { LuaTable() }
+        })
     }
 
     // ── URL ───────────────────────────────────────────────────────────────────
@@ -752,7 +621,7 @@ class LuaEngine @Inject constructor(
     private inner class SleepFunction : OneArgFunction() {
         override fun call(arg: LuaValue): LuaValue {
             val ms = arg.optlong(500)
-            Thread.sleep(ms)
+            runBlocking { delay(ms) }
             return LuaValue.NIL
         }
     }
@@ -806,66 +675,22 @@ class LuaSourceLoader @Inject constructor(
     @ApplicationContext private val context: Context,
     private val networkClient: NetworkClient,
     private val luaEngine: LuaEngine,
-    private val extensionRepository: ExtensionManager
+    private val extensionRepository: ExtensionRepositoryInterface
 ) {
-    // ponytail: LRU cache with fixed max size. Evicts least recently used VMs to keep native heap bounded.
-    // Cost: ~100ms reload from disk .lua file on cache miss.
-    // LruCache is already thread-safe (synchronized internally).
-    private val cache = object : LruCache<String, SourceInterface>(MAX_CACHED_SOURCES) {
-        override fun entryRemoved(evicted: Boolean, key: String, oldValue: SourceInterface, newValue: SourceInterface?) {
-            if (evicted) Timber.d("Evicted Lua source from LRU cache: $key")
-        }
-    }
+    private val yaml  = Yaml()
+    private val cache = ConcurrentHashMap<String, SourceInterface>()
 
     private val luaDir: File
         get() = File(context.filesDir, "lua_extensions").also { it.mkdirs() }
 
-    fun clearCache() { cache.evictAll(); Timber.d("Lua source cache cleared") }
-
-    fun scriptFile(id: String): File = luaFile(id)
-
-    fun hasScript(id: String): Boolean = scriptFile(id).exists()
-
-    fun readScript(id: String): String? = scriptFile(id)
-        .takeIf { it.exists() }
-        ?.readText(Charsets.UTF_8)
-
-    suspend fun saveScript(id: String, code: String): Boolean = withContext(Dispatchers.IO) {
-        try {
-            atomicWrite(scriptFile(id), code.toByteArray(Charsets.UTF_8))
-            cache.remove(id)
-            Timber.d("Saved $id.lua")
-            true
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Timber.e(e, "saveScript failed for $id")
-            false
-        }
-    }
-
-    suspend fun validateScript(code: String, fileName: String = "local.lua"): Result<Unit> =
-        withContext(Dispatchers.IO) {
-            try {
-                luaEngine.loadFromScriptWithFileName(code, fileName)
-                Result.success(Unit)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        }
+    fun clearCache() { cache.clear(); Timber.d("Lua source cache cleared") }
 
     suspend fun loadAllSources(): Result<List<SourceInterface>> = withContext(Dispatchers.IO) {
-        try {
+        runCatching {
             val sources = loadInstalledSources()
-            sources.forEach { cache.put(it.id, it) }
+            sources.forEach { cache[it.id] = it }
             Timber.d("Loaded ${sources.size} Lua sources")
-            Result.success(sources)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(e)
+            sources
         }
     }
 
@@ -880,7 +705,7 @@ class LuaSourceLoader @Inject constructor(
                 Timber.e("Empty body for $id")
                 return@withContext false
             }
-            atomicWrite(luaFile(id), code.toByteArray(Charsets.UTF_8))
+            luaFile(id).writeText(code, Charsets.UTF_8)
             cache.remove(id)
             Timber.d("Saved $id.lua")
             true
@@ -901,26 +726,22 @@ class LuaSourceLoader @Inject constructor(
             Timber.e(e, "getEnabledExtensions failed")
             return emptyList()
         }
-        return coroutineScope {
-            enabled.map { ext ->
-                async(Dispatchers.IO.limitedParallelism(4)) {
-                    try {
-                        val iconUrl = extractIconUrl(ext)
-                        loadFromDisk(ext.id, iconUrl) ?: run {
-                            val codeUrl = extractCodeUrl(ext)
-                            if (codeUrl != null && downloadAndCacheScript(ext.id, codeUrl))
-                                loadFromDisk(ext.id, iconUrl)
-                            else {
-                                Timber.w("Cannot load ${ext.id}: no .lua and no codeUrl")
-                                null
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Timber.e(e, "Failed to load ${ext.id}")
+        return enabled.mapNotNull { ext ->
+            try {
+                val iconUrl = extractIconUrl(ext)
+                loadFromDisk(ext.id, iconUrl) ?: run {
+                    val codeUrl = extractCodeUrl(ext)
+                    if (codeUrl != null && downloadAndCacheScript(ext.id, codeUrl))
+                        loadFromDisk(ext.id, iconUrl)
+                    else {
+                        Timber.w("Cannot load ${ext.id}: no .lua and no codeUrl")
                         null
                     }
                 }
-            }.awaitAll().filterNotNull()
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load ${ext.id}")
+                null
+            }
         }
     }
 
@@ -930,7 +751,7 @@ class LuaSourceLoader @Inject constructor(
         return try {
             val script = luaEngine.loadScript(file.readText(Charsets.UTF_8))
             createLuaSourceAdapter(context, script, luaEngine, iconUrl, id)
-                .also { cache.put(id, it); Timber.d("Loaded from disk: $id") }
+                .also { cache[id] = it; Timber.d("Loaded from disk: $id") }
         } catch (e: Exception) {
             Timber.e(e, "Compile error for $id")
             null
@@ -947,18 +768,9 @@ class LuaSourceLoader @Inject constructor(
         if (raw.isNullOrBlank() || raw == "{}") return null
         return try {
             @Suppress("UNCHECKED_CAST")
-            if (raw.startsWith("{")) {
-                Gson().fromJson(raw, Map::class.java) as? Map<String, Any>
-            } else {
-                // Миграция со старого YAML-формата на JSON
-                val legacy = Yaml().loadAs(raw, Map::class.java) as? Map<String, Any>
-                if (legacy != null) {
-                    extensionRepository.updateExtensionSettings(ext.id, Gson().toJson(legacy))
-                }
-                legacy
-            }
+            yaml.load<Any>(raw) as? Map<String, Any>
         } catch (e: Exception) {
-            Timber.w(e, "Bad settings for ${ext.id}: $raw")
+            Timber.w(e, "Bad settings YAML for ${ext.id}: $raw")
             null
         }
     }
@@ -973,12 +785,6 @@ class LuaSourceLoader @Inject constructor(
     }
 
     private fun luaFile(id: String) = File(luaDir, "$id.lua")
-
-    companion object {
-        // Increased from 15 to 30 to avoid thrashing and unnecessary re-compilation
-        // when more than 15 extensions are active.
-        private const val MAX_CACHED_SOURCES = 30
-    }
 }
 
 // ── Дополнения для полной поддержки всех источников ──────────────────────────

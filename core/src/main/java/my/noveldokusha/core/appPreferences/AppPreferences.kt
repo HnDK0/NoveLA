@@ -8,8 +8,10 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.preference.PreferenceManager
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn
@@ -46,9 +48,16 @@ class AppPreferences @Inject constructor(
 ) {
     private val preferences = PreferenceManager.getDefaultSharedPreferences(context)
     private val preferencesChangeListeners =
-        java.util.Collections.synchronizedSet(
-            mutableSetOf<SharedPreferences.OnSharedPreferenceChangeListener>()
-        )
+        mutableSetOf<SharedPreferences.OnSharedPreferenceChangeListener>()
+
+    // ponytail: was CoroutineScope(Dispatchers.Default) created per toFlow() call — every
+    // preference flow spawned its own orphan scope that never got cancelled even after the
+    // flow's onCompletion removed the SharedPreferences listener. Now a single shared scope
+    // backs every toFlow() listener; onCompletion still removes the listener itself, so the
+    // scope is only used to dispatch the listener callback off the main thread.
+    private val listenerScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default + CoroutineName("AppPreferences.listeners")
+    )
 
     val APP_LANGUAGE_CODE = object : Preference<String>("APP_LANGUAGE_CODE") {
         override var value by SharedPreference_String(name, preferences, "en")
@@ -188,14 +197,6 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_Boolean(name, preferences, false)
     }
 
-    val TTS_HIGHLIGHT_ENABLED = object : Preference<Boolean>("TTS_HIGHLIGHT_ENABLED") {
-        override var value by SharedPreference_Boolean(name, preferences, false)
-    }
-
-    val TTS_HIGHLIGHT_COLOR = object : Preference<String>("TTS_HIGHLIGHT_COLOR") {
-        override var value by SharedPreference_String(name, preferences, "FFFF6D00")
-    }
-
     val CHAPTERS_SORT_ASCENDING = object : Preference<TernaryState>("CHAPTERS_SORT_ASCENDING") {
         override var value by SharedPreference_Enum(
             name,
@@ -253,6 +254,14 @@ class AppPreferences @Inject constructor(
         )
     }
 
+    @Deprecated("Use LIBRARY_SORT_OPTION instead", ReplaceWith("LIBRARY_SORT_OPTION"))
+    val LIBRARY_SORT_LAST_READ = object : Preference<TernaryState>("LIBRARY_SORT_LAST_READ") {
+        override var value by SharedPreference_Enum(
+            name,
+            preferences,
+            TernaryState.Inverse
+        ) { enumValueOf(it) }
+    }
     val BOOKS_LIST_LAYOUT_MODE = object : Preference<ListLayoutMode>("BOOKS_LIST_LAYOUT_MODE") {
         override var value by SharedPreference_Enum(
             name,
@@ -504,6 +513,16 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_String(name, preferences, "")
     }
 
+    val SCRAPER_CUSTOM_HEADERS = object : Preference<Map<String, String>>("SCRAPER_CUSTOM_HEADERS") {
+        override var value by SharedPreference_Serializable<Map<String, String>>(
+            name = name,
+            sharedPreferences = preferences,
+            defaultValue = emptyMap<String, String>(),
+            encode = { Json.encodeToString(it) },
+            decode = { Json.decodeFromString(it) }
+        )
+    }
+
     val CLOUDFLARE_BYPASS_ENABLED = object : Preference<Boolean>("CLOUDFLARE_BYPASS_ENABLED") {
         override var value by SharedPreference_Boolean(name, preferences, true)
     }
@@ -611,6 +630,21 @@ class AppPreferences @Inject constructor(
     }
 
 
+    @Deprecated("Removed", level = DeprecationLevel.HIDDEN)
+    val LOCAL_SOURCES_URI_DIRECTORIES =
+        object : Preference<Set<String>>("LOCAL_SOURCES_URI_DIRECTORIES") {
+            override var value by SharedPreference_StringSet(name, preferences, setOf())
+        }
+
+    @Deprecated("Removed", level = DeprecationLevel.HIDDEN)
+    val LIBRARY_SORT_READ = object : Preference<TernaryState>("LIBRARY_SORT_READ") {
+        override var value by SharedPreference_Enum(
+            name,
+            preferences,
+            TernaryState.Active
+        ) { enumValueOf(it) }
+    }
+
     abstract inner class Preference<T>(val name: String) {
         abstract var value: T
         fun flow() = toFlow(name) { value }.flowOn(Dispatchers.IO)
@@ -621,9 +655,13 @@ class AppPreferences @Inject constructor(
 
     private fun <T> toFlow(key: String, mapper: (String) -> T): Flow<T> {
         val flow = MutableStateFlow(mapper(key))
+        // ponytail: reuse the singleton listenerScope — was: CoroutineScope(Dispatchers.Default)
+        // per call, which leaked the scope + its SupervisorJob forever (onCompletion removed
+        // only the SharedPreferences listener, not the scope).
+        val scope = listenerScope
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, vkey ->
             if (key == vkey)
-                flow.value = mapper(vkey)
+                scope.launch { flow.value = mapper(vkey) }
         }
 
         return flow

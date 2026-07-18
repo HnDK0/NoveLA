@@ -1,13 +1,9 @@
 <resources>
-    <string name="app_name">NoveLA</string>
+    <string name="app_name">NoveParas</string>
     <string name="title_library">Library</string>
     <string name="title_finder">Finder</string>
     <string name="title_extensions">Extensions</string>
     <string name="title_settings">Settings</string>
-    <string name="title_history">History</string>
-    <string name="no_history_yet">No reading history yet</string>
-    <string name="no_books_in_library">No books in library</string>
-    <string name="clear_all_history">Clear all history</string>
     <string name="reader_no_more_chapters">༺  Last chapter  ༻</string>
     <string name="reader_first_chapter">༺  First chapter  ༻</string>
     <string name="alternative_titles">Alternative titles</string>
@@ -44,12 +40,12 @@
     <string name="open_in_browser">Open in browser</string>
     <string name="sources">Sources</string>
     <string name="search_for_sources">Search for sources</string>
-    <string name="import_epub">Import book</string>
+    <string name="import_epub">Import EPUB</string>
     <string name="failed_get_file">Failed to get the file</string>
     <string name="local_book_nothing_to_update">Local book, nothing to update</string>
-    <string name="failed_to_import_epub">Failed to import book</string>
+    <string name="failed_to_import_epub">Failed to import epub</string>
     <string name="image">image</string>
-    <string name="importing_epub">Importing book</string>
+    <string name="importing_epub">Importing epub</string>
     <string name="no_results_found">No results found</string>
     <string name="updating_library_notice">Updating library</string>
     <string name="chapter_downloaded">Chapter downloaded</string>
@@ -158,7 +154,6 @@
     <string name="loading_data">Loading data</string>
     <string name="pin_or_unpin_source">Pin or unpin source</string>
     <string name="allow_text_selection">Text selection</string>
-    <string name="tts_highlight">TTS Highlight</string>
     <string name="last_read">Last read</string>
     <string name="title">Title</string>
     <string name="unread_chapters">Unread chapters</string>
@@ -188,7 +183,6 @@
     <string name="new_chapters">New chapters</string>
     <string name="update_error">Update error</string>
     <string name="update_cancelled">Update cancelled</string>
-    <string name="book_fix">Fix book</string>
     <string name="tts_estimated_time_left">Estimated Time Left</string>
     <string name="tts_total_chapter">Total Chapter</string>
     <string name="tts_wpm">WPM</string>
@@ -329,7 +323,7 @@
     <string name="notification_channel_name_new_chapters">New chapters</string>
     <string name="notification_channel_name_failed_updates">Failed updates</string>
     <string name="notification_channel_name_backup">Backup</string>
-    <string name="notification_channel_name_import_epub">Import book</string>
+    <string name="notification_channel_name_import_epub">Import EPUB</string>
     <string name="notification_channel_name_restore_backup">Restore backup</string>
     <string name="notification_channel_name_app_updates_checker">Updates checker</string>
     <string name="new_app_version_available">New app version available</string>
@@ -377,6 +371,7 @@
     <string name="cloudflare_bypass">Cloudflare bypass</string>
     <string name="cloudflare_bypass_description">Enable automatic Cloudflare challenge bypass</string>
     <string name="cloudflare_bypass_restart_required">Cloudflare bypass setting will be applied after app restart</string>
+    <string name="user_agent_restart_required">User-Agent changed. Restart the app to apply.</string>
     <string name="cloudflare_challenge_timeout">Challenge timeout</string>
     <string name="timeout_seconds">Timeout (seconds)</string>
     <string name="seconds_format">%d seconds</string>
@@ -629,44 +624,5 @@
     <string name="repository_settings">Repository Settings</string>
     <string name="installed">Installed</string>
     <string name="available">Available</string>
-
-    <!-- Extensions / Lua Editor -->
-    <string name="import_lua">Import Lua</string>
-    <string name="edit_lua">Edit Lua</string>
-    <string name="reset">Reset</string>
-    <string name="uninstall">Uninstall</string>
-    <string name="installing">Installing…</string>
-    <string name="install">Install</string>
-    <string name="update">Update</string>
-    <string name="retry">Retry</string>
-    <string name="top">↑ Top</string>
-    <string name="copy">Copy</string>
-    <string name="paste">Paste</string>
-    <string name="clear">Clear</string>
-    <string name="no_extensions_available">No extensions available</string>
-    <string name="local_extension_description">Local Lua extension</string>
-    <string name="extension_author_local">Local</string>
-
-    <!-- Errors — Lua / Extensions -->
-    <string name="ext_failed_to_load">Failed to load extensions: %s</string>
-    <string name="ext_failed_to_download">Failed to download script for %s</string>
-    <string name="ext_failed_to_install">Failed to install %1$s: %2$s</string>
-    <string name="ext_failed_to_uninstall">Failed to uninstall extension</string>
-    <string name="ext_failed_to_toggle">Failed to toggle extension</string>
-    <string name="lua_empty_error">Empty Lua file</string>
-    <string name="lua_compile_error">Lua compilation error</string>
-    <string name="lua_save_error">Failed to save Lua file</string>
-    <string name="lua_import_error">Failed to save imported Lua file</string>
-    <string name="lua_duplicate_error">Extension \"%s\" already exists locally</string>
-    <string name="lua_not_editable">Source code unavailable for editing</string>
-    <string name="lua_restore_error">Failed to restore Lua from repository</string>
-
-    <string name="time_just_now">just now</string>
-    <string name="time_minutes_ago">%dm ago</string>
-    <string name="time_hours_ago">%dh ago</string>
-    <string name="time_days_ago">%dd ago</string>
-    <string name="time_weeks_ago">%dw ago</string>
-    <string name="time_months_ago">%dmo ago</string>
-    <string name="time_years_ago">%dy ago</string>
 
 </resources>

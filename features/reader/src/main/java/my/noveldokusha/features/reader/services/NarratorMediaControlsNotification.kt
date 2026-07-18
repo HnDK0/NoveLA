@@ -16,14 +16,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media.session.MediaButtonReceiver
-import androidx.core.graphics.drawable.toBitmap
-import coil.Coil
-import coil.request.ImageRequest
-import coil.request.SuccessResult
-import coil.size.Size
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import dagger.hilt.android.qualifiers.ApplicationContext
-import my.noveldokusha.core.AppFileResolver
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +32,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.cancellation.CancellationException
 import my.noveldokusha.coreui.R as CoreUiR
 import my.noveldokusha.coreui.states.NotificationsCenter
 import my.noveldokusha.coreui.states.text
@@ -45,11 +39,9 @@ import my.noveldokusha.coreui.states.title
 import my.noveldokusha.feature.local_database.BookMetadata
 import my.noveldokusha.features.reader.ReaderActivity
 import my.noveldokusha.features.reader.domain.chapterReadPercentage
-import my.noveldokusha.features.reader.features.ReaderTextToSpeech
 import my.noveldokusha.features.reader.manager.ReaderManager
 import my.noveldokusha.navigation.NavigationRoutes
 import my.noveldokusha.reader.R
-import timber.log.Timber
 import javax.inject.Inject
 
 internal class NarratorMediaControlsNotification @Inject constructor(
@@ -57,13 +49,9 @@ internal class NarratorMediaControlsNotification @Inject constructor(
     private val notificationsCenter: NotificationsCenter,
     private val readerManager: ReaderManager,
     private val navigationRoutes: NavigationRoutes,
-    private val appFileResolver: AppFileResolver,
 ) {
     private val scope: CoroutineScope = CoroutineScope(
-        SupervisorJob() + Dispatchers.Main.immediate + CoroutineName("NarratorNotificationService") +
-            CoroutineExceptionHandler { _, throwable ->
-                Timber.e(throwable, "NarratorNotificationService: uncaught exception in scope")
-            }
+        SupervisorJob() + Dispatchers.Main.immediate + CoroutineName("NarratorNotificationService")
     )
 
     private val channelName = context.getString(R.string.notification_channel_name_reader_narrator)
@@ -72,12 +60,9 @@ internal class NarratorMediaControlsNotification @Inject constructor(
     val notificationId: Int = channelId.hashCode()
 
     private var mediaSession: MediaSessionCompat? = null
-    private var mediaSessionCallback: NarratorMediaControlsCallback? = null
     private var currentChapterTitle: String? = null
     private var currentBookTitle: String? = null
     private var currentCoverBitmap: Bitmap? = null
-
-    val isMediaSessionReady: Boolean get() = mediaSession != null
 
     private fun refreshMediaSessionMetadata() {
         val builder = MediaMetadataCompat.Builder()
@@ -92,25 +77,17 @@ internal class NarratorMediaControlsNotification @Inject constructor(
         mediaSession?.setMetadata(builder.build())
     }
 
-    private suspend fun loadCoverBitmap(coverUrl: String?, bookUrl: String): Bitmap? {
+    private suspend fun loadCoverBitmap(coverUrl: String?): Bitmap? {
         if (coverUrl.isNullOrBlank()) return null
         return withContext(Dispatchers.IO) {
             try {
-                val imageLoader = Coil.imageLoader(context)
-                val localCover = appFileResolver.resolvedBookImagePath(bookUrl, coverUrl, isCover = true)
-                val request = ImageRequest.Builder(context)
-                    .data(localCover)
-                    .size(Size(512, 512))
-                    .allowHardware(false)
-                    .build()
-                val bitmap = when (val result = imageLoader.execute(request)) {
-                    is SuccessResult -> result.drawable.toBitmap()
-                    else -> null
-                } ?: return@withContext null
-                // Копия, которой мы владеем: coil может переиспользовать тот же битмап
-                // из своего кэша (toBitmap() для BitmapDrawable не копирует), и он же
-                // рисуется Compose AsyncImage обложки. Ручной recycle() убил бы чужой
-                // кэш-битмап -> "Canvas: trying to use a recycled bitmap" (краш).
+                val bitmap = Glide.with(context)
+                    .asBitmap()
+                    .load(coverUrl)
+                    .override(512, 512)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .submit()
+                    .get(10, java.util.concurrent.TimeUnit.SECONDS)
                 if (bitmap.byteCount > 900_000) {
                     val scale = kotlin.math.sqrt(900_000.0 / bitmap.byteCount)
                     Bitmap.createScaledBitmap(
@@ -119,7 +96,7 @@ internal class NarratorMediaControlsNotification @Inject constructor(
                         (bitmap.height * scale).toInt().coerceAtLeast(1),
                         true
                     )
-                } else bitmap.copy(bitmap.config ?: Bitmap.Config.ARGB_8888, false)
+                } else bitmap
             } catch (_: Exception) {
                 null
             }
@@ -152,9 +129,7 @@ internal class NarratorMediaControlsNotification @Inject constructor(
             // https://stackoverflow.com/questions/59443133/disable-or-hide-seekbar-in-mediastyle-notifications
             refreshMediaSessionMetadata()
 
-            val callback = NarratorMediaControlsCallback(readerSession.readerTextToSpeech)
-            setCallback(callback)
-            mediaSessionCallback = callback
+            setCallback(NarratorMediaControlsCallback(readerSession.readerTextToSpeech))
             isActive = true
             setPlaybackToLocal(AudioManager.STREAM_MUSIC)
 
@@ -185,8 +160,15 @@ internal class NarratorMediaControlsNotification @Inject constructor(
         )
         session.setMediaButtonReceiver(mbrPendingIntent)
 
+        val cancelButton = MediaButtonReceiver.buildMediaButtonPendingIntent(
+            context,
+            PlaybackStateCompat.ACTION_STOP
+        )
+
         val mediaStyle = androidx.media.app.NotificationCompat.MediaStyle()
+            .setShowCancelButton(true)
             .setShowActionsInCompactView(0, 2, 4)
+            .setCancelButtonIntent(cancelButton)
             .setMediaSession(session.sessionToken)
 
         val readerIntent = ReaderActivity.IntentData(
@@ -289,21 +271,14 @@ internal class NarratorMediaControlsNotification @Inject constructor(
             title = ""
             text = ""
             defineActions(isPlaying = readerSession.readerTextToSpeech.state.isPlaying.value)
-            setOngoing(false)
+            setOngoing(true)
             setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             priority = NotificationCompat.PRIORITY_HIGH
             setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             setColorized(false)
             setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.ic_logo))
             setStyle(mediaStyle)
-            setDeleteIntent(
-                PendingIntent.getBroadcast(
-                    context,
-                    1002,
-                    Intent(NarratorMediaControlsService.ACTION_STOP_NARRATOR).setPackage(context.packageName),
-                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-                )
-            )
+            setDeleteIntent(cancelButton)
             color = ContextCompat.getColor(context, CoreUiR.color.colorAccent)
             setContentIntent(generateIntentStack())
         }
@@ -402,53 +377,32 @@ internal class NarratorMediaControlsNotification @Inject constructor(
 
         // Load cover image and update session metadata + notification
         scope.launch {
-            val coverBitmap = loadCoverBitmap(readerSession.bookCoverUrl, readerSession.bookUrl)
-                ?: return@launch
-            // close() мог сбросить сессию/скоп выполнения пока грузили обложку
-            if (this@NarratorMediaControlsNotification.mediaSession == null || coverBitmap.isRecycled) return@launch
-            currentCoverBitmap = coverBitmap
-            try { refreshMediaSessionMetadata() } catch (e: CancellationException) { throw e } catch (_: Exception) {}
-            try {
+            val coverBitmap = loadCoverBitmap(readerSession.bookCoverUrl)
+            if (coverBitmap != null) {
+                currentCoverBitmap = coverBitmap
+                refreshMediaSessionMetadata()
                 notificationsCenter.modifyNotification(
                     builder = notificationBuilder,
                     notificationId = notificationId,
                 ) {
                     setLargeIcon(coverBitmap)
                 }
-            } catch (e: CancellationException) { throw e } catch (_: Exception) {}
+            }
         }
 
         return notificationBuilder.build()
     }
 
-    fun pause() {
-        mediaSessionCallback?.onPause()
-    }
-
-    fun play() {
-        mediaSessionCallback?.onPlay()
-    }
-
-    fun reassertActive() {
-        mediaSession?.setActive(true)
-    }
-
-    /**
-     * Авто-возобновление чтения при возврате в приложение, если пауза была
-     * поставлена системой (потеря аудиофокуса / наушники вынуты). Не срабатывает
-     * после ручной паузы пользователем.
-     */
-    fun maybeAutoResume() {
-        val tts = readerManager.session?.readerTextToSpeech ?: return
-        if (ReaderTextToSpeech.pausedBySystem && !ReaderTextToSpeech.userPaused && !tts.isSpeaking.value) play()
-    }
-
     fun close() {
-        scope.cancel()
         mediaSession?.release()
         mediaSession = null
-        mediaSessionCallback = null
+        // ponytail: currentCoverBitmap was assigned in updateNotification (line ~382) but
+        // never nulled or recycled — across repeated reader sessions the bitmaps accumulated
+        // until GC. Recycling explicitly frees the native pixel buffer immediately instead
+        // of waiting for finalization.
+        currentCoverBitmap?.let { runCatching { it.recycle() } }
         currentCoverBitmap = null
+        scope.cancel()
     }
 
     fun createDefaultNotification(context: Context): Notification {

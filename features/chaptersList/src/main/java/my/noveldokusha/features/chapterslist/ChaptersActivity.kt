@@ -88,7 +88,6 @@ class ChaptersActivity : BaseActivity() {
                         ).let(::startActivity)
                     },
                     onDeleteTranslations = viewModel::deleteTranslationsForBook,
-                    onFixBook = viewModel::fixBook,
                     categories = viewModel::getCategories,
                     onUpdateCategory = viewModel::updateBookCategory,
                     translatedTitle = viewModel.translatedTitle.value,

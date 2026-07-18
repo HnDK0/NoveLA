@@ -36,7 +36,6 @@ internal data class ReaderScreenState(
         val style: StyleSettingsData,
         val selectedSetting: MutableState<Type>,
         val floatingTts: FloatingTtsSettingsData,
-        val ttsHighlight: TtsHighlightSettingsData,
     ) {
         @Stable
         data class StyleSettingsData(
@@ -53,12 +52,6 @@ internal data class ReaderScreenState(
             val isEnabled: MutableState<Boolean>,
             val showOutsideApp: MutableState<Boolean>,
             val opacity: MutableState<Float>,
-        )
-
-        @Stable
-        data class TtsHighlightSettingsData(
-            val isEnabled: MutableState<Boolean>,
-            val highlightColor: MutableState<String>,
         )
 
         @Immutable

@@ -3,6 +3,7 @@ package my.noveldokusha.tooling.application_workers
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.util.Log
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -14,18 +15,14 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import timber.log.Timber
 import dagger.hilt.EntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.data.AppRepository
-import my.noveldokusha.data.CoverRepository
-import my.noveldokusha.data.backfillCovers
 import my.noveldokusha.feature.local_database.AppDatabase
 import org.json.JSONObject
 import java.io.File
@@ -47,8 +44,6 @@ class AutoBackupWorker(
         fun appDatabase(): AppDatabase
         fun appRepository(): AppRepository
         fun appPreferences(): AppPreferences
-        fun appFileResolver(): AppFileResolver
-        fun coverRepository(): CoverRepository
     }
 
     companion object {
@@ -59,13 +54,13 @@ class AutoBackupWorker(
         private const val AUTO_BACKUP_PREFIX = "auto_backup_"
 
         fun cancelTask(context: Context) {
-            Timber.d( "cancelTask: cancelling periodic work")
+            Log.d(TAG, "cancelTask: cancelling periodic work")
             WorkManager.getInstance(context).cancelUniqueWork(TAG_AUTO)
         }
 
         fun setupTask(context: Context, intervalMinutes: Long) {
             val effectiveInterval = intervalMinutes.coerceAtLeast(MIN_INTERVAL_MINUTES)
-            Timber.d( "setupTask: called with intervalMinutes=$intervalMinutes (effective=$effectiveInterval)")
+            Log.d(TAG, "setupTask: called with intervalMinutes=$intervalMinutes (effective=$effectiveInterval)")
             if (intervalMinutes > 0) {
                 val request = PeriodicWorkRequestBuilder<AutoBackupWorker>(
                     effectiveInterval, TimeUnit.MINUTES,
@@ -80,15 +75,15 @@ class AutoBackupWorker(
                 WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                     TAG_AUTO, ExistingPeriodicWorkPolicy.UPDATE, request
                 )
-                Timber.d( "setupTask: periodic work ENQUEUED, interval=$effectiveInterval min")
+                Log.d(TAG, "setupTask: periodic work ENQUEUED, interval=$effectiveInterval min")
             } else {
                 WorkManager.getInstance(context).cancelUniqueWork(TAG_AUTO)
-                Timber.d( "setupTask: periodic work CANCELLED")
+                Log.d(TAG, "setupTask: periodic work CANCELLED")
             }
         }
 
         fun startNow(context: Context) {
-            Timber.d( "startNow: creating one-time request")
+            Log.d(TAG, "startNow: creating one-time request")
             val request = OneTimeWorkRequestBuilder<AutoBackupWorker>()
                 .addTag(TAG_MANUAL)
                 .setInputData(workDataOf(IS_AUTO_BACKUP_KEY to false))
@@ -96,7 +91,7 @@ class AutoBackupWorker(
             WorkManager.getInstance(context).enqueueUniqueWork(
                 TAG_MANUAL, ExistingWorkPolicy.KEEP, request
             )
-            Timber.d( "startNow: one-time backup ENQUEUED")
+            Log.d(TAG, "startNow: one-time backup ENQUEUED")
         }
 
         fun isScheduled(context: Context): Boolean {
@@ -106,7 +101,7 @@ class AutoBackupWorker(
             val scheduled = workInfos?.any {
                 it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING
             } ?: false
-            Timber.d( "isScheduled: $scheduled (workInfos count=${workInfos?.size})")
+            Log.d(TAG, "isScheduled: $scheduled (workInfos count=${workInfos?.size})")
             return scheduled
         }
 
@@ -117,7 +112,7 @@ class AutoBackupWorker(
             val running = workInfos?.any {
                 it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING
             } ?: false
-            Timber.d( "isManualJobRunning: $running")
+            Log.d(TAG, "isManualJobRunning: $running")
             return running
         }
 
@@ -135,40 +130,40 @@ class AutoBackupWorker(
                     null,
                     null
                 )?.use { true } ?: false
-                Timber.d( "isDirectoryAccessible: $accessible")
+                Log.d(TAG, "isDirectoryAccessible: $accessible")
                 accessible
             } catch (e: Exception) {
-                Timber.e( "isDirectoryAccessible: FAILED", e)
+                Log.e(TAG, "isDirectoryAccessible: FAILED", e)
                 false
             }
         }
     }
 
     override suspend fun doWork(): Result {
-        Timber.d( "========================================")
-        Timber.d( "doWork: STARTED")
-        Timber.d( "========================================")
+        Log.d(TAG, "========================================")
+        Log.d(TAG, "doWork: STARTED")
+        Log.d(TAG, "========================================")
 
         val entryPoint = EntryPointAccessors.fromApplication(
             context.applicationContext,
             AutoBackupEntryPoint::class.java
         )
         val appPreferences = entryPoint.appPreferences()
-        Timber.d( "doWork: got appPreferences via EntryPoint")
+        Log.d(TAG, "doWork: got appPreferences via EntryPoint")
 
         if (!appPreferences.BACKUP_AUTO_ENABLED.value) {
-            Timber.d( "doWork: auto backup DISABLED, skipping")
+            Log.d(TAG, "doWork: auto backup DISABLED, skipping")
             return Result.success()
         }
 
         val directoryUri = appPreferences.BACKUP_AUTO_DIRECTORY_URI.value
         if (directoryUri.isEmpty()) {
-            Timber.w( "doWork: no directory selected, skipping")
+            Log.w(TAG, "doWork: no directory selected, skipping")
             return Result.success()
         }
 
         if (!isDirectoryAccessible(context, directoryUri)) {
-            Timber.e( "doWork: directory NOT ACCESSIBLE — disabling auto backup")
+            Log.e(TAG, "doWork: directory NOT ACCESSIBLE — disabling auto backup")
             appPreferences.BACKUP_AUTO_ENABLED.value = false
             return Result.success()
         }
@@ -180,28 +175,28 @@ class AutoBackupWorker(
         val lastTimestamp = appPreferences.BACKUP_AUTO_LAST_TIMESTAMP.value
         val intervalMinutes = appPreferences.BACKUP_AUTO_INTERVAL_MINUTES.value
 
-        Timber.d( "doWork: includeImages=$includeImages, includeSettings=$includeSettings, includePlugins=$includePlugins, maxCount=$maxCount, lastTimestamp=$lastTimestamp, intervalMinutes=$intervalMinutes")
+        Log.d(TAG, "doWork: includeImages=$includeImages, includeSettings=$includeSettings, includePlugins=$includePlugins, maxCount=$maxCount, lastTimestamp=$lastTimestamp, intervalMinutes=$intervalMinutes")
 
         val now = System.currentTimeMillis()
         val elapsed = now - lastTimestamp
         val intervalMs = intervalMinutes * 60 * 1000L
 
         if (elapsed < intervalMs && lastTimestamp > 0) {
-            Timber.d( "doWork: TOO SOON (elapsed=${elapsed}ms < interval=${intervalMs}ms), returning success")
+            Log.d(TAG, "doWork: TOO SOON (elapsed=${elapsed}ms < interval=${intervalMs}ms), returning success")
             return Result.success()
         }
 
-        Timber.d( "doWork: starting backup...")
+        Log.d(TAG, "doWork: starting backup...")
         val success = withContext(Dispatchers.IO) {
             try {
                 performAutoBackup(context, directoryUri, includeImages, maxCount, includeSettings, includePlugins)
             } catch (e: Exception) {
-                Timber.e(e, "doWork: BACKUP FAILED")
+                Log.e(TAG, "doWork: BACKUP FAILED", e)
                 false
             }
         }
 
-        Timber.d( "doWork: COMPLETED, success=$success")
+        Log.d(TAG, "doWork: COMPLETED, success=$success")
         return if (success) Result.success() else Result.failure()
     }
 
@@ -213,7 +208,7 @@ class AutoBackupWorker(
         backupSettings: Boolean = true,
         backupPlugins: Boolean = true
     ): Boolean {
-        Timber.d( "performAutoBackup: STARTED")
+        Log.d(TAG, "performAutoBackup: STARTED")
         val entryPoint = EntryPointAccessors.fromApplication(
             ctx.applicationContext,
             AutoBackupEntryPoint::class.java
@@ -221,9 +216,7 @@ class AutoBackupWorker(
         val appDatabase = entryPoint.appDatabase()
         val appRepository = entryPoint.appRepository()
         val appPreferences = entryPoint.appPreferences()
-        val appFileResolver = entryPoint.appFileResolver()
-        val coverRepository = entryPoint.coverRepository()
-        Timber.d( "performAutoBackup: got dependencies via EntryPoint")
+        Log.d(TAG, "performAutoBackup: got dependencies via EntryPoint")
 
         val pattern = "yyyyMMdd_HHmmss"
         val timestamp = SimpleDateFormat(pattern, Locale.US).format(Date())
@@ -234,63 +227,41 @@ class AutoBackupWorker(
             treeUri,
             DocumentsContract.getTreeDocumentId(treeUri)
         )
-        Timber.d( "performAutoBackup: creating file '$fileName'")
+        Log.d(TAG, "performAutoBackup: creating file '$fileName'")
         val createUri = DocumentsContract.createDocument(
             ctx.contentResolver,
             docUri,
             "application/zip",
             fileName
         ) ?: run {
-            Timber.e( "performAutoBackup: FAILED to create backup file via SAF")
+            Log.e(TAG, "performAutoBackup: FAILED to create backup file via SAF")
             return false
         }
-        Timber.d( "performAutoBackup: file created successfully")
+        Log.d(TAG, "performAutoBackup: file created successfully")
 
-        // Step 1: clean non-library data
-        Timber.d( "performAutoBackup: clearing non-library data")
-        appRepository.settings.clearNonLibraryData()
-        Timber.d( "performAutoBackup: non-library data cleared")
-
-        // Step 2: verify source database integrity
-        val sourceIntegrity = appDatabase.integrityCheck()
-        if (sourceIntegrity != "ok") {
-            Timber.e( "performAutoBackup: Source database integrity check FAILED: $sourceIntegrity")
-            return false
-        }
-        Timber.d( "performAutoBackup: source database integrity OK")
-
-        // Step 3: VACUUM INTO temporary file
-        val tempDbFile = File(ctx.cacheDir, "auto_backup_vacuum_into_${System.currentTimeMillis()}.db")
         try {
-            appDatabase.vacuumInto(tempDbFile.absolutePath)
-            Timber.d( "performAutoBackup: VACUUM INTO done, temp file size: ${tempDbFile.length()}")
+            Log.d(TAG, "performAutoBackup: clearing non-library data + vacuum")
+            appRepository.settings.clearNonLibraryData()
+            appRepository.vacuum()
+            Log.d(TAG, "performAutoBackup: vacuum done")
         } catch (e: Exception) {
-            tempDbFile.delete()
-            throw e
+            Log.e(TAG, "performAutoBackup: clean/vacuum FAILED, continuing", e)
         }
 
-        // Step 4: verify snapshot integrity
-        val snapshotIntegrity = AppDatabase.checkFileIntegrity(ctx, tempDbFile.absolutePath)
-        if (snapshotIntegrity != "ok") {
-            tempDbFile.delete()
-            throw Exception("Auto backup snapshot integrity check failed: $snapshotIntegrity")
-        }
-        Timber.d( "performAutoBackup: snapshot integrity OK")
-
-        Timber.d( "performAutoBackup: writing zip...")
-        try {
+        Log.d(TAG, "performAutoBackup: writing zip...")
         ctx.contentResolver.openOutputStream(createUri)?.use { outputStream ->
             val zip = ZipOutputStream(outputStream)
 
             // Database
             run {
                 val entry = ZipEntry("database.sqlite3")
+                val file = ctx.getDatabasePath(appDatabase.name)
                 entry.method = ZipOutputStream.DEFLATED
-                tempDbFile.inputStream().use {
+                file.inputStream().use {
                     zip.putNextEntry(entry)
                     it.copyTo(zip)
                 }
-                Timber.d( "performAutoBackup: Database backed up (${tempDbFile.length()} bytes)")
+                Log.d(TAG, "performAutoBackup: Database backed up (${file.length()} bytes)")
             }
 
             // Settings
@@ -328,10 +299,10 @@ class AutoBackupWorker(
                     zip.putNextEntry(entry)
                     zip.write(settingsJson.toByteArray())
                     zip.closeEntry()
-                    Timber.d( "performAutoBackup: Settings backed up")
+                    Log.d(TAG, "performAutoBackup: Settings backed up")
                 }
             } else {
-                Timber.d( "performAutoBackup: Settings excluded from backup")
+                Log.d(TAG, "performAutoBackup: Settings excluded from backup")
             }
 
             // Lua extensions
@@ -340,7 +311,7 @@ class AutoBackupWorker(
                     val luaDir = File(ctx.filesDir, "lua_extensions")
                     if (luaDir.exists() && luaDir.isDirectory) {
                         val luaFiles = luaDir.listFiles()?.filter { it.isFile && it.extension == "lua" } ?: emptyList()
-                        Timber.d( "performAutoBackup: ${luaFiles.size} Lua extensions found")
+                        Log.d(TAG, "performAutoBackup: ${luaFiles.size} Lua extensions found")
                         luaFiles.forEach { file ->
                             val entry = ZipEntry("lua_extensions/${file.name}")
                             entry.method = ZipOutputStream.DEFLATED
@@ -350,31 +321,21 @@ class AutoBackupWorker(
                             }
                         }
                     } else {
-                        Timber.d( "performAutoBackup: no lua_extensions directory")
+                        Log.d(TAG, "performAutoBackup: no lua_extensions directory")
                     }
                 }
             } else {
-                Timber.d( "performAutoBackup: Plugins excluded from backup")
+                Log.d(TAG, "performAutoBackup: Plugins excluded from backup")
             }
 
             // Images
             if (backupImages) {
-                // Best-effort: make sure local covers exist before we back them up,
-                // so the archive contains up-to-date artwork (idempotent, skips valid covers).
-                // Isolated so a single book's cover-sync failure cannot abort the whole backup.
-                try {
-                    val books = appRepository.libraryBooks.getAllInLibrary()
-                    backfillCovers(books, appFileResolver, coverRepository)
-                } catch (e: Exception) {
-                    Timber.e(e, "performAutoBackup: cover backfill failed, continuing backup")
-                }
-
-                Timber.d( "performAutoBackup: backing up images...")
+                Log.d(TAG, "performAutoBackup: backing up images...")
                 val libraryBooks = appRepository.libraryBooks.getAllInLibrary()
                 val libraryFolderNames = libraryBooks
-                    .map { appFileResolver.getLocalBookFolderName(it.url) }
+                    .map { it.url.substringAfterLast("/").substringBefore("?") }
                     .toSet()
-                Timber.d( "performAutoBackup: ${libraryBooks.size} library books, ${libraryFolderNames.size} unique folders")
+                Log.d(TAG, "performAutoBackup: ${libraryBooks.size} library books, ${libraryFolderNames.size} unique folders")
 
                 val basePath = appRepository.settings.folderBooks.toPath().parent
                 var imageCount = 0
@@ -383,7 +344,7 @@ class AutoBackupWorker(
                     .filter { file ->
                         val relativePath = basePath.relativize(file.toPath()).toString()
                         val bookFolder = relativePath.split("/", "\\").getOrNull(1) ?: ""
-                        bookFolder in libraryFolderNames
+                        bookFolder in libraryFolderNames || libraryFolderNames.isEmpty()
                     }
                     .forEach { file ->
                         val name = basePath.relativize(file.toPath()).toString()
@@ -395,30 +356,27 @@ class AutoBackupWorker(
                         }
                         imageCount++
                     }
-                Timber.d( "performAutoBackup: $imageCount images backed up")
+                Log.d(TAG, "performAutoBackup: $imageCount images backed up")
             } else {
-                Timber.d( "performAutoBackup: images not included")
+                Log.d(TAG, "performAutoBackup: images not included")
             }
 
             zip.close()
-            Timber.d( "performAutoBackup: zip closed")
+            Log.d(TAG, "performAutoBackup: zip closed")
         } ?: run {
-            Timber.e( "performAutoBackup: FAILED to open output stream")
+            Log.e(TAG, "performAutoBackup: FAILED to open output stream")
             return false
-        }
-        } finally {
-            tempDbFile.delete()
         }
 
         try {
-            Timber.d( "performAutoBackup: rotating old backups (maxCount=$maxCount)")
+            Log.d(TAG, "performAutoBackup: rotating old backups (maxCount=$maxCount)")
             rotateAutoBackups(ctx, directoryUri, maxCount)
         } catch (e: Exception) {
-            Timber.e(e, "performAutoBackup: Rotation FAILED")
+            Log.e(TAG, "performAutoBackup: Rotation FAILED", e)
         }
 
         appPreferences.BACKUP_AUTO_LAST_TIMESTAMP.value = System.currentTimeMillis()
-        Timber.d( "performAutoBackup: COMPLETED successfully")
+        Log.d(TAG, "performAutoBackup: COMPLETED successfully")
         return true
     }
 
@@ -449,23 +407,23 @@ class AutoBackupWorker(
             }
         }
 
-        Timber.d( "rotateAutoBackups: found ${backupFiles.size} backup files, maxCount=$maxCount")
+        Log.d(TAG, "rotateAutoBackups: found ${backupFiles.size} backup files, maxCount=$maxCount")
         backupFiles.sortBy { it.lastModified }
 
         if (backupFiles.size > maxCount) {
             val toDelete = backupFiles.size - maxCount
-            Timber.d( "rotateAutoBackups: deleting $toDelete old backups")
+            Log.d(TAG, "rotateAutoBackups: deleting $toDelete old backups")
             for (i in 0 until toDelete) {
                 try {
                     val deleteUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, backupFiles[i].documentId)
                     ctx.contentResolver.delete(deleteUri, null, null)
-                    Timber.d( "rotateAutoBackups: deleted '${backupFiles[i].documentId}'")
+                    Log.d(TAG, "rotateAutoBackups: deleted '${backupFiles[i].documentId}'")
                 } catch (e: Exception) {
-                    Timber.e(e, "rotateAutoBackups: FAILED to delete '${backupFiles[i].documentId}'")
+                    Log.e(TAG, "rotateAutoBackups: FAILED to delete '${backupFiles[i].documentId}'", e)
                 }
             }
         } else {
-            Timber.d( "rotateAutoBackups: no rotation needed")
+            Log.d(TAG, "rotateAutoBackups: no rotation needed")
         }
     }
 }

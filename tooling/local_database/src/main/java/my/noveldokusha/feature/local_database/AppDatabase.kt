@@ -15,7 +15,6 @@ import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
 import my.noveldokusha.feature.local_database.DAOs.ExtensionDao
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.feature.local_database.DAOs.NovelMigrationDao
-import my.noveldokusha.feature.local_database.DAOs.ReadingHistoryDao
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.feature.local_database.tables.Chapter
 import my.noveldokusha.feature.local_database.tables.ChapterBody
@@ -23,7 +22,6 @@ import my.noveldokusha.feature.local_database.tables.ChapterTranslation
 import my.noveldokusha.feature.local_database.tables.DownloadTaskEntity
 import my.noveldokusha.feature.local_database.tables.Extension
 import my.noveldokusha.feature.local_database.tables.MigrationRecord
-import my.noveldokusha.feature.local_database.tables.ReadingHistory
 import java.io.InputStream
 
 
@@ -35,14 +33,11 @@ interface AppDatabase {
     fun downloadTaskDao(): DownloadTaskDao
     fun extensionDao(): ExtensionDao
     fun novelMigrationDao(): NovelMigrationDao
-    fun readingHistoryDao(): ReadingHistoryDao
     val name: String
 
     fun closeDatabase()
     fun clearDatabase()
     suspend fun vacuum()
-    suspend fun vacuumInto(targetPath: String)
-    suspend fun integrityCheck(): String
 
     /**
      * Execute the whole database calls as an atomic operation
@@ -56,33 +51,12 @@ interface AppDatabase {
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     super.onOpen(db)
-                    // Stability: Enable foreign keys for referential integrity
-                    db.execSQL("PRAGMA foreign_keys = ON")
-                    // Speed: Use NORMAL synchronous mode, optimal and safe under WAL mode
-                    db.execSQL("PRAGMA synchronous = NORMAL")
-                    // Speed: Store temporary tables in memory instead of disk
-                    db.execSQL("PRAGMA temp_store = MEMORY")
-                    // Safe Storage: Limit journal size to 8MB. Must use db.query().close() because
-                    // SQLite PRAGMAs that return results (like journal_size_limit) throw SQLiteException when called via execSQL().
-                    db.query("PRAGMA journal_size_limit = 8388608").close()
-                    // Safe Memory: Bounded SQLite memory cache size. Must use db.query().close() because
-                    // SQLite PRAGMAs that return results (like cache_size) throw SQLiteException when called via execSQL().
-                    db.query("PRAGMA cache_size = -4000").close()
+                    db.query("PRAGMA journal_size_limit = 16777216").close()
                 }
             })
             .addMigrations(*databaseMigrations())
             .build()
             .also { it.name = name }
-
-        suspend fun checkFileIntegrity(ctx: Context, filePath: String): String = withContext(Dispatchers.IO) {
-            val db = Room.databaseBuilder(ctx, AppRoomDatabase::class.java, filePath)
-                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-                .build()
-            db.openHelper.writableDatabase.query("PRAGMA integrity_check").use { cursor ->
-                cursor.moveToFirst()
-                cursor.getString(0)
-            }.also { db.close() }
-        }
 
         fun createRoomFromStream(
             ctx: Context,
@@ -93,16 +67,6 @@ interface AppDatabase {
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .createFromInputStream { inputStream }
             .fallbackToDestructiveMigration(false) // Don't apply migrations, database is already at correct version
-            .addCallback(object : RoomDatabase.Callback() {
-                override fun onOpen(db: SupportSQLiteDatabase) {
-                    super.onOpen(db)
-                    db.execSQL("PRAGMA foreign_keys = ON")
-                    db.execSQL("PRAGMA synchronous = NORMAL")
-                    db.execSQL("PRAGMA temp_store = MEMORY")
-                    db.query("PRAGMA journal_size_limit = 8388608").close()
-                    db.query("PRAGMA cache_size = -4000").close()
-                }
-            })
             .build()
             .also { it.name = name }
     }
@@ -117,10 +81,9 @@ interface AppDatabase {
         ChapterTranslation::class,
         DownloadTaskEntity::class,
         Extension::class,
-        MigrationRecord::class,
-        ReadingHistory::class
+        MigrationRecord::class
     ],
-    version = 26,
+    version = 25,
     exportSchema = false
 )
 internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {
@@ -131,7 +94,6 @@ internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {
     abstract override fun downloadTaskDao(): DownloadTaskDao
     abstract override fun extensionDao(): ExtensionDao
     abstract override fun novelMigrationDao(): NovelMigrationDao
-    abstract override fun readingHistoryDao(): ReadingHistoryDao
     override lateinit var name: String
 
     override suspend fun <T> transaction(block: suspend () -> T): T = withTransaction(block)
@@ -146,22 +108,8 @@ internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {
 
     override suspend fun vacuum() {
         withContext(Dispatchers.IO) {
+            openHelper.writableDatabase.execSQL("REINDEX")
             openHelper.writableDatabase.execSQL("VACUUM")
-        }
-    }
-
-    override suspend fun vacuumInto(targetPath: String) {
-        withContext(Dispatchers.IO) {
-            openHelper.writableDatabase.execSQL("VACUUM INTO '$targetPath'")
-        }
-    }
-
-    override suspend fun integrityCheck(): String {
-        return withContext(Dispatchers.IO) {
-            openHelper.writableDatabase.query("PRAGMA integrity_check").use { cursor ->
-                cursor.moveToFirst()
-                cursor.getString(0)
-            }
         }
     }
 }

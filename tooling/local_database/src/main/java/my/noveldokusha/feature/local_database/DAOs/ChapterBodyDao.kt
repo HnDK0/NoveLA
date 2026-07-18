@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import kotlinx.coroutines.flow.Flow
 import my.noveldokusha.feature.local_database.tables.ChapterBody
 
 @Dao
@@ -21,8 +20,10 @@ interface ChapterBodyDao {
     @Query("SELECT * FROM ChapterBody WHERE url = :url")
     suspend fun get(url: String): ChapterBody?
 
+    // ponytail: batch fetch chapter bodies by URL list to avoid N+1 single-row queries
+    // during novel migration (was one get(url) per chapter inside the migration loop).
     @Query("SELECT * FROM ChapterBody WHERE url IN (:urls)")
-    suspend fun getBodiesByUrls(urls: List<String>): List<ChapterBody>
+    suspend fun getByUrls(urls: List<String>): List<ChapterBody>
 
     @Query("DELETE FROM ChapterBody WHERE ChapterBody.url NOT IN (SELECT Chapter.url FROM Chapter)")
     suspend fun removeAllNonChapterRows()
@@ -32,10 +33,11 @@ interface ChapterBodyDao {
 
     @Query("""
         DELETE FROM ChapterBody 
-        WHERE EXISTS (
-            SELECT 1 FROM Chapter 
-            WHERE Chapter.url = ChapterBody.url 
-            AND Chapter.bookUrl IN (:bookUrls)
+        WHERE ChapterBody.url IN (
+            SELECT ChapterBody.url 
+            FROM ChapterBody 
+            INNER JOIN Chapter ON ChapterBody.url = Chapter.url 
+            WHERE Chapter.bookUrl IN (:bookUrls)
         )
     """)
     suspend fun removeChapterBodiesByBookUrls(bookUrls: List<String>)
@@ -51,11 +53,4 @@ interface ChapterBodyDao {
 
     @Query("DELETE FROM ChapterBody")
     suspend fun deleteAll(): Int
-
-    @Query("""
-        SELECT ChapterBody.url FROM ChapterBody
-        INNER JOIN Chapter ON Chapter.url = ChapterBody.url
-        WHERE Chapter.bookUrl = :bookUrl
-    """)
-    fun getDownloadedUrlsFlow(bookUrl: String): Flow<List<String>>
 }

@@ -40,12 +40,12 @@
     <string name="open_in_browser">فتح في المتصفح</string>
     <string name="sources">المصادر</string>
     <string name="search_for_sources">البحث عن مصادر</string>
-    <string name="import_epub">استيراد كتاب</string>
+    <string name="import_epub">استيراد EPUB</string>
     <string name="failed_get_file">فشل الحصول على الملف</string>
     <string name="local_book_nothing_to_update">كتاب محلي، لا شيء للتحديث</string>
-    <string name="failed_to_import_epub">فشل استيراد كتاب</string>
+    <string name="failed_to_import_epub">فشل استيراد epub</string>
     <string name="image">صورة</string>
-    <string name="importing_epub">جاري استيراد كتاب</string>
+    <string name="importing_epub">جاري استيراد epub</string>
     <string name="no_results_found">لم يتم العثور على نتائج</string>
     <string name="updating_library_notice">جاري تحديث المكتبة</string>
     <string name="chapter_downloaded">تم تنزيل الفصل</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">فصول جديدة</string>
     <string name="notification_channel_name_failed_updates">تحديثات فاشلة</string>
     <string name="notification_channel_name_backup">نسخ احتياطي</string>
-    <string name="notification_channel_name_import_epub">استيراد كتاب</string>
+    <string name="notification_channel_name_import_epub">استيراد EPUB</string>
     <string name="notification_channel_name_restore_backup">استعادة النسخ الاحتياطي</string>
     <string name="notification_channel_name_app_updates_checker">فحص التحديثات</string>
     <string name="new_app_version_available">إصدار جديد من التطبيق متاح</string>
@@ -352,6 +352,7 @@
     <string name="cloudflare_bypass">تجاوز Cloudflare</string>
     <string name="cloudflare_bypass_description">تمكين تجاوز تحديات Cloudflare تلقائياً</string>
     <string name="cloudflare_bypass_restart_required">سيتم تطبيق إعداد تجاوز Cloudflare بعد إعادة تشغيل التطبيق</string>
+    <string name="user_agent_restart_required">تم تغيير وكيل المستخدم. أعد تشغيل التطبيق للتطبيق.</string>
     <string name="cloudflare_challenge_timeout">مهلة التحدي</string>
     <string name="timeout_seconds">المهلة (ثوانٍ)</string>
     <string name="seconds_format">%d ثانية</string>
@@ -617,56 +618,5 @@
     <string name="repository_settings">إعدادات المستودع</string>
     <string name="installed">مثبت</string>
     <string name="available">متاح</string>
-
-    <string name="book_fix">إصلاح الكتاب</string>
-
-
-    <!-- History -->
-    <string name="title_history">السجل</string>
-    <string name="no_history_yet">لا يوجد سجل قراءة بعد</string>
-    <string name="no_books_in_library">لا توجد كتب في المكتبة</string>
-    <string name="clear_all_history">مسح كل السجل</string>
-    <string name="display_options_title">العرض</string>
-    <string name="save_settings">حفظ الإعدادات</string>
-    <string name="save_plugins">حفظ الإضافات</string>
-    <string name="copying_plugins">جاري نسخ الإضافات…</string>
-    <string name="auto_backup_include_settings">تضمين الإعدادات</string>
-    <string name="auto_backup_include_settings_description">حفظ مفاتيح API والتفضيلات في النسخ الاحتياطي التلقائي</string>
-    <string name="auto_backup_include_plugins">تضمين الإضافات</string>
-    <string name="auto_backup_include_plugins_description">حفظ إضافات Lua scraper في النسخ الاحتياطي التلقائي</string>
-    <string name="import_lua">استيراد Lua</string>
-    <string name="edit_lua">تعديل Lua</string>
-    <string name="reset">إعادة تعيين</string>
-    <string name="uninstall">إلغاء التثبيت</string>
-    <string name="installing">جاري التثبيت…</string>
-    <string name="install">تثبيت</string>
-    <string name="update">تحديث</string>
-    <string name="retry">إعادة المحاولة</string>
-    <string name="top">↑ الأعلى</string>
-    <string name="copy">نسخ</string>
-    <string name="paste">لصق</string>
-    <string name="clear">مسح</string>
-    <string name="no_extensions_available">لا توجد إضافات متاحة</string>
-    <string name="local_extension_description">إضافة Lua محلية</string>
-    <string name="extension_author_local">محلي</string>
-    <string name="ext_failed_to_load">فشل تحميل الإضافات: %s</string>
-    <string name="ext_failed_to_download">فشل تنزيل البرنامج النصي لـ %s</string>
-    <string name="ext_failed_to_install">فشل تثبيت %1$s: %2$s</string>
-    <string name="ext_failed_to_uninstall">فشل إلغاء تثبيت الإضافة</string>
-    <string name="ext_failed_to_toggle">فشل تبديل الإضافة</string>
-    <string name="lua_empty_error">ملف Lua فارغ</string>
-    <string name="lua_compile_error">خطأ في تجميع Lua</string>
-    <string name="lua_save_error">فشل حفظ ملف Lua</string>
-    <string name="lua_import_error">فشل حفظ ملف Lua المستورد</string>
-    <string name="lua_duplicate_error">الإضافة \"%s\" موجودة محلياً بالفعل</string>
-    <string name="lua_not_editable">الكود المصدري غير متاح للتعديل</string>
-    <string name="lua_restore_error">فشل استعادة Lua من المستودع</string>
-    <string name="time_just_now">الآن للتو</string>
-    <string name="time_minutes_ago">منذ %dm</string>
-    <string name="time_hours_ago">منذ %dh</string>
-    <string name="time_days_ago">منذ %dd</string>
-    <string name="time_weeks_ago">منذ %dw</string>
-    <string name="time_months_ago">منذ %dmo</string>
-    <string name="time_years_ago">منذ %dy</string>
 
 </resources>

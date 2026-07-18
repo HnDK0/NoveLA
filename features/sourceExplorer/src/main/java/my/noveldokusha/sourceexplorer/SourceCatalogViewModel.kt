@@ -1,12 +1,14 @@
 package my.noveldokusha.sourceexplorer
 
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import androidx.lifecycle.ViewModel
+import my.noveldokusha.coreui.BaseViewModel
 import my.noveldokusha.coreui.components.ToolbarMode
 import my.noveldokusha.coreui.states.PagedListIteratorState
 import my.noveldokusha.data.AppRepository
@@ -34,12 +36,11 @@ internal class SourceCatalogViewModel @Inject constructor(
     stateHandle: SavedStateHandle,
     appPreferences: AppPreferences,
     scraper: Scraper,
-) : ViewModel(), SourceCatalogStateBundle {
+) : BaseViewModel(), SourceCatalogStateBundle {
 
     override var sourceBaseUrl by StateExtra_String(stateHandle)
     private val source = scraper.getCompatibleSourceCatalog(sourceBaseUrl)!!
     private val filterableSource = source as? SourceInterface.FilterableCatalog
-    private var lastBookmarkClickMs = 0L
 
     private val _filterList = mutableStateOf(emptyList<my.noveldokusha.scraper.LuaFilter>())
     private val _activeFilters = mutableStateOf(ActiveFilters())
@@ -81,9 +82,12 @@ internal class SourceCatalogViewModel @Inject constructor(
             }.getOrNull()
 
             CloudflareBypassSignal.bypassCompleted.collect { bypassedHost ->
-                Timber.d("bypassCompleted received: $bypassedHost, sourceHost: $sourceHost")
+                Log.d(
+                    "CF_DEBUG",
+                    "bypassCompleted received: $bypassedHost, sourceHost: $sourceHost"
+                )
                 if (sourceHost != null && sourceHost == bypassedHost) {
-                    Timber.d("Reloading catalog for $sourceHost")
+                    Log.d("CF_DEBUG", "Reloading catalog for $sourceHost")
                     state.fetchIterator.reset()
                     state.fetchIterator.fetchNext()
                 }
@@ -122,15 +126,11 @@ internal class SourceCatalogViewModel @Inject constructor(
         onApplyFilters(ActiveFilters())
     }
 
-    fun addToLibraryToggle(book: BookMetadata) {
-        val now = System.currentTimeMillis()
-        if (now - lastBookmarkClickMs < 300L) return
-        lastBookmarkClickMs = now
-        viewModelScope.launch {
+    fun addToLibraryToggle(book: BookMetadata) =
+        viewModelScope.launch(Dispatchers.IO) {
             val isInLibrary =
                 appRepository.toggleBookmark(bookUrl = book.url, bookTitle = book.title)
             val res = if (isInLibrary) R.string.added_to_library else R.string.removed_from_library
             toasty.show(res)
         }
-    }
 }

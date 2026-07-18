@@ -18,7 +18,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import my.noveldokusha.coreui.AppThemeProvider
 import my.noveldokusha.coreui.theme.colorscheme.BaseColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.CatppuccinColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.CloudflareColorScheme
@@ -46,8 +45,8 @@ val LocalIsDark = staticCompositionLocalOf<Boolean> { false }
 
 @Composable
 fun Theme(
-    themeProvider: AppThemeProvider,
-    content: @Composable () -> Unit,
+    themeProvider: ThemeProvider,
+    content: @Composable () -> @Composable Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
     val darkMode = themeProvider.currentDarkMode(coroutineScope).value
@@ -72,7 +71,7 @@ fun Theme(
 fun Theme(
     appTheme: AppTheme = AppTheme.DEFAULT,
     darkMode: DarkMode = DarkMode.SYSTEM,
-    content: @Composable () -> Unit,
+    content: @Composable () -> @Composable Unit,
 ) {
     val isDark = when (darkMode) {
         DarkMode.LIGHT -> false

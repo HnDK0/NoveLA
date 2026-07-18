@@ -1,6 +1,6 @@
 package my.noveldokusha.network
 
-import timber.log.Timber
+import android.util.Log
 import org.jsoup.nodes.Document
 
 /**
@@ -11,15 +11,9 @@ import org.jsoup.nodes.Document
  * и JS-редиректом на реальный сайт. OkHttp не выполняет JS, поэтому нужно
  * извлекать URL редиректа вручную.
  */
-private val META_REFRESH_URL = Regex("""url\s*=\s*['"]?(https?://[^'">\s]+)""", RegexOption.IGNORE_CASE)
-private val WINDOW_LOCATION_HREF = Regex("""window\.location\.href\s*=\s*['"]([^'"]+)['"]""")
-private val WINDOW_LOCATION = Regex("""window\.location\s*=\s*['"]([^'"]+)['"]""")
-private val WINDOW_LOCATION_REPLACE = Regex("""window\.location\.replace\s*\(\s*['"]([^'"]+)['"]""")
-private val LOCATION_HREF = Regex("""location\.href\s*=\s*['"]([^'"]+)['"]""")
-private val LOCATION = Regex("""location\s*=\s*['"]([^'"]+)['"]""")
-private val SCRIPT_LOCATION_PATTERN = Regex("""(?:window\.)?location(?:\.href)?\s*=\s*['"]([^'"]+)['"]""")
-
 object JsRedirectResolver {
+
+    private const val TAG = "JsRedirectResolver"
 
     /**
      * Ищет URL редиректа в HTML-документе.
@@ -35,29 +29,28 @@ object JsRedirectResolver {
         val metaRefresh = doc.select("meta[http-equiv=refresh]").first()
         if (metaRefresh != null) {
             val content = metaRefresh.attr("content")
-            val urlMatch = META_REFRESH_URL.find(content)
+            val urlMatch = Regex("""url\s*=\s*['"]?(https?://[^'">\s]+)""", RegexOption.IGNORE_CASE)
+                .find(content)
             if (urlMatch != null) {
                 val url = urlMatch.groupValues[1]
-                Timber.d("Found meta refresh redirect: $url")
-                return normalizeUrl(url)
+                Log.d(TAG, "Found meta refresh redirect: $url")
+                return url
             }
         }
 
         // 2. window.location.href = "..." или window.location = "..."
         val locationPatterns = listOf(
-            WINDOW_LOCATION_HREF,
-            WINDOW_LOCATION,
-            WINDOW_LOCATION_REPLACE,
-            LOCATION_HREF,
-            LOCATION,
+            Regex("""window\.location\.href\s*=\s*['"]([^'"]+)['"]"""),
+            Regex("""window\.location\s*=\s*['"]([^'"]+)['"]"""),
+            Regex("""window\.location\.replace\s*\(\s*['"]([^'"]+)['"]"""),
+            Regex("""location\.href\s*=\s*['"]([^'"]+)['"]"""),
+            Regex("""location\s*=\s*['"]([^'"]+)['"]"""),
         )
 
         for (pattern in locationPatterns) {
             val match = pattern.find(html)
             if (match != null) {
                 var url = match.groupValues[1]
-                // Сначала убираем экранированные слеши \/ -> / (в JS так экранируют https?://)
-                url = url.replace("\\/", "/")
                 // Если URL относительный — превращаем в абсолютный
                 if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("//")) {
                     try {
@@ -87,17 +80,17 @@ object JsRedirectResolver {
                         url = "https:$url"
                     }
                 }
-                Timber.d("Found JS redirect: $url")
+                Log.d(TAG, "Found JS redirect: $url")
                 return normalizeUrl(url)
             }
         }
 
         // 3. Поиск в script-тегах через регулярку по всему HTML
-        val scriptPattern = SCRIPT_LOCATION_PATTERN
+        val scriptPattern = Regex("""(?:window\.)?location(?:\.href)?\s*=\s*['"]([^'"]+)['"]""")
         val scriptMatch = scriptPattern.find(html)
         if (scriptMatch != null) {
             val url = scriptMatch.groupValues[1]
-            Timber.d("Found script redirect: $url")
+            Log.d(TAG, "Found script redirect: $url")
             return normalizeUrl(url)
         }
 
@@ -109,11 +102,6 @@ object JsRedirectResolver {
      * удаляет лишние пробелы.
      */
     private fun normalizeUrl(url: String): String {
-        var result = url.replace("\\/", "/").trim()
-        // Редирект-обёртки могут вкладывать абсолютный URL внутрь пути,
-        // напр. "https://a.com/x/https://b.com/y" — берём последний абсолютный URL.
-        val idx = maxOf(result.lastIndexOf("https://"), result.lastIndexOf("http://"))
-        if (idx > 0) result = result.substring(idx)
-        return result
+        return url.replace("\\/", "/").trim()
     }
 }

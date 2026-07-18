@@ -40,12 +40,12 @@
     <string name="open_in_browser">Mở trong trình duyệt</string>
     <string name="sources">Nguồn</string>
     <string name="search_for_sources">Tìm kiếm nguồn</string>
-    <string name="import_epub">Nhập sách</string>
+    <string name="import_epub">Nhập EPUB</string>
     <string name="failed_get_file">Không thể lấy tệp</string>
     <string name="local_book_nothing_to_update">Sách địa phương, không có gì để cập nhật</string>
-    <string name="failed_to_import_epub">Nhập sách thất bại</string>
+    <string name="failed_to_import_epub">Nhập epub thất bại</string>
     <string name="image">hình ảnh</string>
-    <string name="importing_epub">Đang nhập sách</string>
+    <string name="importing_epub">Đang nhập epub</string>
     <string name="no_results_found">Không tìm thấy kết quả</string>
     <string name="updating_library_notice">Đang cập nhật thư viện</string>
     <string name="chapter_downloaded">Đã tải chương</string>
@@ -304,7 +304,7 @@
     <string name="notification_channel_name_new_chapters">Chương mới</string>
     <string name="notification_channel_name_failed_updates">Cập nhật thất bại</string>
     <string name="notification_channel_name_backup">Sao lưu</string>
-    <string name="notification_channel_name_import_epub">Nhập sách</string>
+    <string name="notification_channel_name_import_epub">Nhập EPUB</string>
     <string name="notification_channel_name_restore_backup">Khôi phục sao lưu</string>
     <string name="notification_channel_name_app_updates_checker">Trình kiểm tra cập nhật</string>
     <string name="new_app_version_available">Có phiên bản ứng dụng mới</string>
@@ -352,6 +352,7 @@
     <string name="cloudflare_bypass">Vượt Cloudflare</string>
     <string name="cloudflare_bypass_description">Bật tự động vượt thử thách Cloudflare</string>
     <string name="cloudflare_bypass_restart_required">Cài đặt vượt Cloudflare sẽ được áp dụng sau khi khởi động lại ứng dụng</string>
+    <string name="user_agent_restart_required">User-Agent đã thay đổi. Khởi động lại ứng dụng để áp dụng.</string>
     <string name="cloudflare_challenge_timeout">Thời gian chờ thử thách</string>
     <string name="timeout_seconds">Thời gian chờ (giây)</string>
     <string name="seconds_format">%d giây</string>
@@ -617,56 +618,5 @@
     <string name="repository_settings">Cài đặt kho</string>
     <string name="installed">Đã cài đặt</string>
     <string name="available">Khả dụng</string>
-
-    <string name="book_fix">Sửa sách</string>
-
-
-    <!-- History -->
-    <string name="title_history">Lịch sử</string>
-    <string name="no_history_yet">Chưa có lịch sử đọc</string>
-    <string name="no_books_in_library">Không có sách trong thư viện</string>
-    <string name="clear_all_history">Xóa tất cả lịch sử</string>
-    <string name="display_options_title">Hiển thị</string>
-    <string name="save_settings">Lưu cài đặt</string>
-    <string name="save_plugins">Lưu plugin</string>
-    <string name="copying_plugins">Đang sao chép plugin…</string>
-    <string name="auto_backup_include_settings">Bao gồm cài đặt</string>
-    <string name="auto_backup_include_settings_description">Lưu khóa API và tùy chọn trong sao lưu tự động</string>
-    <string name="auto_backup_include_plugins">Bao gồm plugin</string>
-    <string name="auto_backup_include_plugins_description">Lưu plugin thu thập Lua trong sao lưu tự động</string>
-    <string name="import_lua">Nhập Lua</string>
-    <string name="edit_lua">Sửa Lua</string>
-    <string name="reset">Đặt lại</string>
-    <string name="uninstall">Gỡ cài đặt</string>
-    <string name="installing">Đang cài đặt…</string>
-    <string name="install">Cài đặt</string>
-    <string name="update">Cập nhật</string>
-    <string name="retry">Thử lại</string>
-    <string name="top">↑ Đầu</string>
-    <string name="copy">Sao chép</string>
-    <string name="paste">Dán</string>
-    <string name="clear">Xóa</string>
-    <string name="no_extensions_available">Không có tiện ích mở rộng</string>
-    <string name="local_extension_description">Tiện ích mở rộng Lua cục bộ</string>
-    <string name="extension_author_local">Cục bộ</string>
-    <string name="ext_failed_to_load">Không thể tải tiện ích mở rộng: %s</string>
-    <string name="ext_failed_to_download">Không thể tải tập lệnh cho %s</string>
-    <string name="ext_failed_to_install">Không thể cài đặt %1$s: %2$s</string>
-    <string name="ext_failed_to_uninstall">Không thể gỡ cài đặt tiện ích mở rộng</string>
-    <string name="ext_failed_to_toggle">Không thể chuyển đổi tiện ích mở rộng</string>
-    <string name="lua_empty_error">Tệp Lua trống</string>
-    <string name="lua_compile_error">Lỗi biên dịch Lua</string>
-    <string name="lua_save_error">Không thể lưu tệp Lua</string>
-    <string name="lua_import_error">Không thể lưu tệp Lua đã nhập</string>
-    <string name="lua_duplicate_error">Tiện ích mở rộng \"%s\" đã tồn tại ở cục bộ</string>
-    <string name="lua_not_editable">Mã nguồn không khả dụng để chỉnh sửa</string>
-    <string name="lua_restore_error">Không thể khôi phục Lua từ kho lưu trữ</string>
-    <string name="time_just_now">vừa xong</string>
-    <string name="time_minutes_ago">%d phút trước</string>
-    <string name="time_hours_ago">%d giờ trước</string>
-    <string name="time_days_ago">%d ngày trước</string>
-    <string name="time_weeks_ago">%d tuần trước</string>
-    <string name="time_months_ago">%d tháng trước</string>
-    <string name="time_years_ago">%d năm trước</string>
 
 </resources>

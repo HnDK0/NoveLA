@@ -11,7 +11,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -89,8 +88,6 @@ internal fun ChaptersScreenBody(
         if (idx == -1) null else idx + 1
     }
 
-    val readChapters by remember { derivedStateOf { state.chapters.count { it.chapter.read } } }
-
     val onScrollToLastRead: (() -> Unit)? = lastReadChapterIndex?.let { index ->
         {
             coroutineScope.launch {
@@ -134,17 +131,30 @@ internal fun ChaptersScreenBody(
                 key = "header",
                 contentType = { 0 },
             ) {
+                // ponytail: scraper.getCompatibleSource() can iterate every registered source
+                // (26 Kotlin + N Lua plugins); hoist its result into a remember keyed on
+                // (bookUrl, sourceCatalogNameStrRes) so it runs at most once per book open
+                // instead of on every header recomposition (e.g. on every chapter list update).
+                val resolvedSourceName = remember(
+                    state.book.value.url,
+                    state.sourceCatalogNameStrRes.value
+                ) {
+                    if (state.sourceCatalogNameStrRes.value == 0) {
+                        val source = scraper.getCompatibleSource(state.book.value.url)
+                        source?.name
+                    } else {
+                        null
+                    }
+                }
                 ChaptersScreenHeader(
                     bookState = state.book.value,
                     genres = state.genres.value,
                     sourceCatalogName = if (state.sourceCatalogNameStrRes.value == 0) {
-                        val source = scraper.getCompatibleSource(state.book.value.url)
-                        source?.name ?: stringResource(R.string.invalid_source)
+                        resolvedSourceName ?: stringResource(R.string.invalid_source)
                     } else {
                         stringResource(id = state.sourceCatalogNameStrRes.value ?: R.string.invalid_source)
                     },
                     numberOfChapters = state.chapters.size,
-                    readChapters = readChapters,
                     paddingValues = innerPadding,
                     modifier = Modifier,
                     translatedTitle = translatedTitle,

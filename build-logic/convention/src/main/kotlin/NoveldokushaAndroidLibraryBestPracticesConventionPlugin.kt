@@ -1,4 +1,4 @@
-import com.android.build.api.dsl.LibraryExtension
+import com.android.build.gradle.LibraryExtension
 import my.noveldokusha.convention.plugin.appConfig
 import my.noveldokusha.convention.plugin.applyHilt
 import my.noveldokusha.convention.plugin.configureAndroid
@@ -12,12 +12,14 @@ class NoveldokushaAndroidLibraryBestPracticesConventionPlugin : Plugin<Project> 
         with(target) {
             with(pluginManager) {
                 apply("com.android.library")
+                apply("org.jetbrains.kotlin.android")
             }
 
             applyHilt()
 
             extensions.configure<LibraryExtension> {
                 configureAndroid(this)
+                defaultConfig.targetSdk = appConfig.TARGET_SDK
                 // The resource prefix is derived from the module name,
                 // so resources inside ":core:module1" must be prefixed with "core_module1_"
                 resourcePrefix = path

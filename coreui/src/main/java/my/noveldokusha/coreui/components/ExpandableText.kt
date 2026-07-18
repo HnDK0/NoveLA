@@ -47,6 +47,9 @@ fun ExpandableText(
                 derivedStateOf { if (expanded) Int.MAX_VALUE else linesForExpand }
             }
             val textStyle = MaterialTheme.typography.bodyMedium
+            // ponytail: was Paragraph(...) constructed on every recomposition — full text
+            // layout just to read lineCount. Remember it keyed on text + constraints + density
+            // + fontResolver (the @Composable locals are read OUTSIDE the remember lambda).
             val density = LocalDensity.current
             val fontFamilyResolver = LocalFontFamilyResolver.current
             val paragraph = remember(target, constraints.maxWidth, textStyle, density, fontFamilyResolver) {
@@ -58,6 +61,8 @@ fun ExpandableText(
                     fontFamilyResolver = fontFamilyResolver
                 )
             }
+            // ponytail: was MutableInteractionSource() per recomposition — hoist to a remembered val.
+            val interactionSource = remember { MutableInteractionSource() }
             val textColor = LocalContentColor.current
             val textColorEnd by animateColorAsState(
                 targetValue = when {
@@ -80,7 +85,7 @@ fun ExpandableText(
                 modifier = modifier
                     .ifCase(target.isNotBlank()) { animateContentSize() }
                     .clickable(
-                        interactionSource = MutableInteractionSource(),
+                        interactionSource = interactionSource,
                         indication = null,
                         onClick = { expanded = !expanded }
                     )

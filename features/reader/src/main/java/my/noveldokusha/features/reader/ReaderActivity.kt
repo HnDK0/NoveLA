@@ -4,7 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import timber.log.Timber
+import android.util.Log
+import android.view.KeyEvent
 import android.view.WindowManager
 import android.widget.AbsListView
 import androidx.activity.compose.setContent
@@ -30,17 +31,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChangedBy
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.BaseActivity
 import my.noveldokusha.coreui.composableActions.SetSystemBarTransparent
 import my.noveldokusha.coreui.theme.Theme
 import my.noveldokusha.coreui.theme.readerTheme
+import my.noveldokusha.coreui.theme.colorAttrRes
 import my.noveldokusha.core.utils.Extra_Boolean
 import my.noveldokusha.core.utils.Extra_String
 import my.noveldokusha.core.utils.dpToPx
@@ -50,8 +49,6 @@ import my.noveldokusha.features.reader.domain.ReaderItem
 import my.noveldokusha.features.reader.domain.ReaderItemAdapter
 import my.noveldokusha.features.reader.domain.ReaderState
 import my.noveldokusha.features.reader.domain.indexOfReaderItem
-import my.noveldokusha.features.reader.manager.ReaderManager
-import my.noveldokusha.features.reader.services.NarratorMediaControlsService
 import my.noveldokusha.features.reader.tools.FontsLoader
 import my.noveldokusha.features.reader.ui.ReaderScreen
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
@@ -88,13 +85,7 @@ class ReaderActivity : BaseActivity() {
     lateinit var navigationRoutes: NavigationRoutes
 
     @Inject
-    lateinit var appPreferences: AppPreferences
-
-    @Inject
     internal lateinit var readerViewHandlersActions: ReaderViewHandlersActions
-
-    @Inject
-    internal lateinit var readerManager: ReaderManager
 
     private var listIsScrolling = false
     private val fadeInTextLiveData = MutableLiveData(false)
@@ -151,9 +142,6 @@ class ReaderActivity : BaseActivity() {
                         }
                     }
                 },
-                currentTtsHighlightEnabled = { appPreferences.TTS_HIGHLIGHT_ENABLED.value },
-                currentTtsHighlightColor = { appPreferences.TTS_HIGHLIGHT_COLOR.value },
-                currentSpokenWordRange = { viewModel.readerSpeaker.state.spokenWordRange.value },
             )
         }
     }
@@ -169,9 +157,13 @@ class ReaderActivity : BaseActivity() {
 
     override fun onDestroy() {
         readerViewHandlersActions.invalidate()
-        if (isFinishing) {
-            viewModel.onCloseManually()
-        }
+        // ponytail: release the FloatingTtsService companion-object references that captured
+        // this Activity's windowToken and the ReaderTextToSpeech function refs (via ttsState).
+        // Without this, the destroyed Activity is retained for app lifetime by the still-
+        // running FloatingTtsService's companion object. The service itself will also call
+        // clearSessionState() from its own onDestroy(), but the activity may be destroyed
+        // while the service continues running (e.g. showOutsideApp = true).
+        my.noveldokusha.features.reader.services.FloatingTtsService.clearSessionState()
         super.onDestroy()
     }
 
@@ -197,11 +189,6 @@ class ReaderActivity : BaseActivity() {
         lifecycleScope.launch {
             viewModel.onDisplaySettingsChanged.collect {
                 viewAdapter.listView.notifyDataSetChanged()
-            }
-        }
-        lifecycleScope.launch {
-            readerManager.onCloseRequested.receiveAsFlow().collect {
-                if (!isFinishing) finish()
             }
         }
         readerViewHandlersActions.forceUpdateListViewState = {
@@ -325,27 +312,6 @@ class ReaderActivity : BaseActivity() {
             .asLiveData()
             .observe(this) { viewAdapter.listView.notifyDataSetChanged() }
 
-        // Notify TTS highlight changed for list view
-        snapshotFlow {
-            appPreferences.TTS_HIGHLIGHT_ENABLED.value to appPreferences.TTS_HIGHLIGHT_COLOR.value
-        }.drop(1)
-            .asLiveData()
-            .observe(this) { viewAdapter.listView.notifyDataSetChanged() }
-
-        // Periodic refresh for TTS word highlighting while playing
-        lifecycleScope.launch {
-            var lastRange: IntRange? = null
-            snapshotFlow { viewModel.readerSpeaker.state.spokenWordRange.value }
-                .debounce(50)
-                .collect {
-                    if (appPreferences.TTS_HIGHLIGHT_ENABLED.value && it != null && it != lastRange) {
-                        lastRange = it
-                        viewAdapter.listView.notifyDataSetChanged()
-                    }
-                    if (it == null) lastRange = null
-                }
-        }
-
         // Set current screen to be kept bright always or not
         snapshotFlow { viewModel.state.settings.keepScreenOn.value }
             .asLiveData()
@@ -372,8 +338,6 @@ class ReaderActivity : BaseActivity() {
                     onAppThemeChanged = { appPreferences.APP_THEME.value = it.name; recreate() },
                     onFullScreen = { appPreferences.READER_FULL_SCREEN.value = it; recreate() },
                     onSingleTapToOpenSettingsChange = { appPreferences.READER_SINGLE_TAP_TO_OPEN_SETTINGS.value = it },
-                    onTtsHighlightEnabledChange = { appPreferences.TTS_HIGHLIGHT_ENABLED.value = it },
-                    onTtsHighlightColorChange = { appPreferences.TTS_HIGHLIGHT_COLOR.value = it },
                     onPressBack = {
                         viewModel.onCloseManually()
                         finish()
@@ -617,6 +581,42 @@ class ReaderActivity : BaseActivity() {
         viewAdapter.listView.notifyDataSetChanged()
     }
 
+    /**
+     * FIX: Smooth scroll to TTS position after screen unlock.
+     *
+     * Two bugs fixed here vs the old onResume approach:
+     * 1. Delay/ignored scroll — old code called setSelectionFromTop before the ListView
+     *    finished re-layout after onResume. Now called via post{} so it runs after layout.
+     * 2. Jarring jump — replaced setSelectionFromTop with smoothScrollToPositionFromTop
+     *    for nearby items (<=8 positions away), giving a smooth 350ms animation.
+     *    Items already on screen are skipped entirely (no movement at all).
+     *    Items far away still use instant scroll to avoid a long animation.
+     */
+    private fun scrollToReadingPositionSmooth(chapterIndex: Int, chapterItemPosition: Int) {
+        val itemIndex = indexOfReaderItem(
+            list = viewModel.items,
+            chapterIndex = chapterIndex,
+            chapterItemPosition = chapterItemPosition
+        )
+        if (itemIndex == -1) return
+        val itemPosition = viewAdapter.listView.fromIndexToPosition(itemIndex)
+        val newOffsetPx = 200.dpToPx(this)
+        viewAdapter.listView.notifyDataSetChanged()
+
+        // If item is already visible on screen — no scroll needed, avoids any jarring movement
+        val first = viewBind.listView.firstVisiblePosition
+        val last = viewBind.listView.lastVisiblePosition
+        if (itemPosition in first..last) return
+
+        // Smooth scroll for nearby items, instant jump for distant ones
+        val distance = kotlin.math.abs(itemPosition - first)
+        if (distance <= 8) {
+            viewBind.listView.smoothScrollToPositionFromTop(itemPosition, newOffsetPx, 350)
+        } else {
+            viewBind.listView.setSelectionFromTop(itemPosition, newOffsetPx)
+        }
+    }
+
     private fun updateReadingState() {
         val firstVisibleItem = viewBind.listView.firstVisiblePosition
         val lastVisibleItem = viewBind.listView.lastVisiblePosition
@@ -682,10 +682,23 @@ class ReaderActivity : BaseActivity() {
         super.onPause()
     }
 
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (event != null) {
+            Log.d("MediaCallback", "onKeyDown: keyCode=$keyCode action=${event.action}")
+        }
+        if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || keyCode == KeyEvent.KEYCODE_HEADSETHOOK) {
+            if (viewModel.readerSpeaker.isSpeaking.value) {
+                viewModel.readerSpeaker.state.setPlaying(false)
+            } else {
+                viewModel.readerSpeaker.state.setPlaying(true)
+            }
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     override fun onResume() {
         super.onResume()
-
-        NarratorMediaControlsService.maybeAutoResume()
 
         if (viewModel.readerSpeaker.isSpeaking.value) {
             viewModel.readerSpeaker.forceUpdateCurrentItemState()
@@ -699,10 +712,6 @@ class ReaderActivity : BaseActivity() {
             val itemPosition = viewAdapter.listView.fromIndexToPosition(itemIndex)
             val newOffsetPx = 200.dpToPx(this)
             viewBind.listView.smoothScrollToPositionFromTop(itemPosition, newOffsetPx, 500)
-        }
-
-        if (viewModel.chaptersLoader.hasLoadingError) {
-            viewModel.chaptersLoader.retryFailed()
         }
     }
 

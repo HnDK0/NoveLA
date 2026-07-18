@@ -146,7 +146,14 @@ fun MigrationResultsScreen(
                         }
                     }
 
-                    itemsIndexed(migratingBooks) { index, mb ->
+                    // ponytail: key by book url so removing/inserting an entry only
+                    // recomposes the changed row (e.g. when a book finishes migrating and
+                    // is removed from the queue).
+                    itemsIndexed(
+                        migratingBooks,
+                        key = { _, mb -> mb.book.url },
+                        contentType = { _, _ -> "migration_result" }
+                    ) { index, mb ->
                         MigrationResultItem(
                             migratingBook = mb,
                             bookIndex = index,

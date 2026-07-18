@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,7 +53,9 @@ fun BookImageButtonView(
     modifier: Modifier = Modifier,
     bookTitlePosition: BookTitlePosition = BookTitlePosition.Inside,
     indication: Indication = LocalIndication.current,
-    interactionSource: MutableInteractionSource = MutableInteractionSource(),
+    // ponytail: was MutableInteractionSource() default — fresh instance per recomposition.
+    // Now nullable, remembered inside the body.
+    interactionSource: MutableInteractionSource? = null,
     sourceIcon: (@Composable () -> Unit)? = null,
     sourceText: String? = null,
     topLeftBadge: (@Composable () -> Unit)? = null,
@@ -61,6 +64,7 @@ fun BookImageButtonView(
     onClick: () -> Unit,
     onLongClick: () -> Unit = { },
 ) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
     Column(modifier = modifier.testTag(AppTestTags.BOOK_IMAGE_BUTTON_VIEW)) {
         Box(
             Modifier
@@ -77,7 +81,7 @@ fun BookImageButtonView(
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     .combinedClickable(
                         indication = indication,
-                        interactionSource = interactionSource,
+                        interactionSource = resolvedInteractionSource,
                         role = Role.Button,
                         onClick = onClick,
                         onLongClick = onLongClick

@@ -29,8 +29,6 @@ internal fun ReaderScreenBottomBarDialogs(
     onKeepScreenOn: (Boolean) -> Unit,
     onFullScreen: (Boolean) -> Unit,
     onSingleTapToOpenSettingsChange: (Boolean) -> Unit,
-    onTtsHighlightEnabledChange: (Boolean) -> Unit,
-    onTtsHighlightColorChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -68,10 +66,6 @@ internal fun ReaderScreenBottomBarDialogs(
                         onFullScreen = onFullScreen,
                         singleTapToOpenSettings = settings.isSingleTapToOpenSettings.value,
                         onSingleTapToOpenSettingsChange = onSingleTapToOpenSettingsChange,
-                        ttsHighlightEnabled = settings.ttsHighlight.isEnabled.value,
-                        onTtsHighlightEnabledChange = onTtsHighlightEnabledChange,
-                        ttsHighlightColor = settings.ttsHighlight.highlightColor.value,
-                        onTtsHighlightColorChange = onTtsHighlightColorChange,
                     )
                     ReaderScreenState.Settings.Type.None -> Unit
                 }

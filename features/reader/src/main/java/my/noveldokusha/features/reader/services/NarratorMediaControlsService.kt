@@ -2,18 +2,14 @@ package my.noveldokusha.features.reader.services
 
 import android.annotation.SuppressLint
 import android.app.Service
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.IBinder
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
-import my.noveldokusha.features.reader.features.ReaderTextToSpeech
-import my.noveldokusha.features.reader.manager.ReaderManager
 import my.noveldokusha.core.utils.isServiceRunning
 import timber.log.Timber
 import javax.inject.Inject
@@ -23,30 +19,16 @@ import javax.inject.Inject
 internal class NarratorMediaControlsService : Service() {
 
     companion object {
-        const val ACTION_STOP_NARRATOR = "my.noveldokusha.STOP_NARRATOR"
-        private var serviceInstance: NarratorMediaControlsService? = null
-
         fun start(ctx: Context) {
-            ContextCompat.startForegroundService(
-                ctx,
-                Intent(ctx, NarratorMediaControlsService::class.java)
-            )
+            if (!isRunning(ctx))
+                ContextCompat.startForegroundService(
+                    ctx,
+                    Intent(ctx, NarratorMediaControlsService::class.java)
+                )
         }
 
         fun stop(ctx: Context) {
             ctx.stopService(Intent(ctx, NarratorMediaControlsService::class.java))
-        }
-
-        fun reacquireFocus() {
-            serviceInstance?.requestAudioFocus()
-        }
-
-        fun reassertActive() {
-            serviceInstance?.narratorNotification?.reassertActive()
-        }
-
-        fun maybeAutoResume() {
-            serviceInstance?.narratorNotification?.maybeAutoResume()
         }
 
         private fun isRunning(context: Context): Boolean =
@@ -56,87 +38,22 @@ internal class NarratorMediaControlsService : Service() {
     @Inject
     lateinit var narratorNotification: NarratorMediaControlsNotification
 
-    @Inject
-    lateinit var readerManager: ReaderManager
-
     private var audioFocusRequest: AudioFocusRequest? = null
-    private var wasPausedByFocusLoss = false
-
-    private val becomingNoisyReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            Timber.d("ACTION_AUDIO_BECOMING_NOISY received")
-            wasPausedByFocusLoss = true
-            ReaderTextToSpeech.isSystemPauseTrigger = true
-            ReaderTextToSpeech.pausedBySystem = true
-            narratorNotification.pause()
-        }
-    }
-
-    private val dismissReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == ACTION_STOP_NARRATOR) {
-                Timber.d("dismissReceiver: STOP_NARRATOR — closing reader")
-                narratorNotification.close()
-                readerManager.closeReader()
-            }
-        }
-    }
 
     private fun requestAudioFocus() {
+        if (audioFocusRequest != null) return
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (audioFocusRequest == null) {
-            val attrs = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                .build()
-            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(attrs)
-                .setAcceptsDelayedFocusGain(true)
-                // Речь (TTS): при запросе фокуса с duck'ом ставим паузу,
-                // а не понижаем громкость (чинит паузу для Telegram-голосовых).
-                .setWillPauseWhenDucked(true)
-                .setOnAudioFocusChangeListener { focusChange ->
-                    when (focusChange) {
-                        AudioManager.AUDIOFOCUS_LOSS,
-                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                            // Любая потеря фокуса -> пауза.
-                            // - Постоянная (LOSS): нас выкинуло из стека фокуса.
-                            //   НЕ перезапрашиваем здесь — правило "последний запрос
-                            //   побеждает" заставило бы нас мгновенно украсть фокус
-                            //   обратно у только что взявшего его приложения
-                            //   (борьба за фокус). Перехват делается позже, по воле
-                            //   пользователя: при onPlay()/возврате в приложение
-                            //   (onResume), где setAcceptsDelayedFocusGain даёт DELAYED
-                            //   и корректное ожидание GAIN без кражи.
-                            // - Временная (TRANSIENT / CAN_DUCK): система сама вернёт
-                            //   фокус через стек при релизе захватившего приложения,
-                            //   перезапрос не нужен. setWillPauseWhenDucked(true) =>
-                            //   при duck тоже пауза, а не понижение громкости.
-                            wasPausedByFocusLoss = true
-                            ReaderTextToSpeech.isSystemPauseTrigger = true
-                            ReaderTextToSpeech.pausedBySystem = true
-                            narratorNotification.pause()
-                        }
-                        AudioManager.AUDIOFOCUS_GAIN -> onFocusGained()
-                    }
-                }
-                .build()
-            audioFocusRequest = request
-        }
-        audioManager.requestAudioFocus(audioFocusRequest!!)
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build()
+        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(attrs)
+            .setOnAudioFocusChangeListener { }
+            .build()
+        audioFocusRequest = request
+        audioManager.requestAudioFocus(request)
         Timber.d("AudioFocus requested AUDIOFOCUS_GAIN")
-    }
-
-    private fun onFocusGained() {
-        narratorNotification.reassertActive()
-        if (wasPausedByFocusLoss && ReaderTextToSpeech.pausedBySystem && !ReaderTextToSpeech.userPaused) {
-            wasPausedByFocusLoss = false
-            ReaderTextToSpeech.pausedBySystem = false
-            narratorNotification.play()
-        } else {
-            wasPausedByFocusLoss = false
-        }
     }
 
     private fun abandonAudioFocus() {
@@ -150,28 +67,22 @@ internal class NarratorMediaControlsService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        serviceInstance = this
+        requestAudioFocus()
 
         val notification = narratorNotification.createNotificationMediaControls(this)
-        startForeground(narratorNotification.notificationId, notification ?: narratorNotification.createDefaultNotification(this))
-
-        registerReceiver(
-            becomingNoisyReceiver,
-            IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
-            Context.RECEIVER_NOT_EXPORTED
-        )
-        registerReceiver(
-            dismissReceiver,
-            IntentFilter(ACTION_STOP_NARRATOR),
-            Context.RECEIVER_NOT_EXPORTED
-        )
-        requestAudioFocus()
+        if (notification != null) {
+            startForeground(narratorNotification.notificationId, notification)
+        } else {
+            // Создаем минимальное уведомление, чтобы удовлетворить требования foreground сервиса
+            val defaultNotification = narratorNotification.createDefaultNotification(this)
+            startForeground(narratorNotification.notificationId, defaultNotification)
+        }
     }
 
     override fun onDestroy() {
-        serviceInstance = null
-        runCatching { unregisterReceiver(becomingNoisyReceiver) }
-        runCatching { unregisterReceiver(dismissReceiver) }
+        // ponytail: explicitly remove the foreground notification — without this, on some
+        // Android versions the notification lingers in the bar even after the service stops.
+        stopForeground(STOP_FOREGROUND_REMOVE)
         abandonAudioFocus()
         narratorNotification.close()
         super.onDestroy()
@@ -180,12 +91,18 @@ internal class NarratorMediaControlsService : Service() {
     @SuppressLint("MissingSuperCall")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Timber.d("onStartCommand: action=${intent?.action}")
-        if (intent == null && !narratorNotification.isMediaSessionReady) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
         narratorNotification.handleCommand(intent)
-        return START_NOT_STICKY
+        if (intent == null) return START_NOT_STICKY
+        return START_STICKY
+    }
+
+    // ponytail: when the user swipes the app away from recents, stop the narrator service
+    // entirely. Without this, the foreground notification stays in the bar until the user
+    // force-stops the app.
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onBind(p0: Intent?): IBinder? = null

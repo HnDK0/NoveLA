@@ -91,7 +91,7 @@ class DownloadForegroundService : android.app.Service() {
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "Novela:download_foreground"
             )?.apply {
-                acquire(10 * 60 * 1000L)
+                acquire()
             }
         } catch (_: Exception) { }
     }
@@ -111,7 +111,11 @@ class DownloadForegroundService : android.app.Service() {
 
         fun start(context: Context) {
             val intent = Intent(context, DownloadForegroundService::class.java)
-            context.startForegroundService(intent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
         }
 
         fun stop(context: Context) {

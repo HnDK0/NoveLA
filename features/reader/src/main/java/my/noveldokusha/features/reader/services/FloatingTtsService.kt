@@ -1,13 +1,9 @@
 package my.noveldokusha.features.reader.services
 
 import android.annotation.SuppressLint
-import android.app.Notification
-import android.app.PendingIntent
 import android.app.Service
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
@@ -38,7 +34,6 @@ import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.theme.InternalTheme
 import my.noveldokusha.features.reader.features.TextToSpeechSettingData
-import my.noveldokusha.features.reader.manager.ReaderManager
 import my.noveldokusha.features.reader.ui.FloatingTtsOverlayContent
 import my.noveldokusha.core.utils.isServiceRunning
 import javax.inject.Inject
@@ -46,10 +41,24 @@ import javax.inject.Inject
 @AndroidEntryPoint
 internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistryOwner {
 
+    // ponytail: the 11 mutableStateOf / mutableFloatStateOf values declared in the companion
+    // object below (ttsState, showText, showOutsideApp, opacity, panelWidth, paragraphMode,
+    // isExpanded, bubblePosX, bubblePosY, panelPosX, panelPosY, positionInitialized) are
+    // process-global mutable state shared across every reader session. Because only one
+    // ReaderActivity can be active at a time, this acts as a per-session holder; the leak
+    // was that session-bound references (ttsState's TextToSpeechSettingData function refs +
+    // activityWindowToken's IBinder to the destroyed Activity's window) were never cleared.
+    //
+    // The fix below introduces a `clearSessionState()` companion method that nulls out the
+    // session-bound references (ttsState, activityWindowToken, showText) when the reader
+    // session ends. The position/opacity/panelWidth/paragraphMode state is intentionally
+    // kept (it's reloaded from appPreferences on the next session anyway, and clearing it
+    // would just cause a UI flicker on the next open). ReaderActivity.onDestroy() invokes
+    // clearSessionState() so the captured function refs and Activity windowToken are
+    // released as soon as the reader session ends.
     companion object {
         private const val NOTIFICATION_ID = 2001
         private const val CHANNEL_ID = "floating_tts_channel"
-        const val ACTION_STOP = "my.noveldokusha.features.reader.services.FloatingTtsService.ACTION_STOP"
 
         var ttsState = mutableStateOf<TextToSpeechSettingData?>(null)
         var showText = mutableStateOf(false)
@@ -57,8 +66,6 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         var opacity = mutableFloatStateOf(0.6f)
         var panelWidth by mutableFloatStateOf(300f)
         var paragraphMode by mutableStateOf("tts")
-        var ttsHighlightEnabled = mutableStateOf(false)
-        var ttsHighlightColor = mutableStateOf("FFFF6D00")
         var activityWindowToken: IBinder? = null
 
         private var isExpanded = mutableStateOf(false)
@@ -69,8 +76,6 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         private var positionInitialized = mutableStateOf(false)
 
         private var instance: FloatingTtsService? = null
-        @Volatile
-        private var explicitStop = false
 
         fun start(ctx: Context) {
             if (!isRunning(ctx)) {
@@ -80,7 +85,6 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         }
 
         fun stop(ctx: Context) {
-            explicitStop = true
             ctx.stopService(Intent(ctx, FloatingTtsService::class.java))
         }
 
@@ -94,13 +98,24 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         fun setOverlayHidden(hidden: Boolean) {
             instance?.composeView?.visibility = if (hidden) View.GONE else View.VISIBLE
         }
+
+        // ponytail: clear the session-bound state captured from the ReaderActivity so it
+        // doesn't leak the destroyed Activity's windowToken / the ReaderTextToSpeech
+        // function refs held inside ttsState. Called from ReaderActivity.onDestroy() and
+        // from this service's own onDestroy(). Position/opacity/panelWidth/paragraphMode
+        // are intentionally preserved (they are reloaded from appPreferences next session
+        // anyway and clearing them now would only cause a UI flicker on reopen).
+        fun clearSessionState() {
+            ttsState.value = null
+            activityWindowToken = null
+            showText.value = false
+            showOutsideApp.value = true
+            opacity.floatValue = 0.6f
+        }
     }
 
     @Inject
     lateinit var appPreferences: AppPreferences
-
-    @Inject
-    lateinit var readerManager: ReaderManager
 
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
@@ -115,27 +130,14 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
     private var displayWidth = 0
     private var displayHeight = 0
 
-    private val stopReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            appPreferences.FLOATING_TTS_ENABLED.value = false
-            readerManager.session?.requestTtsStop()
-        }
-    }
-
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
-        explicitStop = false
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
 
         createNotificationChannel()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(stopReceiver, IntentFilter(ACTION_STOP), Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(stopReceiver, IntentFilter(ACTION_STOP))
-        }
 
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         displayDensity = resources.displayMetrics.density
@@ -158,34 +160,42 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         loadSavedState()
 
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
-        if (ttsState.value != null) {
-            showOverlay()
-            appPreferences.FLOATING_TTS_ENABLED.value = true
-        }
+        showOverlay()
+
+        appPreferences.FLOATING_TTS_ENABLED.value = true
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, createNotification())
-        // Защита: сервис запущен без живой сессии (процесс перезапущен) — не держим
-        // зомби-оверлей, сразу останавливаемся.
-        if (ttsState.value == null) {
-            stopSelf()
-        }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onDestroy() {
-        runCatching { unregisterReceiver(stopReceiver) }
-        val wasExplicit = explicitStop
-        explicitStop = false
         instance = null
         removeOverlay()
+        // ponytail: clear session-bound state so the captured ttsState (function refs into
+        // the destroyed reader) and activityWindowToken (IBinder to the destroyed Activity)
+        // are released immediately rather than lingering in the companion object until the
+        // next reader session.
+        clearSessionState()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
-        if (!wasExplicit) {
-            runCatching { appPreferences.FLOATING_TTS_ENABLED.value = false }
-            runCatching { readerManager.session?.requestTtsStop() }
-        }
         super.onDestroy()
+    }
+
+    // ponytail: when the user swipes the app away from recents, stop the floating TTS service
+    // entirely. Without this, the floating bubble stays on screen forever after the app is
+    // removed from background. The reader session is already gone, so there's nothing to
+    // play TTS from anyway.
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        ttsState.value?.let {
+            // TTS was active — stop it and shut down
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        } ?: run {
+            // No TTS state — just stop
+            stopSelf()
+        }
+        super.onTaskRemoved(rootIntent)
     }
 
     private fun loadSavedState() {
@@ -389,16 +399,14 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
                             paragraphMode = newMode
                             appPreferences.FLOATING_TTS_PARAGRAPH_MODE.value = newMode
                         },
-                        ttsHighlightEnabled = ttsHighlightEnabled.value,
-                        ttsHighlightColor = ttsHighlightColor.value,
                     )
                 }
             }
         }
 
-        if (composeView?.isAttachedToWindow != true) {
+        try {
             windowManager?.addView(composeView, layoutParams)
-        }
+        } catch (_: Exception) {}
     }
 
     private fun recreateOverlayInternal() {
@@ -437,34 +445,24 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
     }
 
     private fun createNotificationChannel() {
-        val channel = android.app.NotificationChannel(
-            CHANNEL_ID,
-            getString(R.string.tts_floating),
-            android.app.NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = getString(R.string.tts_floating_channel_description)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.tts_floating),
+                android.app.NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = getString(R.string.tts_floating_channel_description)
+            }
+            val manager = getSystemService(android.app.NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
         }
-        val manager = getSystemService(android.app.NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
     }
 
-    private fun createNotification(): Notification {
-        val stopIntent = Intent(ACTION_STOP)
-        val stopPendingIntent = PendingIntent.getBroadcast(
-            this, 1, stopIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.tts_floating))
-            .setContentText(getString(R.string.tts_floating_overlay_active))
-            .setSmallIcon(android.R.drawable.ic_media_play)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setDeleteIntent(stopPendingIntent)
-            .addAction(
-                R.drawable.ic_media_control_stop,
-                getString(R.string.close),
-                stopPendingIntent
-            )
-            .build()
-    }
+    private fun createNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
+        .setContentTitle(getString(R.string.tts_floating))
+        .setContentText(getString(R.string.tts_floating_overlay_active))
+        .setSmallIcon(android.R.drawable.ic_media_play)
+        .setPriority(NotificationCompat.PRIORITY_LOW)
+        .setOngoing(true)
+        .build()
 }

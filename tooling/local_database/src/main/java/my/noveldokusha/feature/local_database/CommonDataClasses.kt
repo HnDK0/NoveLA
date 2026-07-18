@@ -4,6 +4,11 @@ import androidx.room.Embedded
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.feature.local_database.tables.Chapter
 
+// ponytail: NO @Immutable here. local_database is a pure Room module with no Compose dependency.
+// @Immutable on @Embedded classes breaks Room's KSP ("references a type that is not present").
+// @Immutable on pure DTOs fails compile ("Unresolved reference 'compose'").
+// These are plain data classes — the Compose compiler infers stability adequately.
+
 data class BookMetadata(
     val title: String,
     val url: String,
@@ -33,4 +38,14 @@ data class ChapterWithContext(
     @Embedded val chapter: Chapter,
     val downloaded: Boolean,
     val lastReadChapter: Boolean
+)
+
+// ponytail: lightweight projection for chaptersLightweight query — only url+title+bookUrl+position.
+// Used by ReaderSession.initLoadData() to avoid loading full Chapter rows (read, lastReadPosition,
+// lastReadOffset) just for navigation. For a 3000-chapter novel this saves ~24KB per open.
+data class ChapterLight(
+    val url: String,
+    val title: String,
+    val bookUrl: String,
+    val position: Int
 )

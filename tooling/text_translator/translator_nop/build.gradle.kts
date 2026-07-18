@@ -17,9 +17,7 @@ dependencies {
 
     // Gson for JSON parsing in TranslationManagerGooglePA
     implementation(libs.gson)
-
-    // kotlinx.serialization (JsonElement API used by TranslationManagerGoogleFree / PromptPreset)
-    implementation(libs.kotlinx.serialization.json)
-
-    implementation(libs.timber)
+    
+    // Free Google Translate library
+    implementation("com.github.therealbush:translator:1.1.1")
 }

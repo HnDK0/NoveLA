@@ -2,17 +2,14 @@ package my.noveldokusha.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import my.noveldokusha.feature.local_database.AppDatabase
 import my.noveldokusha.feature.local_database.DAOs.ChapterDao
 import my.noveldokusha.feature.local_database.tables.Chapter
-
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class BookChaptersRepository @Inject constructor(
     private val chapterDao: ChapterDao,
-    private val appDatabase: AppDatabase,
 ) {
     suspend fun update(chapter: Chapter) = chapterDao.update(chapter)
     suspend fun updatePosition(chapterUrl: String, lastReadPosition: Int, lastReadOffset: Int) =
@@ -29,8 +26,6 @@ class BookChaptersRepository @Inject constructor(
     suspend fun hasChapters(bookUrl: String) = chapterDao.hasChapters(bookUrl)
     suspend fun getAll() = chapterDao.getAll()
     suspend fun count() = chapterDao.count()
-    suspend fun countByBookUrl(bookUrl: String) = chapterDao.countByBookUrl(bookUrl)
-    suspend fun countReadByBookUrl(bookUrl: String) = chapterDao.countReadByBookUrl(bookUrl)
     suspend fun getChunk(limit: Int, offset: Int) = chapterDao.getChunk(limit, offset)
     suspend fun updateTitle(url: String, title: String) =
         chapterDao.updateTitle(url, title)
@@ -41,11 +36,11 @@ class BookChaptersRepository @Inject constructor(
     suspend fun setAsUnread(chaptersUrl: List<String>) =
         chaptersUrl.chunked(500).forEach { chapterDao.setAsUnread(it) }
 
-    suspend fun setAllAsReadByBookUrl(bookUrl: String) =
-        chapterDao.setAllAsReadByBookUrl(bookUrl)
-
-    suspend fun setAllAsUnreadByBookUrl(bookUrl: String) =
-        chapterDao.setAllAsUnreadByBookUrl(bookUrl)
+    // ponytail: direct UPDATE-by-bookUrl overloads for markAllChaptersAsRead/Unread —
+    // replaces fetch-all-then-set-by-URL (which loaded every Chapter row just to build an
+    // IN clause) with a single UPDATE statement. Used by LibraryViewModel.
+    suspend fun setAllReadByBook(bookUrl: String) = chapterDao.setAllReadByBook(bookUrl)
+    suspend fun setAllUnreadByBook(bookUrl: String) = chapterDao.setAllUnreadByBook(bookUrl)
 
     suspend fun insert(chapters: List<Chapter>) =
         chapterDao.insert(chapters.filter(::isValid))
@@ -55,27 +50,34 @@ class BookChaptersRepository @Inject constructor(
 
     suspend fun removeAllFromBook(bookUrl: String) = chapterDao.removeAllFromBook(bookUrl)
     suspend fun chapters(bookUrl: String) = chapterDao.chapters(bookUrl)
-    suspend fun getChapterUrls(bookUrl: String) = chapterDao.getChapterUrls(bookUrl)
+
+    // ponytail: lightweight chapter projection for reader init — skips read,
+    // lastReadPosition, lastReadOffset columns (the reader fetches those for the
+    // active chapter via get(chapterUrl) anyway, so loading them for every chapter
+    // in the book is wasted work on ReaderSession.initLoadData).
+    suspend fun chaptersLightweight(bookUrl: String) = chapterDao.chaptersLightweight(bookUrl)
+
     suspend fun getFirstChapter(bookUrl: String) = chapterDao.getFirstChapter(bookUrl)
     fun getChaptersWithContextFlow(bookUrl: String) =
         chapterDao.getChaptersWithContextFlow(bookUrl)
 
-    suspend fun merge(newChapters: List<Chapter>, bookUrl: String) = withContext(Dispatchers.IO) {
+    suspend fun merge(newChapters: List<Chapter>, bookUrl: String) = withContext(Dispatchers.IO){
         val current = chapters(bookUrl).associateBy { it.url }.toMutableMap()
         for (chapter in newChapters)
             current.merge(
                 chapter.url,
                 chapter
             ) { old, new -> old.copy(position = new.position) }
-        appDatabase.transaction {
-            insertReplace(current.values.toList())
+        insertReplace(current.values.toList())
 
-            if (newChapters.isNotEmpty() && newChapters.size >= current.size * 0.3) {
-                val newUrls = newChapters.map { it.url }.toSet()
-                val removedUrls = current.keys.filter { it !in newUrls }
-                if (removedUrls.isNotEmpty()) {
-                    chapterDao.removeByUrls(removedUrls)
-                }
+        // Sync: remove chapters no longer returned by plugin.
+        // Safety: skip if plugin returned fewer than 30% of current count —
+        // likely means plugin is broken and returned garbage, not a real update.
+        if (newChapters.isNotEmpty() && newChapters.size >= current.size * 0.3) {
+            val newUrls = newChapters.map { it.url }.toSet()
+            val removedUrls = current.keys.filter { it !in newUrls }
+            if (removedUrls.isNotEmpty()) {
+                chapterDao.removeByUrls(removedUrls)
             }
         }
     }

@@ -9,11 +9,9 @@ import my.noveldokusha.data.BookChaptersRepository
 import my.noveldokusha.data.LibraryBooksRepository
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.feature.local_database.AppDatabase
-import my.noveldokusha.feature.local_database.DAOs.ReadingHistoryDao
 import my.noveldokusha.features.reader.domain.ChapterState
 import my.noveldokusha.features.reader.domain.InitialPositionChapter
 import my.noveldokusha.feature.local_database.tables.Chapter
-import my.noveldokusha.feature.local_database.tables.ReadingHistory
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,7 +22,6 @@ internal class ReaderRepository @Inject constructor(
     private val bookChaptersRepository: BookChaptersRepository,
     private val libraryBooksRepository: LibraryBooksRepository,
     private val appRepository: AppRepository,
-    private val readingHistoryDao: ReadingHistoryDao,
 ) {
 
     fun saveBookLastReadPositionState(
@@ -50,32 +47,8 @@ internal class ReaderRepository @Inject constructor(
                     lastReadPosition = newChapter.chapterItemPosition,
                     lastReadOffset = newChapter.offset
                 )
-
-                upsertReadingHistory(bookUrl, newChapter.chapterUrl)
             }
         }
-    }
-
-    internal suspend fun upsertReadingHistory(bookUrl: String, chapterUrl: String) {
-        val book = libraryBooksRepository.get(bookUrl)
-        val chapter = bookChaptersRepository.get(chapterUrl)
-        val title = chapter?.title
-        val total = bookChaptersRepository.countByBookUrl(bookUrl)
-        val readChapters = if (total > 0) {
-            bookChaptersRepository.countReadByBookUrl(bookUrl)
-        } else 0
-        readingHistoryDao.upsert(
-            ReadingHistory(
-                bookUrl = bookUrl,
-                bookTitle = book?.title ?: "",
-                bookCoverUrl = book?.coverImageUrl ?: "",
-                lastReadChapterUrl = chapterUrl,
-                lastReadChapterTitle = title,
-                lastReadEpochTimeMilli = System.currentTimeMillis(),
-                totalChapters = total,
-                readChapters = readChapters,
-            )
-        )
     }
 
     suspend fun getInitialChapterItemPosition(

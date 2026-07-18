@@ -69,9 +69,6 @@ jobs:
           ls -lah release-artifacts
 
       - name: Build changelog and move nightly tag
-        env:
-          COMMIT_SHA: ${{ github.sha }}
-          REF_NAME: ${{ github.ref_name }}
         run: |
           git fetch origin --tags --force
 
@@ -81,18 +78,16 @@ jobs:
           BASE_TAG=$(git tag --sort=-creatordate | grep -v -x 'nightly' | head -n1)
 
           {
-            echo "⚠️ Automated build from the latest commit on the \`$REF_NAME\` branch / Автоматическая сборка из последнего коммита на ветке \`$REF_NAME\`."
-            echo "Commit / Коммит: $COMMIT_SHA"
+            echo "⚠️ Automated build from the latest commit on the \`${{ github.ref_name }}\` branch / Автоматическая сборка из последнего коммита на ветке \`${{ github.ref_name }}\`."
+            echo "Commit / Коммит: ${{ github.sha }}"
             echo "This is not a stable release and may contain bugs / Не является стабильным релизом — может содержать баги."
-            echo ""
-            echo "🗄️ Возможна миграция БД (Room). Сделайте бэкап перед обновлением — откат на старую версию может не сработать."
             echo ""
             if [ -n "$BASE_TAG" ]; then
               echo "## Changes since $BASE_TAG"
-              git log --pretty=format:'- %s (%h)' "$BASE_TAG".."$COMMIT_SHA"
+              git log --pretty=format:'- %s (%h)' "$BASE_TAG"..${{ github.sha }}
             else
               echo "## Recent changes"
-              git log -20 --pretty=format:'- %s (%h)' "$COMMIT_SHA"
+              git log -20 --pretty=format:'- %s (%h)' ${{ github.sha }}
             fi
             echo ""
           } > release-body.md
@@ -100,7 +95,7 @@ jobs:
           cat release-body.md
 
           # Now move the tag to the new commit so source archives stay in sync too
-          git tag -f nightly "$COMMIT_SHA"
+          git tag -f nightly "${{ github.sha }}"
           git push origin nightly --force
 
       - name: Delete old nightly assets

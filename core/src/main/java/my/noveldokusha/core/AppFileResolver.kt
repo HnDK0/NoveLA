@@ -11,7 +11,6 @@ import java.nio.file.Paths
 import java.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
-import my.noveldokusha.core.isCoverValid
 
 
 @Singleton
@@ -66,31 +65,11 @@ class AppFileResolver @Inject constructor(
 
     /**
      * Returns the path to the image if local, no changes if non local.
-     *
-     * For a cover image (isCover=true) with a remote (https) URL we prefer the locally
-     * cached cover file when it exists and is a valid image; otherwise we return the
-     * remote URL so a missing local cover (e.g. after a backup restore) is transparently
-     * re-fetched from the site instead of showing a broken/empty image.
-     *
-     * For inline chapter images (isCover=false) remote URLs are returned as-is so Coil
-     * fetches them directly from the source.
      */
-    fun resolvedBookImagePath(
-        bookUrl: String,
-        imagePath: String,
-        isCover: Boolean = true
-    ): Any {
-        val resolved = if (imagePath.startsWith("//")) "https:$imagePath" else imagePath
-        return when {
-            resolved.isContentUri -> resolved
-            bookUrl.isContentUri -> resolved
-            resolved.isHttpsUrl && isCover -> {
-                val coverFile = getStorageBookCoverImageFile(getLocalBookFolderName(bookUrl))
-                if (isCoverValid(coverFile)) coverFile else resolved
-            }
-            resolved.isHttpsUrl -> resolved
-            else -> getStorageBookImageFile(bookUrl, resolved)
-        }
+    fun resolvedBookImagePath(bookUrl: String, imagePath: String): Any = when {
+        imagePath.isHttpsUrl -> imagePath
+        bookUrl.isContentUri -> imagePath
+        else -> getStorageBookImageFile(bookUrl, imagePath)
     }
 }
 
@@ -98,19 +77,14 @@ class AppFileResolver @Inject constructor(
  * Returns the path to the image if local, no changes if non local.
  */
 @Composable
-fun rememberResolvedBookImagePath(
-    bookUrl: String,
-    imagePath: String,
-    isCover: Boolean = true
-): Any {
+fun rememberResolvedBookImagePath(bookUrl: String, imagePath: String): Any {
     val context = LocalContext.current
     val appFileResolver = remember(context) { AppFileResolver(context) }
-    return remember(context, bookUrl, imagePath, isCover) {
+    return remember(context, bookUrl, imagePath) {
         mutableStateOf(
             appFileResolver.resolvedBookImagePath(
                 bookUrl = bookUrl,
-                imagePath = imagePath,
-                isCover = isCover
+                imagePath = imagePath
             )
         )
     }.value

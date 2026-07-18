@@ -200,24 +200,25 @@ internal fun SettingsBackup(
             }
         )
 
-        // Include images
-        SlimListItem(
-            headlineContent = {
-                Text(text = stringResource(R.string.auto_backup_include_images))
-            },
-            supportingContent = {
-                Text(text = stringResource(id = R.string.auto_backup_include_images_description))
-            },
-            leadingContent = {
-                Icon(Icons.Outlined.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            },
-            trailingContent = {
-                Switch(
-                    checked = autoBackupIncludeImages,
-                    onCheckedChange = onAutoBackupIncludeImagesChange
-                )
-            }
-        )
+        // TODO: properly implement images saving
+        // // Include images
+        // SlimListItem(
+        //     headlineContent = {
+        //         Text(text = stringResource(R.string.auto_backup_include_images))
+        //     },
+        //     supportingContent = {
+        //         Text(text = stringResource(id = R.string.auto_backup_include_images_description))
+        //     },
+        //     leadingContent = {
+        //         Icon(Icons.Outlined.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        //     },
+        //     trailingContent = {
+        //         Switch(
+        //             checked = autoBackupIncludeImages,
+        //             onCheckedChange = onAutoBackupIncludeImagesChange
+        //         )
+        //     }
+        // )
 
         // Include settings
         SlimListItem(

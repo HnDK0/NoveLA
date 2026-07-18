@@ -12,7 +12,33 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import my.noveldokusha.scraper.sources.BacaLightnovel
+import my.noveldokusha.scraper.sources.BoxNovel
+import my.noveldokusha.scraper.sources.IndoWebnovel
+import my.noveldokusha.scraper.sources.LightNovelWorld
+import my.noveldokusha.scraper.sources.LightNovelsTranslations
+import my.noveldokusha.scraper.sources.Lnori
 import my.noveldokusha.scraper.sources.LocalSource
+import my.noveldokusha.scraper.sources.MeioNovel
+import my.noveldokusha.scraper.sources.MoreNovel
+import my.noveldokusha.scraper.sources.NovelCool
+import my.noveldokusha.scraper.sources.NovelFire
+import my.noveldokusha.scraper.sources.NovelHall
+import my.noveldokusha.scraper.sources.NovelPhoenix
+import my.noveldokusha.scraper.sources.NovelUpdates as NovelUpdatesSource
+import my.noveldokusha.scraper.sources.Novelku
+import my.noveldokusha.scraper.sources.ReadNovelFull
+import my.noveldokusha.scraper.sources.RoyalRoad
+import my.noveldokusha.scraper.sources.Saikai
+import my.noveldokusha.scraper.sources.SakuraNovel
+import my.noveldokusha.scraper.sources.Sousetsuka
+import my.noveldokusha.scraper.sources.TimoTxt
+import my.noveldokusha.scraper.sources.TimoTxtTranslate
+import my.noveldokusha.scraper.sources.WbNovel
+import my.noveldokusha.scraper.sources.Wtrlab
+import my.noveldokusha.scraper.sources.Wuxia
+import my.noveldokusha.scraper.sources.WuxiaBox
+import my.noveldokusha.scraper.sources.WuxiaWorld
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,7 +56,43 @@ class Scraper @Inject constructor(
         BakaUpdates(networkClient)
     )
 
-    val localSourcesList = setOf(localSource)
+    // ponytail: ported from Paras fork — all native Kotlin catalog sources are
+    // instantiated here and live alongside the LocalSource. Each constructor
+    // takes the shared networkClient (Hilt-injected singleton) so they reuse
+    // the same OkHttp client, cookie jar, and Cloudflare bypass interceptor.
+    val localSourcesList: Set<SourceInterface> = setOf(
+        localSource,
+        // ---- English ----
+        LightNovelsTranslations(networkClient),
+        ReadNovelFull(networkClient),
+        RoyalRoad(networkClient),
+        NovelUpdatesSource(networkClient),
+        Wuxia(networkClient),
+        NovelFire(networkClient),
+        NovelPhoenix(networkClient),
+        NovelCool(networkClient),
+        Lnori(networkClient),
+        WuxiaBox(networkClient),
+        Sousetsuka(),
+        Saikai(networkClient),
+        BoxNovel(networkClient),
+        LightNovelWorld(networkClient),
+        NovelHall(networkClient),
+        WuxiaWorld(networkClient),
+        MoreNovel(networkClient),
+        WbNovel(networkClient),
+        // ---- Indonesian ----
+        IndoWebnovel(networkClient),
+        BacaLightnovel(networkClient),
+        SakuraNovel(networkClient),
+        MeioNovel(networkClient),
+        Novelku(networkClient),
+        // ---- Chinese ----
+        TimoTxt(networkClient),
+        TimoTxtTranslate(networkClient),
+        // ---- MTL (Machine Translation) ----
+        Wtrlab(networkClient),
+    )
 
     private val scraperScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

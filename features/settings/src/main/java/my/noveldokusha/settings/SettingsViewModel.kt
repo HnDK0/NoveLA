@@ -2,17 +2,20 @@ package my.noveldokusha.settings
 
 import android.content.Context
 import android.text.format.Formatter
+import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.viewModelScope
+import com.bumptech.glide.Glide
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.lifecycle.ViewModel
+import my.noveldokusha.coreui.BaseViewModel
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.core.appPreferences.AppLanguage
@@ -20,16 +23,12 @@ import my.noveldokusha.data.AppRemoteRepository
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
-import my.noveldokusha.core.isCoverValid
 import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.tooling.application_workers.AppWorkersInteractions
 import android.net.Uri
 import android.provider.DocumentsContract
 import java.io.File
-import my.noveldokusha.settings.BuildConfig
-import my.noveldokusha.debug.MemoryDiagnostics
-import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -42,13 +41,23 @@ internal class SettingsViewModel @Inject constructor(
     private val appRemoteRepository: AppRemoteRepository,
     private val toasty: Toasty,
     private val appWorkersInteractions: AppWorkersInteractions,
-) : ViewModel() {
+) : BaseViewModel() {
 
     var onRestartApp: (() -> Unit)? = null
 
     var isCleaningDatabase = mutableStateOf(false)
     var isCleaningImages = mutableStateOf(false)
     var isCleaningChapterCache = mutableStateOf(false)
+
+    // ponytail: track appScope jobs (which outlive the ViewModel) so they can be cancelled in
+    // onCleared(). Without this, the SettingsViewModel is retained as long as a cleaning job
+    // is in flight — usually long after the user has navigated away from Settings.
+    @Volatile
+    private var cleanDatabaseJob: Job? = null
+    @Volatile
+    private var cleanImagesJob: Job? = null
+    @Volatile
+    private var cleanChapterCacheJob: Job? = null
 
     private val cloudflareBypassEnabled by appPreferences.CLOUDFLARE_BYPASS_ENABLED.state(viewModelScope)
 
@@ -121,12 +130,14 @@ internal class SettingsViewModel @Inject constructor(
 
     init {
         updateDatabaseSize()
-        updateImagesFolderSize()
+        // TODO: properly implement images saving
+        // updateImagesFolderSize()
         updateChapterCacheSize()
         viewModelScope.launch {
             appRepository.eventDataRestored.collect {
                 updateDatabaseSize()
-                updateImagesFolderSize()
+                // TODO: properly implement images saving
+                // updateImagesFolderSize()
             }
         }
 
@@ -141,32 +152,48 @@ internal class SettingsViewModel @Inject constructor(
             }
         }
 
+        // Show notification when User-Agent setting changes
+        viewModelScope.launch {
+            var previousValue = state.scraperUserAgent.value
+            appPreferences.SCRAPER_USER_AGENT.flow().collect { newValue ->
+                if (newValue != previousValue) {
+                    toasty.show(R.string.user_agent_restart_required)
+                    previousValue = newValue
+                }
+            }
+        }
     }
 
     fun requestCleanDatabase() {
         state.cleanConfirmationType.value = CleanConfirmationType.DATABASE
     }
 
-    private fun cleanDatabase() = appScope.launch(Dispatchers.IO) {
-        if (isCleaningDatabase.value) return@launch
+    private fun cleanDatabase(): Job {
+        // ponytail: cancel any prior in-flight clean before launching a new one, and store the
+        // Job so onCleared() can cancel it (preventing ViewModel retention).
+        cleanDatabaseJob?.cancel()
+        cleanDatabaseJob = appScope.launch(Dispatchers.IO) {
+            if (isCleaningDatabase.value) return@launch
 
-        try {
-            isCleaningDatabase.value = true
-            toasty.show(R.string.cleaning_database)
+            try {
+                isCleaningDatabase.value = true
+                toasty.show(R.string.cleaning_database)
 
-            appRepository.settings.clearNonLibraryData()
-            appRepository.vacuum()
-            updateDatabaseSizeAndWait()
-            kotlinx.coroutines.delay(500)
+                appRepository.settings.clearNonLibraryData()
+                appRepository.vacuum()
+                updateDatabaseSizeAndWait()
+                kotlinx.coroutines.delay(500)
 
-            toasty.show(R.string.database_cleaned_successfully)
+                toasty.show(R.string.database_cleaned_successfully)
 
-        } catch (e: Exception) {
-            toasty.show(R.string.database_clean_failed)
-            Timber.e(e)
-        } finally {
-            isCleaningDatabase.value = false
+            } catch (e: Exception) {
+                toasty.show(R.string.database_clean_failed)
+                e.printStackTrace()
+            } finally {
+                isCleaningDatabase.value = false
+            }
         }
+        return cleanDatabaseJob!!
     }
 
     private suspend fun updateDatabaseSizeAndWait() {
@@ -180,69 +207,63 @@ internal class SettingsViewModel @Inject constructor(
         state.cleanConfirmationType.value = CleanConfirmationType.IMAGES_FOLDER
     }
 
-    private fun cleanImagesFolder() = appScope.launch(Dispatchers.IO) {
-        if (isCleaningImages.value) return@launch
+    private fun cleanImagesFolder(): Job {
+        // ponytail: track this appScope Job so onCleared() can cancel it (preventing ViewModel retention).
+        cleanImagesJob?.cancel()
+        cleanImagesJob = appScope.launch(Dispatchers.IO) {
+            if (isCleaningImages.value) return@launch
 
-        try {
-            isCleaningImages.value = true
-            toasty.show(R.string.cleaning_images_folder)
+            try {
+                isCleaningImages.value = true
+                toasty.show(R.string.cleaning_images_folder)
 
-            val libraryBooks = appRepository.libraryBooks.getAllInLibrary()
-            val libraryFolderNames = libraryBooks.asSequence()
-                .map { appFileResolver.getLocalBookFolderName(it.url) }
-                .toSet()
+                val libraryBooks = appRepository.libraryBooks.getAllInLibrary()
+                val libraryFolderNames = libraryBooks.asSequence()
+                    .map { appFileResolver.getLocalBookFolderName(it.url) }
+                    .toSet()
 
-            val booksFolder = appRepository.settings.folderBooks
+                val booksFolder = appRepository.settings.folderBooks
 
-            // Self-heal: delete corrupt/non-image cover files so they are re-downloaded
-            // on the next library update / cover backfill instead of staying broken forever.
-            booksFolder.listFiles()
-                ?.asSequence()
-                ?.filter { it.isDirectory && it.name in libraryFolderNames }
-                ?.forEach { folder ->
-                    val cover = File(folder, AppFileResolver.COVER_PATH_RELATIVE_TO_BOOK)
-                    if (cover.exists() && !isCoverValid(cover)) {
-                        Timber.d("cleanImagesFolder: deleting corrupt cover in ${folder.name}")
-                        cover.delete()
+                val foldersToDelete = booksFolder.listFiles()
+                    ?.asSequence()
+                    ?.filter { it.isDirectory && it.exists() }
+                    ?.filter { it.name !in libraryFolderNames }
+                    ?.toList() ?: emptyList()
+
+                var deletedCount = 0
+                foldersToDelete.forEach { folder ->
+                    try {
+                        folder.deleteRecursively()
+                        deletedCount++
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
                 }
 
-            val foldersToDelete = booksFolder.listFiles()
-                ?.asSequence()
-                ?.filter { it.isDirectory && it.exists() }
-                ?.filter { it.name !in libraryFolderNames }
-                ?.toList() ?: emptyList()
-
-            var deletedCount = 0
-            foldersToDelete.forEach { folder ->
-                try {
-                    folder.deleteRecursively()
-                    deletedCount++
-                } catch (e: Exception) {
-                    Timber.e(e)
+                Glide.get(context).clearDiskCache()
+                context.cacheDir.resolve("image_cache").deleteRecursively()
+                withContext(Dispatchers.Main) {
+                    Glide.get(context).clearMemory()
+                    coil.Coil.imageLoader(context).memoryCache?.clear()
                 }
+
+                updateImagesFolderSizeAndWait()
+                kotlinx.coroutines.delay(500)
+
+                if (deletedCount > 0) {
+                    toasty.show(context.getString(R.string.images_folder_cleaned, deletedCount))
+                } else {
+                    toasty.show(R.string.images_folder_already_clean)
+                }
+
+            } catch (e: Exception) {
+                toasty.show(R.string.images_folder_clean_failed)
+                e.printStackTrace()
+            } finally {
+                isCleaningImages.value = false
             }
-
-            context.cacheDir.resolve("image_cache").deleteRecursively()
-            withContext(Dispatchers.Main) {
-                coil.Coil.imageLoader(context).memoryCache?.clear()
-            }
-
-            updateImagesFolderSizeAndWait()
-            kotlinx.coroutines.delay(500)
-
-            if (deletedCount > 0) {
-                toasty.show(context.getString(R.string.images_folder_cleaned, deletedCount))
-            } else {
-                toasty.show(R.string.images_folder_already_clean)
-            }
-
-        } catch (e: Exception) {
-            toasty.show(R.string.images_folder_clean_failed)
-            Timber.e(e)
-        } finally {
-            isCleaningImages.value = false
         }
+        return cleanImagesJob!!
     }
 
     fun onAppThemeChange(appTheme: AppTheme) {
@@ -357,31 +378,38 @@ internal class SettingsViewModel @Inject constructor(
         state.cleanConfirmationType.value = CleanConfirmationType.CHAPTER_CACHE
     }
 
-    private fun cleanChapterCache() = appScope.launch(Dispatchers.IO) {
-        if (isCleaningChapterCache.value) return@launch
+    private fun cleanChapterCache(): Job {
+        // ponytail: track this appScope Job so onCleared() can cancel it (preventing ViewModel retention).
+        cleanChapterCacheJob?.cancel()
+        cleanChapterCacheJob = appScope.launch(Dispatchers.IO) {
+            if (isCleaningChapterCache.value) return@launch
 
-        try {
-            isCleaningChapterCache.value = true
-            toasty.show(R.string.cleaning_chapter_cache)
+            try {
+                isCleaningChapterCache.value = true
+                toasty.show(R.string.cleaning_chapter_cache)
 
-            appRepository.settings.clearChapterCache()
-            updateChapterCacheSize()
-            kotlinx.coroutines.delay(500)
+                appRepository.settings.clearChapterCache()
+                updateChapterCacheSize()
+                kotlinx.coroutines.delay(500)
 
-            toasty.show(R.string.chapter_cache_cleaned)
-        } catch (e: Exception) {
-            toasty.show(R.string.chapter_cache_clean_failed)
-            Timber.e(e)
-        } finally {
-            isCleaningChapterCache.value = false
+                toasty.show(R.string.chapter_cache_cleaned)
+            } catch (e: Exception) {
+                toasty.show(R.string.chapter_cache_clean_failed)
+                e.printStackTrace()
+            } finally {
+                isCleaningChapterCache.value = false
+            }
         }
+        return cleanChapterCacheJob!!
     }
 
-    fun dumpDebugInfo() = appScope.launch(Dispatchers.IO) {
-        if (BuildConfig.DEBUG) {
-            MemoryDiagnostics.logMemoryStats("SettingsViewModel")
-            toasty.show("Memory stats logged to logcat")
-        }
+    // ponytail: cancel any in-flight appScope cleaning jobs on cleared so the ViewModel is
+    // not retained after the user leaves Settings.
+    override fun onCleared() {
+        cleanDatabaseJob?.cancel()
+        cleanImagesJob?.cancel()
+        cleanChapterCacheJob?.cancel()
+        super.onCleared()
     }
 
     fun confirmCleanAction() {
@@ -477,10 +505,10 @@ internal class SettingsViewModel @Inject constructor(
     }
 
     fun onAutoBackupEnabledChange(enabled: Boolean) {
-        Timber.d( "onAutoBackupEnabledChange: enabled=$enabled")
+        Log.d("AutoBackup", "onAutoBackupEnabledChange: enabled=$enabled")
         if (enabled) {
             val uri = appPreferences.BACKUP_AUTO_DIRECTORY_URI.value
-            Timber.d( "onAutoBackupEnabledChange: directoryUri='$uri'")
+            Log.d("AutoBackup", "onAutoBackupEnabledChange: directoryUri='$uri'")
             if (uri.isEmpty()) {
                 toasty.show(R.string.auto_backup_select_directory_first)
                 return
@@ -502,9 +530,9 @@ internal class SettingsViewModel @Inject constructor(
                     )
                     if (createdUri != null) {
                         DocumentsContract.deleteDocument(context.contentResolver, createdUri)
-                        Timber.d( "onAutoBackupEnabledChange: permission OK, enabling")
+                        Log.d("AutoBackup", "onAutoBackupEnabledChange: permission OK, enabling")
                         appPreferences.BACKUP_AUTO_ENABLED.value = true
-                        Timber.d( "onAutoBackupEnabledChange: calling runAutoBackupNow")
+                        Log.d("AutoBackup", "onAutoBackupEnabledChange: calling runAutoBackupNow")
                         appWorkersInteractions.runAutoBackupNow()
                         withContext(Dispatchers.Main) {
                             toasty.show(R.string.auto_backup_enabled)
@@ -515,7 +543,7 @@ internal class SettingsViewModel @Inject constructor(
                         }
                     }
                 } catch (e: Exception) {
-                    Timber.e(e, "Permission check failed")
+                    Log.e("AutoBackup", "Permission check failed", e)
                     withContext(Dispatchers.Main) {
                         toasty.show(R.string.auto_backup_no_permission)
                     }
@@ -538,10 +566,10 @@ internal class SettingsViewModel @Inject constructor(
     }
 
     fun onAutoBackupIntervalMinutesChange(minutes: Long) {
-        Timber.d( "onAutoBackupIntervalMinutesChange: minutes=$minutes")
+        Log.d("AutoBackup", "onAutoBackupIntervalMinutesChange: minutes=$minutes")
         appPreferences.BACKUP_AUTO_INTERVAL_MINUTES.value = minutes.coerceAtLeast(60L)
         if (appPreferences.BACKUP_AUTO_ENABLED.value) {
-            Timber.d( "onAutoBackupIntervalMinutesChange: auto backup enabled, scheduling")
+            Log.d("AutoBackup", "onAutoBackupIntervalMinutesChange: auto backup enabled, scheduling")
             appWorkersInteractions.scheduleAutoBackup(minutes)
             viewModelScope.launch {
                 withContext(Dispatchers.Main) {

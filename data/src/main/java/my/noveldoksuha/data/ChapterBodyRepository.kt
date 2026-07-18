@@ -4,7 +4,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.Response
 import my.noveldokusha.core.isLocalUri
-import my.noveldokusha.core.isValidChapterContent
 import my.noveldokusha.core.map
 import my.noveldokusha.feature.local_database.AppDatabase
 import my.noveldokusha.feature.local_database.DAOs.ChapterBodyDao
@@ -29,12 +28,10 @@ class ChapterBodyRepository @Inject constructor(
         chapterBodyDao.insertReplace(chapterBody)
 
     suspend fun removeRows(chaptersUrl: List<String>) {
-        appDatabase.transaction {
-            chaptersUrl.chunked(500).forEach { chunk ->
-                chapterBodyDao.removeChapterRows(chunk)
-                chunk.forEach { chapterUrl ->
-                    chapterTranslationDao.deleteChapterTranslations(chapterUrl)
-                }
+        chaptersUrl.chunked(500).forEach { chunk ->
+            chapterBodyDao.removeChapterRows(chunk)
+            chunk.forEach { chapterUrl ->
+                chapterTranslationDao.deleteChapterTranslations(chapterUrl)
             }
         }
     }
@@ -46,22 +43,22 @@ class ChapterBodyRepository @Inject constructor(
     suspend fun count() = chapterBodyDao.count()
     suspend fun getChunk(limit: Int, offset: Int) = chapterBodyDao.getChunk(limit, offset)
 
-    suspend fun clearAllCache(): Int = appDatabase.transaction {
+    suspend fun clearAllCache(): Int {
         val count = chapterBodyDao.deleteAll()
         chapterTranslationDao.deleteAllTranslations()
-        count
+        return count
     }
 
     suspend fun getCacheSizeBytes(): Long = chapterBodyDao.getCacheSizeBytes()
 
     suspend fun getCachedBody(urlChapter: String): String? {
-        return chapterBodyDao.get(urlChapter)?.body?.takeIf { it.isNotBlank() && isValidChapterContent(it) }
+        return chapterBodyDao.get(urlChapter)?.body?.takeIf { it.isNotBlank() }
     }
 
     suspend fun fetchBody(urlChapter: String, tryCache: Boolean = true): Response<String> {
         if (tryCache) chapterBodyDao.get(urlChapter)?.let {
-            // Возвращаем из кэша только валидный контент
-            if (it.body.isNotBlank() && isValidChapterContent(it.body)) return@fetchBody Response.Success(it.body)
+            // Не возвращать пустое тело из кэша — оно могло быть сохранено при ошибке
+            if (it.body.isNotBlank()) return@fetchBody Response.Success(it.body)
             // Удаляем невалидную запись чтобы не мешала следующим попыткам
             chapterBodyDao.removeChapterRows(listOf(urlChapter))
         }
@@ -81,8 +78,8 @@ class ChapterBodyRepository @Inject constructor(
         return withContext(Dispatchers.IO) {
             downloaderRepository.bookChapter(urlChapter)
         }.map {
-            // Сохраняем в БД только валидный контент
-            if (it.body.isNotBlank() && isValidChapterContent(it.body)) {
+            // Сохраняем в БД только непустое тело
+            if (it.body.isNotBlank()) {
                 insertWithTitle(
                     chapterBody = ChapterBody(url = urlChapter, body = it.body),
                     title = it.title

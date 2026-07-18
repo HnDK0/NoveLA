@@ -1,6 +1,5 @@
 package my.noveldokusha.data
 
-import timber.log.Timber
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -30,7 +29,7 @@ import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.states.NotificationsCenter
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
 import my.noveldokusha.feature.local_database.tables.DownloadTaskEntity
-import my.noveldokusha.core.utils.normalizeBookUrl
+import my.noveldokusha.scraper.utils.normalizeBookUrl
 import my.noveldokusha.text_translator.domain.TranslationManager
 import org.json.JSONArray
 import java.net.ConnectException
@@ -99,10 +98,6 @@ sealed class EnqueueResult {
     object AllCached : EnqueueResult()
 }
 
-private val STRIP_NON_IMGENTRY_TAGS = Regex("<(?!(img|/img))[^>]*>")
-private val COLLAPSE_SPACES = Regex("[ ]+")
-private val PARAGRAPH_BREAK = Regex("\\n\\s*\\n")
-
 @Singleton
 class DownloadManager @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -151,11 +146,13 @@ class DownloadManager @Inject constructor(
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
         powerManager?.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
-            "DownloadManager:download_wakelock"
+            "$TAG:download_wakelock"
         )
     }
 
     companion object {
+        private const val TAG = "DownloadManager"
+
         // Константы retry/backoff
         private const val MAX_FETCH_RETRIES = 4
         private const val NETWORK_RETRY_INTERVAL_MS = 15_000L
@@ -195,12 +192,17 @@ class DownloadManager @Inject constructor(
         val lock = wakeLock ?: return
         if (hasActiveTasks) {
             if (!lock.isHeld) {
-                Timber.d("acquiring wake lock (active downloads)")
-                lock.acquire()
+                android.util.Log.d(TAG, "acquiring wake lock (active downloads)")
+                // ponytail: was lock.acquire() with no timeout — if the process crashes
+                // between acquire and the matching release (or the flow collector at line 177
+                // is cancelled without firing the false branch), the WakeLock stays held
+                // indefinitely, draining battery. A 10-minute safety timeout renews on every
+                // re-acquire; normal release still happens in the else branch.
+                lock.acquire(10 * 60 * 1000L)
             }
         } else {
             if (lock.isHeld) {
-                Timber.d("releasing wake lock (no active downloads)")
+                android.util.Log.d(TAG, "releasing wake lock (no active downloads)")
                 lock.release()
             }
         }
@@ -219,11 +221,11 @@ class DownloadManager @Inject constructor(
         val savedTasks = try {
             withContext(Dispatchers.IO) { downloadTaskDao.getAll() }
         } catch (e: Exception) {
-            Timber.e(e, "restoreTasksFromDatabase: failed to read DB")
+            android.util.Log.e(TAG, "restoreTasksFromDatabase: failed to read DB", e)
             return
         }
 
-        Timber.d("restoreTasksFromDatabase: found ${savedTasks.size} tasks")
+        android.util.Log.d(TAG, "restoreTasksFromDatabase: found ${savedTasks.size} tasks")
 
         // Deduplicate by normalized URL in case the database has legacy duplicates
         // (e.g. same book saved with and without trailing slash).
@@ -231,7 +233,7 @@ class DownloadManager @Inject constructor(
         for (entity in savedTasks) {
             val normalizedUrl = normalizeBookUrl(entity.bookUrl)
             if (normalizedUrl in seenUrls) {
-                Timber.w("restoreTasksFromDatabase: duplicate found, " +
+                android.util.Log.w(TAG, "restoreTasksFromDatabase: duplicate found, " +
                         "removing $normalizedUrl (original=${entity.bookUrl})")
                 withContext(Dispatchers.IO) { downloadTaskDao.delete(entity.bookUrl) }
                 continue
@@ -243,9 +245,12 @@ class DownloadManager @Inject constructor(
                     continue
                 }
                 val task = entity.toState()
-            Timber.d("restoreTasksFromDatabase: restoring ${entity.bookUrl} " +
-                        "isPaused=${entity.isPaused} isWaitingForNetwork=${entity.isWaitingForNetwork} " +
-                        "index=${entity.currentIndex}/${entity.totalCount}")
+                android.util.Log.d(
+                    TAG,
+                    "restoreTasksFromDatabase: restoring ${entity.bookUrl} " +
+                            "isPaused=${entity.isPaused} isWaitingForNetwork=${entity.isWaitingForNetwork} " +
+                            "index=${entity.currentIndex}/${entity.totalCount}"
+                )
                 val notif = createNotification(task)
 
                 tasksMutex.withLock {
@@ -255,7 +260,7 @@ class DownloadManager @Inject constructor(
 
                 if (task.isPaused) notif.showPaused(task) else notif.showQueued(task)
             } catch (e: Exception) {
-                Timber.e(e, "restoreTasksFromDatabase: failed to restore task $entity")
+                android.util.Log.e(TAG, "restoreTasksFromDatabase: failed to restore task $entity", e)
             }
         }
     }
@@ -342,7 +347,7 @@ class DownloadManager @Inject constructor(
      * Между книгами одного домена нет параллелизма.
      */
     private suspend fun runDomainWorker(domain: String) {
-        Timber.d("worker started: domain=$domain")
+        android.util.Log.d(TAG, "worker started: domain=$domain")
         while (true) {
             val bookUrl = tasksMutex.withLock {
                 domainQueues[domain]?.queue?.removeFirstOrNull()
@@ -357,15 +362,15 @@ class DownloadManager @Inject constructor(
             }
 
             if (task == null || task.isCancelled || task.isCompleted || task.isPaused) {
-                Timber.d("worker skip $bookUrl: null/cancelled/completed/paused")
+                android.util.Log.d(TAG, "worker skip $bookUrl: null/cancelled/completed/paused")
                 continue
             }
 
-            Timber.d("worker processing $bookUrl")
+            android.util.Log.d(TAG, "worker processing $bookUrl")
             downloadBook(task)
-            Timber.d("worker finished $bookUrl")
+            android.util.Log.d(TAG, "worker finished $bookUrl")
         }
-        Timber.d("worker stopped: domain=$domain (queue empty)")
+        android.util.Log.d(TAG, "worker stopped: domain=$domain (queue empty)")
     }
 
     // ── Публичный API ────────────────────────────────────────────────────────
@@ -602,7 +607,7 @@ class DownloadManager @Inject constructor(
 
                     // Пропускаем уже скачанные — без delay, нет сетевого запроса
                     if (chapterBodyRepository.getCachedBody(chapterUrl) != null) {
-                        Timber.d("skip cached: $chapterUrl")
+                        android.util.Log.d(TAG, "skip cached: $chapterUrl")
                         updateTask(bookUrl) { it.copy(skippedCount = it.skippedCount + 1, consecutiveErrors = 0) }
                         i++
                         continue
@@ -611,15 +616,15 @@ class DownloadManager @Inject constructor(
                     // Загрузка с retry + exponential backoff и ожиданием сети
                     when (val fetchResult = fetchWithRetry(bookUrl, chapterUrl)) {
                         is FetchResult.Interrupted -> {
-                            Timber.d("fetch interrupted by user: $chapterUrl")
+                            android.util.Log.d(TAG, "fetch interrupted by user: $chapterUrl")
                             return@launch
                         }
                         is FetchResult.WaitingForNetwork -> {
-                            Timber.w("network unavailable, waiting for connection: $chapterUrl")
+                            android.util.Log.w(TAG, "network unavailable, waiting for connection: $chapterUrl")
                             continue
                         }
                         is FetchResult.Failed -> {
-                            Timber.w("all retries failed, pausing: $bookUrl")
+                            android.util.Log.w(TAG, "all retries failed, pausing: $bookUrl")
                             val paused = updateTask(bookUrl) {
                                 it.copy(
                                     isPaused = true,
@@ -640,7 +645,7 @@ class DownloadManager @Inject constructor(
                                 _tasks.value[bookUrl]
                             }
                             if (taskBeforeTranslate == null || taskBeforeTranslate.isCancelled || taskBeforeTranslate.isPaused) {
-                                Timber.d("interrupted before translate: $chapterUrl")
+                                android.util.Log.d(TAG, "interrupted before translate: $chapterUrl")
                                 return@launch
                             }
 
@@ -731,7 +736,7 @@ class DownloadManager @Inject constructor(
                     2 -> 300_000L
                     else -> 600_000L
                 }
-                Timber.d("retry $attempt for $chapterUrl, wait ${backoffMs}ms")
+                android.util.Log.d(TAG, "retry $attempt for $chapterUrl, wait ${backoffMs}ms")
                 delay(backoffMs)
 
                 // Проверяем статус после ожидания backoff.
@@ -739,7 +744,7 @@ class DownloadManager @Inject constructor(
                     _tasks.value[bookUrl]
                 }
                 if (taskAfterWait == null || taskAfterWait.isCancelled || taskAfterWait.isPaused) {
-                    Timber.d("interrupted during backoff: $chapterUrl")
+                    android.util.Log.d(TAG, "interrupted during backoff: $chapterUrl")
                     return FetchResult.Interrupted
                 }
             }
@@ -749,22 +754,22 @@ class DownloadManager @Inject constructor(
                 is my.noveldokusha.core.Response.Success -> {
                     val body = result.data
                     if (body.isNullOrBlank()) {
-                        Timber.w("empty body attempt=$attempt: $chapterUrl")
+                        android.util.Log.w(TAG, "empty body attempt=$attempt: $chapterUrl")
                         continue
                     }
                     return FetchResult.Success(body)
                 }
                 is my.noveldokusha.core.Response.Error -> {
-                    Timber.w("fetch error attempt=$attempt: $chapterUrl — ${result.message}")
+                    android.util.Log.w(TAG, "fetch error attempt=$attempt: $chapterUrl — ${result.message}")
                     if (isNetworkError(result)) {
-                        Timber.w("network error, entering network wait: $chapterUrl")
+                        android.util.Log.w(TAG, "network error, entering network wait: $chapterUrl")
                         return waitForNetworkThenRetry(bookUrl, chapterUrl)
                     }
                 }
             }
         }
 
-        Timber.w("all retries exhausted (non-network): $chapterUrl")
+        android.util.Log.w(TAG, "all retries exhausted (non-network): $chapterUrl")
         return FetchResult.Failed
     }
 
@@ -810,21 +815,21 @@ class DownloadManager @Inject constructor(
             // Проверяем статус — могла прийти пауза/отмена
             val task = tasksMutex.withLock { _tasks.value[bookUrl] }
             if (task == null || task.isCancelled) {
-                Timber.d("network wait cancelled: $chapterUrl")
+                android.util.Log.d(TAG, "network wait cancelled: $chapterUrl")
                 return FetchResult.Interrupted
             }
             if (task.isPaused) {
-                Timber.d("network wait paused: $chapterUrl")
+                android.util.Log.d(TAG, "network wait paused: $chapterUrl")
                 return FetchResult.Interrupted
             }
 
-            Timber.d("network retry for $chapterUrl (hasNetwork=$hasNetwork, delay=${delayMs}ms)")
+            android.util.Log.d(TAG, "network retry for $chapterUrl (hasNetwork=$hasNetwork, delay=${delayMs}ms)")
             val result = chapterBodyRepository.fetchBody(chapterUrl)
             when (result) {
                 is my.noveldokusha.core.Response.Success -> {
                     val body = result.data
                     if (body.isNullOrBlank()) {
-                        Timber.w("network retry empty body: $chapterUrl")
+                        android.util.Log.w(TAG, "network retry empty body: $chapterUrl")
                         continue
                     }
                     updateTask(bookUrl) { it.copy(isWaitingForNetwork = false) }
@@ -836,10 +841,10 @@ class DownloadManager @Inject constructor(
                 }
                 is my.noveldokusha.core.Response.Error -> {
                     if (isNetworkError(result)) {
-                        Timber.d("network still down, retrying in ${delayMs}ms: $chapterUrl")
+                        android.util.Log.d(TAG, "network still down, retrying in ${delayMs}ms: $chapterUrl")
                         continue
                     }
-                    Timber.w("non-network error during network wait: $chapterUrl")
+                    android.util.Log.w(TAG, "non-network error during network wait: $chapterUrl")
                     return FetchResult.Failed
                 }
             }
@@ -896,18 +901,18 @@ class DownloadManager @Inject constructor(
         val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
         val isEnabled = appPreferences.GLOBAL_TRANSLATION_ENABLED.value
         if (!isEnabled || sourceLang.isBlank() || targetLang.isBlank()) {
-            Timber.d("translation skipped (enabled=$isEnabled)")
+            android.util.Log.d(TAG, "translation skipped (enabled=$isEnabled)")
             return true
         }
 
         return try {
             val paragraphs = body
-                .replace(STRIP_NON_IMGENTRY_TAGS, "")
+                .replace(Regex("<(?!(imgEntry|/imgEntry))[^>]*>"), "")
                 .replace("\r\n", "\n")
                 .replace("\u00A0", " ")
-                .replace(COLLAPSE_SPACES, " ")
+                .replace(Regex("[ ]+"), " ")
                 .let { clean ->
-                    var parts = clean.split(PARAGRAPH_BREAK).filter { it.isNotBlank() }
+                    var parts = clean.split(Regex("\\n\\s*\\n")).filter { it.isNotBlank() }
                     if (parts.size <= 1 && clean.contains("\n"))
                         parts = clean.split("\n").filter { it.isNotBlank() }
                     parts.map { it.trim() }.filter { it.isNotBlank() }
@@ -935,7 +940,7 @@ class DownloadManager @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                Timber.e(e, "title translation failed")
+                android.util.Log.e(TAG, "title translation failed", e)
             }
 
             chapterTranslationDao.insertReplace(
@@ -949,7 +954,7 @@ class DownloadManager @Inject constructor(
             )
             true
         } catch (e: Exception) {
-            Timber.e(e, "translateAndSave failed")
+            android.util.Log.e(TAG, "translateAndSave failed", e)
             false
         }
     }
@@ -976,10 +981,10 @@ class DownloadManager @Inject constructor(
                 return translationManager.translateBatch(paragraphs, sourceLang, targetLang)
             } catch (e: Exception) {
                 lastError = e
-                Timber.w("translateBatch attempt=$attempt failed: ${e.message}")
+                android.util.Log.w(TAG, "translateBatch attempt=$attempt failed: ${e.message}")
             }
         }
-        Timber.e(lastError, "translateBatch exhausted after $TRANSLATION_MAX_RETRIES attempts")
+        android.util.Log.e(TAG, "translateBatch exhausted after $TRANSLATION_MAX_RETRIES attempts", lastError)
         return null
     }
 }

@@ -19,6 +19,7 @@ tasks.withType<KotlinJvmCompile>().configureEach {
 
 dependencies {
     compileOnly(libs.android.gradlePlugin)
+    compileOnly(libs.android.tools.common)
     compileOnly(libs.kotlin.gradlePlugin)
     compileOnly(libs.kotlin.compose.gradlePlugin)
     compileOnly(libs.ksp.gradlePlugin)
@@ -42,11 +43,6 @@ gradlePlugin {
             id = "noveldokusha.android.library"
             implementationClass =
                 "NoveldokushaAndroidLibraryBestPracticesConventionPlugin" // ;)
-        }
-        register("androidLibraryNoHilt") {
-            id = "noveldokusha.android.library.nohilt"
-            implementationClass =
-                "NoveldokushaAndroidLibraryConventionPlugin"
         }
         register("androidCompose") {
             id = "noveldokusha.android.compose"

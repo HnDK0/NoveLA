@@ -12,7 +12,6 @@ import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.feature.local_database.DAOs.NovelMigrationDao
-import my.noveldokusha.feature.local_database.DAOs.ReadingHistoryDao
 import javax.inject.Singleton
 
 @InstallIn(SingletonComponent::class)
@@ -53,10 +52,6 @@ abstract class LocalDatabaseModule {
         @Provides
         @Singleton
         fun provideNovelMigrationDao(database: AppDatabase): NovelMigrationDao = database.novelMigrationDao()
-
-        @Provides
-        @Singleton
-        fun provideReadingHistoryDao(database: AppDatabase): ReadingHistoryDao = database.readingHistoryDao()
 
     }
 }

@@ -6,6 +6,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.network.ScraperNetworkClient
 import my.noveldokusha.text_translator.domain.TranslationManager
@@ -23,15 +24,20 @@ object FossModule {
     @Provides
     @Singleton
     fun provideTranslationManager(
+        appCoroutineScope: AppCoroutineScope,
         appPreferences: AppPreferences,
         networkClient: ScraperNetworkClient
     ): TranslationManager {
-        val geminiManager    = TranslationManagerGemini(networkClient, appPreferences)
-        val googleFreeManager= TranslationManagerGoogleFree(appPreferences, networkClient)
-        val googlePAManager  = TranslationManagerGooglePA(appPreferences, networkClient)
-        val openAiManager    = TranslationManagerOpenAI(networkClient, appPreferences)
+        // ponytail: pass the shared ScraperNetworkClient to Gemini and OpenAI managers so
+        // they share its OkHttpClient (connection pool, dispatcher, cache, interceptors)
+        // instead of each constructing a standalone OkHttpClient.
+        val geminiManager    = TranslationManagerGemini(appCoroutineScope, appPreferences, networkClient)
+        val googleFreeManager= TranslationManagerGoogleFree(appCoroutineScope, appPreferences, networkClient)
+        val googlePAManager  = TranslationManagerGooglePA(appCoroutineScope, appPreferences, networkClient)
+        val openAiManager    = TranslationManagerOpenAI(appCoroutineScope, appPreferences, networkClient)
 
         return TranslationManagerComposite(
+            coroutineScope    = appCoroutineScope,
             geminiManager     = geminiManager,
             googleFreeManager = googleFreeManager,
             googlePAManager   = googlePAManager,

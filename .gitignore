@@ -52,8 +52,4 @@ app/release/output-metadata.json
 
 keystore_base64.txt
 *.patch
-/node_modules
-package-lock.json
-package.json
 repomix.config.json
-/.codegraph

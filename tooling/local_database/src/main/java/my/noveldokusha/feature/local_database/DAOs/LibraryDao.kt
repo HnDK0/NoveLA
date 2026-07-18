@@ -66,9 +66,6 @@ interface LibraryDao {
     @Query("UPDATE Book SET category = :category WHERE url == :bookUrl")
     suspend fun updateCategory(bookUrl: String, category: String)
 
-    @Query("UPDATE Book SET completed = 1 - completed WHERE url == :bookUrl")
-    suspend fun toggleCompleted(bookUrl: String)
-
     @Query("UPDATE Book SET category = :category, completed = :isCompleted WHERE url == :bookUrl")
     suspend fun updateCategoryAndCompleted(bookUrl: String, category: String, isCompleted: Boolean)
 
@@ -77,9 +74,6 @@ interface LibraryDao {
 
     @Query("UPDATE Book SET chaptersLastPage = :page WHERE url == :bookUrl")
     suspend fun updateChaptersLastPage(bookUrl: String, page: Int?)
-
-    @Query("UPDATE Book SET url = :newUrl WHERE url == :oldUrl")
-    suspend fun updateUrl(oldUrl: String, newUrl: String)
 
     @Query("SELECT * FROM Book WHERE url = :url")
     suspend fun get(url: String): Book?
@@ -110,24 +104,6 @@ interface LibraryDao {
     @Query("DELETE FROM Book WHERE url IN (:urls)")
     suspend fun removeBooksByUrls(urls: List<String>)
 
-    @Query("UPDATE Book SET inLibrary = 0 WHERE url = :bookUrl")
-    suspend fun setNotInLibrary(bookUrl: String)
-
-    @Query("UPDATE Book SET inLibrary = 0 WHERE url IN (:bookUrls)")
-    suspend fun setNotInLibrary(bookUrls: List<String>)
-
-    @Query("UPDATE Book SET category = :category, completed = :isCompleted WHERE url IN (:bookUrls)")
-    suspend fun updateCategoryAndCompleted(bookUrls: List<String>, category: String, isCompleted: Boolean)
-
-    @Query("""
-        UPDATE Book SET 
-            inLibrary = 1 - inLibrary,
-            lastUpdateEpochTimeMilli = :currentTime,
-            addedToLibraryEpochTimeMilli = CASE WHEN inLibrary = 0 THEN :currentTime ELSE addedToLibraryEpochTimeMilli END
-        WHERE url = :bookUrl
-    """)
-    suspend fun toggleInLibrary(bookUrl: String, currentTime: Long): Int
-
     // ─── Жанры (хранятся в поле genres через запятую) ────────────────────────
 
     /** Все уникальные жанры во всей библиотеке — для экрана фильтрации */
@@ -137,6 +113,22 @@ interface LibraryDao {
         WHERE Book.inLibrary = 1 AND Book.genres != ''
     """)
     fun getAllLibraryGenresRawFlow(): Flow<List<String>>
+
+    /** URL книг в библиотеке с указанным жанром — для фильтрации библиотеки */
+    @Query("""
+        SELECT Book.url 
+        FROM Book 
+        WHERE Book.inLibrary = 1 AND Book.genres LIKE '%' || :genre || '%'
+    """)
+    suspend fun getBooksWithGenre(genre: String): List<String>
+
+    /** Flow-версия для реактивной фильтрации библиотеки */
+    @Query("""
+        SELECT Book.url 
+        FROM Book 
+        WHERE Book.inLibrary = 1 AND Book.genres LIKE '%' || :genre || '%'
+    """)
+    fun getBooksWithGenreFlow(genre: String): Flow<List<String>>
 
     /** Обновить жанры книги */
     @Query("UPDATE Book SET genres = :genres WHERE url == :bookUrl")
