@@ -12,6 +12,7 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import androidx.compose.runtime.getValue
@@ -60,6 +61,7 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         var ttsHighlightEnabled = mutableStateOf(false)
         var ttsHighlightColor = mutableStateOf("FFFF6D00")
         var menuHidden = mutableStateOf(false)
+        var glowActive = mutableStateOf(false)
         var activityWindowToken: IBinder? = null
 
         private var isExpanded = mutableStateOf(false)
@@ -112,6 +114,8 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
     private var windowManager: WindowManager? = null
     private var composeView: ComposeView? = null
     private var currentLayoutParams: WindowManager.LayoutParams? = null
+    private var pinchStartDistance = 0f
+    private var pinchStartWidth = 0f
     private var displayDensity = 1f
     private var displayWidth = 0
     private var displayHeight = 0
@@ -261,6 +265,43 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         composeView = ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@FloatingTtsService)
             setViewTreeSavedStateRegistryOwner(this@FloatingTtsService)
+            setOnTouchListener { _, event ->
+                if (!isExpanded.value) return@setOnTouchListener false
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_POINTER_DOWN -> {
+                        if (event.pointerCount >= 2) {
+                            val x0 = event.getX(0)
+                            val y0 = event.getY(0)
+                            val x1 = event.getX(1)
+                            val y1 = event.getY(1)
+                            pinchStartDistance = Math.hypot((x0 - x1).toDouble(), (y0 - y1).toDouble()).toFloat()
+                            pinchStartWidth = panelWidth
+                        }
+                        false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        if (pinchStartDistance > 0f && event.pointerCount >= 2) {
+                            val x0 = event.getX(0)
+                            val y0 = event.getY(0)
+                            val x1 = event.getX(1)
+                            val y1 = event.getY(1)
+                            val dist = Math.hypot((x0 - x1).toDouble(), (y0 - y1).toDouble()).toFloat()
+                            val scale = dist / pinchStartDistance
+                            val maxW = (displayWidth / displayDensity) - 16f
+                            val newW = (pinchStartWidth * scale).coerceIn(100f, maxW)
+                            handlePanelWidthChange(newW)
+                        }
+                        false
+                    }
+                    MotionEvent.ACTION_POINTER_UP,
+                    MotionEvent.ACTION_UP,
+                    MotionEvent.ACTION_CANCEL -> {
+                        pinchStartDistance = 0f
+                        false
+                    }
+                    else -> false
+                }
+            }
             setContent {
                 val scope = rememberCoroutineScope()
                 val darkModeState = remember { appPreferences.THEME_DARK_MODE.state(scope) }
@@ -368,15 +409,7 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
                         },
                         panelWidth = panelWidth,
                         onPanelWidthChange = { newWidth ->
-                            panelWidth = newWidth
-                            appPreferences.FLOATING_TTS_PANEL_WIDTH.value = newWidth
-                            val lp = currentLayoutParams
-                            if (lp != null) {
-                                lp.width = (newWidth * displayDensity).toInt()
-                                try {
-                                    windowManager?.updateViewLayout(composeView, lp)
-                                } catch (_: Exception) {}
-                            }
+                            handlePanelWidthChange(newWidth)
                         },
                         opacityValue = opacity.floatValue,
                         onOpacityChange = { newOpacity ->
@@ -398,6 +431,10 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
                         onToggleMenuHidden = {
                             menuHidden.value = !menuHidden.value
                         },
+                        glowActive = glowActive.value,
+                        onToggleGlow = {
+                            glowActive.value = !glowActive.value
+                        },
                     )
                 }
             }
@@ -405,6 +442,18 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
 
         if (composeView?.isAttachedToWindow != true) {
             windowManager?.addView(composeView, layoutParams)
+        }
+    }
+
+    private fun handlePanelWidthChange(newWidth: Float) {
+        panelWidth = newWidth
+        appPreferences.FLOATING_TTS_PANEL_WIDTH.value = newWidth
+        val lp = currentLayoutParams
+        if (lp != null) {
+            lp.width = (newWidth * displayDensity).toInt()
+            try {
+                windowManager?.updateViewLayout(composeView, lp)
+            } catch (_: Exception) {}
         }
     }
 

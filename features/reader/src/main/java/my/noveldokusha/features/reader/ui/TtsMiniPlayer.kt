@@ -10,9 +10,15 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitPointerEvent
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,6 +63,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -73,6 +80,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import my.noveldokusha.coreui.composableActions.debouncedAction
 import my.noveldokusha.reader.R
+import kotlinx.coroutines.withTimeoutOrNull
 import my.noveldokusha.features.reader.features.TextToSpeechSettingData
 
 @Composable
@@ -98,6 +106,8 @@ internal fun TtsMiniPlayer(
     ttsHighlightColor: String = "FFFF6D00",
     menuHidden: Boolean = false,
     onToggleMenuHidden: (() -> Unit)? = null,
+    glowActive: Boolean = false,
+    onToggleGlow: (() -> Unit)? = null,
 ) {
     FloatingTtsMiniPlayer(
         state = state,
@@ -121,6 +131,8 @@ internal fun TtsMiniPlayer(
         ttsHighlightColor = ttsHighlightColor,
         menuHidden = menuHidden,
         onToggleMenuHidden = onToggleMenuHidden,
+        glowActive = glowActive,
+        onToggleGlow = onToggleGlow,
     )
 }
 
@@ -316,6 +328,8 @@ private fun FloatingTtsMiniPlayer(
     ttsHighlightColor: String = "FFFF6D00",
     menuHidden: Boolean = false,
     onToggleMenuHidden: (() -> Unit)? = null,
+    glowActive: Boolean = false,
+    onToggleGlow: (() -> Unit)? = null,
 ) {
     val total = state.estimatedTotalSeconds.value
     val remaining = state.estimatedRemainingSeconds.value
@@ -339,6 +353,17 @@ private fun FloatingTtsMiniPlayer(
     val density = LocalDensity.current
     var showOpacitySlider by remember { mutableStateOf(false) }
 
+    val infiniteTransition = rememberInfiniteTransition(label = "glow")
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowAlpha"
+    )
+
     val screenWidthDp = LocalConfiguration.current.screenWidthDp.toFloat()
     val minWidth = 100f
     val maxWidth = screenWidthDp - 16f
@@ -356,47 +381,13 @@ private fun FloatingTtsMiniPlayer(
 
     val interactionModifier = if (onDrag != null) {
         Modifier.pointerInput(Unit) {
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false)
-                var prevPos = down.position
-                var isPinching = false
-                var initialDistance = 0f
-
-                do {
-                    val event = awaitPointerEvent()
-                    val changes = event.changes.filter { it.pressed }
-
-                    when {
-                        changes.size >= 2 -> {
-                            isPinching = true
-                            val p1 = changes[0].position
-                            val p2 = changes[1].position
-                            val distance = (p1 - p2).getDistance()
-
-                            if (initialDistance == 0f) {
-                                initialDistance = distance
-                            } else if (onPanelWidthChange != null) {
-                                val scale = distance / initialDistance
-                                val newWidth = (panelWidth * scale).coerceIn(minWidth, maxWidth)
-                                onPanelWidthChange(newWidth)
-                                initialDistance = distance
-                            }
-                            changes.forEach { it.consume() }
-                        }
-                        changes.size == 1 && !isPinching -> {
-                            val pos = changes[0].position
-                            val delta = pos - prevPos
-                            onDrag(delta.x, delta.y)
-                            prevPos = pos
-                            changes.forEach { it.consume() }
-                        }
-                    }
-                } while (changes.isNotEmpty())
-
-                if (!isPinching) {
-                    onDragEnd?.invoke()
-                }
-            }
+            detectDragGestures(
+                onDrag = { change, dragAmount ->
+                    change.consume()
+                    onDrag(dragAmount.x, dragAmount.y)
+                },
+                onDragEnd = { onDragEnd?.invoke() }
+            )
         }
     } else {
         Modifier
@@ -582,10 +573,62 @@ private fun FloatingTtsMiniPlayer(
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(
+                            if (glowActive) {
+                                Modifier.border(
+                                    width = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                            } else Modifier
+                        )
                         .pointerInput(Unit) {
-                            detectTapGestures(
-                                onDoubleTap = { onToggleMenuHidden?.invoke() }
-                            )
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                down.consume()
+
+                                val releasedQuickly = withTimeoutOrNull(300L) {
+                                    while (true) {
+                                        val event = awaitPointerEvent(PointerEventPass.Main)
+                                        if (!event.changes.any { it.id == down.id && it.pressed }) {
+                                            return@withTimeoutOrNull true
+                                        }
+                                    }
+                                    false
+                                }
+
+                                if (releasedQuickly == true) {
+                                    val secondTap = withTimeoutOrNull(300L) {
+                                        while (true) {
+                                            val event = awaitPointerEvent(PointerEventPass.Main)
+                                            val p = event.changes.firstOrNull { it.pressed }
+                                            if (p != null) {
+                                                p.consume()
+                                                return@withTimeoutOrNull true
+                                            }
+                                        }
+                                        false
+                                    }
+                                    if (secondTap == true) {
+                                        onToggleMenuHidden?.invoke()
+                                    }
+                                    return@awaitEachGesture
+                                }
+
+                                val heldToCompletion = withTimeoutOrNull(2000L) {
+                                    while (true) {
+                                        val event = awaitPointerEvent(PointerEventPass.Main)
+                                        if (!event.changes.any { it.id == down.id && it.pressed }) {
+                                            return@withTimeoutOrNull false
+                                        }
+                                    }
+                                    false
+                                }
+
+                                if (heldToCompletion == null) {
+                                    onToggleGlow?.invoke()
+                                }
+                            }
                         }
                 ) {
                     if (isBothMode) {

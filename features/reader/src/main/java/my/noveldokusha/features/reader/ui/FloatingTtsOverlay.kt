@@ -45,6 +45,8 @@ internal fun FloatingTtsOverlayContent(
     ttsHighlightColor: String = "FFFF6D00",
     menuHidden: Boolean = false,
     onToggleMenuHidden: (() -> Unit)? = null,
+    glowActive: Boolean = false,
+    onToggleGlow: (() -> Unit)? = null,
 ) {
     if (isExpanded) {
         TtsMiniPlayer(
@@ -67,6 +69,8 @@ internal fun FloatingTtsOverlayContent(
             ttsHighlightColor = ttsHighlightColor,
             menuHidden = menuHidden,
             onToggleMenuHidden = onToggleMenuHidden,
+            glowActive = glowActive,
+            onToggleGlow = onToggleGlow,
         )
     } else {
         FloatingBubble(
