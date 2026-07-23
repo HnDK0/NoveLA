@@ -172,6 +172,10 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_String(name, preferences, "tts")
     }
 
+    val FLOATING_TTS_GLOW_MODE = object : Preference<String>("FLOATING_TTS_GLOW_MODE") {
+        override var value by SharedPreference_String(name, preferences, "auto")
+    }
+
     val READER_SELECTABLE_TEXT = object : Preference<Boolean>("READER_SELECTABLE_TEXT") {
         override var value by SharedPreference_Boolean(name, preferences, false)
     }
@@ -185,10 +189,6 @@ class AppPreferences @Inject constructor(
     }
 
     val READER_SINGLE_TAP_TO_OPEN_SETTINGS = object : Preference<Boolean>("READER_SINGLE_TAP_TO_OPEN_SETTINGS") {
-        override var value by SharedPreference_Boolean(name, preferences, false)
-    }
-
-    val FLOATING_TTS_GLOW_ENABLED = object : Preference<Boolean>("FLOATING_TTS_GLOW_ENABLED") {
         override var value by SharedPreference_Boolean(name, preferences, false)
     }
 

@@ -212,6 +212,10 @@
     <string name="tts_voice">TTS voice</string>
     <string name="inverse">Inverse</string>
     <string name="tts_both">Both</string>
+    <string name="tts_floating_glow">Glow</string>
+    <string name="tts_glow_auto">Auto</string>
+    <string name="tts_glow_on">On</string>
+    <string name="tts_glow_off">Off</string>
     <string name="tts_floating_overlay_permission_title">Overlay permission</string>
     <string name="tts_floating_overlay_permission_message">Floating player needs permission to display over other apps.</string>
     <string name="tts_floating_open_settings">Open settings</string>

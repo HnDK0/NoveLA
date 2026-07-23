@@ -10,15 +10,19 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -36,11 +40,10 @@ import androidx.compose.material.icons.automirrored.rounded.TextSnippet
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,6 +64,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -100,8 +104,8 @@ internal fun TtsMiniPlayer(
     ttsHighlightColor: String = "FFFF6D00",
     menuHidden: Boolean = false,
     onToggleMenuHidden: (() -> Unit)? = null,
-    glowEnabled: Boolean = false,
-    onToggleGlow: (() -> Unit)? = null,
+    glowMode: String = "auto",
+    onGlowModeChange: ((String) -> Unit)? = null,
 ) {
     FloatingTtsMiniPlayer(
         state = state,
@@ -125,8 +129,8 @@ internal fun TtsMiniPlayer(
         ttsHighlightColor = ttsHighlightColor,
         menuHidden = menuHidden,
         onToggleMenuHidden = onToggleMenuHidden,
-        glowEnabled = glowEnabled,
-        onToggleGlow = onToggleGlow,
+        glowMode = glowMode,
+        onGlowModeChange = onGlowModeChange,
     )
 }
 
@@ -322,8 +326,8 @@ private fun FloatingTtsMiniPlayer(
     ttsHighlightColor: String = "FFFF6D00",
     menuHidden: Boolean = false,
     onToggleMenuHidden: (() -> Unit)? = null,
-    glowEnabled: Boolean = false,
-    onToggleGlow: (() -> Unit)? = null,
+    glowMode: String = "auto",
+    onGlowModeChange: ((String) -> Unit)? = null,
 ) {
     val total = state.estimatedTotalSeconds.value
     val remaining = state.estimatedRemainingSeconds.value
@@ -343,6 +347,11 @@ private fun FloatingTtsMiniPlayer(
     }
     val isBothMode = paragraphMode == "both" && hasInverse
     val hasParagraphText = showParagraphText && (displayText.isNotBlank() || isBothMode)
+    val showGlow = when (glowMode) {
+        "on" -> true
+        "off" -> false
+        else -> state.isPlaying.value && hasParagraphText
+    }
 
     var showOpacitySlider by remember { mutableStateOf(false) }
     val lastTapTime = remember { mutableLongStateOf(0L) }
@@ -463,16 +472,19 @@ private fun FloatingTtsMiniPlayer(
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                Spacer(Modifier.width(8.dp))
-                                Slider(
+                                Spacer(Modifier.width(6.dp))
+                                ThinSlider(
                                     value = opacityValue,
                                     onValueChange = { onOpacityChange(it) },
                                     valueRange = 0.3f..1f,
                                     modifier = Modifier.weight(1f),
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = MaterialTheme.colorScheme.primary,
-                                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    )
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "${(opacityValue * 100).toInt()}%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
                                 )
                             }
                             if (onPanelWidthChange != null) {
@@ -485,72 +497,101 @@ private fun FloatingTtsMiniPlayer(
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
-                                    Spacer(Modifier.width(8.dp))
-                                    Slider(
+                                    Spacer(Modifier.width(6.dp))
+                                    ThinSlider(
                                         value = panelWidth,
                                         onValueChange = { onPanelWidthChange(it) },
                                         valueRange = minWidth..maxWidth,
                                         modifier = Modifier.weight(1f),
-                                        colors = SliderDefaults.colors(
-                                            thumbColor = MaterialTheme.colorScheme.primary,
-                                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                                        )
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = "${(ratio * 100).toInt()}%",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
                                     )
                                 }
                             }
-                            if (onParagraphModeChange != null && state.parallelEnabled.value) {
+                            if (onGlowModeChange != null) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.tts_floating_glow),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        FilterChip(
+                                            selected = glowMode == "auto",
+                                            onClick = { onGlowModeChange("auto") },
+                                            label = { Text(stringResource(R.string.tts_glow_auto), fontSize = 9.sp) },
+                                            modifier = Modifier.height(20.dp),
+                                            shape = RoundedCornerShape(4.dp),
+                                        )
+                                        FilterChip(
+                                            selected = glowMode == "on",
+                                            onClick = { onGlowModeChange("on") },
+                                            label = { Text(stringResource(R.string.tts_glow_on), fontSize = 9.sp) },
+                                            modifier = Modifier.height(20.dp),
+                                            shape = RoundedCornerShape(4.dp),
+                                        )
+                                        FilterChip(
+                                            selected = glowMode == "off",
+                                            onClick = { onGlowModeChange("off") },
+                                            label = { Text(stringResource(R.string.tts_glow_off), fontSize = 9.sp) },
+                                            modifier = Modifier.height(20.dp),
+                                            shape = RoundedCornerShape(4.dp),
+                                        )
+                                    }
+                                }
+                            }
+                            if (onParagraphModeChange != null && state.parallelEnabled.value) {
+                                val voiceLabel = stringResource(R.string.tts_voice)
+                                val bothLabel = stringResource(R.string.tts_both)
+                                val inverseLabel = stringResource(R.string.inverse)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
                                         text = stringResource(R.string.tts_floating_paragraph),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        text = stringResource(R.string.tts_voice),
-                                        color = if (paragraphMode == "tts") MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontWeight = if (paragraphMode == "tts") FontWeight.Bold else FontWeight.Normal,
-                                        modifier = Modifier
-                                            .clickable { onParagraphModeChange("tts") }
-                                            .padding(horizontal = 6.dp, vertical = 4.dp),
-                                    )
-                                    Text(
-                                        text = "/",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.tts_both),
-                                        color = if (paragraphMode == "both") MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontWeight = if (paragraphMode == "both") FontWeight.Bold else FontWeight.Normal,
-                                        modifier = Modifier
-                                            .clickable { onParagraphModeChange("both") }
-                                            .padding(horizontal = 6.dp, vertical = 4.dp),
-                                    )
-                                    Text(
-                                        text = "/",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.inverse),
-                                        color = if (paragraphMode == "inverse") MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontWeight = if (paragraphMode == "inverse") FontWeight.Bold else FontWeight.Normal,
-                                        modifier = Modifier
-                                            .clickable { onParagraphModeChange("inverse") }
-                                            .padding(horizontal = 6.dp, vertical = 4.dp),
-                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        FilterChip(
+                                            selected = paragraphMode == "tts",
+                                            onClick = { onParagraphModeChange("tts") },
+                                            label = { Text(voiceLabel, fontSize = 9.sp) },
+                                            modifier = Modifier.height(20.dp),
+                                            shape = RoundedCornerShape(4.dp),
+                                        )
+                                        FilterChip(
+                                            selected = paragraphMode == "both",
+                                            onClick = { onParagraphModeChange("both") },
+                                            label = { Text(bothLabel, fontSize = 9.sp) },
+                                            modifier = Modifier.height(20.dp),
+                                            shape = RoundedCornerShape(4.dp),
+                                        )
+                                        FilterChip(
+                                            selected = paragraphMode == "inverse",
+                                            onClick = { onParagraphModeChange("inverse") },
+                                            label = { Text(inverseLabel, fontSize = 9.sp) },
+                                            modifier = Modifier.height(20.dp),
+                                            shape = RoundedCornerShape(4.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-
             if (hasParagraphText) {
                 if (!menuHidden) Spacer(modifier = Modifier.height(4.dp))
                 val glowColor = remember(ttsHighlightColor) {
@@ -563,7 +604,7 @@ private fun FloatingTtsMiniPlayer(
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(
-                            if (glowEnabled) {
+                            if (showGlow) {
                                 Modifier
                                     .border(1.5.dp, glowColor, RoundedCornerShape(8.dp))
                             } else {
@@ -598,6 +639,7 @@ private fun FloatingTtsMiniPlayer(
 
                                 if (isPinch) {
                                     var prevSpan = 0f
+                                    var lastPinchUpdate = 0L
                                     do {
                                         val event = awaitPointerEvent()
                                         val pressed = event.changes.filter { it.pressed }
@@ -608,16 +650,15 @@ private fun FloatingTtsMiniPlayer(
                                             if (prevSpan > 0f) {
                                                 val zoom = span / prevSpan
                                                 val newWidth = (currentPanelWidth * zoom).coerceIn(minWidth, maxWidth)
-                                                onPanelWidthChange?.invoke(newWidth)
+                                                val now = System.currentTimeMillis()
+                                                if (now - lastPinchUpdate > 50) {
+                                                    onPanelWidthChange?.invoke(newWidth)
+                                                    lastPinchUpdate = now
+                                                }
                                             }
                                             prevSpan = span
                                             event.changes.forEach { it.consume() }
                                         }
-                                    } while (event.changes.any { it.pressed })
-                                } else if (released == null && !wasDrag) {
-                                    onToggleGlow?.invoke()
-                                    do {
-                                        val event = awaitPointerEvent()
                                     } while (event.changes.any { it.pressed })
                                 } else if (released == null) {
                                     do {
@@ -755,4 +796,69 @@ private fun HighlightedText(
             }
         }
     )
+}
+
+@Composable
+private fun ThinSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    val trackHeightPx = with(density) { 3.dp.toPx() }
+    val thumbRadiusPx = with(density) { 5.dp.toPx() }
+    val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+    val activeColor = MaterialTheme.colorScheme.primary
+    var localValue by remember(value) { mutableFloatStateOf(value) }
+
+    Box(
+        modifier = modifier
+            .height(20.dp)
+            .pointerInput(valueRange) {
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    var dragged = false
+                    drag(down.id) { change ->
+                        change.consume()
+                        dragged = true
+                        val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                        localValue = valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
+                    }
+                    if (!dragged) {
+                        val fraction = (down.position.x / size.width).coerceIn(0f, 1f)
+                        localValue = valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
+                    }
+                    onValueChange(localValue)
+                }
+            }
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize().align(Alignment.Center)) {
+            val width = size.width
+            val centerY = size.height / 2
+
+            val fraction = ((localValue - valueRange.start) / (valueRange.endInclusive - valueRange.start))
+                .coerceIn(0f, 1f)
+            val activeWidth = width * fraction
+            val trackTop = centerY - trackHeightPx / 2
+
+            drawRoundRect(
+                color = trackColor,
+                topLeft = Offset(0f, trackTop),
+                size = Size(width, trackHeightPx),
+                cornerRadius = CornerRadius(trackHeightPx / 2)
+            )
+            drawRoundRect(
+                color = activeColor,
+                topLeft = Offset(0f, trackTop),
+                size = Size(activeWidth, trackHeightPx),
+                cornerRadius = CornerRadius(trackHeightPx / 2)
+            )
+            drawCircle(
+                color = activeColor,
+                radius = thumbRadiusPx,
+                center = Offset(activeWidth, centerY)
+            )
+        }
+    }
 }
