@@ -1,5 +1,6 @@
 package my.noveldokusha.scraper.configs
 
+import my.noveldokusha.core.utils.STRIP_HTML_TAGS
 import my.noveldokusha.scraper.TextExtractor
 import org.jsoup.nodes.Element
 import timber.log.Timber
@@ -19,9 +20,9 @@ fun SelectorRule.normalizeUnicode(): SelectorRule = transform { text ->
 // Trim whitespace
 fun SelectorRule.trim(): SelectorRule = transform { it.trim() }
 
-// Clean HTML tags (basic)
+// Clean HTML tags (basic) — preserves literal content like <cosmic announcement>
 fun SelectorRule.cleanHtml(): SelectorRule = transform { text ->
-    text.replace(Regex("<[^>]*>"), "").trim()
+    text.replace(STRIP_HTML_TAGS, "").trim()
 }
 
 // Remove common ads patterns

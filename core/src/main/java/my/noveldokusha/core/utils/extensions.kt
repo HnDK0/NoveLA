@@ -13,6 +13,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
+// ponytail: shared regex for stripping real HTML tags (with attrs or self-closing)
+val STRIP_HTML_TAGS = Regex("</?\\w+(?:\\s+\\w+=(?:\"[^\"]*\"|\\S+))*\\s*/?>")
+
 val View.inflater: LayoutInflater get() = LayoutInflater.from(context)
 
 @Suppress("DEPRECATION")

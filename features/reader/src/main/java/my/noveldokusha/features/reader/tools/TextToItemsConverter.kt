@@ -3,13 +3,13 @@ package my.noveldokusha.features.reader.tools
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.models.RegexRule
+import my.noveldokusha.core.utils.STRIP_HTML_TAGS
 import my.noveldokusha.features.reader.domain.ImgEntry
 import my.noveldokusha.features.reader.domain.ReaderItem
 import org.jsoup.Jsoup
 import timber.log.Timber
 
 private val IMG_TAG_REGEX = Regex("<img\\b", RegexOption.IGNORE_CASE)
-private val STRIP_HTML_TAGS = Regex("<[^>]*>")
 private val COLLAPSE_SPACES = Regex("[ ]+")
 private val PARAGRAPH_BREAK = Regex("\\n\\s*\\n")
 
@@ -129,6 +129,8 @@ private fun buildBodyItems(
 ): List<ReaderItem.Body> {
     val cleanText = text
         .replace(STRIP_HTML_TAGS, "")
+        .replace("<", "⟨")
+        .replace(">", "⟩")
         .replace("\r\n", "\n")
         .replace("\u00A0", " ")
         .replace(COLLAPSE_SPACES, " ")
@@ -189,8 +191,9 @@ private fun splitParagraphRespectingLogicalBlocks(paragraph: String): List<Strin
     var quoteState = false
     var safeSplitIndexInChunk = -1
 
-    val openingBrackets = setOf('[', '(', '{', '<')
-    val closingBrackets = setOf(']', ')', '}', '>')
+    // ponytail: removed < > from brackets — HTML tags already stripped, <literal content> isn't bracket pairs
+    val openingBrackets = setOf('[', '(', '{')
+    val closingBrackets = setOf(']', ')', '}')
     val quotes = setOf('"', '«', '»', '“', '”', '„', '‘', '’')
 
     for (char in paragraph) {

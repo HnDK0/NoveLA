@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.appPreferences.AppPreferences
+import my.noveldokusha.core.utils.STRIP_HTML_TAGS
 import my.noveldokusha.text_translator.domain.TranslationManager
 import my.noveldokusha.text_translator.domain.TranslationModelState
 import my.noveldokusha.text_translator.domain.TranslatorState
@@ -100,14 +101,13 @@ class TranslationManagerComposite(
             sourceLanguage
         }
 
-        when (activeProvider()) {
+        val rawResult = when (activeProvider()) {
             "OPENAI" -> {
                 Timber.d( "translateBatch: using OpenAI-compatible API")
                 openAiManager.translateBatch(texts, resolvedSource, targetLanguage, systemPromptOverride)
             }
             "GEMINI" -> {
                 Timber.d( "translateBatch: using Gemini, passing override='${systemPromptOverride?.take(200)}'")
-                // No fallback — let exception propagate with descriptive message
                 geminiManager.translateBatch(texts, resolvedSource, targetLanguage, systemPromptOverride)
             }
             "GOOGLE_FREE" -> {
@@ -119,6 +119,8 @@ class TranslationManagerComposite(
                 googlePAManager.translateBatch(texts, resolvedSource, targetLanguage)
             }
         }
+
+        rawResult.mapValues { (_, text) -> text.replace(STRIP_HTML_TAGS, "") }
     }
 
     /**

@@ -31,6 +31,7 @@ import my.noveldokusha.coreui.states.NotificationsCenter
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
 import my.noveldokusha.feature.local_database.tables.DownloadTaskEntity
 import my.noveldokusha.core.utils.normalizeBookUrl
+import my.noveldokusha.core.utils.STRIP_HTML_TAGS
 import my.noveldokusha.text_translator.domain.TranslationManager
 import org.json.JSONArray
 import java.net.ConnectException
@@ -99,7 +100,7 @@ sealed class EnqueueResult {
     object AllCached : EnqueueResult()
 }
 
-private val STRIP_NON_IMGENTRY_TAGS = Regex("<(?!(img|/img))[^>]*>")
+// ponytail: strips real HTML tags before replacing < > with safe unicode
 private val COLLAPSE_SPACES = Regex("[ ]+")
 private val PARAGRAPH_BREAK = Regex("\\n\\s*\\n")
 
@@ -901,8 +902,12 @@ class DownloadManager @Inject constructor(
         }
 
         return try {
-            val paragraphs = body
-                .replace(STRIP_NON_IMGENTRY_TAGS, "")
+            val cleanBody = body
+                .replace(STRIP_HTML_TAGS, "")
+                .replace("<", "⟨")
+                .replace(">", "⟩")
+
+            val paragraphs = cleanBody
                 .replace("\r\n", "\n")
                 .replace("\u00A0", " ")
                 .replace(COLLAPSE_SPACES, " ")
