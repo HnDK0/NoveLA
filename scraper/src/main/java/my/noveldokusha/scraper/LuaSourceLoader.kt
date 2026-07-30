@@ -41,6 +41,7 @@ import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 import android.util.LruCache
+import my.noveldokusha.network.getRequest
 
 
 // =============================================================================
@@ -54,6 +55,7 @@ class LuaEngine @Inject constructor(
 ) {
     private val gson = Gson()
     private val luaPrefs by lazy { context.getSharedPreferences("lua_preferences", Context.MODE_PRIVATE) }
+    val currentSourceId = ThreadLocal<String?>()
 
     /**
      * Создаёт globals с минимально необходимым набором библиотек.
@@ -90,14 +92,26 @@ class LuaEngine @Inject constructor(
         val result = withTimeout(10_000) { globals.load(luaCode).call() }
         // Если скрипт вернул таблицу (return { ... }) — используем её,
         // иначе — функции объявлены как глобальные (function name() ... end)
-        if (result.istable()) result else globals
+        if (result.istable()) {
+            val t = result.checktable()
+            val mt = LuaTable()
+            mt.set(LuaValue.INDEX, globals)
+            t.setmetatable(mt)
+            t
+        } else globals
     }
 
     suspend fun loadFromScript(scriptContent: String, iconUrl: String? = null): SourceInterface.Catalog {
         val globals = createSandboxGlobals()
         registerApi(globals)
         val result = withTimeout(10_000) { globals.load(scriptContent).call() }
-        val luaScript = if (result.istable()) result else globals
+        val luaScript = if (result.istable()) {
+            val t = result.checktable()
+            val mt = LuaTable()
+            mt.set(LuaValue.INDEX, globals)
+            t.setmetatable(mt)
+            t
+        } else globals
         return createLuaSourceAdapter(context, luaScript, this, iconUrl, null)
     }
 
@@ -105,7 +119,13 @@ class LuaEngine @Inject constructor(
         val globals = createSandboxGlobals()
         registerApi(globals)
         val result = withTimeout(10_000) { globals.load(scriptContent).call() }
-        val luaScript = if (result.istable()) result else globals
+        val luaScript = if (result.istable()) {
+            val t = result.checktable()
+            val mt = LuaTable()
+            mt.set(LuaValue.INDEX, globals)
+            t.setmetatable(mt)
+            t
+        } else globals
         return createLuaSourceAdapter(context, luaScript, this, iconUrl, fileName)
     }
 
@@ -172,9 +192,13 @@ class LuaEngine @Inject constructor(
             val pluginHeaders = convertHeaders(config.get("headers").opttable(LuaTable()))
             val charset       = config.get("charset").optjstring("UTF-8")
             val headers       = defaultHeaders(url) + pluginHeaders
+            val sourceId      = currentSourceId.get()
             try {
                 withContext(Dispatchers.IO) {
-                    networkClient.getWithHeaders(url, headers).use { r ->
+                    val builder = getRequest(url)
+                    headers.forEach { (k, v) -> builder.header(k, v) }
+                    sourceId?.let { sid -> if (sid.isNotBlank()) builder.tag(String::class.java, "source:$sid") }
+                    networkClient.call(builder).use { r ->
                         val bytes = r.body.bytes()
                         val body  = String(bytes, java.nio.charset.Charset.forName(charset))
                         responseTable(r.isSuccessful, body, r.code, r.headers.toMultimap())
@@ -204,11 +228,14 @@ class LuaEngine @Inject constructor(
             val pluginHeaders = convertHeaders(config.get("headers").opttable(LuaTable()))
             val charset       = config.get("charset").optjstring("UTF-8")
             val headers       = defaultHeaders(url) + pluginHeaders
+            val sourceId      = currentSourceId.get()
             try {
                 withContext(Dispatchers.IO) {
                     val mediaType = (headers["Content-Type"] ?: detectContentType(bodyStr)).toMediaType()
                     val body = bodyStr.toRequestBody(mediaType)
-                    networkClient.call(postRequest(url, body = body, headers = headers.toHeaders())).use { r ->
+                    val builder = postRequest(url, body = body, headers = headers.toHeaders())
+                    sourceId?.let { sid -> if (sid.isNotBlank()) builder.tag(String::class.java, "source:$sid") }
+                    networkClient.call(builder).use { r ->
                         val bytes = r.body.bytes()
                         val s     = String(bytes, java.nio.charset.Charset.forName(charset))
                         responseTable(r.isSuccessful, s, r.code, r.headers.toMultimap())
@@ -328,13 +355,18 @@ class LuaEngine @Inject constructor(
         override fun call(arg: LuaValue): LuaValue {
             val urlTable = arg.checktable()
             val urls = (1..urlTable.length()).map { urlTable.get(it).checkjstring() }
+            val sourceId = currentSourceId.get()
 
             val results = runBlocking {
                 urls.map { url ->
                     async(Dispatchers.IO) {
                         try {
                             if (!isSsrfSafe(url)) return@async false to Triple("", 0, emptyMap<String, List<String>>())
-                            networkClient.getWithHeaders(url, defaultHeaders(url)).use { r ->
+                            val builder = getRequest(url)
+                            val headers = defaultHeaders(url)
+                            headers.forEach { (k, v) -> builder.header(k, v) }
+                            sourceId?.let { sid -> if (sid.isNotBlank()) builder.tag(String::class.java, "source:$sid") }
+                            networkClient.call(builder).use { r ->
                                 val body = r.body.string()
                                 r.isSuccessful to Triple(body, r.code, r.headers.toMultimap())
                             }

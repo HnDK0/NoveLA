@@ -16,6 +16,7 @@ import my.noveldokusha.coreui.AppThemeProvider
 import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.network.interceptors.CloudflareBypassSignal
+import my.noveldokusha.network.interceptors.PluginUARegistry
 import my.noveldokusha.network.interceptors.resolveUserAgent
 import timber.log.Timber
 import javax.inject.Inject
@@ -37,11 +38,14 @@ class WebViewActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         readIntentExtras(intent)
 
+        val host = Uri.parse(currentTargetUrl).host ?: ""
+        val presetUA = PluginUARegistry.getPresetForHost(host)
+            ?.let { PluginUARegistry.resolveUAString(it) }
         webView = WebView(this).apply {
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
-                userAgentString = resolveUserAgent(appPreferences)
+                userAgentString = presetUA ?: resolveUserAgent(appPreferences)
                 setAllowFileAccess(false)
                 mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             }

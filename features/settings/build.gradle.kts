@@ -12,6 +12,7 @@ dependencies {
     implementation(projects.coreui)
     implementation(projects.strings)
     implementation(projects.data)
+    implementation(projects.networking)
     implementation(projects.scraper)
     implementation(projects.navigation)
     implementation(projects.tooling.localDatabase)

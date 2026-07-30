@@ -155,7 +155,7 @@ internal class CloudFareVerificationInterceptor(
         return hostLock.withLock {
             val cookieManager = CookieManager.getInstance()
                 ?: throw WebViewCookieManagerInitializationFailedException()
-            val userAgent = resolveUserAgent(appPreferences)
+            val userAgent = originalRequest.header("User-Agent") ?: resolveUserAgent(appPreferences)
 
             val existingCookie = cookieManager.getCookie(siteUrl) ?: ""
             if (resolvedDomains.containsKey(host) || existingCookie.contains("cf_clearance")) {
@@ -193,7 +193,7 @@ internal class CloudFareVerificationInterceptor(
 
         runBlocking {
             withTimeoutOrNull(15_000) {
-                resolveWithWebViewAutomatic(webViewUrl, cookieManager)
+                resolveWithWebViewAutomatic(webViewUrl, cookieManager, userAgent)
             }
         }
 
@@ -304,7 +304,7 @@ internal class CloudFareVerificationInterceptor(
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private suspend fun resolveWithWebViewAutomatic(webViewUrl: String, cm: CookieManager) {
+    private suspend fun resolveWithWebViewAutomatic(webViewUrl: String, cm: CookieManager, userAgent: String) {
         withContext(Dispatchers.Main) {
             val webView = WebView(appContext)
             cm.setAcceptCookie(true)
@@ -312,7 +312,7 @@ internal class CloudFareVerificationInterceptor(
             webView.settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
-                userAgentString = resolveUserAgent(appPreferences)
+                userAgentString = userAgent
                 mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             }
             webView.webViewClient = object : WebViewClient() {

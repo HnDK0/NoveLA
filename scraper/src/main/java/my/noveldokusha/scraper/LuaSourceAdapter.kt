@@ -9,6 +9,7 @@ import kotlinx.coroutines.sync.withLock
 import my.noveldokusha.core.LanguageCode
 import my.noveldokusha.core.PagedList
 import my.noveldokusha.core.Response
+import my.noveldokusha.network.interceptors.PluginUARegistry
 import my.noveldokusha.scraper.configs.SourceMetadata
 import my.noveldokusha.scraper.domain.BookResult
 import my.noveldokusha.scraper.domain.ChapterResult
@@ -107,6 +108,7 @@ open class LuaSourceAdapter(
     init {
         validateLuaScript()
         registerCfOptions()
+        registerUAPreset()
     }
 
     private fun registerCfOptions() {
@@ -137,6 +139,26 @@ open class LuaSourceAdapter(
                 ignoreMarkers = ignoreMarkers
             )
         )
+    }
+
+    private fun registerUAPreset() {
+        val fn = try { luaScript.get("getUserAgentPreset") } catch (_: Exception) { Timber.w("registerUAPreset: get failed id=$id"); return }
+        if (fn.isnil()) { Timber.w("registerUAPreset: isnil id=$id"); return }
+        val presetName = fn.call().optjstring(null) ?: run { Timber.w("registerUAPreset: call returned null id=$id"); return }
+        if (presetName.isBlank()) { Timber.w("registerUAPreset: blank preset id=$id"); return }
+        PluginUARegistry.register(id, presetName)
+        if (baseUrl.isNotEmpty()) {
+            try {
+                val host = java.net.URI(baseUrl).host
+                if (host != null) PluginUARegistry.registerHost(host, presetName)
+            } catch (_: Exception) {}
+        }
+        Timber.i("registerUAPreset: registered id=$id host=$baseUrl presetName=$presetName")
+    }
+
+    protected suspend fun <T> withSourceContext(block: suspend () -> T): T {
+        luaEngine.currentSourceId.set(id)
+        try { return block() } finally { luaEngine.currentSourceId.set(null) }
     }
 
     // ── Метаданные ────────────────────────────────────────────────────────────
@@ -179,12 +201,14 @@ open class LuaSourceAdapter(
     override suspend fun getCatalogList(index: Int): Response<PagedList<BookResult>> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                try {
-                    val result = luaScript.get("getCatalogList").call(LuaValue.valueOf(index))
-                    convertLuaResultToPagedList(result)
-                } catch (e: Exception) {
-                    Timber.e(e, "Lua getCatalogList [${metadata.id}]")
-                    Response.Error(e.message ?: "Unknown Lua error", e)
+                withSourceContext {
+                    try {
+                        val result = luaScript.get("getCatalogList").call(LuaValue.valueOf(index))
+                        convertLuaResultToPagedList(result)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getCatalogList [${metadata.id}]")
+                        Response.Error(e.message ?: "Unknown Lua error", e)
+                    }
                 }
             }
         }
@@ -192,15 +216,17 @@ open class LuaSourceAdapter(
     override suspend fun getCatalogSearch(index: Int, input: String): Response<PagedList<BookResult>> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                try {
-                    val result = luaScript.get("getCatalogSearch").call(
-                        LuaValue.valueOf(index),
-                        LuaValue.valueOf(input)
-                    )
-                    convertLuaResultToPagedList(result)
-                } catch (e: Exception) {
-                    Timber.e(e, "Lua getCatalogSearch [${metadata.id}]")
-                    Response.Error(e.message ?: "Unknown Lua error", e)
+                withSourceContext {
+                    try {
+                        val result = luaScript.get("getCatalogSearch").call(
+                            LuaValue.valueOf(index),
+                            LuaValue.valueOf(input)
+                        )
+                        convertLuaResultToPagedList(result)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getCatalogSearch [${metadata.id}]")
+                        Response.Error(e.message ?: "Unknown Lua error", e)
+                    }
                 }
             }
         }
@@ -208,13 +234,15 @@ open class LuaSourceAdapter(
     override suspend fun getBookTitle(bookUrl: String): Response<String?> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                try {
-                    Response.Success(
-                        luaScript.get("getBookTitle").call(LuaValue.valueOf(bookUrl)).optjstring(null)
-                    )
-                } catch (e: Exception) {
-                    Timber.e(e, "Lua getBookTitle [${metadata.id}]")
-                    Response.Error(e.message ?: "Unknown error", e)
+                withSourceContext {
+                    try {
+                        Response.Success(
+                            luaScript.get("getBookTitle").call(LuaValue.valueOf(bookUrl)).optjstring(null)
+                        )
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getBookTitle [${metadata.id}]")
+                        Response.Error(e.message ?: "Unknown error", e)
+                    }
                 }
             }
         }
@@ -222,13 +250,15 @@ open class LuaSourceAdapter(
     override suspend fun getBookCoverImageUrl(bookUrl: String): Response<String?> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                try {
-                    Response.Success(
-                        luaScript.get("getBookCoverImageUrl").call(LuaValue.valueOf(bookUrl)).optjstring(null)
-                    )
-                } catch (e: Exception) {
-                    Timber.e(e, "Lua getBookCoverImageUrl [${metadata.id}]")
-                    Response.Error(e.message ?: "Unknown error", e)
+                withSourceContext {
+                    try {
+                        Response.Success(
+                            luaScript.get("getBookCoverImageUrl").call(LuaValue.valueOf(bookUrl)).optjstring(null)
+                        )
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getBookCoverImageUrl [${metadata.id}]")
+                        Response.Error(e.message ?: "Unknown error", e)
+                    }
                 }
             }
         }
@@ -236,13 +266,15 @@ open class LuaSourceAdapter(
     override suspend fun getBookDescription(bookUrl: String): Response<String?> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                try {
-                    Response.Success(
-                        luaScript.get("getBookDescription").call(LuaValue.valueOf(bookUrl)).optjstring(null)
-                    )
-                } catch (e: Exception) {
-                    Timber.e(e, "Lua getBookDescription [${metadata.id}]")
-                    Response.Error(e.message ?: "Unknown error", e)
+                withSourceContext {
+                    try {
+                        Response.Success(
+                            luaScript.get("getBookDescription").call(LuaValue.valueOf(bookUrl)).optjstring(null)
+                        )
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getBookDescription [${metadata.id}]")
+                        Response.Error(e.message ?: "Unknown error", e)
+                    }
                 }
             }
         }
@@ -250,22 +282,23 @@ open class LuaSourceAdapter(
     override suspend fun getBookGenres(bookUrl: String): Response<List<String>> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                try {
-                    val fn = luaScript.get("getBookGenres")
-                    // Функция необязательна — если плагин её не объявил, возвращаем пустой список
-                    if (fn.isnil()) return@withLock Response.Success(emptyList())
-                    val result = fn.call(LuaValue.valueOf(bookUrl))
-                    if (!result.istable()) return@withLock Response.Success(emptyList())
-                    val table = result.checktable()
-                    val genres = mutableListOf<String>()
-                    for (i in 1..table.length()) {
-                        val v = table.get(LuaValue.valueOf(i)).optjstring(null)
-                        if (!v.isNullOrBlank()) genres.add(v)
+                withSourceContext {
+                    try {
+                        val fn = luaScript.get("getBookGenres")
+                        if (fn.isnil()) return@withSourceContext Response.Success(emptyList())
+                        val result = fn.call(LuaValue.valueOf(bookUrl))
+                        if (!result.istable()) return@withSourceContext Response.Success(emptyList())
+                        val table = result.checktable()
+                        val genres = mutableListOf<String>()
+                        for (i in 1..table.length()) {
+                            val v = table.get(LuaValue.valueOf(i)).optjstring(null)
+                            if (!v.isNullOrBlank()) genres.add(v)
+                        }
+                        Response.Success(genres)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getBookGenres [${metadata.id}]")
+                        Response.Error(e.message ?: "Unknown error", e)
                     }
-                    Response.Success(genres)
-                } catch (e: Exception) {
-                    Timber.e(e, "Lua getBookGenres [${metadata.id}]")
-                    Response.Error(e.message ?: "Unknown error", e)
                 }
             }
         }
@@ -273,20 +306,22 @@ open class LuaSourceAdapter(
     override suspend fun getChapterList(bookUrl: String): Response<List<ChapterResult>> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                try {
-                    val result = luaScript.get("getChapterList").call(LuaValue.valueOf(bookUrl))
-                    val chapters = mutableListOf<ChapterResult>()
-                    if (result.istable()) {
-                        val table = result.checktable()
-                        for (i in 1..table.length()) {
-                            val ch = table.get(LuaValue.valueOf(i))
-                            if (ch.istable()) chapters.add(convertLuaTableToChapterResult(ch.checktable()))
+                withSourceContext {
+                    try {
+                        val result = luaScript.get("getChapterList").call(LuaValue.valueOf(bookUrl))
+                        val chapters = mutableListOf<ChapterResult>()
+                        if (result.istable()) {
+                            val table = result.checktable()
+                            for (i in 1..table.length()) {
+                                val ch = table.get(LuaValue.valueOf(i))
+                                if (ch.istable()) chapters.add(convertLuaTableToChapterResult(ch.checktable()))
+                            }
                         }
+                        Response.Success(chapters)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getChapterList [${metadata.id}]")
+                        Response.Error(e.message ?: "Unknown Lua error", e)
                     }
-                    Response.Success(chapters)
-                } catch (e: Exception) {
-                    Timber.e(e, "Lua getChapterList [${metadata.id}]")
-                    Response.Error(e.message ?: "Unknown Lua error", e)
                 }
             }
         }
@@ -304,30 +339,32 @@ open class LuaSourceAdapter(
             mutex.withLock {
                 val fn = luaScript.get("parsePage")
                 if (fn.isnil()) return@withLock null
-                try {
-                    val result = fn.call(LuaValue.valueOf(bookUrl), LuaValue.valueOf(page))
-                    if (!result.istable()) return@withLock Response.Error(
-                        "parsePage returned non-table", Exception()
-                    )
-                    val table = result.checktable()
-                    val chaptersTable = table.get("chapters").opttable(null)
-                    val chapters = mutableListOf<ChapterResult>()
-                    if (chaptersTable != null) {
-                        for (i in 1..chaptersTable.length()) {
-                            val ch = chaptersTable.get(LuaValue.valueOf(i))
-                            if (ch.istable()) chapters.add(convertLuaTableToChapterResult(ch.checktable()))
-                        }
-                    }
-                    val totalPages = table.get("totalPages").optint(1)
-                    Response.Success(
-                        SourceInterface.Catalog.PagedChapterResult(
-                            chapters = chapters,
-                            totalPages = totalPages,
+                withSourceContext {
+                    try {
+                        val result = fn.call(LuaValue.valueOf(bookUrl), LuaValue.valueOf(page))
+                        if (!result.istable()) return@withSourceContext Response.Error(
+                            "parsePage returned non-table", Exception()
                         )
-                    )
-                } catch (e: Exception) {
-                    Timber.e(e, "Lua parsePage [${metadata.id}] page=$page")
-                    Response.Error(e.message ?: "Unknown Lua error", e)
+                        val table = result.checktable()
+                        val chaptersTable = table.get("chapters").opttable(null)
+                        val chapters = mutableListOf<ChapterResult>()
+                        if (chaptersTable != null) {
+                            for (i in 1..chaptersTable.length()) {
+                                val ch = chaptersTable.get(LuaValue.valueOf(i))
+                                if (ch.istable()) chapters.add(convertLuaTableToChapterResult(ch.checktable()))
+                            }
+                        }
+                        val totalPages = table.get("totalPages").optint(1)
+                        Response.Success(
+                            SourceInterface.Catalog.PagedChapterResult(
+                                chapters = chapters,
+                                totalPages = totalPages,
+                            )
+                        )
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua parsePage [${metadata.id}] page=$page")
+                        Response.Error(e.message ?: "Unknown Lua error", e)
+                    }
                 }
             }
         }
@@ -335,26 +372,30 @@ open class LuaSourceAdapter(
     override suspend fun getChapterText(doc: Document): String? =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                val html = doc.outerHtml()
-                val url  = doc.location()
-                Timber.d("LuaSourceAdapter: url='$url'")
-                luaScript.get("getChapterText").call(
-                    LuaValue.valueOf(html),
-                    LuaValue.valueOf(url)
-                ).optjstring(null)
+                withSourceContext {
+                    val html = doc.outerHtml()
+                    val url  = doc.location()
+                    Timber.d("LuaSourceAdapter: url='$url'")
+                    luaScript.get("getChapterText").call(
+                        LuaValue.valueOf(html),
+                        LuaValue.valueOf(url)
+                    ).optjstring(null)
+                }
             }
         }
 
     override suspend fun getChapterListHash(bookUrl: String): Response<String?> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                try {
-                    val fn = luaScript.get("getChapterListHash")
-                    if (fn.isnil()) Response.Success(null)
-                    else Response.Success(fn.call(LuaValue.valueOf(bookUrl)).optjstring(null))
-                } catch (e: Exception) {
-                    Timber.e(e, "Lua getChapterListHash [${metadata.id}]")
-                    Response.Error(e.message ?: "Unknown error", e)
+                withSourceContext {
+                    try {
+                        val fn = luaScript.get("getChapterListHash")
+                        if (fn.isnil()) Response.Success(null)
+                        else Response.Success(fn.call(LuaValue.valueOf(bookUrl)).optjstring(null))
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getChapterListHash [${metadata.id}]")
+                        Response.Error(e.message ?: "Unknown error", e)
+                    }
                 }
             }
         }
@@ -436,14 +477,16 @@ class LuaSourceAdapterFilterable(
     override suspend fun getFilterList(): Response<List<LuaFilter>> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                try {
-                    val fn = luaScript.get("getFilterList")
-                    if (fn.isnil()) return@withLock Response.Success(emptyList())
-                    val result = fn.call()
-                    Response.Success(parseLuaFilterList(result))
-                } catch (e: Exception) {
-                    Timber.e(e, "Lua getFilterList [$id]")
-                    Response.Error(e.message ?: "Unknown Lua error", e)
+                withSourceContext {
+                    try {
+                        val fn = luaScript.get("getFilterList")
+                        if (fn.isnil()) return@withSourceContext Response.Success(emptyList())
+                        val result = fn.call()
+                        Response.Success(parseLuaFilterList(result))
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getFilterList [$id]")
+                        Response.Error(e.message ?: "Unknown Lua error", e)
+                    }
                 }
             }
         }
@@ -453,16 +496,18 @@ class LuaSourceAdapterFilterable(
         filters: ActiveFilters
     ): Response<PagedList<BookResult>> = withContext(Dispatchers.IO) {
         mutex.withLock {
-            try {
-                val luaFilters = filters.toLuaTable(luaEngine)
-                val result = luaScript.get("getCatalogFiltered").call(
-                    LuaValue.valueOf(index),
-                    luaFilters
-                )
-                convertLuaResultToPagedList(result)
-            } catch (e: Exception) {
-                Timber.e(e, "Lua getCatalogFiltered [$id]")
-                Response.Error(e.message ?: "Unknown Lua error", e)
+            withSourceContext {
+                try {
+                    val luaFilters = filters.toLuaTable(luaEngine)
+                    val result = luaScript.get("getCatalogFiltered").call(
+                        LuaValue.valueOf(index),
+                        luaFilters
+                    )
+                    convertLuaResultToPagedList(result)
+                } catch (e: Exception) {
+                    Timber.e(e, "Lua getCatalogFiltered [$id]")
+                    Response.Error(e.message ?: "Unknown Lua error", e)
+                }
             }
         }
     }
@@ -486,14 +531,16 @@ class LuaSourceAdapterFull(
     override suspend fun getFilterList(): Response<List<LuaFilter>> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                try {
-                    val fn = luaScript.get("getFilterList")
-                    if (fn.isnil()) return@withLock Response.Success(emptyList())
-                    val result = fn.call()
-                    Response.Success(parseLuaFilterList(result))
-                } catch (e: Exception) {
-                    Timber.e(e, "Lua getFilterList [$id]")
-                    Response.Error(e.message ?: "Unknown Lua error", e)
+                withSourceContext {
+                    try {
+                        val fn = luaScript.get("getFilterList")
+                        if (fn.isnil()) return@withSourceContext Response.Success(emptyList())
+                        val result = fn.call()
+                        Response.Success(parseLuaFilterList(result))
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getFilterList [$id]")
+                        Response.Error(e.message ?: "Unknown Lua error", e)
+                    }
                 }
             }
         }
@@ -503,16 +550,18 @@ class LuaSourceAdapterFull(
         filters: ActiveFilters
     ): Response<PagedList<BookResult>> = withContext(Dispatchers.IO) {
         mutex.withLock {
-            try {
-                val luaFilters = filters.toLuaTable(luaEngine)
-                val result = luaScript.get("getCatalogFiltered").call(
-                    LuaValue.valueOf(index),
-                    luaFilters
-                )
-                convertLuaResultToPagedList(result)
-            } catch (e: Exception) {
-                Timber.e(e, "Lua getCatalogFiltered [$id]")
-                Response.Error(e.message ?: "Unknown Lua error", e)
+            withSourceContext {
+                try {
+                    val luaFilters = filters.toLuaTable(luaEngine)
+                    val result = luaScript.get("getCatalogFiltered").call(
+                        LuaValue.valueOf(index),
+                        luaFilters
+                    )
+                    convertLuaResultToPagedList(result)
+                } catch (e: Exception) {
+                    Timber.e(e, "Lua getCatalogFiltered [$id]")
+                    Response.Error(e.message ?: "Unknown Lua error", e)
+                }
             }
         }
     }

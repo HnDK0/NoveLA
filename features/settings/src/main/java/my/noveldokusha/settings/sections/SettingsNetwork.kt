@@ -1,12 +1,16 @@
 package my.noveldokusha.settings.sections
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Http
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -33,8 +37,10 @@ import android.provider.Settings
 import my.noveldokusha.coreui.components.SlimListItem
 import my.noveldokusha.coreui.theme.colorAccent
 import my.noveldokusha.coreui.theme.textPadding
+import my.noveldokusha.network.interceptors.UAPresets
 import my.noveldokusha.settings.R
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun SettingsNetwork(
     context: Context,
@@ -85,6 +91,26 @@ internal fun SettingsNetwork(
                             modifier = Modifier.padding(bottom = 16.dp),
                             color = MaterialTheme.colorScheme.onSurface
                         )
+
+                        // UA Preset chips
+                        val presetEntries = remember { UAPresets.allPresets().entries.toList() }
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            FilterChip(
+                                selected = tempUserAgent.isBlank(),
+                                onClick = { tempUserAgent = "" },
+                                label = { Text(text = stringResource(R.string.default_user_agent)) }
+                            )
+                            presetEntries.forEach { (name, ua) ->
+                                FilterChip(
+                                    selected = tempUserAgent == ua,
+                                    onClick = { tempUserAgent = ua },
+                                    label = { Text(text = name) }
+                                )
+                            }
+                        }
 
                         OutlinedTextField(
                             value = tempUserAgent,

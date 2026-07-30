@@ -157,7 +157,8 @@ class DownloaderRepository @Inject constructor(
 				""".trimIndent()
                 }
 
-                scraper.getCompatibleSource(realUrl)?.also { source ->
+                val matchingSource = scraper.getCompatibleSource(realUrl)
+                matchingSource?.also { source ->
                     val chapterPageUrl = source.transformChapterUrl(realUrl)
 
                     // Всегда передаём Referer и базовые заголовки при загрузке страницы главы.
@@ -165,10 +166,12 @@ class DownloaderRepository @Inject constructor(
                     // возвращает пустую страницу или редирект на защиту.
                     val headers = buildChapterHeaders(chapterPageUrl)
 
+                    Timber.d("bookChapter: setting tag=source:${source.id} for url=$chapterPageUrl")
                     val doc = networkClient.call(
                         getRequest(chapterPageUrl).apply {
                             headers.forEach { (k, v) -> header(k, v) }
                             cacheControl(CacheControl.FORCE_NETWORK)
+                            tag(String::class.java, "source:${source.id}")
                         }
                     ).use { it.toDocument(source.charset) }
 
@@ -184,8 +187,16 @@ class DownloaderRepository @Inject constructor(
                 }
 
                 // Fallback: heuristic extraction с поддержкой JS-редиректов
+                // Если source найден — передаём тег + заголовки, чтобы запрос шёл
+                // через UserAgentInterceptor с правильным UA-пресетом.
                 val doc = networkClient.call(
-                    getRequest(realUrl).cacheControl(CacheControl.FORCE_NETWORK)
+                    getRequest(realUrl).apply {
+                        cacheControl(CacheControl.FORCE_NETWORK)
+                        matchingSource?.let { src ->
+                            tag(String::class.java, "source:${src.id}")
+                            buildChapterHeaders(realUrl).forEach { (k, v) -> header(k, v) }
+                        }
+                    }
                 ).use { it.toDocument() }
 
                 // Проверяем HTML на JS-редирект (window.location, meta refresh)
