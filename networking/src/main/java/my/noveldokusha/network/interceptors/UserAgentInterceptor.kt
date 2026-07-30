@@ -24,9 +24,11 @@ private fun String.isAscii(): Boolean = all { it.code in 0..127 }
 class UserAgentInterceptor(private val appPreferences: AppPreferences) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+        if (request.header("User-Agent") != null) return chain.proceed(request)
         val userAgent = resolveUserAgent(appPreferences)
         return chain.proceed(
-            chain.request().newBuilder()
+            request.newBuilder()
                 .header("User-Agent", userAgent)
                 .build()
         )
