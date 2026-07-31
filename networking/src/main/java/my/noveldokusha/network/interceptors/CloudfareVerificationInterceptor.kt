@@ -20,13 +20,19 @@ import kotlinx.coroutines.selects.select
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.domain.CloudfareVerificationBypassFailedException
 import my.noveldokusha.core.domain.WebViewCookieManagerInitializationFailedException
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
 import okio.Buffer
 import okio.BufferedSink
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 import timber.log.Timber
 import javax.net.ssl.HttpsURLConnection
@@ -35,7 +41,9 @@ import kotlin.time.Duration.Companion.seconds
 
 private val ERROR_CODES = listOf(HttpsURLConnection.HTTP_FORBIDDEN, HttpsURLConnection.HTTP_UNAVAILABLE, 429)
 private const val TAG = "CloudflareInterceptor"
-private const val MAX_MANUAL_ATTEMPTS = 3
+private const val MAX_MANUAL_ATTEMPTS = 2
+private const val COOLDOWN_MS = 120_000L
+private val MANUAL_TIMEOUT = 35.seconds
 
 private val CLOUDFLARE_WHITELIST = listOf(
     "github.com",
@@ -72,11 +80,39 @@ object LuaCfOptionsRegistry {
 object CloudflareBypassSignal {
     val channel = Channel<Unit>(Channel.CONFLATED)
 
+    // Хосты, где WebView-обход аварийно прерван фатальной ошибкой челленджа.
+    // Интерцептор извлекает запись (remove) после мануального флоу и фейлит запрос
+    // без бесполезного finalRetry.
+    private val abortedHosts: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    fun abort(host: String) {
+        abortedHosts.add(host)
+        channel.trySend(Unit)
+    }
+
+    fun clearAbort(host: String) {
+        abortedHosts.remove(host)
+    }
+
+    // Извлекает запись об abort: true — хост был аварийно прерван.
+    fun consumeAbort(host: String): Boolean = abortedHosts.remove(host)
+
     private val _bypassCompleted = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val bypassCompleted: SharedFlow<String> = _bypassCompleted
 
     fun notifyBypassCompleted(host: String) {
         _bypassCompleted.tryEmit(host)
+    }
+
+    // Эмитится на любом терминальном исходе попытки обхода (успех, give-up, таймаут)
+    // и служит только для авто-закрытия WebViewActivity. replay=0 специально:
+    // реплей-кэш отравил бы будущую сессию обхода того же хоста устаревшей эмиссией,
+    // а Activity в мануальном флоу всегда подписана раньше терминального события.
+    private val _bypassFinished = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    val bypassFinished: SharedFlow<String> = _bypassFinished
+
+    fun notifyBypassFinished(host: String) {
+        _bypassFinished.tryEmit(host)
     }
 }
 
@@ -88,6 +124,16 @@ internal class CloudFareVerificationInterceptor(
     private val hostLocks = ConcurrentHashMap<String, ReentrantLock>()
     private val resolvedDomains = ConcurrentHashMap<String, Boolean>()
     private val manualAttempts = ConcurrentHashMap<String, Int>()
+    private val cooldownUntil = ConcurrentHashMap<String, Long>()
+
+    // Сериализует видимые ручные обходы: один WebViewActivity за раз.
+    // Общий channel CONFLATED будит только один receive(), поэтому при параллельных
+    // флоу разных хостов (GlobalSourceSearch) сигнал Done/abort хоста A мог
+    // разбудить флоу B. Очередь оставляет в канале единственного вейтера.
+    private val manualBypassLock = ReentrantLock()
+
+    private fun isOnCooldown(host: String): Boolean =
+        cooldownUntil[host]?.let { System.currentTimeMillis() < it } ?: false
 
     private val ALL_CF_MARKERS = listOf(
         "cf-challenge",
@@ -145,6 +191,10 @@ internal class CloudFareVerificationInterceptor(
         }
 
         Timber.d( "CF: Challenge detected. URL: ${bufferedRequest.url}")
+        Timber.e(
+            "CF: challenge resp code=${response.code} cf-mitigated=${response.header("cf-mitigated")} " +
+                "server=${response.header("Server")} bodyHead=${bodyPreview.take(160).replace("\n", " ")}"
+        )
 
         response.close()
 
@@ -163,6 +213,7 @@ internal class CloudFareVerificationInterceptor(
                 val retryRequest = bufferedRequest.newBuilder()
                     .header("Cookie", formatCookies(existingCookie))
                     .header("User-Agent", userAgent)
+                    .header("Cache-Control", "no-store")
                     .build()
                 val retryResponse = chain.proceed(retryRequest)
                 if (isNotCloudflare(retryResponse, peekBodySafe(retryResponse))) {
@@ -191,42 +242,66 @@ internal class CloudFareVerificationInterceptor(
             else -> siteUrl
         }
 
-        runBlocking {
+        // Cooldown после «решено в WebView, но приложению кука не помогла»:
+        // повторный WebView в ближайшее время бесполезен — фейлимся быстро.
+        if (isOnCooldown(host)) {
+            Timber.d( "CF: $host on cooldown, failing fast without WebView")
+            throw CloudfareVerificationBypassFailedException()
+        }
+
+        val autoConfirmed = runBlocking {
             withTimeoutOrNull(15_000) {
                 resolveWithWebViewAutomatic(webViewUrl, cookieManager, userAgent)
+            } ?: false
+        }
+
+        // Ретрай после скрытого авто-флоу оправдан, только если он подтвердил куку
+        // probe-ом: иначе это гарантированный челлендж ещё на 30с readTimeout вхолостую.
+        if (autoConfirmed) {
+            val firstCookies = cookieManager.getCookie(siteUrl) ?: ""
+            val firstRetryRequest = originalRequest.newBuilder()
+                .header("Cookie", formatCookies(firstCookies))
+                .header("User-Agent", userAgent)
+                .header("Cache-Control", "no-store")
+                .build()
+
+            val firstRetryResponse = chain.proceed(firstRetryRequest)
+
+            if (isNotCloudflare(firstRetryResponse, peekBodySafe(firstRetryResponse))) {
+                resolvedDomains[host] = true
+                manualAttempts.remove(host)
+                cooldownUntil.remove(host)
+                CloudflareBypassSignal.notifyBypassCompleted(host)
+                CloudflareBypassSignal.notifyBypassFinished(host)
+                return firstRetryResponse
             }
+
+            firstRetryResponse.close()
         }
-
-        val firstCookies = cookieManager.getCookie(siteUrl) ?: ""
-        val firstRetryRequest = originalRequest.newBuilder()
-            .header("Cookie", formatCookies(firstCookies))
-            .header("User-Agent", userAgent)
-            .build()
-
-        val firstRetryResponse = chain.proceed(firstRetryRequest)
-
-        if (isNotCloudflare(firstRetryResponse, peekBodySafe(firstRetryResponse))) {
-            resolvedDomains[host] = true
-            manualAttempts.remove(host)
-            CloudflareBypassSignal.notifyBypassCompleted(host)
-            return firstRetryResponse
-        }
-
-        firstRetryResponse.close()
 
         val attempts = manualAttempts.getOrDefault(host, 0)
         if (attempts >= MAX_MANUAL_ATTEMPTS) {
             Timber.e( "CF: Max manual attempts ($MAX_MANUAL_ATTEMPTS) reached for $host, giving up")
             manualAttempts.remove(host)
+            cooldownUntil.remove(host)
+            CloudflareBypassSignal.notifyBypassFinished(host)
             throw CloudfareVerificationBypassFailedException()
         }
         manualAttempts[host] = attempts + 1
         Timber.d( "CF: Step 2 - manual attempt ${attempts + 1}/$MAX_MANUAL_ATTEMPTS for $host, webViewUrl=$webViewUrl")
 
-        clearCookiesForDomain(siteUrl, cookieManager)
+        manualBypassLock.withLock {
+            clearCookiesForDomain(siteUrl, cookieManager)
 
-        runBlocking(Dispatchers.IO) {
-            resolveWithWebViewManual(webViewUrl, siteUrl, cookieManager)
+            runBlocking(Dispatchers.IO) {
+                resolveWithWebViewManual(webViewUrl, siteUrl, cookieManager, userAgent)
+            }
+
+            val manualHost = webViewUrl.toHttpUrlOrNull()?.host ?: host
+            if (CloudflareBypassSignal.consumeAbort(manualHost)) {
+                Timber.e("CF: Bypass aborted by WebView fatal error for $manualHost")
+                throw CloudfareVerificationBypassFailedException()
+            }
         }
 
         cookieManager.flush()
@@ -235,29 +310,42 @@ internal class CloudFareVerificationInterceptor(
         val finalRetryRequest = originalRequest.newBuilder()
             .header("Cookie", formatCookies(finalCookies))
             .header("User-Agent", userAgent)
+            .header("Cache-Control", "no-store")
             .build()
 
         val finalResponse = chain.proceed(finalRetryRequest)
 
         if (!isNotCloudflare(finalResponse, peekBodySafe(finalResponse))) {
             finalResponse.close()
+            // Кука есть (WebView решил челлендж), но приложению не помогла:
+            // ставим cooldown, чтобы не открывать бесполезный WebView повторно.
+            if (finalCookies.contains("cf_clearance")) {
+                cooldownUntil[host] = System.currentTimeMillis() + COOLDOWN_MS
+                Timber.d( "CF: $host cooldown ${COOLDOWN_MS / 1000}s (cookie present but retry still challenged)")
+            }
+            CloudflareBypassSignal.notifyBypassFinished(host)
             throw CloudfareVerificationBypassFailedException()
         }
 
         resolvedDomains[host] = true
         manualAttempts.remove(host)
+        cooldownUntil.remove(host)
         CloudflareBypassSignal.notifyBypassCompleted(host)
+        CloudflareBypassSignal.notifyBypassFinished(host)
         return finalResponse
     }
 
     private val STATIC_EXTENSIONS = setOf("js", "css", "png", "jpg", "svg", "woff", "woff2", "ttf", "ico", "webp", "json", "txt", "lua")
 
-    private fun isNotCloudflare(response: Response, body: String): Boolean {
+    private fun isNotCloudflare(response: Response, body: String, skipStatic: Boolean = true): Boolean {
         val host = response.request.url.host
 
+        // Статический shortcut честен только для обычных вызовов. В probe-режиме
+        // (skipStatic=false) челлендж может выдаваться и на пути с расширением
+        // (.json/.txt/.lua) — там решение принимаем только по маркерам.
         val pathExt = response.request.url.pathSegments.lastOrNull()
             ?.substringAfterLast('.', "")?.lowercase()
-        if (pathExt != null && pathExt in STATIC_EXTENSIONS) return true
+        if (skipStatic && pathExt != null && pathExt in STATIC_EXTENSIONS) return true
 
         if (CLOUDFLARE_WHITELIST.any { host.contains(it) }) return true
 
@@ -304,17 +392,20 @@ internal class CloudFareVerificationInterceptor(
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private suspend fun resolveWithWebViewAutomatic(webViewUrl: String, cm: CookieManager, userAgent: String) {
-        withContext(Dispatchers.Main) {
-            val webView = WebView(appContext)
-            cm.setAcceptCookie(true)
-            cm.setAcceptThirdPartyCookies(webView, true)
-            webView.settings.apply {
-                javaScriptEnabled = true
-                domStorageEnabled = true
-                userAgentString = userAgent
-                mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-            }
+    private suspend fun resolveWithWebViewAutomatic(
+        webViewUrl: String, cm: CookieManager, userAgent: String
+    ): Boolean = withContext(Dispatchers.Main) {
+        val webView = WebView(appContext)
+        cm.setAcceptCookie(true)
+        cm.setAcceptThirdPartyCookies(webView, true)
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            userAgentString = userAgent
+            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+        }
+        var probeConfirmed = false
+        try {
             webView.webViewClient = object : WebViewClient() {
                 override fun onReceivedSslError(
                     view: WebView?, handler: SslErrorHandler?, error: SslError?
@@ -339,33 +430,35 @@ internal class CloudFareVerificationInterceptor(
                     Timber.d("CF: IP blocked ($currentUrl), aborting auto attempt")
                     break
                 }
-                if (cm.getCookie(webViewUrl)?.contains("cf_clearance") == true) {
-                    delay(500)
-                    val urlAfterCookie = webView.url
-                    val stillOnChallenge = urlAfterCookie != null && (
-                        urlAfterCookie.contains("__cf_chl", ignoreCase = true) ||
-                        urlAfterCookie.contains("/cdn-cgi/challenge-platform", ignoreCase = true)
-                    )
-                    if (!stillOnChallenge) {
-                        Timber.d( "CF: Auto WebView success on iteration $i")
+                val cookies = cm.getCookie(webViewUrl) ?: ""
+                if (cookies.contains("cf_clearance")) {
+                    val probeOk = probeIsClear(webViewUrl, cookies, userAgent)
+                    if (probeOk) {
+                        Timber.d("CF: Auto WebView success on iteration $i")
+                        probeConfirmed = true
                         break
                     }
-                    Timber.d("CF: cf_clearance detected but still on challenge page, continuing")
+                    Timber.d("CF: cf_clearance detected but probe failed, continuing")
                 }
             }
+        } finally {
+            // destroy обязателен и при отмене корутины (withTimeoutOrNull), поэтому без
+            // delay — suspend в finally не переживёт отмену.
             webView.stopLoading()
             cm.flush()
-            delay(200)
             webView.destroy()
         }
+        probeConfirmed
     }
 
     private suspend fun resolveWithWebViewManual(
         webViewUrl: String,
         siteUrl: String,
-        cm: CookieManager
+        cm: CookieManager,
+        userAgent: String
     ) {
         while (CloudflareBypassSignal.channel.tryReceive().isSuccess) {}
+        webViewUrl.toHttpUrlOrNull()?.host?.let(CloudflareBypassSignal::clearAbort)
 
         val oldCfClearance = extractCfClearance(cm.getCookie(siteUrl))
 
@@ -380,14 +473,20 @@ internal class CloudFareVerificationInterceptor(
             appContext.startActivity(intent)
         }
 
-        withTimeoutOrNull(180.seconds) {
+        val probeConfirmed = withTimeoutOrNull(MANUAL_TIMEOUT) {
             coroutineScope {
                 val signalJob = launch { CloudflareBypassSignal.channel.receive() }
                 val cookieJob = launch {
                     while (isActive) {
                         delay(1500)
                         cm.flush()
-                        if (cm.getCookie(siteUrl)?.contains("cf_clearance") == true) break
+                        val cookies = cm.getCookie(siteUrl) ?: ""
+                        if (cookies.contains("cf_clearance") &&
+                            probeIsClear(siteUrl, cookies, userAgent)
+                        ) {
+                            Timber.d("CF: Manual bypass confirmed by probe")
+                            break
+                        }
                     }
                 }
                 select<Unit> {
@@ -397,6 +496,12 @@ internal class CloudFareVerificationInterceptor(
                 signalJob.cancel()
                 cookieJob.cancel()
             }
+        } != null
+
+        if (!probeConfirmed) {
+            Timber.d( "CF: Manual bypass timed out after ${MANUAL_TIMEOUT.inWholeSeconds}s")
+            webViewUrl.toHttpUrlOrNull()?.host
+                ?.let { CloudflareBypassSignal.notifyBypassFinished(it) }
         }
     }
 
@@ -419,5 +524,41 @@ internal class CloudFareVerificationInterceptor(
 
     private fun peekBodySafe(response: Response): String {
         return try { response.peekBody(65536).string() } catch (e: Exception) { "" }
+    }
+
+    private val probeClient = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
+
+    /**
+     * Валидирует cf_clearance: только если прямой запрос с кукой и UA
+     * возвращает не-челлендж ответ — обход считается успешным.
+     * Наличие куки само по себе не гарантирует прохождение Turnstile.
+     */
+    private suspend fun probeIsClear(url: String, cookies: String, userAgent: String): Boolean {
+        val request = Request.Builder()
+            .url(url)
+            .header("User-Agent", userAgent)
+            .apply { if (cookies.isNotBlank()) header("Cookie", cookies) }
+            .build()
+        return suspendCancellableCoroutine { cont ->
+            val call = probeClient.newCall(request)
+            // Канселим активный probe при отмене корутины (withTimeoutOrNull/select),
+            // иначе blocking-execute затягивал удержание hostLock до ~30с.
+            cont.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Timber.d( "CF: probe failed for $url: ${e.message}")
+                    cont.resume(false) { _, _, _ -> }
+                }
+                override fun onResponse(call: Call, response: Response) {
+                    response.use {
+                        // skipStatic=false: probe обязан проверять маркеры и на .json/.txt
+                        cont.resume(isNotCloudflare(response, peekBodySafe(response), skipStatic = false)) { _, _, _ -> }
+                    }
+                }
+            })
+        }
     }
 }

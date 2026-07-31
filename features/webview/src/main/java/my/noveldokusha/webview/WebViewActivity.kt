@@ -11,6 +11,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
 import my.noveldokusha.coreui.theme.Theme
 import my.noveldokusha.coreui.AppThemeProvider
 import my.noveldokusha.core.Toasty
@@ -57,9 +59,8 @@ class WebViewActivity : ComponentActivity() {
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
 
         setContent {
-            var isReady by remember { mutableStateOf(false) }
+            var isReady by remember { mutableStateOf(isBypassMode) }
             var currentUrl by remember { mutableStateOf(currentTargetUrl) }
-            var pageLoadedOnce by remember { mutableStateOf(false) }
 
             webView.webViewClient = object : WebViewClient() {
 
@@ -97,7 +98,6 @@ class WebViewActivity : ComponentActivity() {
                     val cookies = CookieManager.getInstance().getCookie(url) ?: ""
                     if (cookies.contains("cf_clearance")) {
                         Timber.d("CF Cookie detected!")
-                        pageLoadedOnce = true
                     }
                 }
 
@@ -109,6 +109,11 @@ class WebViewActivity : ComponentActivity() {
                 ) {
                     super.onReceivedHttpError(view, request, errorResponse)
                     Timber.w("HTTP error ${errorResponse?.statusCode} for ${request?.url}")
+                    abortBypassIfFatal(
+                        url = request?.url?.toString(),
+                        isMainFrame = request?.isForMainFrame == true,
+                        errorCode = null
+                    )
                 }
 
                 // ✅ ИСПРАВЛЕНИЕ: логируем сетевые ошибки для диагностики
@@ -119,6 +124,27 @@ class WebViewActivity : ComponentActivity() {
                 ) {
                     super.onReceivedError(view, request, error)
                     Timber.e("Network error: code=${error?.errorCode}, desc=${error?.description}, url=${request?.url}")
+                    abortBypassIfFatal(
+                        url = request?.url?.toString(),
+                        isMainFrame = request?.isForMainFrame == true,
+                        errorCode = error?.errorCode
+                    )
+                }
+            }
+
+            LaunchedEffect(Unit) {
+                // В bypass-режиме закрываемся по сигналу interceptor'а: он эмитит
+                // bypassFinished на любом терминальном исходе (успех, give-up, таймаут).
+                // Наличие куки само по себе не является успехом — 403-страница
+                // челленджа ставит cf_clearance сразу.
+                if (isBypassMode) {
+                    val host = Uri.parse(currentTargetUrl).host ?: ""
+                    CloudflareBypassSignal.bypassFinished
+                        .filter { it == host }
+                        .collect {
+                            CookieManager.getInstance().flush()
+                            finish()
+                        }
                 }
             }
 
@@ -132,17 +158,6 @@ class WebViewActivity : ComponentActivity() {
                         ?: ""
                     if (currentCfClearance.isNotEmpty() && currentCfClearance != oldCfClearance) {
                         isReady = true
-                        if (isBypassMode) {
-                            delay(500)
-                            CookieManager.getInstance().flush()
-                            CloudflareBypassSignal.channel.trySend(Unit)
-                            val host = Uri.parse(currentTargetUrl).host ?: ""
-                            if (host.isNotEmpty()) {
-                                CloudflareBypassSignal.notifyBypassCompleted(host)
-                            }
-                            finish()
-                            return@LaunchedEffect
-                        }
                     }
                     webView.url?.let { currentUrl = it }
                     delay(500)
@@ -207,6 +222,37 @@ class WebViewActivity : ComponentActivity() {
         val clip = ClipData.newPlainText("URL", text)
         clipboard.setPrimaryClip(clip)
         toasty.show("Link copied")
+    }
+
+    // Неустранимые сетевые ошибки главного фрейма: перезагрузка не поможет.
+    private companion object {
+        val FATAL_MAIN_FRAME_ERROR_CODES = setOf(
+            WebViewClient.ERROR_HOST_LOOKUP,
+            WebViewClient.ERROR_CONNECT,
+            WebViewClient.ERROR_TIMEOUT,
+        )
+    }
+
+    private fun isChallengePlatformUrl(url: String?): Boolean {
+        val u = url ?: return false
+        return u.contains("challenge-platform", ignoreCase = true) ||
+            u.contains("challenges.cloudflare.com", ignoreCase = true)
+    }
+
+    // В bypass-режиме фатальная ошибка главного фрейма означает, что обход заведомо
+    // не решается: аварийно закрываем WebView и фейлим запрос без ожидания таймаута.
+    // Ошибки на сабресурсах challenge-platform (DNS, 401/403) — штатная часть Turnstile:
+    // они игнорируются, иначе капча закрывалась бы до появления.
+    private fun abortBypassIfFatal(url: String?, isMainFrame: Boolean, errorCode: Int?) {
+        if (!isBypassMode) return
+        val fatal = isMainFrame && (
+            isChallengePlatformUrl(url) || errorCode in FATAL_MAIN_FRAME_ERROR_CODES
+        )
+        if (!fatal) return
+        val host = Uri.parse(currentTargetUrl).host ?: return
+        Timber.e("CF: Fatal challenge error, aborting bypass for $host (url=$url, code=$errorCode)")
+        CloudflareBypassSignal.abort(host)
+        finish()
     }
 
     override fun onDestroy() {
