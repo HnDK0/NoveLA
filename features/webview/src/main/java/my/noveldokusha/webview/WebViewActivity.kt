@@ -174,10 +174,6 @@ class WebViewActivity : ComponentActivity() {
                     onDoneClicked = {
                         CookieManager.getInstance().flush()
                         CloudflareBypassSignal.channel.trySend(Unit)
-                        val host = Uri.parse(currentTargetUrl).host ?: ""
-                        if (host.isNotEmpty()) {
-                            CloudflareBypassSignal.notifyBypassCompleted(host)
-                        }
                         finish()
                     },
                     onReloadClicked = { webView.reload() },

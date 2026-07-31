@@ -42,6 +42,10 @@ class ScraperNetworkClient @Inject constructor(
 
     private val okhttpLoggingInterceptor = createLoggingInterceptor()
 
+    // Общий пул: CloudFareVerificationInterceptor эвиктит его (evictAll) перед
+    // ретраями, чтобы не переиспользовать соединение, отравленное челленджем.
+    private val cfConnectionPool = ConnectionPool(15, 5, TimeUnit.MINUTES)
+
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .apply {
@@ -49,9 +53,9 @@ class ScraperNetworkClient @Inject constructor(
                 addInterceptor(UserAgentInterceptor(appPreferences))
                 addInterceptor(DecodeResponseInterceptor())
                 if (appPreferences.CLOUDFLARE_BYPASS_ENABLED.value) {
-                    addInterceptor(CloudFareVerificationInterceptor(appContext, appPreferences))
+                    addInterceptor(CloudFareVerificationInterceptor(appContext, appPreferences, cfConnectionPool))
                 }
-                connectionPool(ConnectionPool(15, 5, TimeUnit.MINUTES))
+                connectionPool(cfConnectionPool)
                 dispatcher(Dispatcher().apply { maxRequestsPerHost = 16 })
                 cookieJar(cookieJar)
                 cache(Cache(cacheDir, cacheSize))

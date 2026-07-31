@@ -22,6 +22,7 @@ import my.noveldokusha.core.domain.CloudfareVerificationBypassFailedException
 import my.noveldokusha.core.domain.WebViewCookieManagerInitializationFailedException
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.ConnectionPool
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -118,7 +119,8 @@ object CloudflareBypassSignal {
 
 internal class CloudFareVerificationInterceptor(
     @ApplicationContext private val appContext: Context,
-    private val appPreferences: AppPreferences
+    private val appPreferences: AppPreferences,
+    private val connectionPool: ConnectionPool
 ) : Interceptor {
 
     private val hostLocks = ConcurrentHashMap<String, ReentrantLock>()
@@ -215,6 +217,10 @@ internal class CloudFareVerificationInterceptor(
                     .header("User-Agent", userAgent)
                     .header("Cache-Control", "no-store")
                     .build()
+                // HTTP/2-соединение, отдавшее челлендж, CF помечает отравленным и вешает
+                // на нём потоки (Http2Stream$StreamTimeout на readTimeout). evictAll закрывает
+                // idle-соединения пула, чтобы ретрай ушёл на свежем соединении.
+                connectionPool.evictAll()
                 val retryResponse = chain.proceed(retryRequest)
                 if (isNotCloudflare(retryResponse, peekBodySafe(retryResponse))) {
                     return@withLock retryResponse
@@ -265,6 +271,7 @@ internal class CloudFareVerificationInterceptor(
                 .header("Cache-Control", "no-store")
                 .build()
 
+            connectionPool.evictAll()
             val firstRetryResponse = chain.proceed(firstRetryRequest)
 
             if (isNotCloudflare(firstRetryResponse, peekBodySafe(firstRetryResponse))) {
@@ -313,6 +320,7 @@ internal class CloudFareVerificationInterceptor(
             .header("Cache-Control", "no-store")
             .build()
 
+        connectionPool.evictAll()
         val finalResponse = chain.proceed(finalRetryRequest)
 
         if (!isNotCloudflare(finalResponse, peekBodySafe(finalResponse))) {
