@@ -95,6 +95,7 @@ val GOOGLE_TRANSLATE_LANGUAGES: List<String> = listOf(
     "ig",    // Igbo
     "ilo",   // Iloko
     "is",    // Icelandic
+    "it",    // Italian
     "iw",    // Hebrew (legacy)
     "ja",    // Japanese
     "jv",    // Javanese (ISO 639-2)
@@ -125,6 +126,7 @@ val GOOGLE_TRANSLATE_LANGUAGES: List<String> = listOf(
     "mg",    // Malagasy
     "mi",    // Maori
     "min",   // Minang
+    "mk",    // Macedonian
     "ml",    // Malayalam
     "mn",    // Mongolian
     "mr",    // Marathi
@@ -134,6 +136,7 @@ val GOOGLE_TRANSLATE_LANGUAGES: List<String> = listOf(
     "nb",    // Norwegian Bokmal
     "ne",    // Nepali
     "new",   // Nepalbhasa (Newari)
+    "nl",    // Dutch
     "no",    // Norwegian
     "nr",    // Ndebele (South)
     "nso",   // Northern Sotho (Sepedi)
@@ -165,6 +168,7 @@ val GOOGLE_TRANSLATE_LANGUAGES: List<String> = listOf(
     "sm",    // Samoan
     "sn",    // Shona
     "so",    // Somali
+    "sq",    // Albanian
     "sr",    // Serbian
     "ss",    // Swati
     "st",    // Sesotho
@@ -336,6 +340,7 @@ val LANGUAGE_DISPLAY_NAMES: Map<String, String> = mapOf(
     "ig" to "Igbo",
     "ilo" to "Iloko",
     "is" to "Icelandic",
+    "it" to "Italian",
     "iw" to "Hebrew",
     "ja" to "Japanese",
     "jv" to "Javanese",
@@ -366,6 +371,7 @@ val LANGUAGE_DISPLAY_NAMES: Map<String, String> = mapOf(
     "mg" to "Malagasy",
     "mi" to "Maori",
     "min" to "Minang",
+    "mk" to "Macedonian",
     "ml" to "Malayalam",
     "mn" to "Mongolian",
     "mr" to "Marathi",
@@ -375,6 +381,7 @@ val LANGUAGE_DISPLAY_NAMES: Map<String, String> = mapOf(
     "nb" to "Norwegian Bokmal",
     "ne" to "Nepali",
     "new" to "Nepalbhasa (Newari)",
+    "nl" to "Dutch",
     "no" to "Norwegian",
     "nr" to "Ndebele (South)",
     "nso" to "Northern Sotho (Sepedi)",
@@ -406,6 +413,7 @@ val LANGUAGE_DISPLAY_NAMES: Map<String, String> = mapOf(
     "sm" to "Samoan",
     "sn" to "Shona",
     "so" to "Somali",
+    "sq" to "Albanian",
     "sr" to "Serbian",
     "ss" to "Swati",
     "st" to "Sesotho",
