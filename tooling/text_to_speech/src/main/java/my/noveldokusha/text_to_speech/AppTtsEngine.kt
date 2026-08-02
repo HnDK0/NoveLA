@@ -7,9 +7,12 @@ class AppTtsEngine private constructor(context: Context) {
 
     private val appContext = context.applicationContext
     private var engine: TextToSpeech? = null
+    // null означает системный движок по умолчанию (service.defaultEngine его всегда и возвращает).
+    private var boundEnginePackage: String? = null
 
     fun getOrCreate(onReady: (() -> Unit)? = null): TextToSpeech {
         if (engine == null) {
+            boundEnginePackage = null
             engine = TextToSpeech(appContext) { if (it == TextToSpeech.SUCCESS) onReady?.invoke() }
         }
         return engine!!
@@ -18,6 +21,7 @@ class AppTtsEngine private constructor(context: Context) {
     fun reinit(enginePackage: String?, onReady: () -> Unit) {
         engine?.stop()
         engine?.shutdown()
+        boundEnginePackage = enginePackage?.takeIf { it.isNotEmpty() }
         engine = if (enginePackage.isNullOrEmpty()) {
             TextToSpeech(appContext) { if (it == TextToSpeech.SUCCESS) onReady() }
         } else {
@@ -25,10 +29,13 @@ class AppTtsEngine private constructor(context: Context) {
         }
     }
 
+    fun getBoundEnginePackage(): String? = boundEnginePackage
+
     fun shutdown() {
         engine?.stop()
         engine?.shutdown()
         engine = null
+        boundEnginePackage = null
     }
 
     companion object {

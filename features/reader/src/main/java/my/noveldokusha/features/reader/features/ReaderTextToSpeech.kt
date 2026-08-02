@@ -287,13 +287,13 @@ internal class ReaderTextToSpeech(
 
                 val preferredVoiceId = getPreferredVoiceId()
                 val preferredEngine = getPreferredVoiceEngine()
-                val defaultEngine = manager.service.defaultEngine ?: ""
+                val currentEngine = manager.getCurrentEnginePackage()
 
                 // Ищем голос в availableVoices — там все движки с правильным enginePackage
                 val voiceData = manager.availableVoices.find { it.id == preferredVoiceId }
                 val targetEngine = voiceData?.enginePackage ?: preferredEngine
 
-                if (targetEngine.isNotEmpty() && targetEngine != defaultEngine) {
+                if (targetEngine.isNotEmpty() && targetEngine != currentEngine) {
                     // Голос из другого движка — переключаем service для воспроизведения
                     manager.reinitWithEngine(
                         enginePackage = targetEngine,
@@ -822,7 +822,7 @@ internal class ReaderTextToSpeech(
     private fun setVoice(voiceId: String) {
         val voiceData = manager.availableVoices.find { it.id == voiceId }
         // Берём движок из найденного голоса, иначе из текущего service
-        val targetEngine = voiceData?.enginePackage ?: (manager.service.defaultEngine ?: "")
+        val targetEngine = voiceData?.enginePackage ?: manager.getCurrentEnginePackage()
         val currentEngine = manager.getCurrentEnginePackage()
 
         if (targetEngine.isNotEmpty() && targetEngine != currentEngine) {
@@ -831,13 +831,11 @@ internal class ReaderTextToSpeech(
             stop()
             setPreferredVoiceId(voiceId)
             setPreferredVoiceEngine(targetEngine)
-            manager.reinitWithEngine(
-                enginePackage = targetEngine,
-                voiceId = voiceId,
-            )
             if (wasPlaying) {
+                // Подписка ДО reinitWithEngine: reinitDoneFlow имеет replay=0, поэтому
+                // коллектор должен зарегистрироваться раньше, чем reinit-колбэк эмитнет.
                 coroutineScope.launch {
-                    manager.serviceLoadedFlow.take(1).collect()
+                    manager.reinitDoneFlow.take(1).collect()
                     start()
                     val currentState = manager.currentActiveItemState.value
                     if (isChapterIndexValid(currentState.itemPos.chapterIndex)) {
@@ -848,6 +846,10 @@ internal class ReaderTextToSpeech(
                     }
                 }
             }
+            manager.reinitWithEngine(
+                enginePackage = targetEngine,
+                voiceId = voiceId,
+            )
         } else {
             val success = manager.trySetVoiceById(id = voiceId)
             if (success) {
