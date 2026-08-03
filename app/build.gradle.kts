@@ -49,6 +49,7 @@ android {
         versionCode = 35
         versionName = "1.4.0"
         base.archivesName.set("NoveLA_v$versionName")
+        manifestPlaceholders["appLabel"] = "NoveLA"
     }
 
     signingConfigs {
@@ -63,6 +64,9 @@ android {
     buildTypes {
 
         named("debug") {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            manifestPlaceholders["appLabel"] = "NoveLA Debug"
         }
 
         named("release") {
