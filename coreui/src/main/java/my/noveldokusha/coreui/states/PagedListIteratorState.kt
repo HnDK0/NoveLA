@@ -74,8 +74,12 @@ class PagedListIteratorState<T>(
                     // Защита от зацикливания:
                     // 1. Если список пустой - завершаем пагинацию
                     // 2. Если хэш совпадает с предыдущей страницей (дублирование) - завершаем
+                    // 3. Отбрасываем дубли: внутри страницы (источник может вернуть один
+                    //    url несколько раз) и против уже загруженного списка (одна книга
+                    //    на нескольких страницах) — дубли ключей ломают LazyColumn/LazyGrid.
+                    val unique = newItems.distinct().filterNot(list::contains)
                     when {
-                        newItems.isEmpty() -> {
+                        unique.isEmpty() -> {
                             IteratorState.CONSUMED
                         }
                         lastPageHash != null && newItems.hashCode() == lastPageHash -> {
@@ -84,7 +88,7 @@ class PagedListIteratorState<T>(
                         }
                         else -> {
                             lastPageHash = newItems.hashCode()
-                            list.addAll(newItems)
+                            list.addAll(unique)
                             if (res.data.hasNoNextPage) IteratorState.CONSUMED else IteratorState.IDLE
                         }
                     }
