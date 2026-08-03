@@ -34,6 +34,7 @@ import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.PublishedWithChanges
 import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -86,6 +87,7 @@ internal fun ChaptersScreen(
     onPressBack: () -> Unit,
     onSelectedDeleteDownloads: () -> Unit,
     onSelectedDownload: () -> Unit,
+    onSelectedTranslate: () -> Unit = {},
     onSelectedSetRead: () -> Unit,
     onSelectedSetUnread: () -> Unit,
     onSelectedSetReadUpToChapterRead: () -> Unit,
@@ -319,6 +321,12 @@ internal fun ChaptersScreen(
                                 Icon(
                                     Icons.Outlined.CloudDownload,
                                     stringResource(id = R.string.download_selected_chapters)
+                                )
+                            }
+                            IconButton(onClick = onSelectedTranslate) {
+                                Icon(
+                                    Icons.Outlined.Translate,
+                                    stringResource(id = R.string.translate_selected_chapters)
                                 )
                             }
                         }

@@ -9,6 +9,7 @@ import my.noveldokusha.data.DownloadForegroundService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -34,6 +35,7 @@ import my.noveldokusha.core.utils.normalizeBookUrl
 import my.noveldokusha.core.utils.STRIP_HTML_TAGS
 import my.noveldokusha.text_translator.domain.TranslationManager
 import org.json.JSONArray
+import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.URI
@@ -90,7 +92,7 @@ private class DomainQueue {
  * [ChaptersAdded] — задача уже существует, [count] новых глав добавлено.
  * [Resumed]     — задача была паузнута, возобновлена.
  * [AlreadyQueued] — все главы уже в очереди или скачаны, ничего не изменилось.
- * [AllCached]   — все главы уже скачаны, нечего качать.
+ * [AllCached]   — нечего скачивать (или нечего переводить в translateMode).
  */
 sealed class EnqueueResult {
     data class Added(val count: Int) : EnqueueResult()
@@ -162,6 +164,7 @@ class DownloadManager @Inject constructor(
         private const val NETWORK_RETRY_INTERVAL_MS = 15_000L
         private const val NETWORK_RETRY_FAST_INTERVAL_MS = 5_000L
         private const val TRANSLATION_MAX_RETRIES = 2
+        private const val TRANSLATION_CHAPTER_DELAY_MS = 1_000L
     }
 
     init {
@@ -374,6 +377,9 @@ class DownloadManager @Inject constructor(
     /**
      * Добавляет главы книги в очередь загрузки.
      *
+     * При [translateMode] = true в очередь попадают только уже скачанные главы без
+     * перевода (дозаполнение переводов) — новые главы не скачиваются.
+     *
      * Suspend-функция — возвращает [EnqueueResult] который ViewModel использует
      * для показа правильного тоста. Вызывать из viewModelScope.
      */
@@ -381,17 +387,36 @@ class DownloadManager @Inject constructor(
         bookTitle: String,
         bookUrl: String,
         chapterUrls: List<String>,
+        translateMode: Boolean = false,
     ): EnqueueResult {
         val normalizedUrl = normalizeBookUrl(bookUrl)
         val uniqueUrls = chapterUrls.distinct()
         if (uniqueUrls.isEmpty()) return EnqueueResult.AllCached
 
-        // Фильтруем уже скачанные до lock — IO-операция
-        val notDownloadedUrls = withContext(Dispatchers.IO) {
-            uniqueUrls.filter { url -> chapterBodyRepository.getCachedBody(url) == null }
+        // Фильтруем главы до lock — IO-операция
+        val toProcess = withContext(Dispatchers.IO) {
+            if (translateMode) {
+                val sourceLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
+                val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
+                if (!appPreferences.GLOBAL_TRANSLATION_ENABLED.value || sourceLang.isBlank() || targetLang.isBlank()) {
+                    emptyList()
+                } else {
+                    val translatedUrls = uniqueUrls.chunked(500).flatMap { chunk ->
+                        chapterTranslationDao.getTranslationsByChapterUrls(chunk)
+                    }
+                        .filter { it.sourceLang == sourceLang && it.targetLang == targetLang && it.translatedParagraphs.isNotEmpty() }
+                        .map { it.chapterUrl }
+                        .toSet()
+                    uniqueUrls.filter { url ->
+                        chapterBodyRepository.getCachedBody(url) != null && url !in translatedUrls
+                    }
+                }
+            } else {
+                uniqueUrls.filter { url -> chapterBodyRepository.getCachedBody(url) == null }
+            }
         }
 
-        if (notDownloadedUrls.isEmpty()) return EnqueueResult.AllCached
+        if (toProcess.isEmpty()) return EnqueueResult.AllCached
 
         data class SyncResult(
             val shouldCreateNew: Boolean,
@@ -409,7 +434,9 @@ class DownloadManager @Inject constructor(
                     SyncResult(shouldCreateNew = true, result = null)
                 } else if (existing.isPaused) {
                     // Паузнутая задача — добавляем новые главы если есть, потом resume
-                    val newUrls = notDownloadedUrls.filter { it !in existing.chapterUrls }
+                    // translateMode: добавляем всегда — главы могут уже быть в списке,
+                    // но пройдены worker'ом; cached-ветка идемпотентна.
+                    val newUrls = if (translateMode) toProcess else toProcess.filter { it !in existing.chapterUrls }
                     val base = if (newUrls.isNotEmpty()) {
                         val updated = existing.copy(
                             chapterUrls = existing.chapterUrls + newUrls,
@@ -430,7 +457,8 @@ class DownloadManager @Inject constructor(
                     SyncResult(shouldCreateNew = false, result = EnqueueResult.Resumed)
                 } else {
                     // Задача активно качается — добавляем только новые главы
-                    val newUrls = notDownloadedUrls.filter { it !in existing.chapterUrls }
+                    // translateMode: добавляем все запрошенные — cached-ветка идемпотентна.
+                    val newUrls = if (translateMode) toProcess else toProcess.filter { it !in existing.chapterUrls }
                     if (newUrls.isNotEmpty()) {
                         val updated = existing.copy(
                             chapterUrls = existing.chapterUrls + newUrls,
@@ -458,8 +486,8 @@ class DownloadManager @Inject constructor(
         val task = DownloadTaskState(
             bookTitle = bookTitle,
             bookUrl = normalizedUrl,
-            chapterUrls = notDownloadedUrls,
-            totalCount = notDownloadedUrls.size,
+            chapterUrls = toProcess,
+            totalCount = toProcess.size,
         )
         val notif = createNotification(task)
         tasksMutex.withLock {
@@ -468,7 +496,7 @@ class DownloadManager @Inject constructor(
         }
         scheduleSave(task)
         notif.showQueued(task)
-        return EnqueueResult.Added(notDownloadedUrls.size)
+        return EnqueueResult.Added(toProcess.size)
     }
 
     /**
@@ -601,11 +629,51 @@ class DownloadManager @Inject constructor(
                         notifications[bookUrl]?.updateProgress(withIndex)
                     }
 
-                    // Пропускаем уже скачанные — без delay, нет сетевого запроса
-                    if (chapterBodyRepository.getCachedBody(chapterUrl) != null) {
-                        Timber.d("skip cached: $chapterUrl")
-                        updateTask(bookUrl) { it.copy(skippedCount = it.skippedCount + 1, consecutiveErrors = 0) }
+                    // Уже скачанные — дозаполняем перевод или просто пропускаем.
+                    // Перевод делает сетевой запрос, поэтому между главами есть пауза.
+                    val cachedBody = chapterBodyRepository.getCachedBody(chapterUrl)
+                    if (cachedBody != null) {
+                        val sourceLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
+                        val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
+                        val needsTranslation = appPreferences.GLOBAL_TRANSLATION_ENABLED.value &&
+                            sourceLang.isNotBlank() && targetLang.isNotBlank() &&
+                            (chapterTranslationDao.getTranslations(chapterUrl, sourceLang, targetLang)
+                                ?.translatedParagraphs?.isNotEmpty() != true)
+                        // Проверяем паузу перед переводом — он может быть долгим
+                        val taskBeforeTranslate = tasksMutex.withLock {
+                            _tasks.value[bookUrl]
+                        }
+                        if (taskBeforeTranslate == null || taskBeforeTranslate.isCancelled || taskBeforeTranslate.isPaused) {
+                            Timber.d("interrupted before translate (cached): $chapterUrl")
+                            return@launch
+                        }
+                        val translated = if (needsTranslation) translateWithNetworkWait(bookUrl, chapterUrl, cachedBody) else null
+                        Timber.d("skip cached: $chapterUrl (translated=$translated)")
+                        when (translated) {
+                            is TranslateResult.Translated -> updateTask(bookUrl) {
+                                it.copy(successCount = it.successCount + 1, consecutiveErrors = 0)
+                            }
+                            is TranslateResult.Failed -> updateTask(bookUrl) {
+                                it.copy(
+                                    skippedCount = it.skippedCount + 1,
+                                    translationErrorCount = it.translationErrorCount + 1,
+                                    consecutiveErrors = 0,
+                                )
+                            }
+                            is TranslateResult.Interrupted -> return@launch
+                            null -> updateTask(bookUrl) {
+                                it.copy(skippedCount = it.skippedCount + 1, consecutiveErrors = 0)
+                            }
+                        }
                         i++
+                        if (needsTranslation) {
+                            // Пауза между переводами глав — API переводчика не любит запросы подряд.
+                            // Только для перевода: в fetch-пути пауза уже есть через delayMs.
+                            val actualSize = tasksMutex.withLock {
+                                _tasks.value[bookUrl]?.chapterUrls?.size ?: i
+                            }
+                            if (i < actualSize) delay(TRANSLATION_CHAPTER_DELAY_MS)
+                        }
                         continue
                     }
 
@@ -645,14 +713,18 @@ class DownloadManager @Inject constructor(
                                 return@launch
                             }
 
-                            val translationSuccess = translateAndSave(chapterUrl, fetchResult.body)
-                            updateTask(bookUrl) {
-                                it.copy(
-                                    successCount = it.successCount + 1,
-                                    consecutiveErrors = 0,
-                                    translationErrorCount = if (translationSuccess) it.translationErrorCount
-                                    else it.translationErrorCount + 1,
-                                )
+                            when (translateWithNetworkWait(bookUrl, chapterUrl, fetchResult.body)) {
+                                is TranslateResult.Translated -> updateTask(bookUrl) {
+                                    it.copy(successCount = it.successCount + 1, consecutiveErrors = 0)
+                                }
+                                is TranslateResult.Failed -> updateTask(bookUrl) {
+                                    it.copy(
+                                        successCount = it.successCount + 1,
+                                        consecutiveErrors = 0,
+                                        translationErrorCount = it.translationErrorCount + 1,
+                                    )
+                                }
+                                is TranslateResult.Interrupted -> return@launch
                             }
                             i++
 
@@ -692,6 +764,26 @@ class DownloadManager @Inject constructor(
     }
 
     /**
+     * Исход перевода одной главы.
+     * [TranslateOutcome.Failure.networkRelated] = true при транспортной ошибке
+     * (DNS/соединение/таймаут/TLS) — в этом случае стоит ждать сеть и повторить.
+     */
+    private sealed class TranslateOutcome {
+        object Success : TranslateOutcome()
+        data class Failure(val networkRelated: Boolean) : TranslateOutcome()
+    }
+
+    /**
+     * Исход [translateWithNetworkWait]: перевод завершён, провален без возможности
+     * повтора (бан/5xx/контент-блок) или прерван паузой/отменой.
+     */
+    private sealed class TranslateResult {
+        object Translated : TranslateResult()
+        object Failed : TranslateResult()
+        object Interrupted : TranslateResult()
+    }
+
+    /**
      * Определяет, является ли ошибка сетевой (DNS/соединение/таймаут/TLS).
      * M4: добавлены SocketTimeoutException, SSLException как основные критерии,
      * строковые проверки оставлены как fallback.
@@ -709,6 +801,28 @@ class DownloadManager @Inject constructor(
                         msg.contains("Failed to connect", ignoreCase = true) ||
                         msg.contains("Network is unreachable", ignoreCase = true) ||
                         msg.contains("hostname", ignoreCase = true)
+            }
+        }
+    }
+
+    /**
+     * Определяет, является ли исключение перевода сетевой ошибкой (транспортный
+     * уровень: DNS/соединение/таймаут/TLS). Зеркало [isNetworkError], но для
+     * исключений переводчиков. Бан/5xx/контент-блок приходят как IOException
+     * с текстом ("Rate limit", "Server error") и НЕ считаются сетевыми.
+     */
+    private fun isTranslationNetworkError(error: Exception): Boolean {
+        return when (error) {
+            is UnknownHostException,
+            is ConnectException,
+            is SocketTimeoutException,
+            is SSLException -> true
+            else -> {
+                val msg = error.message
+                msg?.contains("Unable to resolve host", ignoreCase = true) == true ||
+                        msg?.contains("Failed to connect", ignoreCase = true) == true ||
+                        msg?.contains("Network is unreachable", ignoreCase = true) == true ||
+                        msg?.contains("hostname", ignoreCase = true) == true
             }
         }
     }
@@ -889,16 +1003,16 @@ class DownloadManager @Inject constructor(
     /**
      * Переводит и сохраняет главу.
      * H5: Добавлен retry-цикл для translateBatch (2 попытки с backoff).
-     * При полном провале возвращает false — глава засчитывается как успешно скачанная,
-     * но translationErrorCount инкрементируется.
+     * Возвращает [TranslateOutcome.Success] при успехе или отключённом переводе,
+     * [TranslateOutcome.Failure] с признаком сетевой ошибки — для ожидания сети.
      */
-    private suspend fun translateAndSave(chapterUrl: String, body: String): Boolean {
+    private suspend fun translateAndSave(chapterUrl: String, body: String): TranslateOutcome {
         val sourceLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
         val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
         val isEnabled = appPreferences.GLOBAL_TRANSLATION_ENABLED.value
         if (!isEnabled || sourceLang.isBlank() || targetLang.isBlank()) {
             Timber.d("translation skipped (enabled=$isEnabled)")
-            return true
+            return TranslateOutcome.Success
         }
 
         return try {
@@ -918,11 +1032,10 @@ class DownloadManager @Inject constructor(
                     parts.map { it.trim() }.filter { it.isNotBlank() }
                 }
 
-            if (paragraphs.isEmpty()) return true
+            if (paragraphs.isEmpty()) return TranslateOutcome.Success
 
-            // H5: Retry-цикл для translateBatch
+            // H5: Retry-цикл для translateBatch (перевыбрасывает ошибку при исчерпании)
             val translations = translateBatchWithRetry(paragraphs, sourceLang, targetLang)
-                ?: return false // Все попытки исчерпаны
 
             val translatedParagraphs = org.json.JSONArray(
                 paragraphs.map { translations[it] ?: it }
@@ -952,23 +1065,77 @@ class DownloadManager @Inject constructor(
                     titleTranslation = titleTranslation,
                 )
             )
-            true
+            TranslateOutcome.Success
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Timber.e(e, "translateAndSave failed")
-            false
+            TranslateOutcome.Failure(networkRelated = isTranslationNetworkError(e))
+        }
+    }
+
+    /**
+     * Переводит главу с ожиданием сети, зеркально [waitForNetworkThenRetry].
+     *
+     * При транспортной ошибке или отсутствии сети — переходит в цикл ожидания
+     * с интервалом [NETWORK_RETRY_FAST_INTERVAL_MS]/[NETWORK_RETRY_INTERVAL_MS]
+     * и повторяет перевод той же главы. Бан/5xx/контент-блок возвращаются как
+     * [TranslateResult.Failed] без ожидания. Пауза/отмена — [TranslateResult.Interrupted].
+     */
+    private suspend fun translateWithNetworkWait(
+        bookUrl: String,
+        chapterUrl: String,
+        body: String,
+    ): TranslateResult {
+        var waiting = false
+        while (true) {
+            when (val outcome = translateAndSave(chapterUrl, body)) {
+                is TranslateOutcome.Success -> {
+                    if (waiting) {
+                        updateTask(bookUrl) { it.copy(isWaitingForNetwork = false) }
+                        notifications[bookUrl]?.showDownloading(
+                            tasksMutex.withLock { _tasks.value[bookUrl] }
+                                ?: return TranslateResult.Interrupted
+                        )
+                    }
+                    return TranslateResult.Translated
+                }
+                is TranslateOutcome.Failure -> {
+                    if (!outcome.networkRelated) return TranslateResult.Failed
+                    if (!waiting) {
+                        updateTask(bookUrl) { it.copy(isWaitingForNetwork = true) }
+                        notifications[bookUrl]?.showWaitingForNetwork(
+                            tasksMutex.withLock { _tasks.value[bookUrl] }
+                                ?: return TranslateResult.Interrupted
+                        )
+                        waiting = true
+                    }
+                }
+            }
+
+            val hasNetwork = isNetworkAvailable()
+            val delayMs = if (hasNetwork) NETWORK_RETRY_FAST_INTERVAL_MS else NETWORK_RETRY_INTERVAL_MS
+            delay(delayMs)
+
+            // Проверяем статус — могла прийти пауза/отмена
+            val task = tasksMutex.withLock { _tasks.value[bookUrl] }
+            if (task == null || task.isCancelled || task.isPaused) {
+                Timber.d("translation network wait interrupted: $chapterUrl")
+                return TranslateResult.Interrupted
+            }
         }
     }
 
     /**
      * Переводит batch параграфов с retry-циклом.
      * H5: [TRANSLATION_MAX_RETRIES] попыток с exponential backoff.
-     * Возвращает null если все попытки исчерпаны.
+     * При исчерпании попыток перевыбрасывает последнюю ошибку.
      */
     private suspend fun translateBatchWithRetry(
         paragraphs: List<String>,
         sourceLang: String,
         targetLang: String,
-    ): Map<String, String>? {
+    ): Map<String, String> {
         var lastError: Exception? = null
         for (attempt in 0 until TRANSLATION_MAX_RETRIES) {
             try {
@@ -979,12 +1146,14 @@ class DownloadManager @Inject constructor(
                     // (пауза/отмена проверяется выше в downloadBook перед вызовом)
                 }
                 return translationManager.translateBatch(paragraphs, sourceLang, targetLang)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 lastError = e
                 Timber.w("translateBatch attempt=$attempt failed: ${e.message}")
             }
         }
         Timber.e(lastError, "translateBatch exhausted after $TRANSLATION_MAX_RETRIES attempts")
-        return null
+        throw lastError ?: IOException("Translation failed after $TRANSLATION_MAX_RETRIES attempts")
     }
 }

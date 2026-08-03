@@ -579,6 +579,38 @@ internal class ChaptersViewModel @Inject constructor(
         }
     }
 
+    fun translateSelected() {
+        if (state.isLocalSource.value) return
+
+        val sourceLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
+        val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
+        if (!appPreferences.GLOBAL_TRANSLATION_ENABLED.value || sourceLang.isBlank() || targetLang.isBlank()) {
+            toasty.show(R.string.translation_not_configured)
+            return
+        }
+
+        val selectedUrls = state.selectedChaptersUrl.keys.toSet()
+        val sortedChapters = state.chapters
+            .filter { selectedUrls.contains(it.chapter.url) }
+            .sortedBy { it.chapter.position }
+
+        val chapterUrls = sortedChapters.map { it.chapter.url }
+        viewModelScope.launch {
+            when (val result = downloadManager.enqueue(
+                bookTitle = bookTitle,
+                bookUrl = bookUrl,
+                chapterUrls = chapterUrls,
+                translateMode = true,
+            )) {
+                is EnqueueResult.Added,
+                is EnqueueResult.ChaptersAdded,
+                EnqueueResult.Resumed,
+                EnqueueResult.AlreadyQueued -> toasty.show(R.string.translation_queued)
+                EnqueueResult.AllCached -> toasty.show(R.string.translation_nothing_to_translate)
+            }
+        }
+    }
+
     fun deleteDownloadsSelected() {
         if (state.isLocalSource.value) return
         val list = state.selectedChaptersUrl.toList()

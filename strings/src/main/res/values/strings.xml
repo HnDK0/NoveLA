@@ -101,6 +101,10 @@
     <string name="reload">Reload</string>
     <string name="remove_selected_chapters_downloads">Remove selected chapters\' downloads</string>
     <string name="download_selected_chapters">Download selected chapters</string>
+    <string name="translate_selected_chapters">Translate selected chapters</string>
+    <string name="translation_not_configured">Translation is disabled or not configured</string>
+    <string name="translation_queued">Added to translation queue</string>
+    <string name="translation_nothing_to_translate">Nothing to translate</string>
     <string name="set_as_read_selected_chapters">Set as read selected chapters</string>
     <string name="set_as_read_up_to_selected_chapter">Set as read up to selected chapter</string>
     <string name="set_as_Unread_up_to_selected_chapter">Set as Unread up to selected chapter</string>
