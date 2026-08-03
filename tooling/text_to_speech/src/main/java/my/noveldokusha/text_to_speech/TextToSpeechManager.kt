@@ -141,10 +141,16 @@ class TextToSpeechManager<T : Utterance<T>>(
 
     private fun calibrationKey(): String {
         val voiceId = activeVoice.value?.id ?: currentEnginePackage
-        return "marker_ratio_v2_${voiceId}_${voiceSpeed.floatValue}"
+        // Флаг сети в ключе: у одного голоса Google needsInternet может меняться (например,
+        // после установки данных голоса), и сетевой ratio (~2) не должен применяться к
+        // локальной версии того же голоса.
+        return "marker_ratio_v2_${voiceId}_${activeVoice.value?.needsInternet}_${voiceSpeed.floatValue}"
     }
 
     private fun loadRatio() {
+        // Без установленного голоса нет осмысленного ключа — чужие значения не применяем
+        // (на холодном старте trySetVoiceSpeed может прийти раньше восстановления голоса).
+        if (activeVoice.value == null) return
         // Сменился голос/скорость/движок — окно пар регрессии от старого голоса не годится.
         synchronized(_calibPairs) { _calibPairs.clear() }
         val stored = ttsPrefs.getFloat(calibrationKey(), 0f)
@@ -173,6 +179,16 @@ class TextToSpeechManager<T : Utterance<T>>(
     }
 
     private fun calibrateRatio() {
+        // Без установленного голоса нет ни смысла, ни ключа для калибровки (симметрично loadRatio).
+        if (activeVoice.value == null) return
+        // Локальные голоса играют аудио с маркерным темпом — калибровка им не нужна,
+        // ratio навсегда 1.0. Иначе регрессия по завершённым абзацам могла бы увести ratio
+        // выше 1.0 (последнее слово слайса не входит в маркерную длину, а wall-время включает
+        // хвост/паузы), и подсветка локальных голосов отставала бы от звука.
+        if (activeVoice.value?.needsInternet == false) {
+            _audioToMarkerRatio = 1f
+            return
+        }
         val pairs = synchronized(_calibPairs) { _calibPairs.toList() }
         calibrationRegressionSlope(pairs)?.let { slope ->
             // EMA-смешивание вместо перезаписи: одна пара с подбуферизацией сети может дать
@@ -250,11 +266,10 @@ class TextToSpeechManager<T : Utterance<T>>(
             val voice = service.voices?.find { it.name == voiceId }
             if (voice != null) {
                 service.voice = voice
+                // updateActiveVoice сама грузит калибровку под фактически активный голос
+                // нового движка — отдельный loadRatio здесь не нужен.
                 updateActiveVoice()
             }
-            // Сменился движок/голос — сбрасываем калибровку на сохранённую для нового
-            // голоса (иначе первый абзац после reinit считает по ratio старого).
-            loadRatio()
             listenToUtterances()
             scope.launch { reinitDoneFlow.emit(Unit) }
         }
@@ -412,8 +427,8 @@ class TextToSpeechManager<T : Utterance<T>>(
             return false
         }
         service.voice = voice
+        // updateActiveVoice сама грузит калибровку под применённый голос.
         updateActiveVoice()
-        loadRatio()
         Timber.d( "trySetVoiceById($id) -> success")
         return true
     }
@@ -443,7 +458,9 @@ class TextToSpeechManager<T : Utterance<T>>(
         Timber.d( "trySetVoiceSpeed($value) -> $success")
         if (success) {
             voiceSpeed.floatValue = value
-            loadRatio()
+            // Калибровка грузится только под известный голос: на холодном старте скорость
+            // применяется до восстановления голоса, и её ratio загрузит сам updateActiveVoice.
+            if (activeVoice.value != null) loadRatio()
             return true
         }
         return false
@@ -453,6 +470,10 @@ class TextToSpeechManager<T : Utterance<T>>(
 
     private fun updateActiveVoice() {
         activeVoice.value = service.voice?.toVoiceData(currentEnginePackage)
+        // Калибровка грузится событийно под фактически активный голос (а не по точкам вызова):
+        // сетевой голос после рестарта может подгрузиться позже — ratio применится в момент
+        // его применения; пока голос не установлен (null), ratio не трогаем.
+        if (activeVoice.value != null) loadRatio()
     }
 
     private fun Voice.toVoiceData(enginePackage: String) = VoiceData(
@@ -556,7 +577,11 @@ class TextToSpeechManager<T : Utterance<T>>(
                     try {
                         _rangeMutex.withLock {
                             val now = SystemClock.elapsedRealtime()
-                            val showAt = maxOf(targetWall, _lastRangeShownWall + MIN_RANGE_HOLD_MS)
+                            // Hold между показами нужен сетевым голосам (пачки onRangeStart):
+                            // локальные играют с маркерным темпом, и задержка между словами
+                            // накопительно сдвигала бы подсветку от звука.
+                            val holdMs = if (activeVoice.value?.needsInternet == true) MIN_RANGE_HOLD_MS else 0L
+                            val showAt = maxOf(targetWall, _lastRangeShownWall + holdMs)
                             delay((showAt - now).coerceAtLeast(0))
                             // Абзац мог смениться, остановиться или завершиться с ошибкой
                             // (осиротевший слайс: _itemStartWall уже удалён) — показываем
