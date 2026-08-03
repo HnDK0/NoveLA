@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
@@ -376,6 +377,9 @@ internal class NarratorMediaControlsNotification @Inject constructor(
                 snapshotFlow { readerSession.speakerStats.value },
                 snapshotFlow { readerSession.readerTextToSpeech.state.estimatedRemainingSeconds.value },
             ) { stats, remainingSecs -> stats to remainingSecs }
+                // speakerStats эмитит на каждый PLAYING/LOADING абзаца — не более
+                // одного обновления уведомления в секунду (Shedding в логе).
+                .sample(1_000)
                 .collectLatest { pair ->
                     val stats = pair.first ?: return@collectLatest
                     val remainingSecs = pair.second

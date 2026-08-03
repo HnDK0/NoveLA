@@ -277,7 +277,6 @@ internal class ReaderSession(
                         if (readerChaptersLoader.isLastChapter(chapterIndex)) return@withContext
                         if (readerChaptersLoader.hasLoadingError) return@withContext
                         val nextChapterIndex = chapterIndex + 1
-                        val chapterItem = readerChaptersLoader.orderedChapters[nextChapterIndex]
                         if (readerChaptersLoader.isChapterContentReady(nextChapterIndex)) {
                             readerTextToSpeech.readChapterStartingFromStart(
                                 chapterIndex = nextChapterIndex
@@ -420,10 +419,12 @@ internal class ReaderSession(
             chapterIndex >= ttsCurrentChapterIndex + 1
         ) {
             Timber.d("Auto-stop TTS: user on chapter $chapterIndex, TTS was on $ttsCurrentChapterIndex")
+            // Останавливаем, но НЕ перезаписываем позицию чтения на «видимый»
+            // пользователем элемент. forceResetState(видимый mid-абзац) затирала активный
+            // item, и при последующем resume/автопереходе чтение начиналось с середины
+            // новой главы, пропуская её Title и первый абзац. Остановка без сброса
+            // сохраняет позицию, и автопереход возобновляется с правильного места.
             readerTextToSpeech.stop()
-            readerTextToSpeech.forceResetState(
-                items.getOrNull(itemIndex) as? ReaderItem.Position
-            )
         }
 
         if (chapterIndex != lastChapterIndex) {

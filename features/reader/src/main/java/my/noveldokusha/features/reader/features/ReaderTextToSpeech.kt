@@ -449,6 +449,7 @@ internal class ReaderTextToSpeech(
                                         .queueList
                                         .asSequence()
                                         .last().value
+                                    Timber.d("TTS-JUMP halfBuffer: lastUtterance=(${lastUtterance.itemPos.chapterIndex},${lastUtterance.itemPos.chapterItemPosition}) readingNextChunk")
                                     readChapterNextChunk(
                                         chapterIndex = lastUtterance.itemPos.chapterIndex,
                                         chapterItemPosition = lastUtterance.itemPos.chapterItemPosition,
@@ -457,6 +458,7 @@ internal class ReaderTextToSpeech(
                                     onBufferLow?.invoke()
                                 }
                                 0 -> {
+                                    Timber.w("TTS-JUMP queueSize==0 emit reachedChapterEnd: finished=(${it.itemPos.chapterIndex},${it.itemPos.chapterItemPosition})")
                                     launch {
                                         reachedChapterEndFlowChapterIndex.emit(it.itemPos.chapterIndex)
                                     }
@@ -508,12 +510,15 @@ internal class ReaderTextToSpeech(
         chapterIndex: Int,
         chapterItemPosition: Int,
     ) = withContext(Dispatchers.Main.immediate) {
+        Timber.d("TTS-JUMP readChapterStartingFromChapterItemPosition: ($chapterIndex,$chapterItemPosition)")
         val itemIndex = indexOfReaderItem(
             list = items,
             chapterIndex = chapterIndex,
-            chapterItemPosition = chapterItemPosition
+            chapterItemPosition = chapterItemPosition,
+            debugSource = "startFromPos"
         )
         if (itemIndex == -1) {
+            Timber.w("TTS-JUMP readChapterStartingFromChapterItemPosition: itemIndex==-1 -> emit reachedChapterEnd($chapterIndex)")
             reachedChapterEndFlowChapterIndex.emit(chapterIndex)
             return@withContext
         }
@@ -644,6 +649,7 @@ internal class ReaderTextToSpeech(
     private fun setPlaying(playing: Boolean) {
         lifecycleLock.lock()
         try {
+            Timber.d("TTS-JUMP setPlaying($playing) isSystemPauseTrigger=${ReaderTextToSpeech.isSystemPauseTrigger} pausedBySystem=${ReaderTextToSpeech.pausedBySystem}")
             if (!playing) {
                 if (!ReaderTextToSpeech.isSystemPauseTrigger) {
                     ReaderTextToSpeech.pausedBySystem = false
@@ -685,14 +691,40 @@ internal class ReaderTextToSpeech(
                     list = items,
                     chapterIndex = currentItemPos.chapterIndex,
                     chapterItemPosition = currentItemPos.chapterItemPosition,
+                    debugSource = "playNextItem"
                 )
-                if (itemIndex <= -1 || itemIndex >= items.lastIndex) return@launch
+                if (itemIndex <= -1 || itemIndex >= items.lastIndex) {
+                    Timber.w("TTS-JUMP playNextItem: early-return itemIndex=$itemIndex lastIndex=${items.lastIndex} current=(${currentItemPos.chapterIndex},${currentItemPos.chapterItemPosition})")
+                    return@launch
+                }
                 val nextItemRelativeIndex = items
                     .subList(itemIndex + 1, items.size)
                     .indexOfFirst { it is ReaderItem.Position }
                 if (nextItemRelativeIndex == -1) return@launch
                 val nextItemIndex = itemIndex + 1 + nextItemRelativeIndex
                 val nextItem = items.getOrNull(nextItemIndex) as? ReaderItem.Position ?: return@launch
+                val chapterHasMoreAfter = items
+                    .subList(itemIndex + 1, items.size)
+                    .any { it is ReaderItem.Position && it.chapterIndex == currentItemPos.chapterIndex }
+                Timber.d(
+                    "TTS-JUMP playNextItem: current=(${currentItemPos.chapterIndex},${currentItemPos.chapterItemPosition}) " +
+                        "itemIndex=$itemIndex nextRel=$nextItemRelativeIndex nextItemIndex=$nextItemIndex " +
+                        "next=(${nextItem.chapterIndex},${nextItem.chapterItemPosition}) chapterHasMoreAfter=$chapterHasMoreAfter"
+                )
+                if (nextItem.chapterIndex != currentItemPos.chapterIndex) {
+                    val chapterPositionCount = items.count { it is ReaderItem.Position && it.chapterIndex == currentItemPos.chapterIndex }
+                    val nextFew = items
+                        .subList(itemIndex + 1, items.size)
+                        .filterIsInstance<ReaderItem.Position>()
+                        .take(5)
+                        .joinToString { "(${it.chapterIndex},${it.chapterItemPosition})" }
+                    Timber.w(
+                        "TTS-JUMP playNextItem CROSSES CHAPTER: " +
+                            "(${currentItemPos.chapterIndex},${currentItemPos.chapterItemPosition}) -> " +
+                            "(${nextItem.chapterIndex},${nextItem.chapterItemPosition}) chapterHasMoreAfter=$chapterHasMoreAfter " +
+                            "chapterPositions=${currentItemPos.chapterIndex}:$chapterPositionCount nextFew=[$nextFew]"
+                    )
+                }
                 stop()
                 start()
                 readChapterStartingFromItemIndex(
@@ -717,8 +749,12 @@ internal class ReaderTextToSpeech(
                     list = items,
                     chapterIndex = currentItemPos.chapterIndex,
                     chapterItemPosition = currentItemPos.chapterItemPosition,
+                    debugSource = "playPreviousItem"
                 )
-                if (itemIndex <= 0) return@launch
+                if (itemIndex <= 0) {
+                    Timber.w("TTS-JUMP playPreviousItem: early-return itemIndex=$itemIndex current=(${currentItemPos.chapterIndex},${currentItemPos.chapterItemPosition})")
+                    return@launch
+                }
                 val previousItemRelativeIndex = items
                     .subList(0, itemIndex)
                     .asReversed()
@@ -746,6 +782,7 @@ internal class ReaderTextToSpeech(
 
             val currentState = state.currentActiveItemState.value
             val nextChapterIndex = currentState.itemPos.chapterIndex + 1
+            Timber.d("TTS-JUMP playNextChapter: current=(${currentState.itemPos.chapterIndex},${currentState.itemPos.chapterItemPosition}) next=$nextChapterIndex")
             stop()
             if (!isChapterIndexValid(nextChapterIndex)) {
                 coroutineScope.launch {
@@ -879,12 +916,12 @@ internal class ReaderTextToSpeech(
     }
 
     private fun resumeFromCurrentState() {
-        Timber.d("resumeFromCurrentState isPlaying=${state.isPlaying.value}")
+        Timber.d("TTS-JUMP resumeFromCurrentState: isPlaying=${state.isPlaying.value}")
         if (!state.isPlaying.value) return
         stop()
         start()
         val currentState = manager.currentActiveItemState.value
-        Timber.d("resumeFromCurrentState chapterIndex=${currentState.itemPos.chapterIndex}")
+        Timber.d("TTS-JUMP resumeFromCurrentState: current=(${currentState.itemPos.chapterIndex},${currentState.itemPos.chapterItemPosition})")
         if (currentState.itemPos.chapterIndex >= 0) {
             coroutineScope.launch {
                 readChapterStartingFromChapterItemPosition(
@@ -903,7 +940,8 @@ internal class ReaderTextToSpeech(
         val itemIndex = indexOfReaderItem(
             list = items,
             chapterIndex = chapterIndex,
-            chapterItemPosition = chapterItemPosition
+            chapterItemPosition = chapterItemPosition,
+            debugSource = "readChapterNextChunk"
         )
         if (itemIndex == -1) return
         val nextItems = getChapterNextItems(
@@ -920,7 +958,7 @@ internal class ReaderTextToSpeech(
         chapterIndex: Int,
         quantity: Int
     ): List<ReaderItem.Position> {
-        return items
+        val result = items
             .subList(itemIndex.coerceAtMost(items.lastIndex), items.size)
             .asSequence()
             .filter { it is ReaderItem.Title || it is ReaderItem.Body }
@@ -928,6 +966,11 @@ internal class ReaderTextToSpeech(
             .takeWhile { it.chapterIndex == chapterIndex }
             .take(quantity)
             .toList()
+        Timber.d(
+            "TTS-JUMP getChapterNextItems: itemIndex=$itemIndex chapter=$chapterIndex q=$quantity -> n=${result.size} " +
+                "range=${result.firstOrNull()?.let { "(${it.chapterIndex},${it.chapterItemPosition})" } ?: "empty"}..${result.lastOrNull()?.let { "(${it.chapterIndex},${it.chapterItemPosition})" } ?: "empty"}"
+        )
+        return result
     }
 
     private fun isOnlyDecorators(text: String): Boolean {
@@ -960,6 +1003,8 @@ internal class ReaderTextToSpeech(
 
                 val cleanText = cleanTextForTts(displayText)
                 if (cleanText.isBlank()) return
+
+                Timber.d("TTS-JUMP speakItem: (${item.chapterIndex},${item.chapterItemPosition}) chars=${cleanText.length}")
 
                 val leadingOffset = displayText.lines().firstOrNull()?.let { line ->
                     LEADING_DECORATIVE.find(line)?.value?.length

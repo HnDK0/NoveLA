@@ -1,20 +1,50 @@
 package my.noveldokusha.features.reader.domain
 
+import timber.log.Timber
+
 internal fun indexOfReaderItem(
     list: List<ReaderItem>,
     chapterIndex: Int,
-    chapterItemPosition: Int
-): Int = when {
-    list.size < 128 -> indexOfReaderItemLinearSearch(
-        list = list,
-        chapterIndex = chapterIndex,
-        chapterItemPosition = chapterItemPosition
-    )
-    else -> indexOfReaderItemBinarySearch(
-        list = list,
-        chapterIndex = chapterIndex,
-        chapterItemPosition = chapterItemPosition
-    )
+    chapterItemPosition: Int,
+    debugSource: String? = null
+): Int {
+    val result = when {
+        list.size < 128 -> indexOfReaderItemLinearSearch(
+            list = list,
+            chapterIndex = chapterIndex,
+            chapterItemPosition = chapterItemPosition
+        )
+        else -> indexOfReaderItemBinarySearch(
+            list = list,
+            chapterIndex = chapterIndex,
+            chapterItemPosition = chapterItemPosition
+        )
+    }
+    if (chapterIndex < 0) {
+        if (debugSource != null) {
+            Timber.w("TTS-JUMP indexOfReaderItem[$debugSource]: NEGATIVE chapterIndex seek=($chapterIndex,$chapterItemPosition) result=$result")
+        }
+        return result
+    }
+    // Логируем только вызовы из «горячих» мест перехода, чтобы не заливать лог scroll-хелперами
+    if (debugSource != null) {
+        val found = list.getOrNull(result)
+        Timber.d(
+            "TTS-JUMP indexOfReaderItem[$debugSource]: seek=($chapterIndex,$chapterItemPosition) list.size=${list.size} result=$result" +
+                (found?.let {
+                    " found=${it.chapterIndex}," +
+                        if (it is ReaderItem.Position) "${it.chapterItemPosition}" else "non-pos(${it::class.simpleName})"
+                } ?: " found=none")
+        )
+    }
+    // Кросс-проверка бинарного поиска линейным: расхождение = сломанный индекс
+    if (list.size >= 128) {
+        val linear = indexOfReaderItemLinearSearch(list, chapterIndex, chapterItemPosition)
+        if (result != linear) {
+            Timber.w("TTS-JUMP indexOfReaderItem MISMATCH: binary=$result linear=$linear seek=($chapterIndex,$chapterItemPosition)")
+        }
+    }
+    return result
 }
 
 /**

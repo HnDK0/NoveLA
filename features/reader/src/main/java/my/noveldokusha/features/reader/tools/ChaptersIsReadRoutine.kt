@@ -20,10 +20,14 @@ internal class ChaptersIsReadRoutine(
 ) {
     fun setReadStart(chapterUrl: String) {
         Timber.d("setReadStart: $chapterUrl")
+        // Дедупликация: markChapterStartAsSeen прилетает на каждый PLAYING/LOADING
+        // абзаца — если флаг уже стоит, не ходим в БД (bookChapters.get).
+        if (chapterRead[chapterUrl]?.startSeen == true) return
         checkLoadStatus(chapterUrl) { it.copy(startSeen = true) }
     }
     fun setReadEnd(chapterUrl: String) {
         Timber.d("setReadEnd: $chapterUrl")
+        if (chapterRead[chapterUrl]?.endSeen == true) return
         checkLoadStatus(chapterUrl) { it.copy(endSeen = true) }
     }
 

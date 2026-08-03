@@ -1,6 +1,7 @@
 package my.noveldokusha.features.reader.services
 
 import android.content.Intent
+import android.os.SystemClock
 import android.support.v4.media.session.MediaSessionCompat
 import android.view.KeyEvent
 import my.noveldokusha.features.reader.features.ReaderTextToSpeech
@@ -9,6 +10,21 @@ import timber.log.Timber
 internal class NarratorMediaControlsCallback(
     private val readerTextToSpeech: ReaderTextToSpeech
 ) : MediaSessionCompat.Callback() {
+
+    // Media-кнопки (в отличие от UI, где уже есть debouncedAction) не имеют дебаунса:
+    // быстрые повторные нажатия вызывают гонку stop()/start() и переполнение очереди
+    // TTS. Троттлим только однотипные команды (Next,Prev — из них и приходит шторм),
+    // по отдельным ключам: общий троттлинг резал бы легитимный системный onPause
+    // (потеря аудиофокуса / вынутые наушники), приходящий сразу после кнопки.
+    private val lastActionTimes = mutableMapOf<String, Long>()
+
+    private fun throttled(key: String, action: () -> Unit) {
+        val now = SystemClock.elapsedRealtime()
+        val last = lastActionTimes[key] ?: 0L
+        if (now - last < 450) return
+        lastActionTimes[key] = now
+        action()
+    }
 
     override fun onMediaButtonEvent(mediaButtonEvent: Intent?): Boolean {
         @Suppress("DEPRECATION")
@@ -54,34 +70,54 @@ internal class NarratorMediaControlsCallback(
 
     override fun onPause() {
         Timber.d("onPause()")
-        if (!ReaderTextToSpeech.isSystemPauseTrigger) {
-            ReaderTextToSpeech.pausedBySystem = false
+        // Системная пауза (потеря аудиофокуса / вынутые наушники) приходит через
+        // narratorNotification.pause() с уже выставленным isSystemPauseTrigger —
+        // её троттлить нельзя: потеря фокуса часто случается сразу после кнопки,
+        // и дроп паузы оставит TTS говорить. Троттлим только ручную (кнопочную)
+        // паузу. pausedBySystem при системной паузе сохраняется — по нему
+        // NarratorMediaControlsNotification.maybeAutoResume решает, возобновлять ли.
+        // Флаг сбрасывается после setPlaying(false): setPlaying читает его ДО сброса
+        // (при системной паузе видит true и не трогает pausedBySystem), а после сброса
+        // следующая ручная пауза не выглядит системной (иначе userPaused не выставится
+        // и maybeAutoResume самовозобновит чтение после ручной паузы).
+        if (ReaderTextToSpeech.isSystemPauseTrigger) {
+            readerTextToSpeech.state.setPlaying(false)
+            ReaderTextToSpeech.isSystemPauseTrigger = false
+            return
         }
-        readerTextToSpeech.state.setPlaying(false)
-        ReaderTextToSpeech.isSystemPauseTrigger = false
+        throttled("pause") {
+            ReaderTextToSpeech.pausedBySystem = false
+            readerTextToSpeech.state.setPlaying(false)
+        }
     }
 
     override fun onPlay() {
         Timber.d("onPlay()")
-        ReaderTextToSpeech.pausedBySystem = false
-        NarratorMediaControlsService.reacquireFocus()
-        NarratorMediaControlsService.reassertActive()
-        readerTextToSpeech.state.setPlaying(true)
+        throttled("play") {
+            ReaderTextToSpeech.pausedBySystem = false
+            NarratorMediaControlsService.reacquireFocus()
+            NarratorMediaControlsService.reassertActive()
+            readerTextToSpeech.state.setPlaying(true)
+        }
     }
 
     override fun onSkipToNext() {
-        readerTextToSpeech.state.playNextItem()
+        Timber.d("TTS-JUMP media: onSkipToNext")
+        throttled("next") { readerTextToSpeech.state.playNextItem() }
     }
 
     override fun onSkipToPrevious() {
-        readerTextToSpeech.state.playPreviousItem()
+        Timber.d("TTS-JUMP media: onSkipToPrevious")
+        throttled("prev") { readerTextToSpeech.state.playPreviousItem() }
     }
 
     override fun onRewind() {
-        readerTextToSpeech.state.playPreviousItem()
+        Timber.d("TTS-JUMP media: onRewind")
+        throttled("prev") { readerTextToSpeech.state.playPreviousItem() }
     }
 
     override fun onFastForward() {
-        readerTextToSpeech.state.playNextItem()
+        Timber.d("TTS-JUMP media: onFastForward")
+        throttled("next") { readerTextToSpeech.state.playNextItem() }
     }
 }

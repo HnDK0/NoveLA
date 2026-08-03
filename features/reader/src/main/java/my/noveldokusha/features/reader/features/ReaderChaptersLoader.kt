@@ -126,7 +126,8 @@ internal class ReaderChaptersLoader(
         val itemIndex = indexOfReaderItem(
             list = items,
             chapterIndex = chapterIndex,
-            chapterItemPosition = chapterItemPosition
+            chapterItemPosition = chapterItemPosition,
+            debugSource = "getItemContext"
         )
         val item = items.getOrNull(itemIndex) ?: return null
         if (item !is ReaderItem.Position) return null
@@ -863,6 +864,7 @@ internal class ReaderChaptersLoader(
     }
 
     suspend fun pruneItems(currentChapterIndex: Int) = withContext(Dispatchers.Main.immediate) {
+        Timber.d("TTS-JUMP pruneItems: current=$currentChapterIndex itemsBefore=${items.size}")
         if (readerState == ReaderState.LOADING) {
             pendingPruneChapterIndex = currentChapterIndex
             return@withContext
@@ -882,6 +884,10 @@ internal class ReaderChaptersLoader(
         }
 
         if (toRemoveItems.isEmpty()) return@withContext
+        Timber.d(
+            "TTS-JUMP pruneItems: window=[$minKeep..$maxKeep] removing n=${toRemoveItems.size} " +
+                "chapters=${toRemoveChapterIndices.sorted()} itemsAfter=${items.size - toRemoveItems.size}"
+        )
 
         val listView = readerViewHandlersActions.listView
         val savedFirstVisible = listView?.firstVisiblePosition ?: 0

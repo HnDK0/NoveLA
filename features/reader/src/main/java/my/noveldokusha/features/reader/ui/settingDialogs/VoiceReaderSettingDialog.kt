@@ -321,7 +321,7 @@ internal fun VoiceReaderSettingDialog(
                         )
                     }
                     IconButton(
-                        onClick = debouncedAction(waitMillis = 100) { state.playPreviousItem() },
+                        onClick = debouncedAction(waitMillis = 450) { state.playPreviousItem() },
                         enabled = state.isThereActiveItem.value,
                         modifier = Modifier.alpha(alpha),
                     ) {
@@ -357,7 +357,7 @@ internal fun VoiceReaderSettingDialog(
                         }
                     }
                     IconButton(
-                        onClick = debouncedAction(waitMillis = 100) { state.playNextItem() },
+                        onClick = debouncedAction(waitMillis = 450) { state.playNextItem() },
                         enabled = state.isThereActiveItem.value,
                         modifier = Modifier.alpha(alpha),
                     ) {

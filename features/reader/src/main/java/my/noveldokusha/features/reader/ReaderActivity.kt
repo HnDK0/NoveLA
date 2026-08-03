@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import timber.log.Timber
 import android.view.WindowManager
 import android.widget.AbsListView
@@ -97,6 +98,20 @@ class ReaderActivity : BaseActivity() {
     internal lateinit var readerManager: ReaderManager
 
     private var listIsScrolling = false
+    // Время последнего события скролла: используется как watchdog для сброса
+    // «залипшего» listIsScrolling, если fling был прерван (notifyDataSetChanged
+    // штормом/подгрузкой главы) и IDLE-событие так и не пришло.
+    private var lastScrollEventTime = 0L
+    // Последний scrollState (IDLE/TOUCH_SCROLL/FLING): watchdog сбрасывает залипший
+    // listIsScrolling только для прерванного FLING. При TOUCH_SCROLL палец может лежать
+    // неподвижно дольше порога (чтение/выделение) — сброс дёргал бы список под пальцем.
+    private var lastScrollState = AbsListView.OnScrollListener.SCROLL_STATE_IDLE
+    // Последний абзац, для которого был выполнен полный rebind (notifyDataSetChanged).
+    // currentReaderItem эмитит на каждый PLAYING/LOADING того же абзаца — повторный
+    // rebind не нужен, пока позиция не сменилась (подсветка рисуется в getView).
+    private var lastReboundChapterIndex = -1
+    private var lastReboundChapterItemPosition = -1
+    private var lastReboundPlayState: Utterance.PlayState? = null
     private val fadeInTextLiveData = MutableLiveData(false)
     // Предотвращает загрузку следующей главы до первого реального скролла пользователя.
     // Сбрасывается в false при каждом открытии Activity, устанавливается в true только при
@@ -274,6 +289,7 @@ class ReaderActivity : BaseActivity() {
                 scrollToReadingPositionOptional(
                     chapterIndex = it.itemPos.chapterIndex,
                     chapterItemPosition = it.itemPos.chapterItemPosition,
+                    playState = it.playState,
                 )
             }
 
@@ -408,6 +424,7 @@ class ReaderActivity : BaseActivity() {
                     visibleItemCount: Int,
                     totalItemCount: Int
                 ) {
+                    lastScrollEventTime = SystemClock.elapsedRealtime()
                     updateCurrentReadingPosSavingState(
                         firstVisibleItemIndex = viewAdapter.listView.fromPositionToIndex(
                             viewBind.listView.firstVisiblePosition
@@ -422,6 +439,8 @@ class ReaderActivity : BaseActivity() {
                 }
 
                 override fun onScrollStateChanged(view: AbsListView?, scrollState: Int) {
+                    lastScrollEventTime = SystemClock.elapsedRealtime()
+                    lastScrollState = scrollState
                     listIsScrolling = scrollState != AbsListView.OnScrollListener.SCROLL_STATE_IDLE
                     if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_FLING ||
                         scrollState == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL
@@ -431,6 +450,18 @@ class ReaderActivity : BaseActivity() {
                     // When the user lifts their finger, check if we need to load more chapters
                     if (!listIsScrolling) {
                         updateReadingState()
+                        // TTS catch-up: после окончания жеста сразу возвращаем подсветку
+                        // на экран, не дожидаясь следующей эмиссии абзаца (может быть
+                        // через секунды). Само-скролл не дёргает: optional-путь ничего
+                        // не делает, если текущий абзац уже видим.
+                        if (viewModel.readerSpeaker.isSpeaking.value) {
+                            val playing = viewModel.readerSpeaker.currentTextPlaying.value
+                            scrollToReadingPositionOptional(
+                                chapterIndex = playing.itemPos.chapterIndex,
+                                chapterItemPosition = playing.itemPos.chapterItemPosition,
+                                playState = playing.playState,
+                            )
+                        }
                     }
                 }
             })
@@ -522,13 +553,41 @@ class ReaderActivity : BaseActivity() {
             }
     }
 
-    private fun scrollToReadingPositionOptional(chapterIndex: Int, chapterItemPosition: Int) {
-        // Always update the view to show current TTS item highlighting
-        viewAdapter.listView.notifyDataSetChanged()
+    private fun scrollToReadingPositionOptional(
+        chapterIndex: Int,
+        chapterItemPosition: Int,
+        playState: Utterance.PlayState,
+    ) {
+        // Always update the view to show current TTS item highlighting.
+        // Полный rebind — только при смене абзаца или его состояния: currentReaderItem
+        // эмитит на каждый PLAYING/LOADING того же абзаца, повторный
+        // notifyDataSetChanged на каждой эмиссии вызывает rebind-шторм
+        // (Skipped frames). Подсветка нового абзаца рисуется в getView, поэтому
+        // одного rebind на смену позиции достаточно. playState включён в ключ,
+        // т.к. LOADING и PLAYING одного абзаца рисуются адаптером по-разному.
+        if (chapterIndex != lastReboundChapterIndex ||
+            chapterItemPosition != lastReboundChapterItemPosition ||
+            playState != lastReboundPlayState
+        ) {
+            lastReboundChapterIndex = chapterIndex
+            lastReboundChapterItemPosition = chapterItemPosition
+            lastReboundPlayState = playState
+            viewAdapter.listView.notifyDataSetChanged()
+        }
 
         // If user is scrolling, don't auto-scroll
         if (listIsScrolling) {
-            return
+            // Fling мог быть прерван (шторм notifyDataSetChanged/подгрузка главы) без
+            // финального IDLE — гейт «залипает» и follow-скролл молча отключается.
+            // Сбрасываем только прерванный fling: при TOUCH_SCROLL палец может лежать
+            // неподвижно дольше порога, и сброс дёргал бы список под ним.
+            if (lastScrollState == AbsListView.OnScrollListener.SCROLL_STATE_FLING &&
+                SystemClock.elapsedRealtime() - lastScrollEventTime > 500L
+            ) {
+                listIsScrolling = false
+            } else {
+                return
+            }
         }
 
         // Check if the TTS item is already visible on screen
@@ -599,7 +658,6 @@ class ReaderActivity : BaseActivity() {
         val newOffsetPx = 200.dpToPx(this)
         viewAdapter.listView.notifyDataSetChanged()
         viewBind.listView.smoothScrollToPositionFromTop(itemPosition, newOffsetPx, 500)
-        viewAdapter.listView.notifyDataSetChanged()
     }
 
     private fun scrollToReadingPositionImmediately(chapterIndex: Int, chapterItemPosition: Int) {
