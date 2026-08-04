@@ -64,7 +64,7 @@ internal data class ReaderScreenState(
 
         @Immutable
         enum class Type {
-            None, LiveTranslation, TextToSpeech, Style, More
+            None, LiveTranslation, TextToSpeech, Style, More, RegexRules
         }
     }
 }

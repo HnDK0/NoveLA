@@ -11,11 +11,15 @@ import android.widget.AbsListView
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
@@ -24,9 +28,13 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.doOnNextLayout
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.distinctUntilChanged
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -47,6 +55,9 @@ import my.noveldokusha.core.utils.Extra_Boolean
 import my.noveldokusha.core.utils.Extra_String
 import my.noveldokusha.core.utils.dpToPx
 import my.noveldokusha.core.utils.fadeIn
+import my.noveldokusha.data.AppRepository
+import my.noveldokusha.core.models.RegexRule
+import my.noveldokusha.settings.RegexCleanupSettingsViewModel
 import my.noveldokusha.features.reader.domain.ChapterState
 import my.noveldokusha.features.reader.domain.ReaderItem
 import my.noveldokusha.features.reader.domain.ReaderItemAdapter
@@ -56,6 +67,7 @@ import my.noveldokusha.features.reader.manager.ReaderManager
 import my.noveldokusha.features.reader.services.NarratorMediaControlsService
 import my.noveldokusha.features.reader.tools.FontsLoader
 import my.noveldokusha.features.reader.ui.ReaderScreen
+import my.noveldokusha.features.reader.ui.ReaderScreenState
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
 import my.noveldokusha.navigation.NavigationRoutes
 import my.noveldokusha.reader.R
@@ -98,6 +110,9 @@ class ReaderActivity : BaseActivity() {
     @Inject
     internal lateinit var readerManager: ReaderManager
 
+    @Inject
+    internal lateinit var appRepository: AppRepository
+
     private var listIsScrolling = false
     // Время последнего события скролла: используется как watchdog для сброса
     // «залипшего» listIsScrolling, если fling был прерван (notifyDataSetChanged
@@ -124,14 +139,6 @@ class ReaderActivity : BaseActivity() {
     private val doubleTapThresholdMs = 350L
 
     private val viewModel by viewModels<ReaderViewModel>()
-
-    // Возврат из редактора регэксп-правил: перезагружаем текущую главу,
-    // чтобы персональные правила применились к тексту.
-    private val regexRulesLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        viewModel.reloadReader()
-    }
 
     private val viewBind by lazy { ActivityReaderBinding.inflate(layoutInflater) }
     private val viewAdapter = object {
@@ -386,6 +393,37 @@ class ReaderActivity : BaseActivity() {
             }
 
         setContent {
+            val regexCleanupViewModel: RegexCleanupSettingsViewModel = viewModel(
+                key = "regexCleanupSettings",
+                factory = viewModelFactory {
+                    initializer {
+                        RegexCleanupSettingsViewModel(
+                            appPreferences = appPreferences,
+                            appRepository = appRepository,
+                            stateHandler = SavedStateHandle(
+                                mapOf("bookUrl" to viewModel.bookUrl)
+                            )
+                        )
+                    }
+                }
+            )
+
+            var regexRulesSnapshot by remember { mutableStateOf<List<RegexRule>?>(null) }
+            LaunchedEffect(viewModel.state.settings.selectedSetting.value) {
+                val selected = viewModel.state.settings.selectedSetting.value
+                if (selected == ReaderScreenState.Settings.Type.RegexRules) {
+                    regexRulesSnapshot = appPreferences.effectiveRegexRules(viewModel.bookUrl)
+                } else {
+                    val before = regexRulesSnapshot
+                    regexRulesSnapshot = null
+                    if (before != null &&
+                        before != appPreferences.effectiveRegexRules(viewModel.bookUrl)
+                    ) {
+                        viewModel.reloadReader()
+                    }
+                }
+            }
+
             Theme(themeProvider) {
                 readerTheme {
                     SetSystemBarTransparent()
@@ -416,10 +454,7 @@ class ReaderActivity : BaseActivity() {
                             navigationRoutes.webView(this, url = url).let(::startActivity)
                         }
                     },
-                    onRegexRulesClick = {
-                        navigationRoutes.regexRules(this, viewModel.bookUrl)
-                            .let(regexRulesLauncher::launch)
-                    },
+                    regexCleanupViewModel = regexCleanupViewModel,
                     readerContent = {
                         AndroidView(factory = { viewBind.root })
                     },
