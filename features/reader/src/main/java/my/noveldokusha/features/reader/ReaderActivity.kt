@@ -402,7 +402,7 @@ class ReaderActivity : BaseActivity() {
                 }
             )
 
-            var regexRulesSnapshot by remember { mutableStateOf<List<RegexRule>>(null) }
+            var regexRulesSnapshot by remember { mutableStateOf<List<RegexRule>?>(null) }
             LaunchedEffect(viewModel.state.settings.selectedSetting.value) {
                 val selected = viewModel.state.settings.selectedSetting.value
                 if (selected == ReaderScreenState.Settings.Type.RegexRules) {
