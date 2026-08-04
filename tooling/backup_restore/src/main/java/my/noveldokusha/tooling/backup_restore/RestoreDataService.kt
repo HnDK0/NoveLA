@@ -299,7 +299,8 @@ class RestoreDataService : Service() {
                         appDatabase = newDatabase,
                         context = context,
                         appFileResolver = appFileResolver,
-                        appCoroutineScope = appCoroutineScope
+                        appCoroutineScope = appCoroutineScope,
+                        appPreferences = AppPreferences(context)
                     )
                     fun close() = newDatabase.closeDatabase()
                     fun delete() {
@@ -676,6 +677,25 @@ class RestoreDataService : Service() {
                     }
                     appPreferences.USER_REGEX_CLEANUP_RULES.value = rules
                     Timber.d("mergeToSettings: Restored ${rules.size} regex rules")
+                }
+
+                if (settingsJson.has("USER_REGEX_CLEANUP_RULES_PER_NOVEL")) {
+                    val novelObj = settingsJson.getJSONObject("USER_REGEX_CLEANUP_RULES_PER_NOVEL")
+                    val novelMap = mutableMapOf<String, List<RegexRule>>()
+                    for (key in novelObj.keys()) {
+                        val rulesArray = novelObj.getJSONArray(key)
+                        novelMap[key] = (0 until rulesArray.length()).map { i ->
+                            val obj = rulesArray.getJSONObject(i)
+                            RegexRule(
+                                pattern = obj.getString("pattern"),
+                                replacement = obj.optString("replacement", ""),
+                                isEnabled = obj.optBoolean("isEnabled", true),
+                                description = obj.optString("description", "")
+                            )
+                        }
+                    }
+                    appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value = novelMap
+                    Timber.d("mergeToSettings: Restored ${novelMap.size} novels regex rules")
                 }
 
                 Timber.d("mergeToSettings: Settings merge completed")

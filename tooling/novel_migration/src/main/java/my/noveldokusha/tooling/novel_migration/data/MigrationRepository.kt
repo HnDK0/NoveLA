@@ -185,6 +185,10 @@ class MigrationRepository @Inject constructor(
                 prompts.remove(oldBookUrl)?.let { prompts[newBookUrl] = it }
                 appPreferences.TRANSLATION_NOVEL_PROMPTS.value = prompts
 
+                val novelRegex = appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value.toMutableMap()
+                novelRegex.remove(oldBookUrl)?.let { novelRegex[newBookUrl] = it }
+                appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value = novelRegex
+
                 if (options.deleteOldBook) libraryBooks.deleteBookCompletely(oldBookUrl)
 
                 novelMigrationDao.insert(MigrationRecord(

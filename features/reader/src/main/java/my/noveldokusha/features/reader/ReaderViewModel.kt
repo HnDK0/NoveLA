@@ -152,8 +152,7 @@ internal class ReaderViewModel @Inject constructor(
 
     fun reloadReader() {
         val currentChapter = readingCurrentChapter.copy()
-        readerSession.reloadReader()
-        chaptersLoader.tryLoadRestartedInitial(currentChapter)
+        readerSession.reloadReader(currentChapter)
     }
 
     fun updateInfoViewTo(itemIndex: Int, userHasScrolled: Boolean = false) =

@@ -50,6 +50,7 @@ fun RegexCleanupSettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .background(MaterialTheme.colorScheme.background)
     ) {
         // ── TopBar ─────────────────────────────────────────────────────────
@@ -76,7 +77,10 @@ fun RegexCleanupSettingsScreen(
                     )
                 }
                 Text(
-                    text = stringResource(id = R.string.regex_cleanup_title),
+                    text = stringResource(
+                        id = if (viewModel.isGlobal) R.string.regex_cleanup_title
+                        else R.string.regex_cleanup_novel_rules
+                    ),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.Medium
@@ -104,6 +108,56 @@ fun RegexCleanupSettingsScreen(
                         text = stringResource(id = R.string.add_new_rule),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        // ── Novel Header & Actions (персональный режим) ───────────────────
+        if (!viewModel.isGlobal) {
+            Text(
+                text = stringResource(
+                    id = R.string.regex_cleanup_novel_title_format,
+                    viewModel.novelTitle.value.ifEmpty { viewModel.bookUrl.orEmpty() }
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp)
+                    .padding(bottom = 6.dp)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp)
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { viewModel.onMoveRulesToGlobal() },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.regex_cleanup_move_to_global),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+                OutlinedButton(
+                    onClick = { viewModel.onRemoveNovelRules() },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.regex_cleanup_remove_novel_rules),
+                        style = MaterialTheme.typography.labelMedium
                     )
                 }
             }

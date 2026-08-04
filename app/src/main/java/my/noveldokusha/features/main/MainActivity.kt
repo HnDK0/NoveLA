@@ -65,6 +65,7 @@ import my.noveldokusha.R
 import my.noveldokusha.catalogexplorer.CatalogExplorerScreen
 import my.noveldokusha.libraryexplorer.LibraryScreen
 import my.noveldokusha.settings.SettingsScreen
+import my.noveldokusha.navigation.NavigationRoutes
 import my.noveldokusha.tooling.epub_importer.BookImportService
 import my.noveldokusha.historyexplorer.HistoryScreen
 import androidx.compose.ui.graphics.graphicsLayer
@@ -93,6 +94,9 @@ open class MainActivity : BaseActivity() {
 
     @Inject
     lateinit var periodicWorkersInitializer: PeriodicWorkersInitializer
+
+    @Inject
+    lateinit var navigationRoutes: NavigationRoutes
 
     private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -205,9 +209,12 @@ open class MainActivity : BaseActivity() {
                                     } else Modifier
                                 )
                         ) {
-                            SettingsScreen(onRestartApp = {
-                                recreate()
-                            })
+                            SettingsScreen(
+                                navigationRoutes = navigationRoutes,
+                                onRestartApp = {
+                                    recreate()
+                                }
+                            )
                         }
                     }
 

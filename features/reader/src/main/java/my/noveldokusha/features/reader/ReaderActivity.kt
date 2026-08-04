@@ -11,6 +11,7 @@ import android.widget.AbsListView
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -123,6 +124,14 @@ class ReaderActivity : BaseActivity() {
     private val doubleTapThresholdMs = 350L
 
     private val viewModel by viewModels<ReaderViewModel>()
+
+    // Возврат из редактора регэксп-правил: перезагружаем текущую главу,
+    // чтобы персональные правила применились к тексту.
+    private val regexRulesLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        viewModel.reloadReader()
+    }
 
     private val viewBind by lazy { ActivityReaderBinding.inflate(layoutInflater) }
     private val viewAdapter = object {
@@ -399,6 +408,10 @@ class ReaderActivity : BaseActivity() {
                         if (url.isNotBlank()) {
                             navigationRoutes.webView(this, url = url).let(::startActivity)
                         }
+                    },
+                    onRegexRulesClick = {
+                        navigationRoutes.regexRules(this, viewModel.bookUrl)
+                            .let(regexRulesLauncher::launch)
                     },
                     readerContent = {
                         AndroidView(factory = { viewBind.root })

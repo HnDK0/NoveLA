@@ -634,6 +634,18 @@
 
     <string name="regex_cleanup_title">Регулярки</string>
 
+    <string name="regex_cleanup_novel_rules">Регэксп-правила (эта новелла)</string>
+
+    <string name="regex_cleanup_novel_title_format">Новелла: %s</string>
+
+    <string name="regex_cleanup_move_to_global">Перенести в глобальные</string>
+
+    <string name="regex_cleanup_move_to_global_description">Дописать правила новеллы в конец глобального списка и очистить персональные</string>
+
+    <string name="regex_cleanup_remove_novel_rules">Удалить правила новеллы</string>
+
+    <string name="regex_cleanup_remove_novel_rules_description">Удалить все регэксп-правила, заданные только для этой новеллы. Глобальные продолжат действовать.</string>
+
     <string name="search_patterns_hint">Поиск по шаблону…</string>
 
     <string name="description">Описание</string>

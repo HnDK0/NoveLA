@@ -1,12 +1,17 @@
 package my.noveldokusha.settings
 
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.models.RegexRule
+import my.noveldokusha.core.utils.StateExtra_StringNullable
+import my.noveldokusha.data.AppRepository
 import javax.inject.Inject
 
 data class RegexCleanupUiState(
@@ -22,8 +27,18 @@ data class RegexCleanupUiState(
 
 @HiltViewModel
 class RegexCleanupSettingsViewModel @Inject constructor(
-    private val appPreferences: AppPreferences
+    private val appPreferences: AppPreferences,
+    appRepository: AppRepository,
+    stateHandler: SavedStateHandle,
 ) : ViewModel() {
+
+    // null — глобальные правила; иначе — персональные правила новеллы (bookUrl)
+    var bookUrl: String? by StateExtra_StringNullable(stateHandler)
+
+    val isGlobal: Boolean get() = bookUrl == null
+
+    var novelTitle = mutableStateOf("")
+        private set
 
     var uiState = mutableStateOf(RegexCleanupUiState())
         private set
@@ -42,12 +57,34 @@ class RegexCleanupSettingsViewModel @Inject constructor(
 
     init {
         loadRules()
+        val url = bookUrl
+        if (url != null) {
+            viewModelScope.launch(Dispatchers.IO) {
+                val title = appRepository.libraryBooks.get(url)?.title.orEmpty()
+                withContext(Dispatchers.Main) { novelTitle.value = title }
+            }
+        }
     }
+
+    // ── Целевое хранилище: глобальный список или персональный набор новеллы ──
+
+    private var targetRules: List<RegexRule>
+        get() = if (isGlobal) appPreferences.USER_REGEX_CLEANUP_RULES.value
+        else appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value[bookUrl] ?: emptyList()
+        set(value) {
+            if (isGlobal) {
+                appPreferences.USER_REGEX_CLEANUP_RULES.value = value
+            } else {
+                val url = checkNotNull(bookUrl) { "bookUrl обязателен в персональном режиме" }
+                val map = appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value.toMutableMap()
+                map[url] = value
+                appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value = map
+            }
+        }
 
     private fun loadRules() {
         viewModelScope.launch {
-            val rules = appPreferences.USER_REGEX_CLEANUP_RULES.value
-            uiState.value = uiState.value.copy(rules = rules)
+            uiState.value = uiState.value.copy(rules = targetRules)
         }
     }
 
@@ -96,7 +133,7 @@ class RegexCleanupSettingsViewModel @Inject constructor(
         uiState.value = uiState.value.copy(validationError = null)
 
         viewModelScope.launch {
-            val currentRules = appPreferences.USER_REGEX_CLEANUP_RULES.value.toMutableList()
+            val currentRules = targetRules.toMutableList()
             val newRule = RegexRule(
                 pattern = pattern.trim(),
                 replacement = replacement.trim(),
@@ -111,7 +148,7 @@ class RegexCleanupSettingsViewModel @Inject constructor(
                 currentRules.add(newRule)
             }
 
-            appPreferences.USER_REGEX_CLEANUP_RULES.value = currentRules
+            targetRules = currentRules
             loadRules()
             onDismissBottomSheet()
         }
@@ -124,9 +161,9 @@ class RegexCleanupSettingsViewModel @Inject constructor(
     fun onConfirmDelete() {
         val pattern = uiState.value.deleteConfirmationPattern ?: return
         viewModelScope.launch {
-            val currentRules = appPreferences.USER_REGEX_CLEANUP_RULES.value.toMutableList()
+            val currentRules = targetRules.toMutableList()
             currentRules.removeAll { it.pattern == pattern }
-            appPreferences.USER_REGEX_CLEANUP_RULES.value = currentRules
+            targetRules = currentRules
             loadRules()
             uiState.value = uiState.value.copy(deleteConfirmationPattern = null)
         }
@@ -138,22 +175,54 @@ class RegexCleanupSettingsViewModel @Inject constructor(
 
     fun onToggleRule(index: Int) {
         viewModelScope.launch {
-            val currentRules = appPreferences.USER_REGEX_CLEANUP_RULES.value.toMutableList()
+            val currentRules = targetRules.toMutableList()
             val rule = currentRules.getOrNull(index) ?: return@launch
             currentRules[index] = rule.copy(isEnabled = !rule.isEnabled)
-            appPreferences.USER_REGEX_CLEANUP_RULES.value = currentRules
+            targetRules = currentRules
             loadRules()
         }
     }
 
     fun onMoveRule(fromIndex: Int, toIndex: Int) {
         viewModelScope.launch {
-            val currentRules = appPreferences.USER_REGEX_CLEANUP_RULES.value.toMutableList()
+            val currentRules = targetRules.toMutableList()
             if (fromIndex in currentRules.indices && toIndex in currentRules.indices) {
                 val item = currentRules.removeAt(fromIndex)
                 currentRules.add(toIndex, item)
-                appPreferences.USER_REGEX_CLEANUP_RULES.value = currentRules
+                targetRules = currentRules
             }
+            loadRules()
+        }
+    }
+
+    // ── Персональные правила: перенос в глобальные / удаление набора ──────
+
+    fun onMoveRulesToGlobal() {
+        val url = bookUrl ?: return
+        viewModelScope.launch {
+            val novelRules = appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value[url]
+                ?: return@launch
+            // Персональное правило свежее глобального с тем же pattern — оно побеждает,
+            // дубли не создаются, порядок глобальных сохраняется.
+            val merged = appPreferences.USER_REGEX_CLEANUP_RULES.value.toMutableList()
+            novelRules.forEach { rule ->
+                val idx = merged.indexOfFirst { it.pattern == rule.pattern }
+                if (idx >= 0) merged[idx] = rule else merged.add(rule)
+            }
+            appPreferences.USER_REGEX_CLEANUP_RULES.value = merged
+            val map = appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value.toMutableMap()
+            map.remove(url)
+            appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value = map
+            loadRules()
+        }
+    }
+
+    fun onRemoveNovelRules() {
+        val url = bookUrl ?: return
+        viewModelScope.launch {
+            val map = appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value.toMutableMap()
+            map.remove(url)
+            appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value = map
             loadRules()
         }
     }

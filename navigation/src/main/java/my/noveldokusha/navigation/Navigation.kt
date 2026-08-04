@@ -39,6 +39,8 @@ interface NavigationRoutes {
     fun novelMigration(context: Context, bookUrl: String, bookTitle: String): Intent
     fun massMigration(context: Context, sourceBaseUrl: String): Intent
     fun migrationHistory(context: Context): Intent
+
+    fun regexRules(context: Context, bookUrl: String? = null): Intent
 }
 
 @HiltViewModel

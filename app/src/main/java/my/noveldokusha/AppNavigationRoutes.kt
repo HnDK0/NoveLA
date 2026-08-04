@@ -14,6 +14,7 @@ import my.noveldokusha.sourceexplorer.SourceCatalogActivity
 import my.noveldokusha.feature.local_database.BookMetadata
 import my.noveldokusha.tooling.novel_migration.MigrationActivity
 import my.noveldokusha.webview.WebViewActivity
+import my.noveldokusha.settings.RegexRulesActivity
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -99,5 +100,9 @@ class AppNavigationRoutes @Inject constructor() : NavigationRoutes {
         return Intent(context, MigrationActivity::class.java).apply {
             putExtra("showHistory", true)
         }
+    }
+
+    override fun regexRules(context: Context, bookUrl: String?): Intent {
+        return RegexRulesActivity.IntentData(context, bookUrl = bookUrl)
     }
 }
