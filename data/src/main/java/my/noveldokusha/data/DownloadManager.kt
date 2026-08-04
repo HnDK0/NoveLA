@@ -398,7 +398,7 @@ class DownloadManager @Inject constructor(
             if (translateMode) {
                 val sourceLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
                 val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
-                if (!appPreferences.GLOBAL_TRANSLATION_ENABLED.value || sourceLang.isBlank() || targetLang.isBlank()) {
+                if (!appPreferences.translationEnabledForBook(bookUrl) || sourceLang.isBlank() || targetLang.isBlank()) {
                     emptyList()
                 } else {
                     val translatedUrls = uniqueUrls.chunked(500).flatMap { chunk ->
@@ -635,7 +635,7 @@ class DownloadManager @Inject constructor(
                     if (cachedBody != null) {
                         val sourceLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
                         val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
-                        val needsTranslation = appPreferences.GLOBAL_TRANSLATION_ENABLED.value &&
+                        val needsTranslation = appPreferences.translationEnabledForBook(bookUrl) &&
                             sourceLang.isNotBlank() && targetLang.isNotBlank() &&
                             (chapterTranslationDao.getTranslations(chapterUrl, sourceLang, targetLang)
                                 ?.translatedParagraphs?.isNotEmpty() != true)
@@ -1006,10 +1006,10 @@ class DownloadManager @Inject constructor(
      * Возвращает [TranslateOutcome.Success] при успехе или отключённом переводе,
      * [TranslateOutcome.Failure] с признаком сетевой ошибки — для ожидания сети.
      */
-    private suspend fun translateAndSave(chapterUrl: String, body: String): TranslateOutcome {
+    private suspend fun translateAndSave(bookUrl: String, chapterUrl: String, body: String): TranslateOutcome {
         val sourceLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
         val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
-        val isEnabled = appPreferences.GLOBAL_TRANSLATION_ENABLED.value
+        val isEnabled = appPreferences.translationEnabledForBook(bookUrl)
         if (!isEnabled || sourceLang.isBlank() || targetLang.isBlank()) {
             Timber.d("translation skipped (enabled=$isEnabled)")
             return TranslateOutcome.Success
@@ -1089,7 +1089,7 @@ class DownloadManager @Inject constructor(
     ): TranslateResult {
         var waiting = false
         while (true) {
-            when (val outcome = translateAndSave(chapterUrl, body)) {
+            when (val outcome = translateAndSave(bookUrl, chapterUrl, body)) {
                 is TranslateOutcome.Success -> {
                     if (waiting) {
                         updateTask(bookUrl) { it.copy(isWaitingForNetwork = false) }
