@@ -396,8 +396,9 @@ class DownloadManager @Inject constructor(
         // Фильтруем главы до lock — IO-операция
         val toProcess = withContext(Dispatchers.IO) {
             if (translateMode) {
-                val sourceLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
-                val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
+                val pair = appPreferences.translationPairForBook(bookUrl)
+                val sourceLang = pair.source
+                val targetLang = pair.target
                 if (!appPreferences.translationEnabledForBook(bookUrl) || sourceLang.isBlank() || targetLang.isBlank()) {
                     emptyList()
                 } else {
@@ -633,8 +634,9 @@ class DownloadManager @Inject constructor(
                     // Перевод делает сетевой запрос, поэтому между главами есть пауза.
                     val cachedBody = chapterBodyRepository.getCachedBody(chapterUrl)
                     if (cachedBody != null) {
-                        val sourceLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
-                        val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
+                        val pair = appPreferences.translationPairForBook(bookUrl)
+                        val sourceLang = pair.source
+                        val targetLang = pair.target
                         val needsTranslation = appPreferences.translationEnabledForBook(bookUrl) &&
                             sourceLang.isNotBlank() && targetLang.isNotBlank() &&
                             (chapterTranslationDao.getTranslations(chapterUrl, sourceLang, targetLang)
@@ -1007,8 +1009,9 @@ class DownloadManager @Inject constructor(
      * [TranslateOutcome.Failure] с признаком сетевой ошибки — для ожидания сети.
      */
     private suspend fun translateAndSave(bookUrl: String, chapterUrl: String, body: String): TranslateOutcome {
-        val sourceLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
-        val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
+        val pair = appPreferences.translationPairForBook(bookUrl)
+        val sourceLang = pair.source
+        val targetLang = pair.target
         val isEnabled = appPreferences.translationEnabledForBook(bookUrl)
         if (!isEnabled || sourceLang.isBlank() || targetLang.isBlank()) {
             Timber.d("translation skipped (enabled=$isEnabled)")
