@@ -40,6 +40,12 @@ data class NovelPromptData(
     val appendMode: Boolean = false,
 )
 
+@Serializable
+data class TranslationLangPair(
+    val source: String = "",
+    val target: String = "",
+)
+
 @Singleton
 class AppPreferences @Inject constructor(
     @ApplicationContext val context: Context,
@@ -329,6 +335,74 @@ class AppPreferences @Inject constructor(
         object : Preference<String>("GLOBAL_TRANSLATION_PREFERRED_TARGET") {
             override var value by SharedPreference_String(name, preferences, "")
         }
+
+    // Персональная языковая пара для новелл: Map<bookUrl, TranslationLangPair>.
+    // Новелла без явной настройки наследует глобальную пару
+    // (GLOBAL_TRANSLATION_PREFERRED_SOURCE / GLOBAL_TRANSLATION_PREFERRED_TARGET).
+    val TRANSLATION_BOOK_LANG_PAIR =
+        object : Preference<Map<String, TranslationLangPair>>("TRANSLATION_BOOK_LANG_PAIR") {
+            override var value by SharedPreference_Serializable<Map<String, TranslationLangPair>>(
+                name = name,
+                sharedPreferences = preferences,
+                defaultValue = emptyMap(),
+                encode = { map ->
+                    val obj = org.json.JSONObject()
+                    map.forEach { (url, pair) ->
+                        obj.put(
+                            url,
+                            org.json.JSONObject().apply {
+                                put("source", pair.source)
+                                put("target", pair.target)
+                            }
+                        )
+                    }
+                    obj.toString()
+                },
+                decode = { raw ->
+                    try {
+                        val obj = org.json.JSONObject(raw)
+                        val result = mutableMapOf<String, TranslationLangPair>()
+                        for (key in obj.keys()) {
+                            val value = obj.get(key)
+                            result[key] = when (value) {
+                                is org.json.JSONObject -> TranslationLangPair(
+                                    source = value.optString("source", ""),
+                                    target = value.optString("target", ""),
+                                )
+                                else -> TranslationLangPair()
+                            }
+                        }
+                        result
+                    } catch (_: Exception) { emptyMap() }
+                }
+            )
+        }
+
+    fun translationPairForBook(bookUrl: String): TranslationLangPair {
+        val stored = TRANSLATION_BOOK_LANG_PAIR.value[bookUrl]
+        if (stored != null) return stored
+        return TranslationLangPair(
+            source = GLOBAL_TRANSLATION_PREFERRED_SOURCE.value,
+            target = GLOBAL_TRANSLATION_PREFERRED_TARGET.value,
+        )
+    }
+
+    fun translationSourceForBook(bookUrl: String): String =
+        translationPairForBook(bookUrl).source
+
+    fun translationTargetForBook(bookUrl: String): String =
+        translationPairForBook(bookUrl).target
+
+    fun setTranslationPairForBook(bookUrl: String, source: String, target: String) {
+        if (bookUrl.isBlank()) {
+            GLOBAL_TRANSLATION_PREFERRED_SOURCE.value = source
+            GLOBAL_TRANSLATION_PREFERRED_TARGET.value = target
+            return
+        }
+        val current = TRANSLATION_BOOK_LANG_PAIR.value.toMutableMap()
+        current[bookUrl] = TranslationLangPair(source = source, target = target)
+        TRANSLATION_BOOK_LANG_PAIR.value = current
+    }
 
     val GLOBAL_APP_UPDATER_CHECKER_ENABLED =
         object : Preference<Boolean>("GLOBAL_APP_UPDATER_CHECKER_ENABLED") {
