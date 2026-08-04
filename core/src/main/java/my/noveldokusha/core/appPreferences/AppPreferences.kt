@@ -281,6 +281,46 @@ class AppPreferences @Inject constructor(
     val GLOBAL_TRANSLATION_ENABLED = object : Preference<Boolean>("GLOBAL_TRANSLATION_ENABLED") {
         override var value by SharedPreference_Boolean(name, preferences, false)
     }
+
+    // Персональное состояние перевода для новелл: Map<bookUrl, Boolean>.
+    // Новелла без явной настройки наследует GLOBAL_TRANSLATION_ENABLED.
+    val TRANSLATION_BOOK_ENABLED =
+        object : Preference<Map<String, Boolean>>("TRANSLATION_BOOK_ENABLED") {
+            override var value by SharedPreference_Serializable<Map<String, Boolean>>(
+                name = name,
+                sharedPreferences = preferences,
+                defaultValue = emptyMap(),
+                encode = { map ->
+                    val obj = org.json.JSONObject()
+                    map.forEach { (url, enabled) -> obj.put(url, enabled) }
+                    obj.toString()
+                },
+                decode = { raw ->
+                    try {
+                        val obj = org.json.JSONObject(raw)
+                        val result = mutableMapOf<String, Boolean>()
+                        for (key in obj.keys()) {
+                            result[key] = obj.optBoolean(key, false)
+                        }
+                        result
+                    } catch (_: Exception) { emptyMap() }
+                }
+            )
+        }
+
+    fun translationEnabledForBook(bookUrl: String): Boolean =
+        TRANSLATION_BOOK_ENABLED.value[bookUrl] ?: GLOBAL_TRANSLATION_ENABLED.value
+
+    fun setTranslationEnabledForBook(bookUrl: String, enabled: Boolean) {
+        if (bookUrl.isBlank()) {
+            GLOBAL_TRANSLATION_ENABLED.value = enabled
+            return
+        }
+        val current = TRANSLATION_BOOK_ENABLED.value.toMutableMap()
+        current[bookUrl] = enabled
+        TRANSLATION_BOOK_ENABLED.value = current
+    }
+
     val GLOBAL_TRANSLATION_PREFERRED_SOURCE =
         object : Preference<String>("GLOBAL_TRANSLATIOR_PREFERRED_SOURCE") {
             override var value by SharedPreference_String(name, preferences, "en")

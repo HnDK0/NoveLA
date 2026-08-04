@@ -69,7 +69,7 @@ internal class ReaderLiveTranslation(
     val state = LiveTranslationSettingData(
         isAvailable = translationManager.available,
         listOfAvailableModels = translationManager.models,
-        enable = mutableStateOf(appPreferences.GLOBAL_TRANSLATION_ENABLED.value),
+        enable = mutableStateOf(appPreferences.translationEnabledForBook(bookUrl)),
         source = mutableStateOf(null),
         target = mutableStateOf(null),
         onEnable = ::onEnable,
@@ -178,7 +178,7 @@ internal class ReaderLiveTranslation(
         Timber.d("onEnable: $it")
         try {
             state.enable.value = it
-            appPreferences.GLOBAL_TRANSLATION_ENABLED.value = it
+            appPreferences.setTranslationEnabledForBook(bookUrl, it)
             val update = updateTranslatorState()
             Timber.d("onEnable: updateRequired=$update")
             if (update) scope.launch {

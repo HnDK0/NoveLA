@@ -229,12 +229,16 @@ internal class ChaptersViewModel @Inject constructor(
         // Подписываемся на переведённые названия глав из БД
         viewModelScope.launch {
             combine(
+                bookUrlFlow,
+                appPreferences.TRANSLATION_BOOK_ENABLED.flow(),
                 appPreferences.GLOBAL_TRANSLATION_ENABLED.flow(),
                 appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.flow()
-            ) { enabled, targetLang -> enabled to targetLang }
+            ) { url, bookEnabled, globalEnabled, targetLang ->
+                (bookEnabled[url] ?: globalEnabled) to targetLang
+            }
                 .flatMapLatest { (enabled, targetLang) ->
                     if (enabled) {
-                        chapterTranslationDao.getTranslatedTitlesFlow(bookUrl, targetLang)
+                        chapterTranslationDao.getTranslatedTitlesFlow(bookUrlFlow.value, targetLang)
                     } else {
                         flowOf(emptyList())
                     }
@@ -609,7 +613,7 @@ internal class ChaptersViewModel @Inject constructor(
 
         val sourceLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
         val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
-        if (!appPreferences.GLOBAL_TRANSLATION_ENABLED.value || sourceLang.isBlank() || targetLang.isBlank()) {
+        if (!appPreferences.translationEnabledForBook(bookUrl) || sourceLang.isBlank() || targetLang.isBlank()) {
             toasty.show(R.string.translation_not_configured)
             return
         }
