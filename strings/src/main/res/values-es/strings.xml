@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">Añadido a la cola de descarga</string>
+    <string name="download_next_100_chapters">Descargar los siguientes 100 capítulos</string>
     <string name="download_all_chapters">Descargar todos los capítulos</string>
     <string name="download_progress">Descargando %1$s: %2$s</string>
     <string name="download_pause">Pausa</string>

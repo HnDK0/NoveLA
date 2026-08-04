@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">ダウンロードキューに追加しました</string>
+    <string name="download_next_100_chapters">次の100チャプターをダウンロード</string>
     <string name="download_all_chapters">すべてのチャプターをダウンロード</string>
     <string name="download_progress">ダウンロード中 %1$s：%2$s</string>
     <string name="download_pause">一時停止</string>

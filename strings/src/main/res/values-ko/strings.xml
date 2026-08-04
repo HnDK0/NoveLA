@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">다운로드 대기열에 추가됨</string>
+    <string name="download_next_100_chapters">다음 100화 다운로드</string>
     <string name="download_all_chapters">모든 화 다운로드</string>
     <string name="download_progress">다운로드 중 %1$s: %2$s</string>
     <string name="download_pause">일시정지</string>

@@ -536,6 +536,31 @@ internal class ChaptersViewModel @Inject constructor(
         }
     }
 
+    fun downloadNext100Chapters() {
+        if (state.isLocalSource.value) return
+        val allChapters = state.chapters.toList().sortedBy { it.chapter.position }
+        val lastIndex = allChapters.indexOfLast { it.downloaded }
+        val nextChapters = allChapters.drop(lastIndex + 1).take(100)
+        if (nextChapters.isEmpty()) {
+            toasty.show(R.string.download_all_cached)
+            return
+        }
+        val chapterUrls = nextChapters.map { it.chapter.url }
+        viewModelScope.launch {
+            when (val result = downloadManager.enqueue(
+                bookTitle = bookTitle,
+                bookUrl = bookUrl,
+                chapterUrls = chapterUrls,
+            )) {
+                is EnqueueResult.Added -> toasty.show(R.string.download_added_to_queue)
+                is EnqueueResult.ChaptersAdded -> toasty.show(R.string.download_chapters_added)
+                is EnqueueResult.Resumed -> toasty.show(R.string.download_resumed)
+                is EnqueueResult.AlreadyQueued -> toasty.show(R.string.download_already_queued)
+                is EnqueueResult.AllCached -> toasty.show(R.string.download_all_cached)
+            }
+        }
+    }
+
     fun downloadAllChapters() {
         if (state.isLocalSource.value) return
         val allChapters = state.chapters.toList().sortedBy { it.chapter.position }

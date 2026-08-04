@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">เพิ่มในคิวดาวน์โหลดแล้ว</string>
+    <string name="download_next_100_chapters">ดาวน์โหลด 100 บทถัดไป</string>
     <string name="download_all_chapters">ดาวน์โหลดทุกบท</string>
     <string name="download_progress">กำลังดาวน์โหลด %1$s: %2$s</string>
     <string name="download_pause">หยุดชั่วคราว</string>

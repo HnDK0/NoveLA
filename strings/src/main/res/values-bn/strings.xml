@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">ডাউনলোড কিউতে যোগ করা হয়েছে</string>
+    <string name="download_next_100_chapters">পরবর্তী ১০০ অধ্যায় ডাউনলোড করুন</string>
     <string name="download_all_chapters">সব অধ্যায় ডাউনলোড করুন</string>
     <string name="download_progress">%1$s ডাউনলোড করা হচ্ছে: %2$s</string>
     <string name="download_pause">বিরতি</string>

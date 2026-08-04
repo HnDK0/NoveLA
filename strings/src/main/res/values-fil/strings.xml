@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">Idinagdag sa download queue</string>
+    <string name="download_next_100_chapters">I-download ang susunod na 100 kabanata</string>
     <string name="download_all_chapters">I-download lahat ng kabanata</string>
     <string name="download_progress">Dina-download %1$s: %2$s</string>
     <string name="download_pause">I-pause</string>

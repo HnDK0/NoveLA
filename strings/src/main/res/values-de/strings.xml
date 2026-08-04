@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">Zur Download-Warteschlange hinzugefügt</string>
+    <string name="download_next_100_chapters">Die nächsten 100 Kapitel herunterladen</string>
     <string name="download_all_chapters">Alle Kapitel herunterladen</string>
     <string name="download_progress">%1$s wird heruntergeladen: %2$s</string>
     <string name="download_pause">Pause</string>

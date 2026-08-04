@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">Adicionado à fila de transferências</string>
+    <string name="download_next_100_chapters">Transferir os próximos 100 capítulos</string>
     <string name="download_all_chapters">Transferir todos os capítulos</string>
     <string name="download_progress">A transferir %1$s: %2$s</string>
     <string name="download_pause">Pausa</string>

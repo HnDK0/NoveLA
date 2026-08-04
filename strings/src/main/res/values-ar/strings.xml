@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">تمت الإضافة إلى قائمة التنزيل</string>
+    <string name="download_next_100_chapters">تنزيل الفصول التالية (100)</string>
     <string name="download_all_chapters">تنزيل كل الفصول</string>
     <string name="download_progress">جاري تنزيل %1$s: %2$s</string>
     <string name="download_pause">إيقاف مؤقت</string>

@@ -80,6 +80,7 @@ class ChaptersActivity : BaseActivity() {
                     onChangeCover = onDoAskForImage { viewModel.saveImageAsCover(it) },
                     onOpenInBrowser = { navigationRoutes.webView(this, url = it).let(::startActivity) },
                     onGlobalSearchClick = { navigationRoutes.globalSearch(this, text = it).let(::startActivity) },
+                    onDownloadNext100Chapters = viewModel::downloadNext100Chapters,
                     onDownloadAllChapters = viewModel::downloadAllChapters,
                     onMigrateBook = {
                         navigationRoutes.novelMigration(

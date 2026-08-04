@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">डाउनलोड कतार में जोड़ा गया</string>
+    <string name="download_next_100_chapters">अगले 100 अध्याय डाउनलोड करें</string>
     <string name="download_all_chapters">सभी अध्याय डाउनलोड करें</string>
     <string name="download_progress">%1$s डाउनलोड हो रहा है: %2$s</string>
     <string name="download_pause">रोकें</string>

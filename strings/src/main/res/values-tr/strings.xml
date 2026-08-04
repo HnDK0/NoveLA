@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">İndirme kuyruğuna eklendi</string>
+    <string name="download_next_100_chapters">Sonraki 100 bölümü indir</string>
     <string name="download_all_chapters">Tüm bölümleri indir</string>
     <string name="download_progress">İndiriliyor: %1$s: %2$s</string>
     <string name="download_pause">Duraklat</string>

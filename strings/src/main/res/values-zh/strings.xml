@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">已添加到下载队列</string>
+    <string name="download_next_100_chapters">下载接下来的100章</string>
     <string name="download_all_chapters">下载所有章节</string>
     <string name="download_progress">正在下载 %1$s：%2$s</string>
     <string name="download_pause">暂停</string>

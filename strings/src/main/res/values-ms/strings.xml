@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">Ditambah ke baris gilir muat turun</string>
+    <string name="download_next_100_chapters">Muat turun 100 bab seterusnya</string>
     <string name="download_all_chapters">Muat turun semua bab</string>
     <string name="download_progress">Memuat turun %1$s: %2$s</string>
     <string name="download_pause">Jeda</string>

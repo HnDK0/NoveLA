@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">Đã thêm vào hàng đợi tải xuống</string>
+    <string name="download_next_100_chapters">Tải 100 chương tiếp theo</string>
     <string name="download_all_chapters">Tải tất cả chương</string>
     <string name="download_progress">Đang tải %1$s: %2$s</string>
     <string name="download_pause">Tạm dừng</string>

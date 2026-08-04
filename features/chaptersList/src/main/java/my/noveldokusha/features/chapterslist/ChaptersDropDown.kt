@@ -24,6 +24,7 @@ internal fun ChaptersDropDown(
     onSearchBookInDatabase: () -> Unit,
     onResumeReading: () -> Unit,
     onChangeCover: () -> Unit,
+    onDownloadNext100Chapters: () -> Unit,
     onDownloadAllChapters: () -> Unit,
     onMigrateBook: () -> Unit = {},
     onDeleteTranslations: () -> Unit = {},
@@ -71,6 +72,18 @@ internal fun ChaptersDropDown(
             Icon(
                 Icons.Filled.Image,
                 stringResource(R.string.change_cover),
+            )
+        }
+    )
+    if (!isLocalSource) DropdownMenuItem(
+        onClick = onDownloadNext100Chapters,
+        text = {
+            Text(text = stringResource(StringsR.string.download_next_100_chapters))
+        },
+        leadingIcon = {
+            Icon(
+                Icons.Filled.CloudDownload,
+                stringResource(StringsR.string.download_next_100_chapters),
             )
         }
     )

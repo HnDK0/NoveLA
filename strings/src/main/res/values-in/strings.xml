@@ -512,6 +512,7 @@
 
     <!-- Download Manager -->
     <string name="download_added_to_queue">Ditambahkan ke antrean unduhan</string>
+    <string name="download_next_100_chapters">Unduh 100 bab berikutnya</string>
     <string name="download_all_chapters">Unduh semua bab</string>
     <string name="download_progress">Mengunduh %1$s: %2$s</string>
     <string name="download_pause">Jeda</string>
