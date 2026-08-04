@@ -24,6 +24,7 @@ import my.noveldokusha.features.reader.domain.ReaderItem
 import my.noveldokusha.features.reader.domain.ReaderState
 import my.noveldokusha.features.reader.domain.ReadingChapterPosStats
 import my.noveldokusha.features.reader.domain.indexOfReaderItem
+import my.noveldokusha.features.reader.tools.applyUserRegexRules
 import my.noveldokusha.features.reader.tools.textToItemsConverter
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
@@ -788,6 +789,20 @@ internal class ReaderChaptersLoader(
 
                 val finalItemTitle = itemTitle.copy(textTranslated = titleTranslated)
 
+                // Apply regex cleanup to the translated text too, just like the
+                // original text. Only real translations are cleaned: fallbacks to
+                // the already-cleaned original (textTranslated == text) are skipped
+                // to avoid applying the same rule twice.
+                val regexRules = regexRulesProvider()
+                val itemsCleaned = items.map { item ->
+                    if (item is ReaderItem.Body) {
+                        val translated = item.textTranslated
+                        if (translated != null && translated != item.text) {
+                            item.copy(textTranslated = applyUserRegexRules(translated, regexRules))
+                        } else item
+                    } else item
+                }
+
                 // Do NOT use maintainPosition for success block — it would call
                 // setSelection(titleIndex) via doMaintainStartPosition and override
                 // the scroll position set by setInitialPosition later.
@@ -802,7 +817,7 @@ internal class ReaderChaptersLoader(
                             if (idx != -1) this@ReaderChaptersLoader.items[idx] = finalItemTitle
                         }
                         itemTranslationAttribution?.let { insert(it) }
-                        insertAll(items)
+                        insertAll(itemsCleaned)
                         insert(ReaderItem.Divider(chapterIndex = chapterIndex))
                         readerViewHandlersActions.doForceUpdateListViewState()
                     }
@@ -814,7 +829,7 @@ internal class ReaderChaptersLoader(
                         val idx = backingList.indexOf(itemTitle)
                         if (idx != -1) backingList[idx] = finalItemTitle
                         itemTranslationAttribution?.let { backingList.add(it) }
-                        backingList.addAll(items)
+                        backingList.addAll(itemsCleaned)
                         backingList.add(ReaderItem.Divider(chapterIndex = chapterIndex))
                         readerViewHandlersActions.forceUpdateListViewState?.invoke()
                     }

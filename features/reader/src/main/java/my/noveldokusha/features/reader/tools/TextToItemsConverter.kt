@@ -266,7 +266,7 @@ private fun countUnbalancedBrackets(str: String, open: Set<Char>, close: Set<Cha
 
 private fun countQuotes(str: String, quotes: Set<Char>): Int = str.count { it in quotes }
 
-private fun applyUserRegexRules(text: String, rules: List<RegexRule>): String {
+internal fun applyUserRegexRules(text: String, rules: List<RegexRule>): String {
     var result = text
     rules.filter { it.isEnabled }.forEach { rule ->
         try {
