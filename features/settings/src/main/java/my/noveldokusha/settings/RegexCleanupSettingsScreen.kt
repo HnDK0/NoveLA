@@ -165,11 +165,14 @@ fun RegexCleanupSettingsScreen(
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.primary
-                    )
+                    ),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(
                         text = stringResource(id = R.string.regex_cleanup_move_to_global),
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
                 OutlinedButton(
@@ -177,11 +180,14 @@ fun RegexCleanupSettingsScreen(
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
-                    )
+                    ),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(
                         text = stringResource(id = R.string.regex_cleanup_remove_novel_rules),
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
