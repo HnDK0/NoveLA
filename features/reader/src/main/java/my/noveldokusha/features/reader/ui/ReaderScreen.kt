@@ -104,6 +104,7 @@ internal fun ReaderScreen(
     onTextSizeChanged: (Float) -> Unit,
     onLineHeightChanged: (Float) -> Unit,
     onParagraphSpacingChanged: (Float) -> Unit,
+    onLetterSpacingChanged: (Float) -> Unit,
     onPressBack: () -> Unit,
     onOpenChapterInWeb: () -> Unit,
     onRegexRulesClick: () -> Unit,
@@ -224,6 +225,7 @@ internal fun ReaderScreen(
                         onTextSizeChanged = onTextSizeChanged,
                         onLineHeightChanged = onLineHeightChanged,
                         onParagraphSpacingChanged = onParagraphSpacingChanged,
+                        onLetterSpacingChanged = onLetterSpacingChanged,
                         onSelectableTextChange = onSelectableTextChange,
                         onDarkModeSelected = onDarkModeSelected,
                         onAppThemeSelected = onAppThemeChanged,
@@ -533,6 +535,7 @@ private fun ViewsPreview(
         textSize = remember { mutableFloatStateOf(20f) },
         lineHeight = remember { mutableFloatStateOf(1.35f) },
         paragraphSpacing = remember { mutableFloatStateOf(8f) },
+        letterSpacing = remember { mutableFloatStateOf(0f) },
     )
 
     InternalTheme {
@@ -571,6 +574,7 @@ private fun ViewsPreview(
                 onTextSizeChanged = {},
                 onLineHeightChanged = {},
                 onParagraphSpacingChanged = {},
+                onLetterSpacingChanged = {},
                 onTextFontChanged = {},
                 onSelectableTextChange = {},
                 onDarkModeSelected = {},

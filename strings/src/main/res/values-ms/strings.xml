@@ -157,6 +157,7 @@
     <string name="text_size">Saiz teks</string>
     <string name="line_height">Ketinggian baris</string>
     <string name="paragraph_spacing">Jarak perenggan</string>
+    <string name="letter_spacing">Jarak huruf</string>
     <string name="name">Nama</string>
     <string name="save_current_voice">Simpan suara semasa</string>
     <string name="save_current_voice_parameters">Simpan suara dan parameter semasa</string>

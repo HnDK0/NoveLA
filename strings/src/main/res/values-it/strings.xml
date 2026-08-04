@@ -157,6 +157,7 @@
     <string name="text_size">Dimensione testo</string>
     <string name="line_height">Altezza riga</string>
     <string name="paragraph_spacing">Spaziatura paragrafo</string>
+    <string name="letter_spacing">Spaziatura caratteri</string>
     <string name="name">Nome</string>
     <string name="save_current_voice">Salva voce corrente</string>
     <string name="save_current_voice_parameters">Salva voce e parametri correnti</string>

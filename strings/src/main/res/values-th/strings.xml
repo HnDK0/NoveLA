@@ -157,6 +157,7 @@
     <string name="text_size">ขนาดข้อความ</string>
     <string name="line_height">ความสูงบรรทัด</string>
     <string name="paragraph_spacing">ระยะห่างย่อหน้า</string>
+    <string name="letter_spacing">ระยะห่างตัวอักษร</string>
     <string name="name">ชื่อ</string>
     <string name="save_current_voice">บันทึกเสียงปัจจุบัน</string>
     <string name="save_current_voice_parameters">บันทึกเสียงและพารามิเตอร์ปัจจุบัน</string>

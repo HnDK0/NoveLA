@@ -157,6 +157,7 @@
     <string name="text_size">पाठ आकार</string>
     <string name="line_height">पंक्ति ऊँचाई</string>
     <string name="paragraph_spacing">अनुच्छेद अंतराल</string>
+    <string name="letter_spacing">अक्षर अंतराल</string>
     <string name="name">नाम</string>
     <string name="save_current_voice">वर्तमान आवाज़ सहेजें</string>
     <string name="save_current_voice_parameters">वर्तमान आवाज़ और पैरामीटर सहेजें</string>

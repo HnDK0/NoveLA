@@ -157,6 +157,7 @@
     <string name="text_size">Cỡ chữ</string>
     <string name="line_height">Chiều cao dòng</string>
     <string name="paragraph_spacing">Khoảng cách đoạn</string>
+    <string name="letter_spacing">Khoảng cách chữ cái</string>
     <string name="name">Tên</string>
     <string name="save_current_voice">Lưu giọng đọc hiện tại</string>
     <string name="save_current_voice_parameters">Lưu giọng đọc và thông số hiện tại</string>

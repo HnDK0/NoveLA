@@ -144,6 +144,7 @@ class ReaderActivity : BaseActivity() {
                 currentFontSize = { appPreferences.READER_FONT_SIZE.value },
                 currentLineHeight = { appPreferences.READER_LINE_HEIGHT.value },
                 currentParagraphSpacing = { appPreferences.READER_PARAGRAPH_SPACING.value },
+                currentLetterSpacing = { appPreferences.READER_LETTER_SPACING.value },
                 currentTypeface = { fontsLoader.getTypeFaceNORMAL(appPreferences.READER_FONT_FAMILY.value) },
                 currentTypefaceBold = { fontsLoader.getTypeFaceBOLD(appPreferences.READER_FONT_FAMILY.value) },
                 currentSpeakerActiveItem = { viewModel.readerSpeaker.currentTextPlaying.value },
@@ -345,6 +346,11 @@ class ReaderActivity : BaseActivity() {
             .asLiveData()
             .observe(this) { viewAdapter.listView.notifyDataSetChanged() }
 
+        // Notify manually letter spacing changed for list view
+        snapshotFlow { viewModel.state.settings.style.letterSpacing.value }.drop(1)
+            .asLiveData()
+            .observe(this) { viewAdapter.listView.notifyDataSetChanged() }
+
         // Notify manually selectable text changed for list view
         snapshotFlow { viewModel.state.settings.isTextSelectable.value }.drop(1)
             .asLiveData()
@@ -391,6 +397,7 @@ class ReaderActivity : BaseActivity() {
                     onTextSizeChanged = { appPreferences.READER_FONT_SIZE.value = it },
                     onLineHeightChanged = { appPreferences.READER_LINE_HEIGHT.value = it },
                     onParagraphSpacingChanged = { appPreferences.READER_PARAGRAPH_SPACING.value = it },
+                    onLetterSpacingChanged = { appPreferences.READER_LETTER_SPACING.value = it },
                     onSelectableTextChange = { appPreferences.READER_SELECTABLE_TEXT.value = it },
                     onKeepScreenOn = { appPreferences.READER_KEEP_SCREEN_ON.value = it },
                     onDarkModeSelected = { appPreferences.THEME_DARK_MODE.value = it.name; recreate() },

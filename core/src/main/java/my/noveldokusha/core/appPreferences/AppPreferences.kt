@@ -101,6 +101,9 @@ class AppPreferences @Inject constructor(
     val READER_PARAGRAPH_SPACING = object : Preference<Float>("READER_PARAGRAPH_SPACING") {
         override var value by SharedPreference_Float(name, preferences, 8f)
     }
+    val READER_LETTER_SPACING = object : Preference<Float>("READER_LETTER_SPACING") {
+        override var value by SharedPreference_Float(name, preferences, 0f)
+    }
     val READER_TEXT_TO_SPEECH_VOICE_ID =
         object : Preference<String>("READER_TEXT_TO_SPEECH_VOICE_ID") {
             override var value by SharedPreference_String(name, preferences, "")

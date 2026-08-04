@@ -157,6 +157,7 @@
     <string name="text_size">حجم النص</string>
     <string name="line_height">ارتفاع السطر</string>
     <string name="paragraph_spacing">تباعد الفقرات</string>
+    <string name="letter_spacing">تباعد الأحرف</string>
     <string name="name">الاسم</string>
     <string name="save_current_voice">حفظ الصوت الحالي</string>
     <string name="save_current_voice_parameters">حفظ الصوت الحالي والمعلمات</string>

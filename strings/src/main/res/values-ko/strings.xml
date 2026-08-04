@@ -157,6 +157,7 @@
     <string name="text_size">텍스트 크기</string>
     <string name="line_height">줄 간격</string>
     <string name="paragraph_spacing">문단 간격</string>
+    <string name="letter_spacing">자간</string>
     <string name="name">이름</string>
     <string name="save_current_voice">현재 음성 저장</string>
     <string name="save_current_voice_parameters">현재 음성 및 매개변수 저장</string>

@@ -1116,6 +1116,7 @@
     <string name="loading">Загрузка…</string>
     <string name="no_category">Без категории</string>
     <string name="paragraph_spacing">Интервал между абзацами</string>
+    <string name="letter_spacing">Межбуквенный интервал</string>
     <string name="rename_category">Переименовать</string>
     <string name="seconds_format">%d с</string>
     <string name="sort_ascending">По возрастанию</string>

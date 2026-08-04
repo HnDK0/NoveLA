@@ -185,6 +185,7 @@
     <string name="text_size">Text size</string>
     <string name="line_height">Line height</string>
     <string name="paragraph_spacing">Paragraph spacing</string>
+    <string name="letter_spacing">Letter spacing</string>
     <string name="name">Name</string>
     <string name="save_current_voice">Save current voice</string>
     <string name="save_current_voice_parameters">Save current voice and parameters</string>

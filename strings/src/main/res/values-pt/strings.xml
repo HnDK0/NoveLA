@@ -157,6 +157,7 @@
     <string name="text_size">Tamanho do texto</string>
     <string name="line_height">Altura da linha</string>
     <string name="paragraph_spacing">Espaçamento entre parágrafos</string>
+    <string name="letter_spacing">Espaçamento de letras</string>
     <string name="name">Nome</string>
     <string name="save_current_voice">Guardar voz atual</string>
     <string name="save_current_voice_parameters">Guardar voz e parâmetros atuais</string>

@@ -157,6 +157,7 @@
     <string name="text_size">টেক্সটের আকার</string>
     <string name="line_height">লাইনের উচ্চতা</string>
     <string name="paragraph_spacing">অনুচ্ছেদের ব্যবধান</string>
+    <string name="letter_spacing">অক্ষরের ব্যবধান</string>
     <string name="name">নাম</string>
     <string name="save_current_voice">বর্তমান কণ্ঠস্বর সংরক্ষণ করুন</string>
     <string name="save_current_voice_parameters">বর্তমান কণ্ঠস্বর এবং প্যারামিটার সংরক্ষণ করুন</string>

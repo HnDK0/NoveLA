@@ -157,6 +157,7 @@
     <string name="text_size">Laki ng teksto</string>
     <string name="line_height">Taas ng linya</string>
     <string name="paragraph_spacing">Espasyo ng talata</string>
+    <string name="letter_spacing">Espasyo ng titik</string>
     <string name="name">Pangalan</string>
     <string name="save_current_voice">I-save ang kasalukuyang boses</string>
     <string name="save_current_voice_parameters">I-save ang kasalukuyang boses at mga parameter</string>

@@ -46,6 +46,7 @@ internal class ReaderItemAdapter(
     private val currentFontSize: () -> Float,
     private val currentLineHeight: () -> Float,
     private val currentParagraphSpacing: () -> Float,
+    private val currentLetterSpacing: () -> Float,
     private val currentTypeface: () -> Typeface,
     private val currentTypefaceBold: () -> Typeface,
     private val currentParallelEnabled: () -> Boolean,
@@ -175,12 +176,14 @@ internal class ReaderItemAdapter(
             bind.bodyTranslated.typeface = currentTypeface()
             bind.bodyTranslated.updateTextSelectability()
             bind.bodyTranslated.setLineSpacing(0f, currentLineHeight())
+            bind.bodyTranslated.letterSpacing = currentLetterSpacing()
 
             bind.bodyOriginal.text = secondaryText
             bind.bodyOriginal.textSize = currentFontSize() * 0.85f
             bind.bodyOriginal.typeface = currentTypeface()
             bind.bodyOriginal.updateTextSelectability()
             bind.bodyOriginal.setLineSpacing(0f, currentLineHeight())
+            bind.bodyOriginal.letterSpacing = currentLetterSpacing()
             bind.bodyOriginal.visibility = View.VISIBLE
         } else {
             val displayText = if (isTtsActiveItem && currentTtsHighlightEnabled()) {
@@ -194,6 +197,7 @@ internal class ReaderItemAdapter(
             bind.bodyTranslated.typeface = currentTypeface()
             bind.bodyTranslated.updateTextSelectability()
             bind.bodyTranslated.setLineSpacing(0f, currentLineHeight())
+            bind.bodyTranslated.letterSpacing = currentLetterSpacing()
 
             bind.bodyOriginal.visibility = View.GONE
         }

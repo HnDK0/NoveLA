@@ -157,6 +157,7 @@
     <string name="text_size">Textgröße</string>
     <string name="line_height">Zeilenabstand</string>
     <string name="paragraph_spacing">Absatzabstand</string>
+    <string name="letter_spacing">Zeichenabstand</string>
     <string name="name">Name</string>
     <string name="save_current_voice">Aktuelle Stimme speichern</string>
     <string name="save_current_voice_parameters">Aktuelle Stimme und Parameter speichern</string>

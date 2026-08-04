@@ -76,6 +76,7 @@ internal fun StyleSettingDialog(
     onTextSizeChange: (Float) -> Unit,
     onLineHeightChange: (Float) -> Unit,
     onParagraphSpacingChange: (Float) -> Unit,
+    onLetterSpacingChange: (Float) -> Unit,
     onTextFontChange: (String) -> Unit,
     onDarkModeChange: (DarkMode) -> Unit,
     onAppThemeChange: (AppTheme) -> Unit,
@@ -120,6 +121,19 @@ internal fun StyleSettingDialog(
                 onParagraphSpacingChange(currentParagraphSpacing)
             },
             text = stringResource(R.string.paragraph_spacing) + ": %.0f dp".format(currentParagraphSpacing),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+        )
+
+        // Letter spacing
+        var currentLetterSpacing by remember { mutableFloatStateOf(state.letterSpacing.value) }
+        MySlider(
+            value = currentLetterSpacing,
+            valueRange = 0f..0.3f,
+            onValueChange = {
+                currentLetterSpacing = it
+                onLetterSpacingChange(currentLetterSpacing)
+            },
+            text = stringResource(R.string.letter_spacing) + ": %.2f em".format(currentLetterSpacing),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
         )
 

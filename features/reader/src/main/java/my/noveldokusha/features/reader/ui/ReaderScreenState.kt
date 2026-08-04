@@ -46,6 +46,7 @@ internal data class ReaderScreenState(
             val textSize: State<Float>,
             val lineHeight: State<Float>,
             val paragraphSpacing: State<Float>,
+            val letterSpacing: State<Float>,
         )
 
         @Stable

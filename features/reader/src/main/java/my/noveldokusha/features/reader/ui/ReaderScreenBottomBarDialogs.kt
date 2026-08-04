@@ -23,6 +23,7 @@ internal fun ReaderScreenBottomBarDialogs(
     onTextSizeChanged: (Float) -> Unit,
     onLineHeightChanged: (Float) -> Unit,
     onParagraphSpacingChanged: (Float) -> Unit,
+    onLetterSpacingChanged: (Float) -> Unit,
     onSelectableTextChange: (Boolean) -> Unit,
     onDarkModeSelected: (DarkMode) -> Unit,
     onAppThemeSelected: (AppTheme) -> Unit,
@@ -57,6 +58,7 @@ internal fun ReaderScreenBottomBarDialogs(
                             onTextSizeChange = onTextSizeChanged,
                             onLineHeightChange = onLineHeightChanged,
                             onParagraphSpacingChange = onParagraphSpacingChanged,
+                            onLetterSpacingChange = onLetterSpacingChanged,
                         )
                     }
                     ReaderScreenState.Settings.Type.More -> MoreSettingDialog(

@@ -157,6 +157,7 @@
     <string name="text_size">文字サイズ</string>
     <string name="line_height">行の高さ</string>
     <string name="paragraph_spacing">段落間隔</string>
+    <string name="letter_spacing">文字間隔</string>
     <string name="name">名前</string>
     <string name="save_current_voice">現在の音声を保存</string>
     <string name="save_current_voice_parameters">現在の音声とパラメータを保存</string>

@@ -157,6 +157,7 @@
     <string name="text_size">Rozmiar tekstu</string>
     <string name="line_height">Wysokość linii</string>
     <string name="paragraph_spacing">Odstęp między akapitami</string>
+    <string name="letter_spacing">Odstępy między literami</string>
     <string name="name">Nazwa</string>
     <string name="save_current_voice">Zapisz bieżący głos</string>
     <string name="save_current_voice_parameters">Zapisz bieżący głos i parametry</string>
