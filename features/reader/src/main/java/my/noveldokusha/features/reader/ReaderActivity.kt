@@ -11,23 +11,40 @@ import android.widget.AbsListView
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.doOnNextLayout
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.distinctUntilChanged
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import dagger.hilt.android.AndroidEntryPoint
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
@@ -47,6 +64,9 @@ import my.noveldokusha.core.utils.Extra_Boolean
 import my.noveldokusha.core.utils.Extra_String
 import my.noveldokusha.core.utils.dpToPx
 import my.noveldokusha.core.utils.fadeIn
+import my.noveldokusha.data.AppRepository
+import my.noveldokusha.settings.RegexCleanupSettingsScreen
+import my.noveldokusha.settings.RegexCleanupSettingsViewModel
 import my.noveldokusha.features.reader.domain.ChapterState
 import my.noveldokusha.features.reader.domain.ReaderItem
 import my.noveldokusha.features.reader.domain.ReaderItemAdapter
@@ -98,6 +118,9 @@ class ReaderActivity : BaseActivity() {
     @Inject
     internal lateinit var readerManager: ReaderManager
 
+    @Inject
+    internal lateinit var appRepository: AppRepository
+
     private var listIsScrolling = false
     // Время последнего события скролла: используется как watchdog для сброса
     // «залипшего» listIsScrolling, если fling был прерван (notifyDataSetChanged
@@ -124,14 +147,6 @@ class ReaderActivity : BaseActivity() {
     private val doubleTapThresholdMs = 350L
 
     private val viewModel by viewModels<ReaderViewModel>()
-
-    // Возврат из редактора регэксп-правил: перезагружаем текущую главу,
-    // чтобы персональные правила применились к тексту.
-    private val regexRulesLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        viewModel.reloadReader()
-    }
 
     private val viewBind by lazy { ActivityReaderBinding.inflate(layoutInflater) }
     private val viewAdapter = object {
@@ -380,6 +395,8 @@ class ReaderActivity : BaseActivity() {
             }
 
         setContent {
+            var showRegexRulesSheet by remember { mutableStateOf(false) }
+
             Theme(themeProvider) {
                 readerTheme {
                     SetSystemBarTransparent()
@@ -410,8 +427,7 @@ class ReaderActivity : BaseActivity() {
                         }
                     },
                     onRegexRulesClick = {
-                        navigationRoutes.regexRules(this, viewModel.bookUrl)
-                            .let(regexRulesLauncher::launch)
+                        showRegexRulesSheet = true
                     },
                     readerContent = {
                         AndroidView(factory = { viewBind.root })
@@ -423,6 +439,49 @@ class ReaderActivity : BaseActivity() {
                             viewModel.state.showInvalidChapterDialog.value = false
                         }) {
                             Text(stringResource(id = R.string.invalid_chapter))
+                        }
+                    }
+
+                    if (showRegexRulesSheet) {
+                        val regexCleanupViewModel: RegexCleanupSettingsViewModel = viewModel(
+                            key = "regexCleanupSettings",
+                            factory = viewModelFactory {
+                                initializer {
+                                    RegexCleanupSettingsViewModel(
+                                        appPreferences = appPreferences,
+                                        appRepository = appRepository,
+                                        stateHandler = SavedStateHandle(
+                                            mapOf("bookUrl" to viewModel.bookUrl)
+                                        )
+                                    )
+                                }
+                            }
+                        )
+                        val sheetHeight =
+                            (LocalConfiguration.current.screenHeightDp / 2f).roundToInt().dp
+
+                        ModalBottomSheet(
+                            onDismissRequest = {
+                                showRegexRulesSheet = false
+                                viewModel.reloadReader()
+                            },
+                            sheetState = rememberModalBottomSheetState(
+                                skipPartiallyExpanded = true
+                            ),
+                            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+                            containerColor = MaterialTheme.colorScheme.background,
+                        ) {
+                            RegexCleanupSettingsScreen(
+                                viewModel = regexCleanupViewModel,
+                                onNavigateBack = {
+                                    showRegexRulesSheet = false
+                                    viewModel.reloadReader()
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(sheetHeight),
+                                applyStatusBarPadding = false,
+                            )
                         }
                     }
                 }

@@ -15,6 +15,7 @@ dependencies {
     implementation(projects.core)
     implementation(projects.coreui)
     implementation(projects.data)
+    implementation(projects.settings)
     implementation(projects.navigation)
     implementation(projects.tooling.localDatabase)
     implementation(projects.tooling.textToSpeech)

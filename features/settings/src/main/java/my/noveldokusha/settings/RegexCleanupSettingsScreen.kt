@@ -41,7 +41,8 @@ import my.noveldokusha.core.models.RegexRule
 fun RegexCleanupSettingsScreen(
     viewModel: RegexCleanupSettingsViewModel,
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    applyStatusBarPadding: Boolean = true
 ) {
     val state by viewModel.uiState
     val filteredRules = viewModel.filteredRules
@@ -50,7 +51,7 @@ fun RegexCleanupSettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
+            .then(if (applyStatusBarPadding) Modifier.statusBarsPadding() else Modifier)
             .background(MaterialTheme.colorScheme.background)
     ) {
         // ── TopBar ─────────────────────────────────────────────────────────
