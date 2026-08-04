@@ -83,6 +83,7 @@ import my.noveldokusha.features.reader.features.TextSynthesis
 import my.noveldokusha.features.reader.features.TextToSpeechSettingData
 import my.noveldokusha.features.reader.ui.ReaderScreenState.Settings.Type
 import my.noveldokusha.reader.R
+import my.noveldokusha.settings.RegexCleanupSettingsViewModel
 import my.noveldokusha.text_to_speech.Utterance
 import my.noveldokusha.text_to_speech.VoiceData
 import my.noveldokusha.features.reader.services.FloatingTtsService
@@ -106,7 +107,7 @@ internal fun ReaderScreen(
     onParagraphSpacingChanged: (Float) -> Unit,
     onPressBack: () -> Unit,
     onOpenChapterInWeb: () -> Unit,
-    onRegexRulesClick: () -> Unit,
+    regexCleanupViewModel: RegexCleanupSettingsViewModel? = null,
     onTtsHighlightEnabledChange: (Boolean) -> Unit,
     onTtsHighlightColorChange: (String) -> Unit,
     readerContent: @Composable (paddingValues: PaddingValues) -> Unit,
@@ -194,8 +195,8 @@ internal fun ReaderScreen(
                                 IconButton(onClick = { toggleOrSet(Type.Style) }, modifier = Modifier.size(36.dp)) {
                                     Icon(Icons.Outlined.ColorLens, stringResource(R.string.style), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.Style) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                                 }
-                                IconButton(onClick = onRegexRulesClick, modifier = Modifier.size(36.dp)) {
-                                    Icon(Icons.Outlined.Rule, stringResource(R.string.regex_cleanup_novel_rules), modifier = Modifier.size(20.dp))
+                                IconButton(onClick = { toggleOrSet(Type.RegexRules) }, modifier = Modifier.size(36.dp)) {
+                                    Icon(Icons.Outlined.Rule, stringResource(R.string.regex_cleanup_novel_rules), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.RegexRules) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                                 }
                                 IconButton(onClick = { toggleOrSet(Type.More) }, modifier = Modifier.size(36.dp)) {
                                     Icon(Icons.Filled.Build, stringResource(R.string.more), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.More) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
@@ -220,6 +221,7 @@ internal fun ReaderScreen(
                 Column {
                     ReaderScreenBottomBarDialogs(
                         settings = state.settings,
+                        regexCleanupViewModel = regexCleanupViewModel,
                         onTextFontChanged = onTextFontChanged,
                         onTextSizeChanged = onTextSizeChanged,
                         onLineHeightChanged = onLineHeightChanged,
@@ -577,7 +579,6 @@ private fun ViewsPreview(
                 onAppThemeChanged = {},
                 onPressBack = {},
                 onOpenChapterInWeb = {},
-                onRegexRulesClick = {},
                 readerContent = {},
                 onKeepScreenOn = {},
                 onFullScreen = {},
