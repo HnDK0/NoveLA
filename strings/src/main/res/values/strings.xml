@@ -419,6 +419,12 @@
     <string name="invalid_regex_pattern_with">Invalid regex pattern: %s</string>
     <string name="regex_cleanup_title">Regex</string>
     <string name="enabled">Enabled</string>
+    <string name="regex_cleanup_novel_rules">Regex rules (this novel)</string>
+    <string name="regex_cleanup_novel_title_format">Novel: %s</string>
+    <string name="regex_cleanup_move_to_global">Move to global</string>
+    <string name="regex_cleanup_move_to_global_description">Append this novel\'s rules to the global list and clear the novel-specific ones</string>
+    <string name="regex_cleanup_remove_novel_rules">Delete novel rules</string>
+    <string name="regex_cleanup_remove_novel_rules_description">Remove all regex rules specific to this novel. Global rules still apply.</string>
     <string name="wtr_lab_no_translation_hint">Translation disabled — content will load in English (or Chinese in RAW mode).</string>
     <string name="wtr_lab_lang_none">None</string>
     <string name="scroll_to_last_read_chapter">Last read</string>

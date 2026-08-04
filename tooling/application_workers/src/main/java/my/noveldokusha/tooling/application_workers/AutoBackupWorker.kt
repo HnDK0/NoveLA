@@ -324,6 +324,28 @@ class AutoBackupWorker(
                                 })
                             }
                         })
+                        put("USER_REGEX_CLEANUP_RULES", org.json.JSONArray(
+                            appPreferences.USER_REGEX_CLEANUP_RULES.value.map { rule ->
+                                JSONObject().apply {
+                                    put("pattern", rule.pattern)
+                                    put("replacement", rule.replacement)
+                                    put("isEnabled", rule.isEnabled)
+                                    put("description", rule.description)
+                                }
+                            }
+                        ))
+                        put("USER_REGEX_CLEANUP_RULES_PER_NOVEL", JSONObject().apply {
+                            appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value.forEach { (url, rules) ->
+                                put(url, org.json.JSONArray(rules.map { rule ->
+                                    JSONObject().apply {
+                                        put("pattern", rule.pattern)
+                                        put("replacement", rule.replacement)
+                                        put("isEnabled", rule.isEnabled)
+                                        put("description", rule.description)
+                                    }
+                                }))
+                            }
+                        })
                     }.toString()
                     zip.putNextEntry(entry)
                     zip.write(settingsJson.toByteArray())

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.outlined.ColorLens
+import androidx.compose.material.icons.outlined.Rule
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
@@ -105,6 +106,7 @@ internal fun ReaderScreen(
     onParagraphSpacingChanged: (Float) -> Unit,
     onPressBack: () -> Unit,
     onOpenChapterInWeb: () -> Unit,
+    onRegexRulesClick: () -> Unit,
     onTtsHighlightEnabledChange: (Boolean) -> Unit,
     onTtsHighlightColorChange: (String) -> Unit,
     readerContent: @Composable (paddingValues: PaddingValues) -> Unit,
@@ -191,6 +193,9 @@ internal fun ReaderScreen(
                                 }
                                 IconButton(onClick = { toggleOrSet(Type.Style) }, modifier = Modifier.size(36.dp)) {
                                     Icon(Icons.Outlined.ColorLens, stringResource(R.string.style), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.Style) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                }
+                                IconButton(onClick = onRegexRulesClick, modifier = Modifier.size(36.dp)) {
+                                    Icon(Icons.Outlined.Rule, stringResource(R.string.regex_cleanup_novel_rules), modifier = Modifier.size(20.dp))
                                 }
                                 IconButton(onClick = { toggleOrSet(Type.More) }, modifier = Modifier.size(36.dp)) {
                                     Icon(Icons.Filled.Build, stringResource(R.string.more), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.More) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
@@ -572,6 +577,7 @@ private fun ViewsPreview(
                 onAppThemeChanged = {},
                 onPressBack = {},
                 onOpenChapterInWeb = {},
+                onRegexRulesClick = {},
                 readerContent = {},
                 onKeepScreenOn = {},
                 onFullScreen = {},

@@ -56,8 +56,7 @@ internal class ReaderChaptersLoader(
     override val coroutineContext: CoroutineContext = SupervisorJob() + Dispatchers.Main.immediate
 
     private sealed interface LoadChapter {
-        enum class Type { RestartInitial, Initial, Previous, Next }
-        data class RestartInitialChapter(val state: ChapterState) : LoadChapter
+        enum class Type { Initial, Previous, Next }
         data class Initial(val chapterIndex: Int) : LoadChapter
         data object Previous : LoadChapter
         data object Next : LoadChapter
@@ -159,10 +158,18 @@ internal class ReaderChaptersLoader(
         launch { chapterLoaderFlow.emit(LoadChapter.Initial(chapterIndex = chapterIndex)) }
     }
 
-    @Synchronized fun tryLoadRestartedInitial(chapterLastState: ChapterState) {
-        if (LoadChapter.Type.RestartInitial in loaderQueue) return
-        loaderQueue.add(LoadChapter.Type.RestartInitial)
-        launch { chapterLoaderFlow.emit(LoadChapter.RestartInitialChapter(state = chapterLastState)) }
+    fun restartInitial(chapterLastState: ChapterState) {
+        coroutineContext.cancelChildren()
+        loaderQueue.clear()
+        launch(Dispatchers.Main.immediate) {
+            items.clear()
+            readerViewHandlersActions.doForceUpdateListViewState()
+            loadedChapters.clear()
+            hasLoadingError = false
+            readerState = ReaderState.INITIAL_LOAD
+            startChapterLoaderWatcher()
+            loadRestartedInitialChapter(chapterLastState)
+        }
     }
 
     @Synchronized fun tryLoadPrevious() {
@@ -260,19 +267,6 @@ internal class ReaderChaptersLoader(
         }
     }
 
-    fun reload() {
-        coroutineContext.cancelChildren()
-        loaderQueue.clear()
-        launch(Dispatchers.Main.immediate) {
-            items.clear()
-            readerViewHandlersActions.doForceUpdateListViewState()
-            loadedChapters.clear()
-            hasLoadingError = false
-            readerState = ReaderState.INITIAL_LOAD
-            startChapterLoaderWatcher()
-        }
-    }
-
     private fun startChapterLoaderWatcher() {
         launch {
             chapterLoaderFlow.collect {
@@ -288,10 +282,6 @@ internal class ReaderChaptersLoader(
                     is LoadChapter.Previous -> {
                         loadPreviousChapter()
                         removeQueueItem(LoadChapter.Type.Previous)
-                    }
-                    is LoadChapter.RestartInitialChapter -> {
-                        loadRestartedInitialChapter(chapterLastState = it.state)
-                        removeQueueItem(LoadChapter.Type.RestartInitial)
                     }
                 }
             }

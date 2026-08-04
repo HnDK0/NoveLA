@@ -28,5 +28,6 @@ dependencies {
     implementation(libs.compose.androidx.material.icons.extended)
     implementation(libs.compose.coil)
 
+    implementation(libs.androidx.appcompat)
     implementation(libs.timber)
 }

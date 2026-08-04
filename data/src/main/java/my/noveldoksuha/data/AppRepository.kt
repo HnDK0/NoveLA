@@ -98,6 +98,8 @@ class AppRepository @Inject constructor(
                     db.libraryDao().removeBooksByUrls(nonLibraryBookUrls)
                 }
 
+                libraryBooks.clearPerNovelData(nonLibraryBookUrls)
+
                 // Delete orphan book folders from disk
                 nonLibraryBookUrls.forEach { bookUrl ->
                     val folderName = appFileResolver.getLocalBookFolderName(bookUrl)

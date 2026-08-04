@@ -560,6 +560,24 @@ class AppPreferences @Inject constructor(
         )
     }
 
+    // Персональные regexp-правила конкретных новелл (ключ — bookUrl).
+    // Действуют ПОВЕРХ глобальных: глобальные применяются всегда.
+    val USER_REGEX_CLEANUP_RULES_PER_NOVEL = object : Preference<Map<String, List<RegexRule>>>(
+        "USER_REGEX_CLEANUP_RULES_PER_NOVEL"
+    ) {
+        override var value by SharedPreference_Serializable<Map<String, List<RegexRule>>>(
+            name = name,
+            sharedPreferences = preferences,
+            defaultValue = emptyMap(),
+            encode = { Json.encodeToString(it) },
+            decode = { Json.decodeFromString(it) }
+        )
+    }
+
+    fun effectiveRegexRules(bookUrl: String): List<RegexRule> =
+        USER_REGEX_CLEANUP_RULES.value +
+            (USER_REGEX_CLEANUP_RULES_PER_NOVEL.value[bookUrl] ?: emptyList())
+
     // ── Auto Backup Preferences ─────────────────────────────────────────────
 
     // Включён ли автоматический бекап

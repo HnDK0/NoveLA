@@ -143,7 +143,7 @@ internal class ReaderSession(
         readerState = ReaderState.INITIAL_LOAD,
         readerViewHandlersActions = readerViewHandlersActions,
         chapterTranslationDao = chapterTranslationDao,
-        regexRulesProvider = { appPreferences.USER_REGEX_CLEANUP_RULES.value },
+        regexRulesProvider = { appPreferences.effectiveRegexRules(bookUrl) },
     )
 
     val items = readerChaptersLoader.getItems()
@@ -394,8 +394,8 @@ internal class ReaderSession(
         runCatching { FloatingTtsService.stop(context) }
     }
 
-    fun reloadReader() {
-        readerChaptersLoader.reload()
+    fun reloadReader(chapterLastState: ChapterState) {
+        readerChaptersLoader.restartInitial(chapterLastState)
         readerTextToSpeech.stop()
     }
 
