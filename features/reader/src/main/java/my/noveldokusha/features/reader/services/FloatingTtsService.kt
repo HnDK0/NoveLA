@@ -133,6 +133,7 @@ internal class FloatingTtsService : Service(), LifecycleOwner, SavedStateRegistr
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
 
         createNotificationChannel()
+        startForeground(NOTIFICATION_ID, createNotification())
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(stopReceiver, IntentFilter(ACTION_STOP), Context.RECEIVER_NOT_EXPORTED)
         } else {
