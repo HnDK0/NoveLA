@@ -1,0 +1,44 @@
+name: 🧩 Request New Source Plugin / Запрос нового источника
+description: Request a new website to be added as a Lua plugin
+title: "[SOURCE REQUEST]: "
+labels: ["source request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⭐️ **If NoveLA helps you read novels, please leave a star on GitHub!**
+
+  - type: input
+    id: site_name
+    attributes:
+      label: Source Name / Название сайта
+      placeholder: "e.g. Royal Road"
+    validations:
+      required: true
+
+  - type: input
+    id: site_url
+    attributes:
+      label: Main Website URL / Ссылка на сайт
+      placeholder: "https://..."
+    validations:
+      required: true
+
+  - type: input
+    id: site_lang
+    attributes:
+      label: Language / Язык контента
+      placeholder: "e.g. English, Русский, Chinese"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: requires_auth
+    attributes:
+      label: Requires Login? / Нужна ли авторизация на сайте?
+      options:
+        - "No / Нет"
+        - "Yes / Да"
+        - "Not sure / Не знаю"
+    validations:
+      required: true

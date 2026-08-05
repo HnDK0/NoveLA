@@ -1,0 +1,44 @@
+name: 🌐 Source or Plugin Bug / Ошибка источника или плагина
+description: Report a broken site, CF bypass issue, parsing error, or broken plugin
+title: "[SOURCE]: "
+labels: ["source bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⭐️ **If NoveLA helps you read your favorite novels, don't forget to star the repo!**
+
+  - type: input
+    id: source_name
+    attributes:
+      label: Source Name & URL / Название и сайт источника
+      placeholder: "e.g. RanobeHub (https://ranobehub.org)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: Issue Type / Тип проблемы
+      options:
+        - "Cloudflare / Cloudflare bypass failed"
+        - "Chapter list failed to load / Не грузится список глав"
+        - "Chapter text empty or broken parsing / Пустой или кривой текст главы"
+        - "Search / Catalog not working / Не работает поиск или каталог"
+        - "Other / Другое"
+    validations:
+      required: true
+
+  - type: input
+    id: novel_url
+    attributes:
+      label: Affected Novel / Chapter Link (URL) / Ссылка на новеллу или главу
+      placeholder: "https://..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Additional Details / Дополнительные детали
+      description: What happened? Does it work in a normal browser? / Работает ли сайт в обычном браузере?

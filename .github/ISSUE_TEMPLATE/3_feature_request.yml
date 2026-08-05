@@ -1,0 +1,32 @@
+name: 💡 Feature Request / Предложение функции
+description: Suggest an idea or new feature for the NoveLA app
+title: "[FEATURE]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **Note:** New feature requests may be paused or prioritized depending on the current roadmap.
+        ⭐️ **Consider starring the repo if you want to support development!**
+
+  - type: textarea
+    id: feature_description
+    attributes:
+      label: Proposed Feature / Описание идеи
+      description: What would you like to see added or changed? / Что именно вы хотите добавить или изменить?
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case / Зачем это нужно?
+      description: Why is this feature useful? What problem does it solve? / Какую проблему это решает?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered / Альтернативы
+      description: Have you considered any alternative solutions or workarounds?
