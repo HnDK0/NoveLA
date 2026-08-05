@@ -32,4 +32,6 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     androidTestImplementation(libs.test.androidx.espresso.core)
+
+    testImplementation(libs.test.junit)
 }

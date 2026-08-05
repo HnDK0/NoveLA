@@ -213,10 +213,14 @@ class ExtensionsManagerViewModel @Inject constructor(
         }
     }
 
-    private fun loadCachedExtensions() {
-        val cachedEntries = appPreferences.EXTENSIONS_AVAILABLE_CACHE.value
-        if (cachedEntries.isNotEmpty()) {
-            val extensions = cachedEntries.map { cached ->
+    private suspend fun loadCachedExtensions() {
+        // Чтение SharedPrefs и построение списка (десятки записей) — выносим с main-потока,
+        // чтобы инициализация экрана расширений не задерживала первый кадр при холодном старте.
+        val (extensions, langList) = withContext(Dispatchers.IO) {
+            val cachedEntries = appPreferences.EXTENSIONS_AVAILABLE_CACHE.value
+            if (cachedEntries.isEmpty()) return@withContext null
+
+            val list = cachedEntries.map { cached ->
                 ExtensionInfo(
                     id = cached.id,
                     name = cached.name,
@@ -232,22 +236,23 @@ class ExtensionsManagerViewModel @Inject constructor(
                     isUpdateAvailable = isUpdateAvailable(cached.remoteVersion, getInstalledVersion(cached.id))
                 )
             }
-            val langList = extensions.groupBy { it.language }
-                .map { (code, list) ->
-                    ExtensionLanguage(code, getLanguageDisplayName(code), list.size)
+            val langs = list.groupBy { it.language }
+                .map { (code, group) ->
+                    ExtensionLanguage(code, getLanguageDisplayName(code), group.size)
                 }
                 .sortedBy { it.name }
+            list to langs
+        } ?: return
 
-            _state.update {
-                it.copy(
-                    availableExtensions = extensions,
-                    availableLanguages = langList
-                )
-            }
-            Timber.d("Loaded ${extensions.size} extensions from cache")
-            cachedAvailableExtensions = extensions
-            lastFetchTime = System.currentTimeMillis()
+        _state.update {
+            it.copy(
+                availableExtensions = extensions,
+                availableLanguages = langList
+            )
         }
+        Timber.d("Loaded ${extensions.size} extensions from cache")
+        cachedAvailableExtensions = extensions
+        lastFetchTime = System.currentTimeMillis()
     }
 
     private fun saveCachedExtensions(extensions: List<ExtensionInfo>) {

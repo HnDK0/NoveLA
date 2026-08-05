@@ -27,6 +27,7 @@ import org.luaj.vm2.*
 import org.luaj.vm2.lib.OneArgFunction
 import org.luaj.vm2.lib.ThreeArgFunction
 import org.luaj.vm2.lib.TwoArgFunction
+import org.luaj.vm2.compiler.DumpState
 import org.luaj.vm2.lib.VarArgFunction
 import org.luaj.vm2.lib.ZeroArgFunction
 import org.luaj.vm2.lib.jse.JsePlatform
@@ -34,10 +35,16 @@ import org.yaml.snakeyaml.Yaml
 import androidx.core.os.ConfigurationCompat
 import timber.log.Timber
 import my.noveldokusha.core.atomicWrite
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.StringReader
 import java.net.InetAddress
 import java.net.URI
+import java.security.MessageDigest
+import java.util.Collections
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import android.util.LruCache
@@ -58,38 +65,25 @@ class LuaEngine @Inject constructor(
     val currentSourceId = ThreadLocal<String?>()
 
     /**
-     * Создаёт globals с минимально необходимым набором библиотек.
-     * Удаляет глобалы, дающие RCE / доступ к файловой системе / загрузку произвольного кода,
-     * чтобы внешние Lua-плагины не могли выйти из песочницы.
+     * Каталог кэша скомпилированного байткода. Загрузка .lbc вместо текстовой
+     * компиляции — главный выигрыш холодного старта: ~1.5-2с на все плагины
+     * превращаются в чтение десятков КБ с диска.
      */
-    private fun createSandboxGlobals(): Globals {
-        val globals = JsePlatform.standardGlobals()
-        // Полностью удаляем опасные библиотеки/функции
-        globals.set("luajava", LuaValue.NIL)
-        globals.set("io", LuaValue.NIL)
-        globals.set("load", LuaValue.NIL)
-        globals.set("loadfile", LuaValue.NIL)
-        globals.set("loadstring", LuaValue.NIL)
-        globals.set("dofile", LuaValue.NIL)
-        globals.set("require", LuaValue.NIL)
-        globals.set("package", LuaValue.NIL)
-        globals.set("debug", LuaValue.NIL)
-        // Из os оставляем только безопасные хелперы (os.time, os.date, ...),
-        // убираем всё, что даёт доступ к ОС/файлам.
-        (globals.get("os") as? LuaTable)?.apply {
-            set("execute", LuaValue.NIL)
-            set("getenv", LuaValue.NIL)
-            set("rename", LuaValue.NIL)
-            set("remove", LuaValue.NIL)
-            set("tmpname", LuaValue.NIL)
-        }
-        return globals
-    }
+    private val bytecodeDir: File
+        get() = File(context.filesDir, LUA_BYTECODE_DIR)
+
+    // .lbc-файлы, задействованные в текущем цикле загрузки. Используется
+    // pruneBytecodeCache() для удаления сирот — старых версий скриптов, чьи хэши
+    // больше не актуальны. Потокобезопасность: loadScriptChunk вызывается с
+    // ограниченного пула (Dispatchers.IO.limitedParallelism(4)).
+    private val usedBytecodeCache = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
+
+    private fun createSandboxGlobals(): Globals = createLuaSandboxGlobals()
 
     suspend fun loadScript(luaCode: String): LuaValue = withContext(Dispatchers.IO) {
         val globals = createSandboxGlobals()
         registerApi(globals)
-        val result = withTimeout(10_000) { globals.load(luaCode).call() }
+        val result = withTimeout(10_000) { loadScriptChunk(globals, luaCode).call() }
         // Если скрипт вернул таблицу (return { ... }) — используем её,
         // иначе — функции объявлены как глобальные (function name() ... end)
         if (result.istable()) {
@@ -99,6 +93,72 @@ class LuaEngine @Inject constructor(
             t.setmetatable(mt)
             t
         } else globals
+    }
+
+    /**
+     * Возвращает chunk-функцию скрипта, предпочитая скомпилированный байткод с диска.
+     * Ключ кэша = sha256(исходник) + тег версии LuaJ, поэтому изменение скрипта
+     * или апгрейд движка автоматически инвалидируют кэш. При повреждённом/несовместимом
+     * байткоде удаляем файл и перекомпилируем из текста.
+     */
+    private fun loadScriptChunk(globals: Globals, luaCode: String): LuaValue {
+        val cacheFile = bytecodeCacheFile(luaCode)
+        if (cacheFile.exists()) {
+            try {
+                val bytes = cacheFile.readBytes()
+                usedBytecodeCache.add(cacheFile.name)
+                return loadLuaBytecodeChunk(globals, bytes, SCRIPT_CHUNK_NAME)
+            } catch (e: Exception) {
+                Timber.w(e, "Corrupt Lua bytecode cache, recompiling: ${cacheFile.name}")
+                cacheFile.delete()
+            }
+        }
+        val bytes = compileLuaBytecode(globals, luaCode, SCRIPT_CHUNK_NAME)
+        try {
+            cacheFile.parentFile?.mkdirs()
+            atomicWrite(cacheFile, bytes)
+            usedBytecodeCache.add(cacheFile.name)
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to save Lua bytecode cache: ${cacheFile.name}")
+        }
+        return loadLuaBytecodeChunk(globals, bytes, SCRIPT_CHUNK_NAME)
+    }
+
+    private fun bytecodeCacheFile(luaCode: String): File {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(luaCode.toByteArray(Charsets.UTF_8))
+        val hash = digest.joinToString("") { b -> (b.toInt() and 0xFF).toString(16).padStart(2, '0') }
+        return File(bytecodeDir, "$hash-$LUAC_TAG.lbc")
+    }
+
+    /**
+     * Удаляет .lbc-файлы, не задействованные в последней загрузке (старые версии
+     * скриптов). Вызывается после полного loadAllSources, когда usedBytecodeCache
+     * содержит только актуальные хэши.
+     */
+    fun pruneBytecodeCache() {
+        bytecodeDir.listFiles()?.forEach { file ->
+            if (file.extension == "lbc" && !usedBytecodeCache.contains(file.name)) {
+                Timber.d("Pruning orphan Lua bytecode: ${file.name}")
+                file.delete()
+            }
+        }
+    }
+
+    /**
+     * Начинает новый цикл байткод-кэша: обнуляет usedBytecodeCache, чтобы
+     * pruneBytecodeCache() после загрузки удалял .lbc расширений, которые были
+     * удалены/переименованы в рамках текущей сессии, а не только после рестарта.
+     * Вызывается до loadInstalledSources: в этот момент ни один loadScriptChunk
+     * ещё не регистрировал файлы нового цикла.
+     */
+    fun beginBytecodeCacheCycle() {
+        usedBytecodeCache.clear()
+    }
+
+    fun clearBytecodeCache() {
+        usedBytecodeCache.clear()
+        bytecodeDir.deleteRecursively()
     }
 
     suspend fun loadFromScript(scriptContent: String, iconUrl: String? = null): SourceInterface.Catalog {
@@ -826,7 +886,57 @@ class LuaEngine @Inject constructor(
         }
         else -> v.tojstring()
     }
+
+    companion object {
+        private const val LUA_BYTECODE_DIR = "lua_bytecode"
+        private const val SCRIPT_CHUNK_NAME = "script"
+
+        // Тег версии LuaJ в имени .lbc-файла: апгрейд движка меняет формат байткода,
+        // поэтому все закэшированные файлы инвалидируются автоматически.
+        private const val LUAC_TAG = "3.0.1"
+    }
 }
+
+// ── Песочница и байткод-утилиты (top-level internal для unit-тестов) ─────────
+
+/**
+ * Создаёт globals с минимально необходимым набором библиотек.
+ * Удаляет глобалы, дающие RCE / доступ к файловой системе / загрузку произвольного кода,
+ * чтобы внешние Lua-плагины не могли выйти из песочницы.
+ */
+internal fun createLuaSandboxGlobals(): Globals {
+    val globals = JsePlatform.standardGlobals()
+    // Полностью удаляем опасные библиотеки/функции
+    globals.set("luajava", LuaValue.NIL)
+    globals.set("io", LuaValue.NIL)
+    globals.set("load", LuaValue.NIL)
+    globals.set("loadfile", LuaValue.NIL)
+    globals.set("loadstring", LuaValue.NIL)
+    globals.set("dofile", LuaValue.NIL)
+    globals.set("require", LuaValue.NIL)
+    globals.set("package", LuaValue.NIL)
+    globals.set("debug", LuaValue.NIL)
+    // Из os оставляем только безопасные хелперы (os.time, os.date, ...),
+    // убираем всё, что даёт доступ к ОС/файлам.
+    (globals.get("os") as? LuaTable)?.apply {
+        set("execute", LuaValue.NIL)
+        set("getenv", LuaValue.NIL)
+        set("rename", LuaValue.NIL)
+        set("remove", LuaValue.NIL)
+        set("tmpname", LuaValue.NIL)
+    }
+    return globals
+}
+
+/** Компилирует Lua-текст в сериализованный байткод (тело .lbc-кэша). */
+internal fun compileLuaBytecode(globals: Globals, luaCode: String, chunkName: String): ByteArray {
+    val proto = globals.compilePrototype(StringReader(luaCode), chunkName)
+    return ByteArrayOutputStream().also { DumpState.dump(proto, it, false) }.toByteArray()
+}
+
+/** Загружает сериализованный байткод как chunk-функцию (режим "b"). */
+internal fun loadLuaBytecodeChunk(globals: Globals, bytes: ByteArray, chunkName: String): LuaValue =
+    globals.load(ByteArrayInputStream(bytes), chunkName, "b", globals)
 
 
 // =============================================================================
@@ -852,7 +962,11 @@ class LuaSourceLoader @Inject constructor(
     private val luaDir: File
         get() = File(context.filesDir, "lua_extensions").also { it.mkdirs() }
 
-    fun clearCache() { cache.evictAll(); Timber.d("Lua source cache cleared") }
+    fun clearCache() {
+        cache.evictAll()
+        luaEngine.clearBytecodeCache()
+        Timber.d("Lua source cache cleared")
+    }
 
     fun scriptFile(id: String): File = luaFile(id)
 
@@ -890,8 +1004,13 @@ class LuaSourceLoader @Inject constructor(
 
     suspend fun loadAllSources(): Result<List<SourceInterface>> = withContext(Dispatchers.IO) {
         try {
+            luaEngine.beginBytecodeCacheCycle()
             val sources = loadInstalledSources()
             sources.forEach { cache.put(it.id, it) }
+            // Только после успешной непустой загрузки удаляем .lbc-сироты —
+            // старые версии скриптов, чьи хэши больше не актуальны. Пустая загрузка
+            // (транзиентный сбой getEnabledExtensions) не должна вычищать кэш.
+            if (sources.isNotEmpty()) luaEngine.pruneBytecodeCache()
             Timber.d("Loaded ${sources.size} Lua sources")
             Result.success(sources)
         } catch (e: CancellationException) {
