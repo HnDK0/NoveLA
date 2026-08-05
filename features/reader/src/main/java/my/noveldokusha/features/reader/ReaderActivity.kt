@@ -133,6 +133,9 @@ class ReaderActivity : BaseActivity() {
     // Сбрасывается в false при каждом открытии Activity, устанавливается в true только при
     // TOUCH_SCROLL или FLING — т.е. при реальном жесте, не при programmatic setSelectionFromTop.
     private var userHasScrolled = false
+    // Ручной скролл приостанавливает follow-скролл за TTS-абзацем до нажатия
+    // кнопки «Фокус» (или навигации по абзацам), чтобы экран не перехватывался.
+    private var followScrollEnabled = true
 
     // Double-tap detection for showing/hiding reader info
     private var lastTapTime = 0L
@@ -312,6 +315,9 @@ class ReaderActivity : BaseActivity() {
 
         viewModel.readerSpeaker.scrollToReaderItem.asLiveData().observe(this) {
             if (it !is ReaderItem.Position) return@observe
+            // «Фокус» и переходы по абзацам — явное действие пользователя:
+            // возобновляем follow-скролл.
+            followScrollEnabled = true
             scrollToReadingPositionForced(
                 chapterIndex = it.chapterIndex,
                 chapterItemPosition = it.chapterItemPosition,
@@ -502,6 +508,13 @@ class ReaderActivity : BaseActivity() {
                     ) {
                         userHasScrolled = true
                     }
+                    // Programmatic smoothScrollToPosition* тоже отдаёт FLING (а не только
+                    // жест пользователя), поэтому follow отключаем ТОЛЬКО по TOUCH_SCROLL:
+                    // это состояние возникает исключительно при касании пальца, когда
+                    // палец ещё на экране, и не бывает при programmatic-скролле.
+                    if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL) {
+                        followScrollEnabled = false
+                    }
                     // When the user lifts their finger, check if we need to load more chapters
                     if (!listIsScrolling) {
                         updateReadingState()
@@ -628,6 +641,11 @@ class ReaderActivity : BaseActivity() {
             lastReboundChapterItemPosition = chapterItemPosition
             lastReboundPlayState = playState
             viewAdapter.listView.notifyDataSetChanged()
+        }
+
+        // Ручной скролл приостанавливает follow-скролл до кнопки «Фокус».
+        if (!followScrollEnabled) {
+            return
         }
 
         // If user is scrolling, don't auto-scroll
