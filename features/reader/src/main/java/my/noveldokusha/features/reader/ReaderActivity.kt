@@ -507,6 +507,12 @@ class ReaderActivity : BaseActivity() {
                         scrollState == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL
                     ) {
                         userHasScrolled = true
+                    }
+                    // Programmatic smoothScrollToPosition* тоже отдаёт FLING (а не только
+                    // жест пользователя), поэтому follow отключаем ТОЛЬКО по TOUCH_SCROLL:
+                    // это состояние возникает исключительно при касании пальца, когда
+                    // палец ещё на экране, и не бывает при programmatic-скролле.
+                    if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL) {
                         followScrollEnabled = false
                     }
                     // When the user lifts their finger, check if we need to load more chapters
