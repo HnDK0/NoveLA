@@ -17,7 +17,7 @@
 [![License: GPL-3.0](https://img.shields.io/github/license/HnDK0/NoveLA?style=flat-square&labelColor=27303D&color=0D1117)](LICENSE)
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-brightgreen?style=flat-square&labelColor=27303D&color=3DDC84&logo=android&logoColor=white)](https://github.com/HnDK0/NoveLA/releases/latest)
 
-> ⚠️ **Статус:** Разработка нового функционала временно приостановлена. Сейчас в приоритете — исправление багов, чистка кода и оптимизация. Баг-репорты и PR по существующим проблемам приветствуются, а новые запросы фич будут рассмотрены позже.
+> ⭐️ **Если вам нравится NoveLA, пожалуйста, поставьте звезду репозиторию!** Это помогает проекту развиваться и мотивирует поддерживать его дальше.
 
 <br/>
 <img src="preview.png" alt="NoveLA preview" width="100%"/>
@@ -85,13 +85,13 @@ NoveLA поддерживает внешние плагины источнико
 
 ---
 
-## Участие в разработке
+## Вклад в проект
 
-Pull request'ы приветствуются. Для крупных изменений сначала откройте issue.
+Любая помощь проекту приветствуется! Вы можете помочь несколькими способами:
 
-- Исправление или улучшение существующих парсеров источников
-- Добавление новых источников через [репозиторий плагинов](https://github.com/HnDK0/external-sources)
-- Сообщения об ошибках через [Issues](https://github.com/HnDK0/NoveLA/issues)
+- ⭐️ **Поставить звезду** репозиторию — самый простой способ поддержать разработку и помочь проекту расти.
+- 🐛 **Сообщить о баге или предложить улучшение** через [Issues](https://github.com/HnDK0/NoveLA/issues).
+- 🧩 **Исправить ошибку или добавить новый источник** через Pull Request (для плагинов используйте [external-sources](https://github.com/HnDK0/external-sources)).
 
 ---
 

@@ -19,7 +19,7 @@ Free and open source web novel reader for Android.
 [![License: GPL-3.0](https://img.shields.io/github/license/HnDK0/NoveLA?style=flat-square&labelColor=27303D&color=0D1117)](LICENSE)
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-brightgreen?style=flat-square&labelColor=27303D&color=3DDC84&logo=android&logoColor=white)](https://github.com/HnDK0/NoveLA/releases/latest)
 
-> ⚠️ **Status:** New features are temporarily paused. Current focus is on fixing bugs, cleaning up the codebase, and performance/optimization work. Bug reports and PRs targeting existing issues are very welcome — new feature requests will be revisited later.
+> ⭐️ **If you find NoveLA useful, please consider giving it a star!** It helps the project grow and stay motivated to fix bugs and improve performance.
 
 <br/>
 
@@ -91,11 +91,11 @@ To add: **Finder → Extensions → ⚙️ → paste repo URL**
 
 ## Contributing
 
-Pull requests are welcome. For major changes, open an issue first.
+Contributions are always welcome! You can help the project in several ways:
 
-- Fix or improve existing source parsers
-- Add new sources via the [plugin repo](https://github.com/HnDK0/external-sources)
-- Report bugs via [Issues](https://github.com/HnDK0/NoveLA/issues)
+- ⭐️ **Star the repository** — the simplest way to support development and boost visibility.
+- 🐛 **Report bugs or suggest improvements** by opening an [Issue](https://github.com/HnDK0/NoveLA/issues).
+- 🧩 **Fix bugs or add source parsers** via Pull Requests (check the [external-sources](https://github.com/HnDK0/external-sources) repo for Lua plugins).
 
 ---
 
