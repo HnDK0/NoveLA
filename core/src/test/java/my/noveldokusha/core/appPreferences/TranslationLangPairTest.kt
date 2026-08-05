@@ -51,37 +51,39 @@ class TranslationLangPairTest {
     // ─── Per-novel mode semantics ───────────────────────────────────────────
 
     @Test
-    fun `per-novel mode off by default without a full pair`() {
-        val empty = emptyMap<String, TranslationLangPair>()
+    fun `per-novel mode off by default`() {
+        val enabledMap = emptyMap<String, Boolean>()
 
-        assertFalse(resolveTranslationEnabled(false, globalEnabled = true, map = empty, bookUrl = "a"))
-        assertEquals(TranslationLangPair(), resolveTranslationPair(false, "en", "ru", empty, "a"))
+        assertFalse(resolveTranslationEnabled(false, globalEnabled = true, enabledMap = enabledMap, bookUrl = "a"))
+        assertEquals(TranslationLangPair(), resolveTranslationPair(false, "en", "ru", emptyMap(), "a"))
     }
 
     @Test
-    fun `partial pair is not enabled in per-novel mode`() {
-        val map = mapOf("a" to TranslationLangPair(source = "en"))
+    fun `per-novel mode enabled only when flag present`() {
+        val enabledMap = mapOf("a" to true)
 
-        assertFalse(resolveTranslationEnabled(false, globalEnabled = true, map = map, bookUrl = "a"))
+        assertTrue(resolveTranslationEnabled(false, globalEnabled = false, enabledMap = enabledMap, bookUrl = "a"))
+        assertFalse(resolveTranslationEnabled(false, globalEnabled = false, enabledMap = enabledMap, bookUrl = "b"))
     }
 
     @Test
-    fun `full pair enables the novel in per-novel mode`() {
-        val map = mapOf("a" to TranslationLangPair(source = "en", target = "ru"))
+    fun `full pair does not enable - toggle decides`() {
+        val pairs = mapOf("a" to TranslationLangPair(source = "en", target = "ru"))
+        val enabledMap = emptyMap<String, Boolean>()
 
-        assertTrue(resolveTranslationEnabled(false, globalEnabled = false, map = map, bookUrl = "a"))
-        assertEquals(TranslationLangPair("en", "ru"), resolveTranslationPair(false, "en", "ru", map, "a"))
+        assertFalse(resolveTranslationEnabled(false, globalEnabled = true, enabledMap = enabledMap, bookUrl = "a"))
+        assertEquals(TranslationLangPair("en", "ru"), resolveTranslationPair(false, "en", "ru", pairs, "a"))
     }
 
     @Test
-    fun `global mode ignores per-novel map`() {
-        val map = mapOf("a" to TranslationLangPair(source = "en", target = "ru"))
+    fun `global mode ignores per-novel enabled map`() {
+        val enabledMap = mapOf("a" to false)
 
-        assertTrue(resolveTranslationEnabled(true, globalEnabled = true, map = map, bookUrl = "other"))
-        assertFalse(resolveTranslationEnabled(true, globalEnabled = false, map = map, bookUrl = "a"))
+        assertTrue(resolveTranslationEnabled(true, globalEnabled = true, enabledMap = enabledMap, bookUrl = "a"))
+        assertFalse(resolveTranslationEnabled(true, globalEnabled = false, enabledMap = enabledMap, bookUrl = "a"))
         assertEquals(
             TranslationLangPair(source = "fr", target = "de"),
-            resolveTranslationPair(true, "fr", "de", map, "a"),
+            resolveTranslationPair(true, "fr", "de", emptyMap(), "a"),
         )
     }
 
@@ -95,14 +97,71 @@ class TranslationLangPairTest {
     }
 
     @Test
-    fun `writing partial pair removes entry (unpin)`() {
+    fun `writing partial pair keeps entry`() {
         val initial = mapOf("a" to TranslationLangPair("en", "ru"))
 
         val updated = updateTranslationPairMap(initial, bookUrl = "a", source = "", target = "ru")
         val updated2 = updateTranslationPairMap(initial, bookUrl = "a", source = "en", target = "")
 
+        assertEquals(TranslationLangPair("", "ru"), updated["a"])
+        assertEquals(TranslationLangPair("en", ""), updated2["a"])
+    }
+
+    @Test
+    fun `writing empty pair removes entry`() {
+        val initial = mapOf("a" to TranslationLangPair("en", "ru"))
+
+        val updated = updateTranslationPairMap(initial, bookUrl = "a", source = "", target = "")
+
         assertTrue(updated.isEmpty())
-        assertTrue(updated2.isEmpty())
+    }
+
+    // ─── Enabled map codec ──────────────────────────────────────────────────
+
+    @Test
+    fun `enabled map codec roundtrip preserves map`() {
+        val map = mapOf(
+            "https://example.com/a" to true,
+            "local://Книга" to false,
+        )
+
+        val decoded = decodeEnabledMap(encodeEnabledMap(map))
+
+        assertEquals(map, decoded)
+    }
+
+    @Test
+    fun `enabled map decode of corrupt json returns empty map`() {
+        assertTrue(decodeEnabledMap("not json at all {").isEmpty())
+        assertTrue(decodeEnabledMap("").isEmpty())
+        assertTrue(decodeEnabledMap("[]").isEmpty())
+    }
+
+    @Test
+    fun `enabled map decode treats missing or non-bool values as false`() {
+        val decoded = decodeEnabledMap("""{"a": true, "b": "yes", "c": 1}""")
+
+        assertEquals(true, decoded["a"])
+        assertEquals(false, decoded["b"])
+        assertEquals(false, decoded["c"])
+    }
+
+    // ─── Enabled state migration (pairs -> toggle map) ──────────────────────
+
+    @Test
+    fun `migration derives enabled from complete pairs only`() {
+        val pairs = mapOf(
+            "a" to TranslationLangPair("en", "ru"),
+            "b" to TranslationLangPair("en"),
+            "c" to TranslationLangPair(),
+        )
+
+        assertEquals(mapOf("a" to true), deriveEnabledMapFromPairs(pairs))
+    }
+
+    @Test
+    fun `migration from empty pairs gives empty enabled map`() {
+        assertTrue(deriveEnabledMapFromPairs(emptyMap()).isEmpty())
     }
 
     // ─── Legacy migration (TRANSLATION_BOOK_ENABLED) ─────────────────────────
