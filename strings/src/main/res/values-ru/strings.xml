@@ -191,6 +191,7 @@
     <string name="download_selected_chapters">Загрузить выбранные главы</string>
 
     <string name="translate_selected_chapters">Перевести выбранные главы</string>
+    <string name="delete_selected_chapters_translations">Удалить перевод выбранных глав</string>
     <string name="translation_not_configured">Перевод выключен или не настроен</string>
     <string name="translation_queued">Добавлено в очередь перевода</string>
     <string name="translation_nothing_to_translate">Нечего переводить</string>

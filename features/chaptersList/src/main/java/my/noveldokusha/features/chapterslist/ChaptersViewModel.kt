@@ -613,8 +613,6 @@ internal class ChaptersViewModel @Inject constructor(
     }
 
     fun translateSelected() {
-        if (state.isLocalSource.value) return
-
         val pair = appPreferences.translationPairForBook(bookUrl)
         val sourceLang = pair.source
         val targetLang = pair.target
@@ -656,6 +654,13 @@ internal class ChaptersViewModel @Inject constructor(
     fun deleteTranslationsForBook() {
         appScope.launch {
             chapterTranslationDao.deleteTranslationsByBookUrls(listOf(bookUrl))
+        }
+    }
+
+    fun deleteSelectedTranslations() {
+        val urls = state.selectedChaptersUrl.keys.toList()
+        appScope.launch {
+            urls.chunked(500).forEach { chapterTranslationDao.deleteChapterTranslationsByUrls(it) }
         }
     }
 

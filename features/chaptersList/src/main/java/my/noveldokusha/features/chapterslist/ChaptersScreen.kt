@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.RemoveDone
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.PublishedWithChanges
@@ -88,6 +89,7 @@ internal fun ChaptersScreen(
     onSelectedDeleteDownloads: () -> Unit,
     onSelectedDownload: () -> Unit,
     onSelectedTranslate: () -> Unit = {},
+    onSelectedDeleteTranslations: () -> Unit = {},
     onSelectedSetRead: () -> Unit,
     onSelectedSetUnread: () -> Unit,
     onSelectedSetReadUpToChapterRead: () -> Unit,
@@ -325,10 +327,18 @@ internal fun ChaptersScreen(
                                     stringResource(id = R.string.download_selected_chapters)
                                 )
                             }
-                            IconButton(onClick = onSelectedTranslate) {
+                        }
+                        IconButton(onClick = onSelectedTranslate) {
+                            Icon(
+                                Icons.Outlined.Translate,
+                                stringResource(id = R.string.translate_selected_chapters)
+                            )
+                        }
+                        if (state.isLocalSource.value) {
+                            IconButton(onClick = onSelectedDeleteTranslations) {
                                 Icon(
-                                    Icons.Outlined.Translate,
-                                    stringResource(id = R.string.translate_selected_chapters)
+                                    Icons.Outlined.DeleteSweep,
+                                    stringResource(id = R.string.delete_selected_chapters_translations)
                                 )
                             }
                         }

@@ -102,6 +102,7 @@
     <string name="remove_selected_chapters_downloads">Remove selected chapters\' downloads</string>
     <string name="download_selected_chapters">Download selected chapters</string>
     <string name="translate_selected_chapters">Translate selected chapters</string>
+    <string name="delete_selected_chapters_translations">Delete translations of selected chapters</string>
     <string name="translation_not_configured">Translation is disabled or not configured</string>
     <string name="translation_queued">Added to translation queue</string>
     <string name="translation_nothing_to_translate">Nothing to translate</string>
