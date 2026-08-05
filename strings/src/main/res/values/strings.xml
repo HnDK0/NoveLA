@@ -130,6 +130,11 @@
     <string name="language_target_empty_text">Target</string>
     <string name="language_clear_selection">Clear selection</string>
     <string name="live_translation">Live translation</string>
+    <string name="translation_mode_title">Translation mode</string>
+    <string name="translation_mode_settings_description">Per-novel language pair, or one pair for all novels</string>
+    <string name="translation_mode_per_novel">This novel</string>
+    <string name="translation_mode_global">All novels</string>
+    <string name="translation_select_pair_to_enable">Select source and target languages to enable translation</string>
     <string name="provider_name">Provider: %s</string>
     <string name="language_selection">Language</string>
     <string name="language_search">Select language</string>

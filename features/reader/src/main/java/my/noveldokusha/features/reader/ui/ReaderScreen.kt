@@ -472,6 +472,9 @@ private fun ViewsPreview(
         onParallelEnabledChange = {},
         parallelOrder = remember { mutableStateOf("ORIGINAL_FIRST") },
         onParallelOrderChange = {},
+        translationGlobalMode = remember { mutableStateOf(false) },
+        onTranslationGlobalModeChange = {},
+        onUnpinBook = {},
     )
 
     val textToSpeechSettingData = TextToSpeechSettingData(

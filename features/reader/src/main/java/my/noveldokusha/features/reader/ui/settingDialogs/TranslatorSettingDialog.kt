@@ -20,7 +20,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowRightAlt
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ViewColumn
+import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.ViewColumn
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Psychology
@@ -28,6 +30,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,9 +52,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import my.noveldokusha.coreui.theme.colorAccent
 import my.noveldokusha.features.reader.features.LiveTranslationSettingData
@@ -70,13 +76,14 @@ internal fun TranslatorSettingDialog(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // ── Toggle ──────────────────────────────────────────────────────
+            // ── Toggle + режим применения ────────────────────────────────────
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Switch(
                     checked = state.enable.value,
+                    enabled = state.translationGlobalMode.value || state.enable.value,
                     onCheckedChange = { state.onEnable(it) },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = colorAccent(),
@@ -93,6 +100,8 @@ internal fun TranslatorSettingDialog(
                         text = stringResource(R.string.provider_name, getProviderLabel(state.currentProvider.value)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 if (state.enable.value) {
@@ -104,6 +113,18 @@ internal fun TranslatorSettingDialog(
                         )
                     }
                 }
+                Spacer(Modifier.width(4.dp))
+                ModeToggle(state = state)
+            }
+
+            // ── Подсказка включения: в персональном режиме перевод включается
+            // только выбором обоих языков, поэтому выключенный switch нужно пояснить.
+            if (!state.translationGlobalMode.value && !state.enable.value) {
+                Text(
+                    text = stringResource(R.string.translation_select_pair_to_enable),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             // ── Provider selection ──────────────────────────────────────
@@ -121,6 +142,59 @@ internal fun TranslatorSettingDialog(
             NovelPromptSection(state = state)
         }
     }
+}
+
+@Composable
+private fun ModeToggle(state: LiveTranslationSettingData) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        ModeChip(
+            selected = !state.translationGlobalMode.value,
+            icon = Icons.Outlined.AutoStories,
+            description = stringResource(R.string.translation_mode_per_novel),
+            onClick = { state.onTranslationGlobalModeChange(false) },
+        )
+        ModeChip(
+            selected = state.translationGlobalMode.value,
+            icon = Icons.Outlined.Public,
+            description = stringResource(R.string.translation_mode_global),
+            onClick = { state.onTranslationGlobalModeChange(true) },
+        )
+    }
+}
+
+@Composable
+private fun ModeChip(
+    selected: Boolean,
+    icon: ImageVector,
+    description: String,
+    onClick: () -> Unit,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = {
+            Icon(
+                icon,
+                contentDescription = description,
+                modifier = Modifier.size(FilterChipDefaults.IconSize),
+            )
+        },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            selectedContainerColor = colorAccent().copy(alpha = 0.15f),
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            selectedLabelColor = colorAccent(),
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = true,
+            selected = selected,
+            selectedBorderColor = colorAccent(),
+            selectedBorderWidth = 1.dp,
+        ),
+    )
 }
 
 private fun getProviderLabel(key: String): String = when (key) {

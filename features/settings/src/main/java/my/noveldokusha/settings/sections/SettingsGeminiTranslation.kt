@@ -31,6 +31,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -54,6 +56,8 @@ import my.noveldokusha.settings.R
 @Composable
 internal fun SettingsGeminiTranslation(
     translationProvider: String,
+    translationGlobalMode: Boolean,
+    onTranslationGlobalModeChange: (Boolean) -> Unit,
     geminiApiKey: String,
     geminiModel: String,
     googlePaApiKeys: String,
@@ -112,6 +116,39 @@ internal fun SettingsGeminiTranslation(
             modifier = Modifier.textPadding(),
         color    = colorAccent()
         )
+
+        // ── Режим перевода: персональный / глобальный ───────────────────────
+        SlimListItem(
+            headlineContent = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier          = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text  = stringResource(R.string.translation_mode_title),
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text  = stringResource(R.string.translation_mode_settings_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Switch(
+                        checked = translationGlobalMode,
+                        onCheckedChange = onTranslationGlobalModeChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = colorAccent(),
+                            checkedTrackColor = colorAccent().copy(alpha = 0.3f),
+                        ),
+                    )
+                }
+            }
+        )
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
 
         // ── Provider picker ───────────────────────────────────────────────────
         Column(

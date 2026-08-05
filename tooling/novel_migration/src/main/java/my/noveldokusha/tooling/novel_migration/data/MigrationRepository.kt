@@ -185,6 +185,10 @@ class MigrationRepository @Inject constructor(
                 prompts.remove(oldBookUrl)?.let { prompts[newBookUrl] = it }
                 appPreferences.TRANSLATION_NOVEL_PROMPTS.value = prompts
 
+                val pairs = appPreferences.TRANSLATION_BOOK_LANG_PAIR.value.toMutableMap()
+                pairs.remove(oldBookUrl)?.let { pairs[newBookUrl] = it }
+                appPreferences.TRANSLATION_BOOK_LANG_PAIR.value = pairs
+
                 val novelRegex = appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value.toMutableMap()
                 novelRegex.remove(oldBookUrl)?.let { novelRegex[newBookUrl] = it }
                 appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value = novelRegex

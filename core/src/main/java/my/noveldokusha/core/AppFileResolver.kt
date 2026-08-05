@@ -25,7 +25,7 @@ class AppFileResolver @Inject constructor(
     val folderBooks = File(context.filesDir, "books")
 
     fun getLocalIfContentType(url: String, bookFolderName: String) =
-        if (url.isContentUri) bookFolderName.addLocalUriPrefix else url
+        if (url.isContentUri) getLocalBookPath(bookFolderName) else url
 
     fun getLocalBookCoverPath(): String = Paths.get(
         COVER_PATH_RELATIVE_TO_BOOK

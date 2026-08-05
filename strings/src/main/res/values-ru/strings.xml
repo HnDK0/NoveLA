@@ -245,6 +245,15 @@
 
     <string name="live_translation">Живой перевод</string>
 
+    <string name="translation_mode_title">Режим перевода</string>
+
+    <string name="translation_mode_settings_description">Своя языковая пара для каждой новеллы или одна для всех</string>
+
+    <string name="translation_mode_per_novel">Эта новелла</string>
+
+    <string name="translation_mode_global">Все новеллы</string>
+    <string name="translation_select_pair_to_enable">Выберите язык источника и перевода, чтобы включить перевод</string>
+
     <string name="creating_backup">Создание резервной копии</string>
 
     <string name="copying_database">Копирование базы данных</string>

@@ -45,6 +45,9 @@ internal data class LiveTranslationSettingData(
     val onParallelEnabledChange: (Boolean) -> Unit,
     val parallelOrder: MutableState<String>,
     val onParallelOrderChange: (String) -> Unit,
+    val translationGlobalMode: MutableState<Boolean>,
+    val onTranslationGlobalModeChange: (Boolean) -> Unit,
+    val onUnpinBook: () -> Unit,
 )
 
 internal class ReaderLiveTranslation(
@@ -89,6 +92,9 @@ internal class ReaderLiveTranslation(
         onParallelEnabledChange = ::onParallelEnabledChange,
         parallelOrder = mutableStateOf(appPreferences.TRANSLATION_PARALLEL_ORDER.value),
         onParallelOrderChange = ::onParallelOrderChange,
+        translationGlobalMode = mutableStateOf(appPreferences.TRANSLATION_GLOBAL_MODE.value),
+        onTranslationGlobalModeChange = ::onTranslationGlobalModeChange,
+        onUnpinBook = ::onUnpinBook,
     )
 
     var translatorState: TranslatorState? = null
@@ -102,18 +108,21 @@ internal class ReaderLiveTranslation(
 
     suspend fun init() {
         Timber.d("init: starting")
-        val pair = appPreferences.translationPairForBook(bookUrl)
-        val source = pair.source
-        val target = pair.target
-        Timber.d("init: source=$source, target=$target")
         Timber.d("init: translationAvailable=${translationManager.available}")
-
-        state.source.value = getValidTranslatorOrNull(source)
-        state.target.value = getValidTranslatorOrNull(target)
-        Timber.d("init: sourceModel=${state.source.value?.language}, targetModel=${state.target.value?.language}")
-
+        refreshFromPrefs()
         updateTranslatorState()
         Timber.d("init: complete, translatorState=${translatorState != null}")
+    }
+
+    private suspend fun refreshFromPrefs() {
+        val pair = appPreferences.translationPairForBook(bookUrl)
+        Timber.d("refreshFromPrefs: source=${pair.source}, target=${pair.target}, globalMode=${appPreferences.TRANSLATION_GLOBAL_MODE.value}")
+
+        state.source.value = getValidTranslatorOrNull(pair.source)
+        state.target.value = getValidTranslatorOrNull(pair.target)
+        state.enable.value = appPreferences.translationEnabledForBook(bookUrl)
+        state.translationGlobalMode.value = appPreferences.TRANSLATION_GLOBAL_MODE.value
+        Timber.d("refreshFromPrefs: sourceModel=${state.source.value?.language}, targetModel=${state.target.value?.language}, enable=${state.enable.value}")
     }
 
     private suspend fun getValidTranslatorOrNull(language: String): TranslationModelState? {
@@ -178,12 +187,20 @@ internal class ReaderLiveTranslation(
     private fun onEnable(it: Boolean) {
         Timber.d("onEnable: $it")
         try {
-            state.enable.value = it
-            appPreferences.setTranslationEnabledForBook(bookUrl, it)
-            val update = updateTranslatorState()
-            Timber.d("onEnable: updateRequired=$update")
-            if (update) scope.launch {
-                _onTranslatorChanged.emit(Unit)
+            when {
+                // Глобальный режим: единый переключатель для всех новелл.
+                appPreferences.TRANSLATION_GLOBAL_MODE.value -> {
+                    state.enable.value = it
+                    appPreferences.GLOBAL_TRANSLATION_ENABLED.value = it
+                    val update = updateTranslatorState()
+                    Timber.d("onEnable: updateRequired=$update")
+                    if (update) scope.launch {
+                        _onTranslatorChanged.emit(Unit)
+                    }
+                }
+                // Персональный режим: включение возможно только выбором полной пары.
+                !it -> onUnpinBook()
+                else -> Timber.d("onEnable: per-novel mode, no-op (pair required)")
             }
         } catch (e: Exception) {
             Timber.e(e, "onEnable: error")
@@ -198,8 +215,9 @@ internal class ReaderLiveTranslation(
             appPreferences.setTranslationPairForBook(
                 bookUrl = bookUrl,
                 source = it?.language ?: "",
-                target = appPreferences.translationTargetForBook(bookUrl),
+                target = state.target.value?.language ?: "",
             )
+            state.enable.value = appPreferences.translationEnabledForBook(bookUrl)
             val update = updateTranslatorState()
             Timber.d("onSourceChange: updateRequired=$update")
             if (update) scope.launch {
@@ -217,9 +235,10 @@ internal class ReaderLiveTranslation(
             state.target.value = it
             appPreferences.setTranslationPairForBook(
                 bookUrl = bookUrl,
-                source = appPreferences.translationSourceForBook(bookUrl),
+                source = state.source.value?.language ?: "",
                 target = it?.language ?: "",
             )
+            state.enable.value = appPreferences.translationEnabledForBook(bookUrl)
             val update = updateTranslatorState()
             Timber.d("onTargetChange: updateRequired=$update")
             if (update) scope.launch {
@@ -228,6 +247,35 @@ internal class ReaderLiveTranslation(
         } catch (e: Exception) {
             Timber.e(e, "onTargetChange: error")
             throw e
+        }
+    }
+
+    private fun onTranslationGlobalModeChange(global: Boolean) {
+        Timber.d("onTranslationGlobalModeChange: $global")
+        try {
+            appPreferences.TRANSLATION_GLOBAL_MODE.value = global
+            state.translationGlobalMode.value = global
+            scope.launch {
+                refreshFromPrefs()
+                val update = updateTranslatorState()
+                Timber.d("onTranslationGlobalModeChange: updateRequired=$update")
+                if (update) _onTranslatorChanged.emit(Unit)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "onTranslationGlobalModeChange: error")
+            throw e
+        }
+    }
+
+    private fun onUnpinBook() {
+        Timber.d("onUnpinBook")
+        appPreferences.clearTranslationPairForBook(bookUrl)
+        state.source.value = null
+        state.target.value = null
+        state.enable.value = false
+        val update = updateTranslatorState()
+        if (update) scope.launch {
+            _onTranslatorChanged.emit(Unit)
         }
     }
 

@@ -19,4 +19,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.preference.ktx)
+
+    testImplementation(libs.test.junit)
+    testImplementation("org.json:json:20240303")
 }

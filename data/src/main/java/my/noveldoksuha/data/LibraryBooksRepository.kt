@@ -144,6 +144,12 @@ class LibraryBooksRepository @Inject constructor(
             appPreferences.TRANSLATION_NOVEL_PROMPTS.value = filteredPrompts
         }
 
+        val pairs = appPreferences.TRANSLATION_BOOK_LANG_PAIR.value
+        val filteredPairs = pairs.filterKeys { it !in urlSet }
+        if (filteredPairs.size != pairs.size) {
+            appPreferences.TRANSLATION_BOOK_LANG_PAIR.value = filteredPairs
+        }
+
         val rules = appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value
         val filteredRules = rules.filterKeys { it !in urlSet }
         if (filteredRules.size != rules.size) {
@@ -281,5 +287,34 @@ class LibraryBooksRepository @Inject constructor(
                     downloadTaskDao.insert(task.copy(bookUrl = newUrl))
                 }
             }
+
+            // Переносим пер-новелльные настройки на новый ключ URL.
+            rekeyPerNovelPref(
+                oldUrl, newUrl,
+                { appPreferences.TRANSLATION_BOOK_LANG_PAIR.value },
+                { appPreferences.TRANSLATION_BOOK_LANG_PAIR.value = it }
+            )
+            rekeyPerNovelPref(
+                oldUrl, newUrl,
+                { appPreferences.TRANSLATION_NOVEL_PROMPTS.value },
+                { appPreferences.TRANSLATION_NOVEL_PROMPTS.value = it }
+            )
+            rekeyPerNovelPref(
+                oldUrl, newUrl,
+                { appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value },
+                { appPreferences.USER_REGEX_CLEANUP_RULES_PER_NOVEL.value = it }
+            )
         }
+
+    private fun <T> rekeyPerNovelPref(
+        oldUrl: String,
+        newUrl: String,
+        read: () -> Map<String, T>,
+        write: (Map<String, T>) -> Unit,
+    ) {
+        val current = read().toMutableMap()
+        val moved = current.remove(oldUrl) ?: return
+        current[newUrl] = moved
+        write(current)
+    }
 }

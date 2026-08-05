@@ -30,6 +30,7 @@ import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppPreferences
+import my.noveldokusha.core.appPreferences.resolveTranslationEnabled
 import my.noveldokusha.core.domain.ChapterPagination
 import my.noveldokusha.core.isContentUri
 import my.noveldokusha.core.isLocalUri
@@ -230,13 +231,13 @@ internal class ChaptersViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 bookUrlFlow,
-                appPreferences.TRANSLATION_BOOK_ENABLED.flow(),
+                appPreferences.TRANSLATION_BOOK_LANG_PAIR.flow(),
                 appPreferences.GLOBAL_TRANSLATION_ENABLED.flow(),
                 appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.flow(),
-                appPreferences.TRANSLATION_BOOK_LANG_PAIR.flow()
-            ) { url, bookEnabled, globalEnabled, globalTarget, bookPairs ->
-                val enabled = bookEnabled[url] ?: globalEnabled
-                val target = bookPairs[url]?.target ?: globalTarget
+                appPreferences.TRANSLATION_GLOBAL_MODE.flow()
+            ) { url, bookPairs, globalEnabled, globalTarget, globalMode ->
+                val enabled = resolveTranslationEnabled(globalMode, globalEnabled, bookPairs, url)
+                val target = if (globalMode) globalTarget else bookPairs[url]?.target ?: ""
                 enabled to target
             }
                 .flatMapLatest { (enabled, targetLang) ->

@@ -40,11 +40,105 @@ data class NovelPromptData(
     val appendMode: Boolean = false,
 )
 
-@Serializable
 data class TranslationLangPair(
     val source: String = "",
     val target: String = "",
 )
+
+// Новелла «включена», только если пара полная (выбраны оба языка).
+val TranslationLangPair.isComplete: Boolean
+    get() = source.isNotBlank() && target.isNotBlank()
+
+internal fun encodeTranslationPairMap(map: Map<String, TranslationLangPair>): String {
+    val obj = org.json.JSONObject()
+    map.forEach { (url, pair) ->
+        obj.put(
+            url,
+            org.json.JSONObject().apply {
+                put("source", pair.source)
+                put("target", pair.target)
+            }
+        )
+    }
+    return obj.toString()
+}
+
+internal fun decodeTranslationPairMap(raw: String): Map<String, TranslationLangPair> =
+    try {
+        val obj = org.json.JSONObject(raw)
+        val result = mutableMapOf<String, TranslationLangPair>()
+        for (key in obj.keys()) {
+            val value = obj.get(key)
+            if (value is org.json.JSONObject) {
+                result[key] = TranslationLangPair(
+                    source = value.optString("source", ""),
+                    target = value.optString("target", ""),
+                )
+            }
+        }
+        result
+    } catch (_: Exception) { emptyMap() }
+
+// Персональный режим: новелла включена только при наличии полной пары.
+fun resolveTranslationEnabled(
+    globalMode: Boolean,
+    globalEnabled: Boolean,
+    map: Map<String, TranslationLangPair>,
+    bookUrl: String,
+): Boolean =
+    if (globalMode) globalEnabled else map[bookUrl]?.isComplete == true
+
+internal fun resolveTranslationPair(
+    globalMode: Boolean,
+    globalSource: String,
+    globalTarget: String,
+    map: Map<String, TranslationLangPair>,
+    bookUrl: String,
+): TranslationLangPair =
+    if (globalMode) TranslationLangPair(source = globalSource, target = globalTarget)
+    else map[bookUrl] ?: TranslationLangPair()
+
+// Персональный режим: частичная пара удаляется — новелла выключается (unpin).
+internal fun updateTranslationPairMap(
+    map: Map<String, TranslationLangPair>,
+    bookUrl: String,
+    source: String,
+    target: String,
+): Map<String, TranslationLangPair> {
+    val current = map.toMutableMap()
+    if (source.isBlank() || target.isBlank()) {
+        current.remove(bookUrl)
+    } else {
+        current[bookUrl] = TranslationLangPair(source = source, target = target)
+    }
+    return current
+}
+
+// Миграция старого тумблера TRANSLATION_BOOK_ENABLED (JSON Map<bookUrl, Boolean>):
+// «включено без собственной пары» раньше означало перевод по глобальной паре —
+// такой новелле добавляется глобальная пара в персональную карту.
+// Явно отключённая новелла (false) остаётся выключенной: её пара удаляется (unpin).
+internal fun migrateLegacyEnabledToPairs(
+    legacyJson: String?,
+    pairs: Map<String, TranslationLangPair>,
+    globalSource: String,
+    globalTarget: String,
+): Map<String, TranslationLangPair> {
+    if (legacyJson.isNullOrBlank()) return pairs
+    val enabled = runCatching { org.json.JSONObject(legacyJson) }.getOrNull() ?: return pairs
+    val hasGlobalPair = globalSource.isNotBlank() && globalTarget.isNotBlank()
+    val result = pairs.toMutableMap()
+    enabled.keys().forEach { url ->
+        if (enabled.optBoolean(url)) {
+            if (hasGlobalPair && !result.containsKey(url)) {
+                result[url] = TranslationLangPair(source = globalSource, target = globalTarget)
+            }
+        } else {
+            result.remove(url)
+        }
+    }
+    return result
+}
 
 @Singleton
 class AppPreferences @Inject constructor(
@@ -288,43 +382,10 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_Boolean(name, preferences, false)
     }
 
-    // Персональное состояние перевода для новелл: Map<bookUrl, Boolean>.
-    // Новелла без явной настройки наследует GLOBAL_TRANSLATION_ENABLED.
-    val TRANSLATION_BOOK_ENABLED =
-        object : Preference<Map<String, Boolean>>("TRANSLATION_BOOK_ENABLED") {
-            override var value by SharedPreference_Serializable<Map<String, Boolean>>(
-                name = name,
-                sharedPreferences = preferences,
-                defaultValue = emptyMap(),
-                encode = { map ->
-                    val obj = org.json.JSONObject()
-                    map.forEach { (url, enabled) -> obj.put(url, enabled) }
-                    obj.toString()
-                },
-                decode = { raw ->
-                    try {
-                        val obj = org.json.JSONObject(raw)
-                        val result = mutableMapOf<String, Boolean>()
-                        for (key in obj.keys()) {
-                            result[key] = obj.optBoolean(key, false)
-                        }
-                        result
-                    } catch (_: Exception) { emptyMap() }
-                }
-            )
-        }
-
-    fun translationEnabledForBook(bookUrl: String): Boolean =
-        TRANSLATION_BOOK_ENABLED.value[bookUrl] ?: GLOBAL_TRANSLATION_ENABLED.value
-
-    fun setTranslationEnabledForBook(bookUrl: String, enabled: Boolean) {
-        if (bookUrl.isBlank()) {
-            GLOBAL_TRANSLATION_ENABLED.value = enabled
-            return
-        }
-        val current = TRANSLATION_BOOK_ENABLED.value.toMutableMap()
-        current[bookUrl] = enabled
-        TRANSLATION_BOOK_ENABLED.value = current
+    // Глобальный режим перевода: true — единая пара для всех новелл,
+    // false — у каждой новеллы собственная пара (отсутствие пары = перевод выключен).
+    val TRANSLATION_GLOBAL_MODE = object : Preference<Boolean>("TRANSLATION_GLOBAL_MODE") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
     }
 
     val GLOBAL_TRANSLATION_PREFERRED_SOURCE =
@@ -336,56 +397,36 @@ class AppPreferences @Inject constructor(
             override var value by SharedPreference_String(name, preferences, "")
         }
 
-    // Персональная языковая пара для новелл: Map<bookUrl, TranslationLangPair>.
-    // Новелла без явной настройки наследует глобальную пару
-    // (GLOBAL_TRANSLATION_PREFERRED_SOURCE / GLOBAL_TRANSLATION_PREFERRED_TARGET).
+    // Персональная настройка перевода новеллы: Map<bookUrl, TranslationLangPair>.
+    // Новелла включена, только если в карте лежит полная пара (source и target).
+    // Частичная пара при записи удаляется — новелла перестаёт переводиться.
     val TRANSLATION_BOOK_LANG_PAIR =
         object : Preference<Map<String, TranslationLangPair>>("TRANSLATION_BOOK_LANG_PAIR") {
             override var value by SharedPreference_Serializable<Map<String, TranslationLangPair>>(
                 name = name,
                 sharedPreferences = preferences,
                 defaultValue = emptyMap(),
-                encode = { map ->
-                    val obj = org.json.JSONObject()
-                    map.forEach { (url, pair) ->
-                        obj.put(
-                            url,
-                            org.json.JSONObject().apply {
-                                put("source", pair.source)
-                                put("target", pair.target)
-                            }
-                        )
-                    }
-                    obj.toString()
-                },
-                decode = { raw ->
-                    try {
-                        val obj = org.json.JSONObject(raw)
-                        val result = mutableMapOf<String, TranslationLangPair>()
-                        for (key in obj.keys()) {
-                            val value = obj.get(key)
-                            result[key] = when (value) {
-                                is org.json.JSONObject -> TranslationLangPair(
-                                    source = value.optString("source", ""),
-                                    target = value.optString("target", ""),
-                                )
-                                else -> TranslationLangPair()
-                            }
-                        }
-                        result
-                    } catch (_: Exception) { emptyMap() }
-                }
+                encode = { encodeTranslationPairMap(it) },
+                decode = { decodeTranslationPairMap(it) }
             )
         }
 
-    fun translationPairForBook(bookUrl: String): TranslationLangPair {
-        val stored = TRANSLATION_BOOK_LANG_PAIR.value[bookUrl]
-        if (stored != null) return stored
-        return TranslationLangPair(
-            source = GLOBAL_TRANSLATION_PREFERRED_SOURCE.value,
-            target = GLOBAL_TRANSLATION_PREFERRED_TARGET.value,
+    fun translationEnabledForBook(bookUrl: String): Boolean =
+        resolveTranslationEnabled(
+            globalMode = TRANSLATION_GLOBAL_MODE.value,
+            globalEnabled = GLOBAL_TRANSLATION_ENABLED.value,
+            map = TRANSLATION_BOOK_LANG_PAIR.value,
+            bookUrl = bookUrl,
         )
-    }
+
+    fun translationPairForBook(bookUrl: String): TranslationLangPair =
+        resolveTranslationPair(
+            globalMode = TRANSLATION_GLOBAL_MODE.value,
+            globalSource = GLOBAL_TRANSLATION_PREFERRED_SOURCE.value,
+            globalTarget = GLOBAL_TRANSLATION_PREFERRED_TARGET.value,
+            map = TRANSLATION_BOOK_LANG_PAIR.value,
+            bookUrl = bookUrl,
+        )
 
     fun translationSourceForBook(bookUrl: String): String =
         translationPairForBook(bookUrl).source
@@ -394,14 +435,51 @@ class AppPreferences @Inject constructor(
         translationPairForBook(bookUrl).target
 
     fun setTranslationPairForBook(bookUrl: String, source: String, target: String) {
-        if (bookUrl.isBlank()) {
+        if (TRANSLATION_GLOBAL_MODE.value) {
             GLOBAL_TRANSLATION_PREFERRED_SOURCE.value = source
             GLOBAL_TRANSLATION_PREFERRED_TARGET.value = target
             return
         }
+        TRANSLATION_BOOK_LANG_PAIR.value = updateTranslationPairMap(
+            map = TRANSLATION_BOOK_LANG_PAIR.value,
+            bookUrl = bookUrl,
+            source = source,
+            target = target,
+        )
+    }
+
+    // Выключает перевод конкретной новеллы (персональный режим).
+    fun clearTranslationPairForBook(bookUrl: String) {
         val current = TRANSLATION_BOOK_LANG_PAIR.value.toMutableMap()
-        current[bookUrl] = TranslationLangPair(source = source, target = target)
-        TRANSLATION_BOOK_LANG_PAIR.value = current
+        if (current.remove(bookUrl) != null) {
+            TRANSLATION_BOOK_LANG_PAIR.value = current
+        }
+    }
+
+    // Миграция настроек перевода, сделанных до объединения enabled+pair в единую карту.
+    // Старый преф TRANSLATION_BOOK_ENABLED (JSON Map<bookUrl, Boolean>) больше не читается кодом,
+    // но может оставаться в SharedPreferences у существующих пользователей.
+    // Выполняется один раз: наличие TRANSLATION_GLOBAL_MODE означает, что миграция завершена.
+    init {
+        migrateLegacyTranslationSettings()
+    }
+
+    private fun migrateLegacyTranslationSettings() {
+        if (preferences.contains("TRANSLATION_GLOBAL_MODE")) return
+
+        val migrated = migrateLegacyEnabledToPairs(
+            legacyJson = preferences.getString("TRANSLATION_BOOK_ENABLED", null),
+            pairs = TRANSLATION_BOOK_LANG_PAIR.value,
+            globalSource = GLOBAL_TRANSLATION_PREFERRED_SOURCE.value,
+            globalTarget = GLOBAL_TRANSLATION_PREFERRED_TARGET.value,
+        )
+        if (migrated != TRANSLATION_BOOK_LANG_PAIR.value) {
+            TRANSLATION_BOOK_LANG_PAIR.value = migrated
+        }
+
+        // Запись всегда (даже при false) фиксирует завершение миграции и сохраняет прежнее
+        // глобальное поведение для пользователей с включённым глобальным переводом.
+        TRANSLATION_GLOBAL_MODE.value = GLOBAL_TRANSLATION_ENABLED.value
     }
 
     val GLOBAL_APP_UPDATER_CHECKER_ENABLED =

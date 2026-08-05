@@ -82,6 +82,7 @@ fun SettingsScreen(
                 onGeminiApiKeyChange = viewModel::onGeminiApiKeyChange,
                 onGeminiModelChange = viewModel::onGeminiModelChange,
                 onTranslationProviderChange = viewModel::onTranslationProviderChange,
+                onTranslationGlobalModeChange = viewModel::onTranslationGlobalModeChange,
                 onGooglePaApiKeysChange = viewModel::onGooglePaApiKeysChange,
                 onOpenAiBaseUrlChange = viewModel::onOpenAiBaseUrlChange,
                 onOpenAiApiKeysChange = viewModel::onOpenAiApiKeysChange,

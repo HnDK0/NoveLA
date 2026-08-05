@@ -90,6 +90,7 @@ internal class SettingsViewModel @Inject constructor(
         geminiApiKey = appPreferences.TRANSLATION_GEMINI_API_KEY.state(viewModelScope),
         geminiModel = appPreferences.TRANSLATION_GEMINI_MODEL.state(viewModelScope),
         translationProvider = appPreferences.TRANSLATION_PROVIDER.state(viewModelScope),
+        translationGlobalMode = appPreferences.TRANSLATION_GLOBAL_MODE.state(viewModelScope),
         googlePaApiKeys = appPreferences.TRANSLATION_GOOGLE_PA_API_KEYS.state(viewModelScope),
         scraperUserAgent = appPreferences.SCRAPER_USER_AGENT.state(viewModelScope),
         cloudflareBypassEnabled = appPreferences.CLOUDFLARE_BYPASS_ENABLED.state(viewModelScope),
@@ -323,6 +324,10 @@ internal class SettingsViewModel @Inject constructor(
     }
     fun onTranslationProviderChange(provider: String) {
         appPreferences.TRANSLATION_PROVIDER.value = provider
+    }
+
+    fun onTranslationGlobalModeChange(global: Boolean) {
+        appPreferences.TRANSLATION_GLOBAL_MODE.value = global
     }
 
     fun onDeleteNovelPrompt(bookUrl: String) {

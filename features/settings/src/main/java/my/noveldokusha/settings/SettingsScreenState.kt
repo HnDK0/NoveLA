@@ -27,6 +27,7 @@ data class SettingsScreenState(
     val geminiApiKey: State<String>,
     val geminiModel: State<String>,
     val translationProvider: State<String>,
+    val translationGlobalMode: State<Boolean>,
     val googlePaApiKeys: State<String>,
     val scraperUserAgent: MutableState<String>,
     val cloudflareBypassEnabled: MutableState<Boolean>,
