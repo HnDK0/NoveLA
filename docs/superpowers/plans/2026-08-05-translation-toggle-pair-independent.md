@@ -477,17 +477,21 @@ git commit -m "feat(reader): allow free toggle and add state hints in translatio
 
 - [ ] **Step 1: Re-point the combine at the enabled map**
 
+NOTE: kotlinx-coroutines 1.9.0 (pinned in `gradle/libs.versions.toml:12`) only provides typed `combine` for up to 5 flows — a 6-flow `combine` does not compile. So the two book-level flows are nested into one Pair flow first, then combined with the other four flows in a 5-arity `combine` (verified against `kotlinx-coroutines-core-jvm-1.9.0-sources.jar`: `commonMain/flow/operators/Zip.kt:186` has typed combine only through `T1..T5`).
+
 Replace the `combine` block (lines 232-242) with:
 
 ```kotlin
             combine(
-                bookUrlFlow,
-                appPreferences.TRANSLATION_BOOK_ENABLED_MAP.flow(),
+                combine(
+                    bookUrlFlow,
+                    appPreferences.TRANSLATION_BOOK_ENABLED_MAP.flow(),
+                ) { url, bookEnabled -> url to bookEnabled },
                 appPreferences.TRANSLATION_BOOK_LANG_PAIR.flow(),
                 appPreferences.GLOBAL_TRANSLATION_ENABLED.flow(),
                 appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.flow(),
                 appPreferences.TRANSLATION_GLOBAL_MODE.flow()
-            ) { url, bookEnabled, bookPairs, globalEnabled, globalTarget, globalMode ->
+            ) { (url, bookEnabled), bookPairs, globalEnabled, globalTarget, globalMode ->
                 val enabled = resolveTranslationEnabled(globalMode, globalEnabled, bookEnabled, url)
                 val target = if (globalMode) globalTarget else bookPairs[url]?.target ?: ""
                 enabled to target
