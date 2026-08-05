@@ -49,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import my.noveldokusha.core.rememberResolvedBookImagePath
 import my.noveldokusha.feature.local_database.BookMetadata
 import my.noveldokusha.navigation.NavigationRouteViewModel
 import my.noveldokusha.strings.R as StringsR
@@ -187,9 +188,10 @@ private fun HistoryItemCard(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Top,
     ) {
+        val coverImageModel = rememberResolvedBookImagePath(item.bookUrl, item.bookCoverUrl)
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
-                .data(item.bookCoverUrl)
+                .data(coverImageModel)
                 .crossfade(true)
                 .build(),
             contentDescription = item.bookTitle,
