@@ -56,15 +56,6 @@ class App : Application(), ImageLoaderFactory, WorkConfiguration.Provider {
         val appPreferences = EntryPoints.get(this, HiltAppEntryPoint::class.java).appPreferences()
         resolveAppLanguage(appPreferences)
 
-        try {
-            android.webkit.CookieManager.getInstance().apply {
-                setAcceptCookie(true)
-                flush()
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "CookieManager init failed")
-        }
-
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
             MemoryDiagnostics.logMemoryStats()
