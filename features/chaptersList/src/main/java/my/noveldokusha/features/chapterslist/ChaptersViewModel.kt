@@ -133,7 +133,7 @@ internal class ChaptersViewModel @Inject constructor(
     fun translateBookInfo() {
         if (isTranslatingInfo.value) return
         viewModelScope.launch {
-            val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
+            val targetLang = appPreferences.translationTargetForBook(bookUrl)
             if (targetLang.isBlank()) {
                 toasty.show(R.string.translate_target_lang_not_set)
                 return@launch
@@ -232,9 +232,12 @@ internal class ChaptersViewModel @Inject constructor(
                 bookUrlFlow,
                 appPreferences.TRANSLATION_BOOK_ENABLED.flow(),
                 appPreferences.GLOBAL_TRANSLATION_ENABLED.flow(),
-                appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.flow()
-            ) { url, bookEnabled, globalEnabled, targetLang ->
-                (bookEnabled[url] ?: globalEnabled) to targetLang
+                appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.flow(),
+                appPreferences.TRANSLATION_BOOK_LANG_PAIR.flow()
+            ) { url, bookEnabled, globalEnabled, globalTarget, bookPairs ->
+                val enabled = bookEnabled[url] ?: globalEnabled
+                val target = bookPairs[url]?.target ?: globalTarget
+                enabled to target
             }
                 .flatMapLatest { (enabled, targetLang) ->
                     if (enabled) {
@@ -611,8 +614,9 @@ internal class ChaptersViewModel @Inject constructor(
     fun translateSelected() {
         if (state.isLocalSource.value) return
 
-        val sourceLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
-        val targetLang = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
+        val pair = appPreferences.translationPairForBook(bookUrl)
+        val sourceLang = pair.source
+        val targetLang = pair.target
         if (!appPreferences.translationEnabledForBook(bookUrl) || sourceLang.isBlank() || targetLang.isBlank()) {
             toasty.show(R.string.translation_not_configured)
             return

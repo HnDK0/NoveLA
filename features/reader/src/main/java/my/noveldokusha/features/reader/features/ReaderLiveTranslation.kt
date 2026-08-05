@@ -102,8 +102,9 @@ internal class ReaderLiveTranslation(
 
     suspend fun init() {
         Timber.d("init: starting")
-        val source = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
-        val target = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
+        val pair = appPreferences.translationPairForBook(bookUrl)
+        val source = pair.source
+        val target = pair.target
         Timber.d("init: source=$source, target=$target")
         Timber.d("init: translationAvailable=${translationManager.available}")
 
@@ -194,7 +195,11 @@ internal class ReaderLiveTranslation(
         Timber.d("onSourceChange: ${it?.language}")
         try {
             state.source.value = it
-            appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value = it?.language ?: ""
+            appPreferences.setTranslationPairForBook(
+                bookUrl = bookUrl,
+                source = it?.language ?: "",
+                target = appPreferences.translationTargetForBook(bookUrl),
+            )
             val update = updateTranslatorState()
             Timber.d("onSourceChange: updateRequired=$update")
             if (update) scope.launch {
@@ -210,7 +215,11 @@ internal class ReaderLiveTranslation(
         Timber.d("onTargetChange: ${it?.language}")
         try {
             state.target.value = it
-            appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value = it?.language ?: ""
+            appPreferences.setTranslationPairForBook(
+                bookUrl = bookUrl,
+                source = appPreferences.translationSourceForBook(bookUrl),
+                target = it?.language ?: "",
+            )
             val update = updateTranslatorState()
             Timber.d("onTargetChange: updateRequired=$update")
             if (update) scope.launch {
