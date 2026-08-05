@@ -135,7 +135,8 @@
     <string name="translation_mode_settings_description">Per-novel language pair, or one pair for all novels</string>
     <string name="translation_mode_per_novel">This novel</string>
     <string name="translation_mode_global">All novels</string>
-    <string name="translation_select_pair_to_enable">Select source and target languages to enable translation</string>
+    <string name="translation_select_pair_to_enable">Select source and target languages to start translating</string>
+    <string name="translation_toggle_off_hint">Translation is off for this novel. Turn it on to translate.</string>
     <string name="provider_name">Provider: %s</string>
     <string name="language_selection">Language</string>
     <string name="language_search">Select language</string>
