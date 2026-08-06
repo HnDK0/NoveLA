@@ -1,0 +1,28 @@
+name: Temp Reader Auto-Scroll Tests
+
+on:
+  push:
+    branches:
+      - fix/reader-auto-scroll-offscreen-pause
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@v7
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.2.0
+
+      - name: Unit tests (features:reader)
+        run: ./gradlew :features:reader:testDebugUnitTest
+
+      - name: Compile (features:reader)
+        run: ./gradlew :features:reader:compileReleaseKotlin
