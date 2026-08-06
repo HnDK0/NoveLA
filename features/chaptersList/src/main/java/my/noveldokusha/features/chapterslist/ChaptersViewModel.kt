@@ -230,13 +230,16 @@ internal class ChaptersViewModel @Inject constructor(
         // Подписываемся на переведённые названия глав из БД
         viewModelScope.launch {
             combine(
-                bookUrlFlow,
+                combine(
+                    bookUrlFlow,
+                    appPreferences.TRANSLATION_BOOK_ENABLED_MAP.flow(),
+                ) { url, bookEnabled -> url to bookEnabled },
                 appPreferences.TRANSLATION_BOOK_LANG_PAIR.flow(),
                 appPreferences.GLOBAL_TRANSLATION_ENABLED.flow(),
                 appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.flow(),
                 appPreferences.TRANSLATION_GLOBAL_MODE.flow()
-            ) { url, bookPairs, globalEnabled, globalTarget, globalMode ->
-                val enabled = resolveTranslationEnabled(globalMode, globalEnabled, bookPairs, url)
+            ) { (url, bookEnabled), bookPairs, globalEnabled, globalTarget, globalMode ->
+                val enabled = resolveTranslationEnabled(globalMode, globalEnabled, bookEnabled, url)
                 val target = if (globalMode) globalTarget else bookPairs[url]?.target ?: ""
                 enabled to target
             }

@@ -83,7 +83,7 @@ internal fun TranslatorSettingDialog(
             ) {
                 Switch(
                     checked = state.enable.value,
-                    enabled = state.translationGlobalMode.value || state.enable.value,
+                    enabled = true,
                     onCheckedChange = { state.onEnable(it) },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = colorAccent(),
@@ -117,14 +117,20 @@ internal fun TranslatorSettingDialog(
                 ModeToggle(state = state)
             }
 
-            // ── Подсказка включения: в персональном режиме перевод включается
-            // только выбором обоих языков, поэтому выключенный switch нужно пояснить.
-            if (!state.translationGlobalMode.value && !state.enable.value) {
-                Text(
-                    text = stringResource(R.string.translation_select_pair_to_enable),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            // ── Подсказка состояния: переключатель и пара независимы. ──
+            when {
+                !state.translationGlobalMode.value && !state.enable.value ->
+                    Text(
+                        text = stringResource(R.string.translation_toggle_off_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                !state.translationGlobalMode.value && (state.source.value == null || state.target.value == null) ->
+                    Text(
+                        text = stringResource(R.string.translation_select_pair_to_enable),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
             }
 
             // ── Provider selection ──────────────────────────────────────
