@@ -24,6 +24,7 @@ import my.noveldokusha.coreui.states.text
 import my.noveldokusha.coreui.states.title
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.NovelPromptData
+import my.noveldokusha.core.appPreferences.TranslationLangPair
 import my.noveldokusha.core.models.RegexRule
 import my.noveldokusha.core.isCoverValid
 import my.noveldokusha.data.AppRepository
@@ -662,6 +663,42 @@ class RestoreDataService : Service() {
                     }
                     appPreferences.TRANSLATION_NOVEL_PROMPTS.value = promptsMap
                     Timber.d("mergeToSettings: Restored ${promptsMap.size} novel prompts")
+                }
+
+                if (settingsJson.has("TRANSLATION_BOOK_LANG_PAIR")) {
+                    val pairsObj = settingsJson.getJSONObject("TRANSLATION_BOOK_LANG_PAIR")
+                    val pairsMap = mutableMapOf<String, TranslationLangPair>()
+                    for (key in pairsObj.keys()) {
+                        val value = pairsObj.get(key)
+                        if (value is JSONObject) {
+                            pairsMap[key] = TranslationLangPair(
+                                source = value.optString("source", ""),
+                                target = value.optString("target", ""),
+                            )
+                        }
+                    }
+                    appPreferences.TRANSLATION_BOOK_LANG_PAIR.value = pairsMap
+                    Timber.d("mergeToSettings: Restored ${pairsMap.size} novel lang pairs")
+                }
+
+                if (settingsJson.has("TRANSLATION_GLOBAL_MODE")) {
+                    appPreferences.TRANSLATION_GLOBAL_MODE.value = settingsJson.getBoolean("TRANSLATION_GLOBAL_MODE")
+                    Timber.d("mergeToSettings: Restored TRANSLATION_GLOBAL_MODE")
+                }
+
+                if (settingsJson.has("GLOBAL_TRANSLATION_ENABLED")) {
+                    appPreferences.GLOBAL_TRANSLATION_ENABLED.value = settingsJson.getBoolean("GLOBAL_TRANSLATION_ENABLED")
+                    Timber.d("mergeToSettings: Restored GLOBAL_TRANSLATION_ENABLED")
+                }
+
+                if (settingsJson.has("GLOBAL_TRANSLATION_PREFERRED_SOURCE")) {
+                    appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value = settingsJson.getString("GLOBAL_TRANSLATION_PREFERRED_SOURCE")
+                    Timber.d("mergeToSettings: Restored GLOBAL_TRANSLATION_PREFERRED_SOURCE")
+                }
+
+                if (settingsJson.has("GLOBAL_TRANSLATION_PREFERRED_TARGET")) {
+                    appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value = settingsJson.getString("GLOBAL_TRANSLATION_PREFERRED_TARGET")
+                    Timber.d("mergeToSettings: Restored GLOBAL_TRANSLATION_PREFERRED_TARGET")
                 }
 
                 if (settingsJson.has("USER_REGEX_CLEANUP_RULES")) {

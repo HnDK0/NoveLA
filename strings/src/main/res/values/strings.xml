@@ -170,6 +170,11 @@
     <string name="pin_or_unpin_source">Pin or unpin source</string>
     <string name="allow_text_selection">Text selection</string>
     <string name="tts_highlight">TTS Highlight</string>
+    <string name="manual_highlight">Manual highlight</string>
+    <string name="manual_highlight_start">Start manual highlight</string>
+    <string name="manual_highlight_previous">Previous paragraph</string>
+    <string name="manual_highlight_next">Next paragraph</string>
+    <string name="manual_highlight_stop">Stop manual highlight</string>
     <string name="last_read">Last read</string>
     <string name="title">Title</string>
     <string name="unread_chapters">Unread chapters</string>

@@ -7,6 +7,7 @@ import androidx.compose.runtime.State
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.features.reader.features.LiveTranslationSettingData
+import my.noveldokusha.features.reader.features.ManualHighlightSettingData
 import my.noveldokusha.features.reader.features.TextToSpeechSettingData
 
 @Stable
@@ -37,6 +38,8 @@ internal data class ReaderScreenState(
         val selectedSetting: MutableState<Type>,
         val floatingTts: FloatingTtsSettingsData,
         val ttsHighlight: TtsHighlightSettingsData,
+        val manualHighlight: ManualHighlightSettingData,
+        val manualHighlightEnabled: State<Boolean>,
     ) {
         @Stable
         data class StyleSettingsData(

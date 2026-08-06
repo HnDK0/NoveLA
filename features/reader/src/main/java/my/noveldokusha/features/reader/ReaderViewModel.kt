@@ -79,6 +79,8 @@ internal class ReaderViewModel @Inject constructor(
                 isEnabled = appPreferences.TTS_HIGHLIGHT_ENABLED.state(viewModelScope),
                 highlightColor = appPreferences.TTS_HIGHLIGHT_COLOR.state(viewModelScope),
             ),
+            manualHighlight = readerSession.readerManualHighlight.state,
+            manualHighlightEnabled = appPreferences.MANUAL_HIGHLIGHT_ENABLED.state(viewModelScope),
             style = ReaderScreenState.Settings.StyleSettingsData(
                 currentDarkMode = mutableStateOf(DarkMode.SYSTEM).also { state ->
                     viewModelScope.launch {
@@ -138,6 +140,7 @@ internal class ReaderViewModel @Inject constructor(
     val onDisplaySettingsChanged = readerSession.readerLiveTranslation.onDisplaySettingsChanged
     val ttsScrolledToTheTop = readerSession.readerTextToSpeech.scrolledToTheTop
     val ttsScrolledToTheBottom = readerSession.readerTextToSpeech.scrolledToTheBottom
+    val manualHighlightScrollToItem = readerSession.readerManualHighlight.scrollToItem
 
     fun onCloseManually() {
         Timber.d("onCloseManually: isActive=${readerSession.readerTextToSpeech.isActive.value} isSpeaking=${readerSession.readerTextToSpeech.isSpeaking.value}")
@@ -150,6 +153,12 @@ internal class ReaderViewModel @Inject constructor(
 
     fun startSpeaker(itemIndex: Int) =
         readerSession.startSpeaker(itemIndex = itemIndex)
+
+    fun startManualHighlightAt(itemIndex: Int) =
+        readerSession.startManualHighlight(itemIndex = itemIndex)
+
+    fun stopManualHighlight() =
+        readerSession.stopManualHighlight()
 
     fun reloadReader() {
         val currentChapter = readingCurrentChapter.copy()

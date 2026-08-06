@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Fullscreen
+import androidx.compose.material.icons.outlined.Highlight
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.FormatPaint
 import androidx.compose.material.icons.outlined.TouchApp
@@ -62,10 +63,37 @@ internal fun MoreSettingDialog(
     onTtsHighlightEnabledChange: (Boolean) -> Unit,
     ttsHighlightColor: String,
     onTtsHighlightColorChange: (String) -> Unit,
+    manualHighlightEnabled: Boolean = false,
+    onManualHighlightEnabledChange: (Boolean) -> Unit = {},
 ) {
     ElevatedCard(
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp)
     ) {
+        // Manual highlight
+        SlimListItem(
+            modifier = Modifier
+                .clickable { onManualHighlightEnabledChange(!manualHighlightEnabled) },
+            headlineContent = {
+                Text(text = stringResource(id = R.string.manual_highlight))
+            },
+            leadingContent = {
+                Icon(
+                    Icons.Outlined.Highlight,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingContent = {
+                Switch(
+                    checked = manualHighlightEnabled,
+                    onCheckedChange = onManualHighlightEnabledChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = colorAccent(),
+                        checkedTrackColor = colorAccent().copy(alpha = 0.4f),
+                    )
+                )
+            }
+        )
         // TTS Highlight
         SlimListItem(
             modifier = Modifier
