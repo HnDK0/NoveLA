@@ -95,8 +95,12 @@ Semantics:
 
 `currentParagraphVisible` is computed by scanning `firstVisiblePosition..lastVisiblePosition`
 for the current TTS paragraph (`chapterIndex`, `chapterItemPosition` of
-`readerSpeaker.currentTextPlaying.value.itemPos`). If there is no active TTS item,
-treat it as visible (harmless default; follow only matters while TTS emits).
+`readerSpeaker.currentTextPlaying.value.itemPos`). No special-casing for idle/paused
+TTS: `currentTextPlaying.value.itemPos` retains the last active paragraph while TTS is
+paused (so a pause+scroll+resume does not yank the screen back — follow stays paused),
+and before any playback it is the chapter `Title(chapterIndex = -1, …)`, which never
+matches a visible item. A pause latched during idle is harmless because follow only has
+an effect once TTS emits, and playback always starts at a visible item.
 
 ### 3.2 Real-gesture latch
 
