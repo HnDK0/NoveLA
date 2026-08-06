@@ -133,9 +133,19 @@ class ReaderActivity : BaseActivity() {
     // Сбрасывается в false при каждом открытии Activity, устанавливается в true только при
     // TOUCH_SCROLL или FLING — т.е. при реальном жесте, не при programmatic setSelectionFromTop.
     private var userHasScrolled = false
-    // Ручной скролл приостанавливает follow-скролл за TTS-абзацем до нажатия
-    // кнопки «Фокус» (или навигации по абзацам), чтобы экран не перехватывался.
-    private var followScrollEnabled = true
+    // Следование за TTS-абзацем приостанавливается только когда ручной скролл
+    // увёл текущий абзац с экрана; возобновляется, когда абзац снова виден, либо
+    // по кнопке «Фокус» / навигации по абзацам / главам.
+    private var followScrollEnabled = ReaderAutoScrollFollow.ACTIVE
+    // Палец пользователя лежит на экране (TOUCH_SCROLL) — до IDLE это один жест,
+    // включая fling. Programmatic smoothScrollToPosition* TOUCH_SCROLL не порождает,
+    // поэтому этот флаг надёжно отличает жест пользователя от нашего скролла.
+    private var manualGestureActive = false
+    // Последний целевой (позиция, отступ) programmatic-скролла и время его старта:
+    // дедупликация повторных smoothScrollToPositionFromTop в один и тот же таргет
+    // (LOADING+PLAYING одного абзаца рестартят одну и ту же анимацию — вибрация).
+    private var lastSmoothScrollTarget: Pair<Int, Int>? = null
+    private var lastSmoothScrollStart = 0L
 
     // Double-tap detection for showing/hiding reader info
     private var lastTapTime = 0L
@@ -317,7 +327,7 @@ class ReaderActivity : BaseActivity() {
             if (it !is ReaderItem.Position) return@observe
             // «Фокус» и переходы по абзацам — явное действие пользователя:
             // возобновляем follow-скролл.
-            followScrollEnabled = true
+            followScrollEnabled = ReaderAutoScrollFollow.ACTIVE
             scrollToReadingPositionForced(
                 chapterIndex = it.chapterIndex,
                 chapterItemPosition = it.chapterItemPosition,
@@ -326,6 +336,8 @@ class ReaderActivity : BaseActivity() {
 
         viewModel.readerSpeaker.scrollToChapterTop.asLiveData()
             .observe(this) { chapterIndex ->
+                // Переход на главу — как и навигация по абзацам: возобновляем follow.
+                followScrollEnabled = ReaderAutoScrollFollow.ACTIVE
                 scrollToReadingPositionForced(
                     chapterIndex = chapterIndex,
                     chapterItemPosition = 0,
@@ -497,6 +509,11 @@ class ReaderActivity : BaseActivity() {
                     if (listIsScrolling) {
                         updateReadingState()
                     }
+                    followScrollEnabled = nextFollowState(
+                        current = followScrollEnabled,
+                        manualGestureActive = manualGestureActive,
+                        currentParagraphVisible = isCurrentParagraphVisible(),
+                    )
                 }
 
                 override fun onScrollStateChanged(view: AbsListView?, scrollState: Int) {
@@ -509,14 +526,22 @@ class ReaderActivity : BaseActivity() {
                         userHasScrolled = true
                     }
                     // Programmatic smoothScrollToPosition* тоже отдаёт FLING (а не только
-                    // жест пользователя), поэтому follow отключаем ТОЛЬКО по TOUCH_SCROLL:
+                    // жест пользователя), поэтому жест детектируем ТОЛЬКО по TOUCH_SCROLL:
                     // это состояние возникает исключительно при касании пальца, когда
-                    // палец ещё на экране, и не бывает при programmatic-скролле.
+                    // палец ещё на экране, и не бывает при programmatic-скролле. Follow
+                    // приостанавливается не самим касанием, а уходом абзаца с экрана
+                    // (см. nextFollowState и onScroll).
                     if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL) {
-                        followScrollEnabled = false
+                        manualGestureActive = true
                     }
                     // When the user lifts their finger, check if we need to load more chapters
                     if (!listIsScrolling) {
+                        manualGestureActive = false
+                        followScrollEnabled = nextFollowState(
+                            current = followScrollEnabled,
+                            manualGestureActive = manualGestureActive,
+                            currentParagraphVisible = isCurrentParagraphVisible(),
+                        )
                         updateReadingState()
                         // TTS catch-up: после окончания жеста сразу возвращаем подсветку
                         // на экран, не дожидаясь следующей эмиссии абзаца (может быть
@@ -643,8 +668,14 @@ class ReaderActivity : BaseActivity() {
             viewAdapter.listView.notifyDataSetChanged()
         }
 
-        // Ручной скролл приостанавливает follow-скролл до кнопки «Фокус».
-        if (!followScrollEnabled) {
+        // Ручной скролл, уведший текущий абзац с экрана, приостанавливает follow-скролл.
+        if (followScrollEnabled == ReaderAutoScrollFollow.PAUSED) {
+            return
+        }
+
+        // Пока палец на экране или идёт fling от жеста — не начинаем свой скролл,
+        // чтобы не бороться с ручным скроллом пользователя.
+        if (manualGestureActive) {
             return
         }
 
@@ -681,7 +712,7 @@ class ReaderActivity : BaseActivity() {
 
                 // Scroll only if item is below the desired visible position (fast scroll)
                 if (currentOffsetPx > newOffsetPx) {
-                    viewBind.listView.smoothScrollToPositionFromTop(index, newOffsetPx, 400)
+                    followSmoothScrollTo(index, newOffsetPx)
                 }
                 return
             }
@@ -706,17 +737,47 @@ class ReaderActivity : BaseActivity() {
         when {
             distanceBelow in 1..threshold -> {
                 // Close below visible area - smooth scroll
-                viewBind.listView.smoothScrollToPositionFromTop(itemPosition, newOffsetPx, 400)
+                followSmoothScrollTo(itemPosition, newOffsetPx)
             }
             distanceAbove in 1..threshold -> {
                 // Close above visible area - smooth scroll
-                viewBind.listView.smoothScrollToPositionFromTop(itemPosition, newOffsetPx, 400)
+                followSmoothScrollTo(itemPosition, newOffsetPx)
             }
             else -> {
                 // Far from visible area - instant scroll for better responsiveness
                 viewBind.listView.setSelectionFromTop(itemPosition, newOffsetPx)
             }
         }
+    }
+
+    private fun followSmoothScrollTo(itemPosition: Int, offsetPx: Int) {
+        val target = itemPosition to offsetPx
+        val now = SystemClock.elapsedRealtime()
+        if (!shouldIssueSmoothScroll(lastSmoothScrollTarget, lastSmoothScrollStart, target, now)) {
+            return
+        }
+        lastSmoothScrollTarget = target
+        lastSmoothScrollStart = now
+        viewBind.listView.smoothScrollToPositionFromTop(itemPosition, offsetPx, 400)
+    }
+
+    private fun isCurrentParagraphVisible(): Boolean {
+        val playing = viewModel.readerSpeaker.currentTextPlaying.value
+        val chapterIndex = playing.itemPos.chapterIndex
+        val chapterItemPosition = playing.itemPos.chapterItemPosition
+        val firstIndex = viewBind.listView.firstVisiblePosition
+        val lastIndex = viewBind.listView.lastVisiblePosition
+        for (index in firstIndex..lastIndex) {
+            val item = viewAdapter.listView.getItem(index)
+            if (
+                item.chapterIndex == chapterIndex &&
+                item is ReaderItem.Position &&
+                item.chapterItemPosition == chapterItemPosition
+            ) {
+                return true
+            }
+        }
+        return false
     }
 
     private fun scrollToReadingPositionForced(chapterIndex: Int, chapterItemPosition: Int) {
