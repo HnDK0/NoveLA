@@ -60,6 +60,7 @@ internal class ReaderItemAdapter(
     private val currentTtsHighlightEnabled: () -> Boolean = { false },
     private val currentTtsHighlightColor: () -> String = { "FFFF6D00" },
     private val currentSpokenWordRange: () -> IntRange? = { null },
+    private val currentManualHighlight: () -> HighlightPosition? = { null },
 ) : ArrayAdapter<ReaderItem>(ctx, 0, list) {
     private val appFileResolver = AppFileResolver(ctx)
     override fun getCount() = super.getCount() + 2
@@ -423,13 +424,25 @@ internal class ReaderItemAdapter(
                 textSynthesis.itemPos.chapterIndex == item.chapterIndex &&
                 textSynthesis.itemPos.chapterItemPosition == item.chapterItemPosition
 
-        if (!isReadingItem) return null
-
-        return when (textSynthesis.playState) {
-            Utterance.PlayState.PLAYING -> currentReadingAloudDrawable
-            Utterance.PlayState.LOADING -> currentReadingAloudLoadingDrawable
-            Utterance.PlayState.FINISHED -> null
+        if (isReadingItem) {
+            return when (textSynthesis.playState) {
+                Utterance.PlayState.PLAYING -> currentReadingAloudDrawable
+                Utterance.PlayState.LOADING -> currentReadingAloudLoadingDrawable
+                Utterance.PlayState.FINISHED -> null
+            }
         }
+
+        // Ручная подсветка абзаца: тот же фоновый drawable, что и у TTS-абзаца.
+        val manualHighlight = currentManualHighlight()
+        if (manualHighlight != null &&
+            item is ReaderItem.Position &&
+            item.chapterIndex == manualHighlight.chapterIndex &&
+            item.chapterItemPosition == manualHighlight.chapterItemPosition
+        ) {
+            return currentReadingAloudDrawable
+        }
+
+        return null
     }
 
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =

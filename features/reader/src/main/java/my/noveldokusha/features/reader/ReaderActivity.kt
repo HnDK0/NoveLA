@@ -186,6 +186,7 @@ class ReaderActivity : BaseActivity() {
                 currentTtsHighlightEnabled = { appPreferences.TTS_HIGHLIGHT_ENABLED.value },
                 currentTtsHighlightColor = { appPreferences.TTS_HIGHLIGHT_COLOR.value },
                 currentSpokenWordRange = { viewModel.readerSpeaker.state.spokenWordRange.value },
+                currentManualHighlight = { viewModel.state.settings.manualHighlight.highlightedItem.value },
             )
         }
     }
@@ -318,6 +319,13 @@ class ReaderActivity : BaseActivity() {
             )
         }
 
+        viewModel.manualHighlightScrollToItem.asLiveData().observe(this) {
+            scrollToReadingPositionForced(
+                chapterIndex = it.chapterIndex,
+                chapterItemPosition = it.chapterItemPosition,
+            )
+        }
+
         viewModel.readerSpeaker.scrollToChapterTop.asLiveData()
             .observe(this) { chapterIndex ->
                 scrollToReadingPositionForced(
@@ -327,9 +335,8 @@ class ReaderActivity : BaseActivity() {
             }
 
         viewModel.readerSpeaker.startReadingFromFirstVisibleItem.asLiveData().observe(this) {
-            val firstPosition = viewBind.listView.firstVisiblePosition
             viewModel.startSpeaker(
-                itemIndex = viewAdapter.listView.getFirstVisibleItemIndexGivenPosition(firstPosition)
+                itemIndex = getFirstFullyVisibleItemIndex()
             )
         }
 
@@ -367,6 +374,11 @@ class ReaderActivity : BaseActivity() {
         snapshotFlow {
             appPreferences.TTS_HIGHLIGHT_ENABLED.value to appPreferences.TTS_HIGHLIGHT_COLOR.value
         }.drop(1)
+            .asLiveData()
+            .observe(this) { viewAdapter.listView.notifyDataSetChanged() }
+
+        // Notify manual highlight changed for list view
+        snapshotFlow { viewModel.state.settings.manualHighlight.highlightedItem.value }.drop(1)
             .asLiveData()
             .observe(this) { viewAdapter.listView.notifyDataSetChanged() }
 
@@ -444,6 +456,29 @@ class ReaderActivity : BaseActivity() {
                     onSingleTapToOpenSettingsChange = { appPreferences.READER_SINGLE_TAP_TO_OPEN_SETTINGS.value = it },
                     onTtsHighlightEnabledChange = { appPreferences.TTS_HIGHLIGHT_ENABLED.value = it },
                     onTtsHighlightColorChange = { appPreferences.TTS_HIGHLIGHT_COLOR.value = it },
+                    onManualHighlightEnabledChange = {
+                        appPreferences.MANUAL_HIGHLIGHT_ENABLED.value = it
+                        if (!it) viewModel.stopManualHighlight()
+                    },
+                    manualHighlight = viewModel.state.settings.manualHighlight,
+                    onManualHighlightStart = {
+                        val firstVisible = getFirstFullyVisibleItemIndex()
+                        // Клампим: нижняя подложка даёт count-1 (за концом списка)
+                        viewModel.startManualHighlightAt(
+                            firstVisible.coerceAtMost(
+                                (viewModel.items.size - 1).coerceAtLeast(0)
+                            )
+                        )
+                    },
+                    manualHighlightInitialPosition = run {
+                        val x = appPreferences.MANUAL_HIGHLIGHT_POS_X.value
+                        val y = appPreferences.MANUAL_HIGHLIGHT_POS_Y.value
+                        if (x >= 0f && y >= 0f) x to y else null
+                    },
+                    onManualHighlightPositionChange = { x, y ->
+                        appPreferences.MANUAL_HIGHLIGHT_POS_X.value = x
+                        appPreferences.MANUAL_HIGHLIGHT_POS_Y.value = y
+                    },
                     onPressBack = {
                         viewModel.onCloseManually()
                         finish()
@@ -728,6 +763,36 @@ class ReaderActivity : BaseActivity() {
         viewAdapter.listView.notifyDataSetChanged()
         viewBind.listView.setSelectionFromTop(itemPosition, newOffsetPx)
         viewAdapter.listView.notifyDataSetChanged()
+    }
+
+    /**
+     * Индекс первого ПОЛНОСТЬЮ видимого элемента списка, а не первого частично
+     * срезанного сверху: если верхний ребёнок обрезан (top < paddingTop), берём
+     * следующий. Итерация по детям устойчива к флингу/оверскроллу, когда
+     * одновременно обрезано несколько верхних вью.
+     */
+    private fun getFirstFullyVisibleItemIndex(): Int {
+        val listView = viewBind.listView
+        if (listView.childCount == 0) {
+            return viewAdapter.listView.getFirstVisibleItemIndexGivenPosition(
+                listView.firstVisiblePosition
+            )
+        }
+        for (index in 0 until listView.childCount) {
+            val child = listView.getChildAt(index) ?: continue
+            if (child.top >= listView.paddingTop) {
+                return viewAdapter.listView.getFirstVisibleItemIndexGivenPosition(
+                    (listView.firstVisiblePosition + index)
+                        .coerceAtMost(viewAdapter.listView.count - 1)
+                )
+            }
+        }
+        // Все дети обрезаны сверху — крайний случай (оверскролл/загрузка),
+        // ограничиваемся нижней подложкой-границей.
+        return viewAdapter.listView.getFirstVisibleItemIndexGivenPosition(
+            (listView.firstVisiblePosition + listView.childCount - 1)
+                .coerceAtMost(viewAdapter.listView.count - 1)
+        )
     }
 
     private fun updateReadingState() {

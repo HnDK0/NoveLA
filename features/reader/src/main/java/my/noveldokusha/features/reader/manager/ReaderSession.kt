@@ -32,6 +32,7 @@ import my.noveldokusha.features.reader.domain.ReadingChapterPosStats
 import my.noveldokusha.features.reader.domain.chapterReadPercentage
 import my.noveldokusha.features.reader.features.ReaderChaptersLoader
 import my.noveldokusha.features.reader.features.ReaderLiveTranslation
+import my.noveldokusha.features.reader.features.ReaderManualHighlight
 import my.noveldokusha.features.reader.features.ReaderTextToSpeech
 import my.noveldokusha.features.reader.services.FloatingTtsService
 import my.noveldokusha.features.reader.services.NarratorMediaControlsService
@@ -152,6 +153,8 @@ internal class ReaderSession(
 
     lateinit var readerTextToSpeech: ReaderTextToSpeech
 
+    lateinit var readerManualHighlight: ReaderManualHighlight
+
     init {
         readerTextToSpeech = ReaderTextToSpeech(
             coroutineScope = scope,
@@ -195,6 +198,12 @@ internal class ReaderSession(
                     }
                 }
             },
+        )
+
+        readerManualHighlight = ReaderManualHighlight(
+            items = items,
+            scope = scope,
+            stopTextToSpeech = { runCatching { readerTextToSpeech.stop() } },
         )
 
         scope.launch {
@@ -259,6 +268,13 @@ internal class ReaderSession(
     }
 
     private fun initReaderTTSObservers() {
+        // Взаимное исключение: когда TTS начинает говорить, ручная подсветка сбрасывается
+        scope.launch(Dispatchers.Main.immediate) {
+            snapshotFlow { readerTextToSpeech.isSpeaking.value }
+                .filter { it }
+                .collect { readerManualHighlight.clear() }
+        }
+
         scope.launch {
             readerTextToSpeech
                 .currentReaderItem
@@ -359,6 +375,14 @@ internal class ReaderSession(
                 chapterIndex = startingItem.chapterIndex
             )
         }
+    }
+
+    fun startManualHighlight(itemIndex: Int) {
+        readerManualHighlight.startFromItemIndex(itemIndex)
+    }
+
+    fun stopManualHighlight() {
+        readerManualHighlight.clear()
     }
 
     fun close() {

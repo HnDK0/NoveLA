@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.displayCutoutPadding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -67,11 +68,13 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
@@ -79,6 +82,7 @@ import my.noveldokusha.coreui.theme.InternalTheme
 import my.noveldokusha.coreui.theme.rememberMutableStateOf
 import my.noveldokusha.features.reader.domain.ReaderItem
 import my.noveldokusha.features.reader.features.LiveTranslationSettingData
+import my.noveldokusha.features.reader.features.ManualHighlightSettingData
 import my.noveldokusha.features.reader.features.TextSynthesis
 import my.noveldokusha.features.reader.features.TextToSpeechSettingData
 import my.noveldokusha.features.reader.ui.ReaderScreenState.Settings.Type
@@ -111,11 +115,18 @@ internal fun ReaderScreen(
     regexCleanupViewModel: RegexCleanupSettingsViewModel? = null,
     onTtsHighlightEnabledChange: (Boolean) -> Unit,
     onTtsHighlightColorChange: (String) -> Unit,
+    onManualHighlightEnabledChange: (Boolean) -> Unit = {},
+    manualHighlight: ManualHighlightSettingData? = null,
+    onManualHighlightStart: () -> Unit = {},
+    manualHighlightInitialPosition: Pair<Float, Float>? = null,
+    onManualHighlightPositionChange: (Float, Float) -> Unit = { _, _ -> },
     readerContent: @Composable (paddingValues: PaddingValues) -> Unit,
 ) {
     val showReaderInfo by state.showReaderInfo
     val selectedSetting by state.settings.selectedSetting
     val fullScreen by state.settings.fullScreen
+    val manualHighlightEnabled by state.settings.manualHighlightEnabled
+    var readerAreaSize by remember { mutableStateOf(IntSize.Zero) }
 
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -141,7 +152,11 @@ internal fun ReaderScreen(
         }
     }
 
-    Box {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { readerAreaSize = it }
+    ) {
         Scaffold(
         topBar = {
             val fullScreen by rememberUpdatedState(showReaderInfo)
@@ -236,6 +251,7 @@ internal fun ReaderScreen(
                         onSingleTapToOpenSettingsChange = onSingleTapToOpenSettingsChange,
                         onTtsHighlightEnabledChange = onTtsHighlightEnabledChange,
                         onTtsHighlightColorChange = onTtsHighlightColorChange,
+                        onManualHighlightEnabledChange = onManualHighlightEnabledChange,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     BottomAppBar(
@@ -407,6 +423,27 @@ internal fun ReaderScreen(
 
             onDispose { lifecycle.removeObserver(observer) }
         }
+
+        // Плавающая кнопка ручной подсветки: скрывается при открытых настройках,
+        // при активном TTS и при выключенной настройке.
+        val manual = manualHighlight
+        val manualHighlightVisible = manual != null &&
+            manualHighlightEnabled &&
+            selectedSetting == Type.None &&
+            !state.settings.textToSpeech.isPlaying.value
+
+        if (manualHighlightVisible) {
+            ManualHighlightPill(
+                areaSize = readerAreaSize,
+                highlightedItem = manual.highlightedItem.value,
+                onStart = onManualHighlightStart,
+                onNext = manual.next,
+                onPrevious = manual.previous,
+                onClear = manual.clear,
+                initialPosition = manualHighlightInitialPosition,
+                onPositionChange = onManualHighlightPositionChange,
+            )
+        }
     }
 }
 
@@ -572,6 +609,13 @@ private fun ViewsPreview(
                             isEnabled = remember { mutableStateOf(false) },
                             highlightColor = remember { mutableStateOf("FFFF6D00") },
                         ),
+                        manualHighlight = ManualHighlightSettingData(
+                            highlightedItem = remember { mutableStateOf(null) },
+                            next = {},
+                            previous = {},
+                            clear = {},
+                        ),
+                        manualHighlightEnabled = remember { mutableStateOf(false) },
                     ),
                     showInvalidChapterDialog = remember { mutableStateOf(false) }
                 ),
@@ -595,7 +639,6 @@ private fun ViewsPreview(
         }
     }
 }
-
 
 private class PreviewDataProvider : PreviewParameterProvider<PreviewDataProvider.Data> {
     data class Data(

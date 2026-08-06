@@ -282,6 +282,16 @@
 
     <string name="allow_text_selection">Выделение текста</string>
 
+    <string name="manual_highlight">Ручная подсветка</string>
+
+    <string name="manual_highlight_start">Начать ручную подсветку</string>
+
+    <string name="manual_highlight_previous">Предыдущий абзац</string>
+
+    <string name="manual_highlight_next">Следующий абзац</string>
+
+    <string name="manual_highlight_stop">Остановить ручную подсветку</string>
+
     <string name="last_read">Последнее чтение</string>
 
     <string name="title">Название</string>
