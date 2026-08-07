@@ -37,6 +37,8 @@
     <string name="cookies_saved">美味しいクッキーを保存しました</string>
     <string name="database">データベース</string>
     <string name="chapters">チャプター</string>
+    <string name="book_rating_format">評価: %1$s</string>
+    <string name="book_rank_format">順位: %1$s</string>
     <string name="open_in_browser">ブラウザで開く</string>
     <string name="sources">ソース</string>
     <string name="search_for_sources">ソースを検索</string>

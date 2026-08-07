@@ -37,6 +37,8 @@
     <string name="cookies_saved">টেস্টি কুকিজ সংরক্ষিত</string>
     <string name="database">ডাটাবেস</string>
     <string name="chapters">অধ্যায়</string>
+    <string name="book_rating_format">রেটিং: %1$s</string>
+    <string name="book_rank_format">র্যাঙ্ক: %1$s</string>
     <string name="open_in_browser">ব্রাউজারে খুলুন</string>
     <string name="sources">উৎস</string>
     <string name="search_for_sources">উৎস অনুসন্ধান করুন</string>

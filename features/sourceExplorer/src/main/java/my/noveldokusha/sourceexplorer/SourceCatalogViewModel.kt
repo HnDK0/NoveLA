@@ -128,7 +128,11 @@ internal class SourceCatalogViewModel @Inject constructor(
         lastBookmarkClickMs = now
         viewModelScope.launch {
             val isInLibrary =
-                appRepository.toggleBookmark(bookUrl = book.url, bookTitle = book.title)
+                appRepository.toggleBookmark(
+                    bookUrl = book.url,
+                    bookTitle = book.title,
+                    rating = book.rating
+                )
             val res = if (isInLibrary) R.string.added_to_library else R.string.removed_from_library
             toasty.show(res)
         }

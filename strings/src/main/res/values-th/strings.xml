@@ -37,6 +37,8 @@
     <string name="cookies_saved">บันทึกคุกกี้แล้ว</string>
     <string name="database">ฐานข้อมูล</string>
     <string name="chapters">บท</string>
+    <string name="book_rating_format">คะแนน: %1$s</string>
+    <string name="book_rank_format">อันดับ: %1$s</string>
     <string name="open_in_browser">เปิดในเบราว์เซอร์</string>
     <string name="sources">แหล่งที่มา</string>
     <string name="search_for_sources">ค้นหาแหล่งที่มา</string>

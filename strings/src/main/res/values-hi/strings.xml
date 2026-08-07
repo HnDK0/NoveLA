@@ -37,6 +37,8 @@
     <string name="cookies_saved">स्वादिष्ट कुकीज़ सहेजी गईं</string>
     <string name="database">डेटाबेस</string>
     <string name="chapters">अध्याय</string>
+    <string name="book_rating_format">रेटिंग: %1$s</string>
+    <string name="book_rank_format">रैंक: %1$s</string>
     <string name="open_in_browser">ब्राउज़र में खोलें</string>
     <string name="sources">स्रोत</string>
     <string name="search_for_sources">स्रोत खोजें</string>

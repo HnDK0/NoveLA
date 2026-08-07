@@ -37,6 +37,8 @@
     <string name="cookies_saved">Na-save ang masasarap na cookies</string>
     <string name="database">Database</string>
     <string name="chapters">Mga Kabanata</string>
+    <string name="book_rating_format">Rating: %1$s</string>
+    <string name="book_rank_format">Ranggo: %1$s</string>
     <string name="open_in_browser">Buksan sa browser</string>
     <string name="sources">Mga Pinagmulan</string>
     <string name="search_for_sources">Maghanap ng mga pinagmulan</string>

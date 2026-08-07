@@ -23,6 +23,7 @@ fun BookResult.mapToBookMetadata() = BookMetadata(
     url = this.url,
     coverImageUrl = this.coverImageUrl,
     description = this.description,
+    rating = this.rating.orEmpty(),
 )
 
 fun List<BookResult>.mapToBookMetadata() = map { it.mapToBookMetadata() }

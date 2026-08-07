@@ -37,6 +37,8 @@
     <string name="cookies_saved">맛있는 쿠키 저장됨</string>
     <string name="database">데이터베이스</string>
     <string name="chapters">화</string>
+    <string name="book_rating_format">평점: %1$s</string>
+    <string name="book_rank_format">순위: %1$s</string>
     <string name="open_in_browser">브라우저에서 열기</string>
     <string name="sources">소스</string>
     <string name="search_for_sources">소스 검색</string>

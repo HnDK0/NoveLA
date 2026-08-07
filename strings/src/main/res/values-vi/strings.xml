@@ -37,6 +37,8 @@
     <string name="cookies_saved">Đã lưu cookies</string>
     <string name="database">Cơ sở dữ liệu</string>
     <string name="chapters">Chương</string>
+    <string name="book_rating_format">Đánh giá: %1$s</string>
+    <string name="book_rank_format">Xếp hạng: %1$s</string>
     <string name="open_in_browser">Mở trong trình duyệt</string>
     <string name="sources">Nguồn</string>
     <string name="search_for_sources">Tìm kiếm nguồn</string>

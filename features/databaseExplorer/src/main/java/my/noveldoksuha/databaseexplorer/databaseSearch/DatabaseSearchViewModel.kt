@@ -106,7 +106,8 @@ class DatabaseSearchViewModel @Inject constructor(
         title = this.title,
         url = this.url,
         coverImageUrl = this.coverImageUrl,
-        description = this.description
+        description = this.description,
+        rating = this.rating.orEmpty(),
     )
 
 

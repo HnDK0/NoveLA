@@ -160,6 +160,12 @@ internal class CatalogExplorerViewModel @Inject constructor(
                                     appRepository.libraryBooks.updateDescription(url, description)
                                 }
 
+                                // Fetch and update rating
+                                val rating = getBookRating(url)
+                                if (!rating.isNullOrBlank()) {
+                                    appRepository.libraryBooks.updateRating(url, rating)
+                                }
+
                                 // Fetch and add chapters
                                 val chapters = getBookChapters(url)
                                 if (chapters.isNotEmpty()) {
@@ -216,6 +222,14 @@ internal class CatalogExplorerViewModel @Inject constructor(
     private suspend fun getBookDescription(bookUrl: String): String? {
         return try {
             appRepository.downloaderRepository.bookDescription(bookUrl).toSuccessOrNull()?.data
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private suspend fun getBookRating(bookUrl: String): String? {
+        return try {
+            appRepository.downloaderRepository.bookRating(bookUrl).toSuccessOrNull()?.data
         } catch (e: Exception) {
             null
         }

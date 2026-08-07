@@ -37,6 +37,8 @@
     <string name="cookies_saved">Gustosi cookie salvati</string>
     <string name="database">Database</string>
     <string name="chapters">Capitoli</string>
+    <string name="book_rating_format">Valutazione: %1$s</string>
+    <string name="book_rank_format">Posizione: %1$s</string>
     <string name="open_in_browser">Apri nel browser</string>
     <string name="sources">Fonti</string>
     <string name="search_for_sources">Cerca fonti</string>

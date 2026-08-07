@@ -37,6 +37,8 @@
     <string name="cookies_saved">Kuki lezat disimpan</string>
     <string name="database">Basis data</string>
     <string name="chapters">Bab</string>
+    <string name="book_rating_format">Rating: %1$s</string>
+    <string name="book_rank_format">Peringkat: %1$s</string>
     <string name="open_in_browser">Buka di peramban</string>
     <string name="sources">Sumber</string>
     <string name="search_for_sources">Cari sumber</string>

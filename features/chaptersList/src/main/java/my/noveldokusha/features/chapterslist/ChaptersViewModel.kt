@@ -121,6 +121,7 @@ internal class ChaptersViewModel @Inject constructor(
         isLocalSource = mutableStateOf(bookUrl.isLocalUri),
         isRefreshable = mutableStateOf(rawBookUrl.isContentUri || !bookUrl.isLocalUri),
         genres = mutableStateOf(emptyList()),
+        rating = mutableStateOf(""),
         translatedChapterTitles = mutableStateOf(emptyMap()),
         downloadTask = mutableStateOf(null),
     )
@@ -211,6 +212,17 @@ internal class ChaptersViewModel @Inject constructor(
             updateGenres()
         }
 
+        // Берём рейтинг из БД. Если его нет — загружаем с сети.
+        viewModelScope.launch {
+            if (state.isLocalSource.value) return@launch
+            val cachedBook = libraryDao.get(bookUrl)
+            if (cachedBook?.rating?.isNotBlank() == true) {
+                state.rating.value = cachedBook.rating
+                return@launch
+            }
+            updateRating()
+        }
+
         viewModelScope.launch {
             bookUrlFlow.collect { url ->
                 chaptersRepository.getChaptersSortedFlow(bookUrl = url).collect {
@@ -264,7 +276,11 @@ internal class ChaptersViewModel @Inject constructor(
         lastBookmarkClickMs = now
         viewModelScope.launch {
             val isBookmarked =
-                appRepository.toggleBookmark(bookTitle = bookTitle, bookUrl = bookUrl)
+                appRepository.toggleBookmark(
+                    bookTitle = bookTitle,
+                    bookUrl = bookUrl,
+                    rating = state.rating.value
+                )
             val msg = if (isBookmarked) R.string.added_to_library else R.string.removed_from_library
             toasty.show(msg)
         }
@@ -317,6 +333,14 @@ internal class ChaptersViewModel @Inject constructor(
             val normalized = GenreUtils.normalize(genres)
             libraryDao.updateGenres(bookUrl, normalized)
             state.genres.value = GenreUtils.parse(normalized)
+        }
+    }
+
+    private suspend fun updateRating() {
+        downloaderRepository.bookRating(bookUrl = bookUrl).onSuccess { rating ->
+            if (rating.isNullOrBlank()) return@onSuccess
+            libraryDao.updateRating(bookUrl, rating)
+            state.rating.value = rating
         }
     }
 

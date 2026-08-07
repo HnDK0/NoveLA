@@ -7,19 +7,23 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +62,7 @@ fun BookImageButtonView(
     sourceText: String? = null,
     topLeftBadge: (@Composable () -> Unit)? = null,
     topRightBadge: (@Composable () -> Unit)? = null,
+    bottomLeftBadge: (@Composable () -> Unit)? = null,
     forceCache: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit = { },
@@ -103,7 +108,7 @@ fun BookImageButtonView(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .background(
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
                             shape = RoundedCornerShape(topEnd = 0.dp, bottomStart = 12.dp)
                         )
                         .padding(horizontal = 6.dp, vertical = 2.dp),
@@ -184,6 +189,11 @@ fun BookImageButtonView(
                         color = MaterialTheme.colorScheme.inverseOnSurface,
                     )
                 )
+            }
+
+            // Bottom-left badge (rating, etc.) — not clipped
+            bottomLeftBadge?.let {
+                Box(modifier = Modifier.align(Alignment.BottomStart)) { it() }
             }
         }
         if (bookTitlePosition == BookTitlePosition.Outside) {

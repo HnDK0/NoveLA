@@ -37,6 +37,8 @@
     <string name="cookies_saved">Lezzetli çerezler kaydedildi</string>
     <string name="database">Veritabanı</string>
     <string name="chapters">Bölümler</string>
+    <string name="book_rating_format">Puan: %1$s</string>
+    <string name="book_rank_format">Sıralama: %1$s</string>
     <string name="open_in_browser">Tarayıcıda aç</string>
     <string name="sources">Kaynaklar</string>
     <string name="search_for_sources">Kaynakları ara</string>

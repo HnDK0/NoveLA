@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import my.noveldokusha.coreui.R
 import my.noveldokusha.coreui.components.BookImageButtonView
+import my.noveldokusha.coreui.components.BookRatingBadge
 import my.noveldokusha.coreui.theme.ImageBorderShape
 import my.noveldokusha.coreui.theme.isLightTheme
 import my.noveldokusha.coreui.theme.Grey0
@@ -113,7 +114,7 @@ internal fun LibraryPageBody(
                                     color = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier
                                         .background(
-                                            color = MaterialTheme.colorScheme.primary,
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
                                             shape = RoundedCornerShape(topStart = 0.dp, bottomEnd = 12.dp)
                                         )
                                         .padding(horizontal = 6.dp, vertical = 2.dp),
@@ -131,7 +132,7 @@ internal fun LibraryPageBody(
                                     color = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier
                                         .background(
-                                            color = MaterialTheme.colorScheme.primary,
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
                                             shape = RoundedCornerShape(topEnd = 0.dp, bottomStart = 12.dp)
                                         )
                                         .padding(horizontal = 6.dp, vertical = 2.dp),
@@ -142,6 +143,7 @@ internal fun LibraryPageBody(
                                 )
                             }
                         } else null,
+                        bottomLeftBadge = { BookRatingBadge(rating = it.book.rating) },
                         forceCache = true
                     )
 

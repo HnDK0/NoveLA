@@ -37,6 +37,8 @@
     <string name="cookies_saved">تم حفظ الكوكيز اللذيذة</string>
     <string name="database">قاعدة البيانات</string>
     <string name="chapters">الفصول</string>
+    <string name="book_rating_format">التقييم: %1$s</string>
+    <string name="book_rank_format">الترتيب: %1$s</string>
     <string name="open_in_browser">فتح في المتصفح</string>
     <string name="sources">المصادر</string>
     <string name="search_for_sources">البحث عن مصادر</string>

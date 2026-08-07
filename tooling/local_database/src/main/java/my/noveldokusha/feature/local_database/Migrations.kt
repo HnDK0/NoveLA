@@ -364,6 +364,12 @@ internal fun databaseMigrations() = arrayOf(
             )
         """)
     },
+    migration(26) {
+        // Рейтинг/ранг книги как строка (гетерогенные форматы источников).
+        // Существующие книги получают пустой рейтинг — он заполнится при
+        // следующем обновлении метаданных (pull-to-refresh, добавление в библиотеку).
+        it.addColumnIfNotExists("Book", "rating", "TEXT NOT NULL DEFAULT ''")
+    },
 )
 
 internal fun migration(vi: Int, migrate: (SupportSQLiteDatabase) -> Unit) =

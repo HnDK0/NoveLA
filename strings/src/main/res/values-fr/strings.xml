@@ -37,6 +37,8 @@
     <string name="cookies_saved">Délicieux cookies enregistrés</string>
     <string name="database">Base de données</string>
     <string name="chapters">Chapitres</string>
+    <string name="book_rating_format">Note : %1$s</string>
+    <string name="book_rank_format">Rang : %1$s</string>
     <string name="open_in_browser">Ouvrir dans le navigateur</string>
     <string name="sources">Sources</string>
     <string name="search_for_sources">Rechercher des sources</string>

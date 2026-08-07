@@ -41,6 +41,8 @@
     <string name="cookies_saved">Tasty cookies saved</string>
     <string name="database">Database</string>
     <string name="chapters">Chapters</string>
+    <string name="book_rating_format">Rating: %1$s</string>
+    <string name="book_rank_format">Rank: %1$s</string>
     <string name="open_in_browser">Open in browser</string>
     <string name="sources">Sources</string>
     <string name="search_for_sources">Search for sources</string>

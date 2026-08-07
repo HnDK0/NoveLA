@@ -93,7 +93,8 @@ fun BooksVerticalView(
                         imagePath = it.coverImageUrl
                     ),
                     onClick = { onBookClicked(it) },
-                    onLongClick = { onBookLongClicked(it) }
+                    onLongClick = { onBookLongClicked(it) },
+                    topRightBadge = { BookRatingBadge(rating = it.rating) },
                 )
             }
         }

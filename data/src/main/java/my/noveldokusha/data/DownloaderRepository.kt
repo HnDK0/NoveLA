@@ -106,6 +106,17 @@ class DownloaderRepository @Inject constructor(
         }
     }
 
+    suspend fun bookRating(
+        bookUrl: String,
+    ): Response<String?> = withContext(Dispatchers.IO) {
+        val scrap = scraper.getCompatibleSourceCatalog(bookUrl)
+            ?: return@withContext Response.Success(null)
+
+        my.noveldokusha.network.tryFlatConnect {
+            scrap.getBookRating(bookUrl)
+        }
+    }
+
     suspend fun bookDescription(
         bookUrl: String,
     ): Response<String?> = withContext(Dispatchers.IO) {

@@ -77,6 +77,8 @@
     <string name="database">База данных</string>
 
     <string name="chapters">Главы</string>
+    <string name="book_rating_format">Рейтинг: %1$s</string>
+    <string name="book_rank_format">Ранг: %1$s</string>
 
     <string name="open_in_browser">Открыть в браузере</string>
 

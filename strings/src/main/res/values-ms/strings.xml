@@ -37,6 +37,8 @@
     <string name="cookies_saved">Kuki sedap disimpan</string>
     <string name="database">Pangkalan data</string>
     <string name="chapters">Bab</string>
+    <string name="book_rating_format">Penilaian: %1$s</string>
+    <string name="book_rank_format">Kedudukan: %1$s</string>
     <string name="open_in_browser">Buka dalam pelayar</string>
     <string name="sources">Sumber</string>
     <string name="search_for_sources">Cari sumber</string>
