@@ -725,6 +725,10 @@
 
     <string name="grid_columns">Размер сетки</string>
 
+    <string name="source_strip_position">Позиция полосы источника</string>
+    <string name="source_strip_on_cover">На обложке</string>
+    <string name="source_strip_below_cover">Под обложкой</string>
+
     <!-- Filters -->
 
     <string name="filters">Фильтры</string>

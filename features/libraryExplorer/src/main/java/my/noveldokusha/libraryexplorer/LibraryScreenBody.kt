@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import my.noveldokusha.core.appPreferences.SourceStripPosition
 import my.noveldokusha.coreui.R
 import my.noveldokusha.core.domain.LibraryCategory
 import my.noveldokusha.feature.local_database.BookWithContext
@@ -60,6 +61,8 @@ internal fun LibraryScreenBody(
     onBookClick: (BookWithContext) -> Unit,
     onBookLongClick: (BookWithContext) -> Unit,
     gridColumns: Int = 3,
+    // Позиция полосы источника на карточке книги (кромка обложки / плашка под обложкой)
+    sourceStripPosition: SourceStripPosition = SourceStripPosition.BelowCover,
     selectedBooks: Map<String, Boolean> = emptyMap(),
     isSelectionMode: Boolean = false,
     pendingRemoval: Set<String> = emptySet(),
@@ -209,6 +212,7 @@ internal fun LibraryScreenBody(
                     onLongClick = onBookLongClick,
                     getSourceName = remember(sources) { { viewModel.getSourceName(it) } },
                     gridColumns = gridColumns,
+                    sourceStripPosition = sourceStripPosition,
                     selectedBooks = selectedBooks,
                     isSelectionMode = isSelectionMode,
                     pendingRemoval = pendingRemoval,

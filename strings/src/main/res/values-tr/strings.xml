@@ -407,6 +407,9 @@
     <string name="google_pa_api_keys_tip">Her satıra bir anahtar. Anahtarlar otomatik olarak doğrulanır — ölü anahtarlar atlanır ve gerekirse wtr-lab\'dan yeni bir anahtar alınır.</string>
     <string name="all_genres">Tümü</string>
     <string name="grid_columns">Izgara boyutu</string>
+    <string name="source_strip_position">Kaynak şeridi konumu</string>
+    <string name="source_strip_on_cover">Kapakta</string>
+    <string name="source_strip_below_cover">Kapağın altında</string>
     <string name="apply">Uygula</string>
     <!-- Filters -->
     <string name="filters">Filtreler</string>

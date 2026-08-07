@@ -407,6 +407,9 @@
     <string name="google_pa_api_keys_tip">每行一个密钥。密钥会自动验证 — 失效的密钥将被跳过，并在需要时从 wtr-lab 获取新密钥。</string>
     <string name="all_genres">全部</string>
     <string name="grid_columns">网格大小</string>
+    <string name="source_strip_position">来源条位置</string>
+    <string name="source_strip_on_cover">在封面上</string>
+    <string name="source_strip_below_cover">封面下方</string>
     <string name="apply">应用</string>
     <!-- Filters -->
     <string name="filters">筛选</string>

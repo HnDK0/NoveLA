@@ -82,13 +82,15 @@ fun parseBookRating(raw: String?): ParsedBookRating? {
 fun BookRatingBadge(rating: String?, modifier: Modifier = Modifier) {
     val parsed = remember(rating) { parseBookRating(rating) } ?: return
     Surface(
-        shape = RoundedCornerShape(topEnd = 0.dp, bottomStart = 12.dp),
+        // Стиль в тон плашке источника (6.dp), topEnd = 0 — прижат к верхнему правому углу обложки
+        shape = RoundedCornerShape(topStart = 6.dp, topEnd = 0.dp, bottomStart = 6.dp, bottomEnd = 6.dp),
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
         modifier = modifier,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            // vertical = 3.dp: высота 12.dp (иконка) + 6.dp = 18.dp — в тон плашке источника
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
         ) {
             Icon(
                 imageVector = if (parsed.type == BookRatingType.Rank) Icons.Filled.EmojiEvents else Icons.Filled.Star,
@@ -101,7 +103,7 @@ fun BookRatingBadge(rating: String?, modifier: Modifier = Modifier) {
                 text = parsed.value,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 9.sp
+                    fontSize = 8.sp
                 ),
                 color = MaterialTheme.colorScheme.onPrimary
             )

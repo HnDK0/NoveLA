@@ -407,6 +407,9 @@
     <string name="google_pa_api_keys_tip">One key per line. Keys are validated automatically — dead keys are skipped and a fresh key is fetched from wtr-lab if needed.</string>
     <string name="all_genres">ทั้งหมด</string>
     <string name="grid_columns">ขนาดตาราง</string>
+    <string name="source_strip_position">ตำแหน่งแถบแหล่งที่มา</string>
+    <string name="source_strip_on_cover">บนปก</string>
+    <string name="source_strip_below_cover">ใต้ปก</string>
     <string name="apply">ใช้</string>
     <!-- Filters -->
     <string name="filters">ตัวกรอง</string>

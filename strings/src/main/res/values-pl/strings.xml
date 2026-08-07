@@ -407,6 +407,9 @@
     <string name="google_pa_api_keys_tip">Jeden klucz na linię. Klucze są automatycznie weryfikowane — martwe klucze są pomijane, a nowy klucz jest pobierany z wtr-lab w razie potrzeby.</string>
     <string name="all_genres">Wszystkie</string>
     <string name="grid_columns">Rozmiar siatki</string>
+    <string name="source_strip_position">Pozycja paska źródła</string>
+    <string name="source_strip_on_cover">Na okładce</string>
+    <string name="source_strip_below_cover">Pod okładką</string>
     <string name="apply">Zastosuj</string>
     <!-- Filters -->
     <string name="filters">Filtry</string>

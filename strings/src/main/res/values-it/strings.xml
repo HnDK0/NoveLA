@@ -407,6 +407,9 @@
     <string name="google_pa_api_keys_tip">Una chiave per riga. Le chiavi vengono convalidate automaticamente — le chiavi morte vengono saltate è una nuova chiave viene recuperata da wtr-lab se necessario.</string>
     <string name="all_genres">Tutti</string>
     <string name="grid_columns">Dimensione griglia</string>
+    <string name="source_strip_position">Posizione della striscia della fonte</string>
+    <string name="source_strip_on_cover">Sulla copertina</string>
+    <string name="source_strip_below_cover">Sotto la copertina</string>
     <string name="apply">Applica</string>
     <!-- Filters -->
     <string name="filters">Filtri</string>

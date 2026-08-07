@@ -41,6 +41,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import my.noveldokusha.coreui.components.PosNegCheckbox
 import my.noveldokusha.core.appPreferences.LibrarySortOption
 import my.noveldokusha.core.appPreferences.SortDirection
+import my.noveldokusha.core.appPreferences.SourceStripPosition
 import my.noveldokusha.core.utils.toToggleableState
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -147,6 +148,50 @@ internal fun LibraryBottomSheet(
                     text = "6",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+
+            // ── Позиция полосы источника ─────────────────────────────────────
+            Text(
+                text = stringResource(id = R.string.source_strip_position),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.titleMedium
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                FilterChip(
+                    selected = uiState.sourceStripPosition == SourceStripPosition.OnCover,
+                    onClick = { model.setSourceStripPosition(SourceStripPosition.OnCover) },
+                    label = { Text(stringResource(R.string.source_strip_on_cover)) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        selectedLabelColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = uiState.sourceStripPosition == SourceStripPosition.OnCover,
+                        selectedBorderColor = MaterialTheme.colorScheme.primary,
+                    )
+                )
+                FilterChip(
+                    selected = uiState.sourceStripPosition == SourceStripPosition.BelowCover,
+                    onClick = { model.setSourceStripPosition(SourceStripPosition.BelowCover) },
+                    label = { Text(stringResource(R.string.source_strip_below_cover)) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        selectedLabelColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = uiState.sourceStripPosition == SourceStripPosition.BelowCover,
+                        selectedBorderColor = MaterialTheme.colorScheme.primary,
+                    )
                 )
             }
 

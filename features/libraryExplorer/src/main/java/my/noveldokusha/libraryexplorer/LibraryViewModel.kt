@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.LibrarySortOption
+import my.noveldokusha.core.appPreferences.SourceStripPosition
 import my.noveldokusha.core.appPreferences.TernaryState
 import my.noveldokusha.core.appPreferences.SortConfig
 import my.noveldokusha.core.isLocalUri
@@ -52,6 +53,7 @@ internal data class LibraryUiState(
     val fixProgress: Int = 0,
     val fixTotal: Int = 0,
     val gridColumns: Int = 3,
+    val sourceStripPosition: SourceStripPosition = SourceStripPosition.BelowCover,
     val showBottomSheet: Boolean = false,
     val readFilter: TernaryState = TernaryState.Inactive,
     val sortConfig: SortConfig = SortConfig.DEFAULT,
@@ -90,6 +92,11 @@ internal class LibraryViewModel @Inject constructor(
                 }
             }
             launch {
+                appPreferences.LIBRARY_SOURCE_STRIP_POSITION.flow().collect { position ->
+                    _uiState.update { it.copy(sourceStripPosition = position) }
+                }
+            }
+            launch {
                 appPreferences.LIBRARY_FILTER_READ.flow().collect { filter ->
                     _uiState.update { it.copy(readFilter = filter) }
                 }
@@ -125,6 +132,10 @@ internal class LibraryViewModel @Inject constructor(
 
     fun setGridColumns(columns: Int) {
         appPreferences.BOOKS_GRID_COLUMNS.value = columns.coerceIn(2, 6)
+    }
+
+    fun setSourceStripPosition(position: SourceStripPosition) {
+        appPreferences.LIBRARY_SOURCE_STRIP_POSITION.value = position
     }
 
     fun toggleSelectionMode() {

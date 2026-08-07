@@ -407,6 +407,9 @@
     <string name="google_pa_api_keys_tip">Uma chave por linha. As chaves são validadas automaticamente — chaves inválidas são ignoradas e uma nova chave é obtida do wtr-lab se necessário.</string>
     <string name="all_genres">Tudo</string>
     <string name="grid_columns">Tamanho da grelha</string>
+    <string name="source_strip_position">Posição da faixa da fonte</string>
+    <string name="source_strip_on_cover">Na capa</string>
+    <string name="source_strip_below_cover">Abaixo da capa</string>
     <string name="apply">Aplicar</string>
     <!-- Filters -->
     <string name="filters">Filtros</string>
