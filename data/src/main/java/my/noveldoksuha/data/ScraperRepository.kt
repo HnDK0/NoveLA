@@ -1,5 +1,7 @@
 package my.noveldokusha.data
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -11,6 +13,7 @@ import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.scraper.DatabaseInterface
 import my.noveldokusha.scraper.Scraper
 import my.noveldokusha.scraper.SourceInterface
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,6 +22,7 @@ data class CatalogItem(val catalog: SourceInterface.Catalog, val pinned: Boolean
 
 @Singleton
 class ScraperRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val appPreferences: AppPreferences,
     val scraper: Scraper,
 ) {
@@ -31,7 +35,11 @@ class ScraperRepository @Inject constructor(
         ) { catalogs, pinnedIds ->
             catalogs
                 .map { CatalogItem(catalog = it, pinned = it.id in pinnedIds) }
-                .sortedByDescending { it.pinned }
+                .sortedWith(
+                    compareByDescending<CatalogItem> { it.catalog.isLocalSource }
+                        .thenByDescending { it.pinned }
+                        .thenBy { it.catalog.resolveName(context).lowercase(Locale.ROOT) }
+                )
         }.flowOn(Dispatchers.Default)
             .distinctUntilChanged()
 
