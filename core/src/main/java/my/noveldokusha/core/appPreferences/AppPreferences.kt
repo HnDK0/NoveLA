@@ -20,7 +20,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import my.noveldokusha.core.LanguageCode
 import my.noveldokusha.core.SharedPreference_Boolean
 import my.noveldokusha.core.SharedPreference_Enum
 import my.noveldokusha.core.SharedPreference_Float
@@ -351,7 +350,7 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_StringSet(
             name,
             preferences,
-            setOf(LanguageCode.ENGLISH.iso639_1)
+            setOf()
         )
     }
     val EXTENSIONS_LANGUAGES_FILTER = object : Preference<Set<String>>("EXTENSIONS_LANGUAGES_FILTER") {
