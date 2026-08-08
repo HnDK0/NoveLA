@@ -180,11 +180,12 @@ private fun UnifiedExtensionsScreen(
                 }
 
                 val installedExtensions = remember(filteredExtensions, localInstalledExtensions) {
-                    filteredExtensions.filter { it.isInstalled } + localInstalledExtensions
+                    (filteredExtensions.filter { it.isInstalled } + localInstalledExtensions)
+                        .sortedBy { it.name.lowercase(Locale.ROOT) }
                 }
 
                 val availableExtensions = remember(filteredExtensions) {
-                    filteredExtensions.filter { !it.isInstalled }
+                    filteredExtensions.filter { !it.isInstalled }.sortedBy { it.name.lowercase(Locale.ROOT) }
                 }
 
                 if (filteredExtensions.isEmpty() && localInstalledExtensions.isEmpty()) {
