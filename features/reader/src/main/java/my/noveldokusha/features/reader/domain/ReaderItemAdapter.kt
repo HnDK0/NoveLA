@@ -312,6 +312,11 @@ internal class ReaderItemAdapter(
             bind.pageError.visibility = View.GONE
             bind.pageImage.visibility = View.VISIBLE
             bind.pageImage.setMinimumScaleType(SubsamplingScaleImageView.SCALE_TYPE_START)
+            // Жесты SSIV перехватывают вертикальный скролл и тапы, не давая
+            // ListView прокручиваться и открывать меню. Отключаем pan/zoom —
+            // тайловый декод и отрисовка в полном разрешении остаются.
+            bind.pageImage.setPanEnabled(false)
+            bind.pageImage.setZoomEnabled(false)
             bind.pageImage.setImage(ImageSource.uri(android.net.Uri.fromFile(page.file)))
         }
 
@@ -326,7 +331,7 @@ internal class ReaderItemAdapter(
             bind.pageLoading.visibility = View.VISIBLE
             bind.pageError.visibility = View.GONE
             scope.launch {
-                val result = loader.load(item.url)
+                val result = loader.load(item.chapterUrl, item.url)
                 if (result != null) showPage(result) else showError()
             }
         }
@@ -334,7 +339,7 @@ internal class ReaderItemAdapter(
         bind.pageRetry.setOnClickListener { retry() }
 
         scope.launch {
-            val result = loader.load(item.url)
+            val result = loader.load(item.chapterUrl, item.url)
             if (result != null) showPage(result) else showError()
         }
         return bind.root

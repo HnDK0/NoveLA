@@ -25,8 +25,6 @@ import my.noveldokusha.features.reader.domain.ReaderState
 import my.noveldokusha.features.reader.domain.ReadingChapterPosStats
 import my.noveldokusha.features.reader.domain.indexOfReaderItem
 import my.noveldokusha.features.reader.tools.applyUserRegexRules
-import my.noveldokusha.features.reader.tools.ImageQuality
-import my.noveldokusha.features.reader.tools.rewritePageUrlForQuality
 import my.noveldokusha.features.reader.tools.textToItemsConverter
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
@@ -55,8 +53,6 @@ internal class ReaderChaptersLoader(
     private val readerViewHandlersActions: ReaderViewHandlersActions,
     private val chapterTranslationDao: ChapterTranslationDao,
     private val regexRulesProvider: () -> List<my.noveldokusha.core.models.RegexRule> = { emptyList() },
-    private val imageQualityProvider: () -> my.noveldokusha.features.reader.tools.ImageQuality =
-        { my.noveldokusha.features.reader.tools.ImageQuality.HIGH },
 ) : CoroutineScope {
     override val coroutineContext: CoroutineContext = SupervisorJob() + Dispatchers.Main.immediate
 
@@ -565,7 +561,6 @@ internal class ReaderChaptersLoader(
         // ── Манхва/манга: глава = список URL страниц (getPageList) ──
         val pagesResult = readerRepository.downloadChapterPages(chapter.url)
         if (pagesResult is Response.Success && pagesResult.data.isNotEmpty()) {
-            val quality = imageQualityProvider()
             val pageItems = pagesResult.data.mapIndexed { index, pageUrl ->
                 ReaderItem.Page(
                     chapterUrl = chapter.url,
@@ -576,7 +571,10 @@ internal class ReaderChaptersLoader(
                         pagesResult.data.lastIndex -> ReaderItem.Location.LAST
                         else -> ReaderItem.Location.MIDDLE
                     },
-                    url = rewritePageUrlForQuality(pageUrl, quality),
+                    // Оригинальный CDN URL: качество применяется в PageImageLoader
+                    // в момент загрузки (смена качества действует сразу, без
+                    // пересборки главы и потери позиции скролла).
+                    url = pageUrl,
                 )
             }
             chapterItemPosition += pageItems.size

@@ -32,6 +32,7 @@ class LibraryBooksRepository @Inject constructor(
     private val appFileResolver: AppFileResolver,
     private val appCoroutineScope: AppCoroutineScope,
     private val appPreferences: AppPreferences,
+    private val downloadedPageChaptersStore: DownloadedPageChaptersStore,
 ) {
     val getBooksInLibraryWithContextFlow by lazy {
         libraryDao.getBooksInLibraryWithContextFlow()
@@ -110,6 +111,7 @@ class LibraryBooksRepository @Inject constructor(
             // 4. Delete the book record itself
             libraryDao.remove(bookUrl)
         }
+        downloadedPageChaptersStore.deleteBookChapters(listOf(bookUrl))
         clearPerNovelData(listOf(bookUrl))
     }
 
@@ -127,6 +129,7 @@ class LibraryBooksRepository @Inject constructor(
                 libraryDao.removeBooksByUrls(chunk)
             }
         }
+        downloadedPageChaptersStore.deleteBookChapters(bookUrls)
         clearPerNovelData(bookUrls)
     }
 

@@ -104,6 +104,30 @@ internal fun ChaptersScreenChapterItem(
         }
     }
 
+    // Реальный размер скачанного содержимого или оценка для страничной
+    // главы (манхва/манга) в текущем качестве. Оценка — только когда
+    // список страниц уже известен (никаких лишних сетевых запросов).
+    val sizeText: String? = with(chapterWithContext) {
+        when {
+            sizeBytes != null -> formatBytes(sizeBytes!!)
+            estimatedBytes != null -> stringResource(
+                R.string.chapter_size_estimate,
+                formatBytes(estimatedBytes!!)
+            )
+            else -> null
+        }
+    }
+
+    val sizeLabel: @Composable (() -> Unit)? = if (sizeText != null) {
+        {
+            Text(
+                text = sizeText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    } else null
+
     Surface(
         shape = RoundedCornerShape(8.dp),
         tonalElevation = 0.5.dp,
@@ -127,9 +151,15 @@ internal fun ChaptersScreenChapterItem(
                         color = if (chapter.read) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
                     )
                 },
-                supportingContent = if (badge != null) {
+                supportingContent = if (badge != null || sizeLabel != null) {
                     {
-                        badge()
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            badge?.invoke()
+                            sizeLabel?.invoke()
+                        }
                     }
                 } else null,
                 trailingContent = if (isLocalSource) null else {
@@ -228,4 +258,18 @@ private class PreviewProvider : PreviewParameterProvider<PreviewProviderState> {
             selected = true
         )
     )
+}
+
+/**
+ * Компактный формат размера: «1.2 MB», «340 KB» (локаль-агностик,
+ * без перевода, как в системных настройках).
+ */
+private fun formatBytes(bytes: Long): String {
+    val kb = 1024.0
+    val mb = kb * 1024
+    return when {
+        bytes >= mb -> "%.1f MB".format(bytes / mb)
+        bytes >= kb -> "%.0f KB".format(bytes / kb)
+        else -> "$bytes B"
+    }
 }

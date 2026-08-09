@@ -8,6 +8,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import my.noveldokusha.core.ImageQuality
+import my.noveldokusha.core.rewritePageUrlForQuality
+import my.noveldokusha.data.DownloadedPageChaptersStore
+import my.noveldokusha.features.reader.domain.ReaderItem
 import my.noveldokusha.network.NetworkClient
 import okhttp3.CacheControl
 import okhttp3.Request
@@ -33,6 +37,7 @@ data class PageImage(
 class PageImageLoader @Inject constructor(
     @ApplicationContext private val context: Context,
     private val networkClient: NetworkClient,
+    private val downloadedPageChaptersStore: DownloadedPageChaptersStore,
 ) {
     companion object {
         private const val MAX_CACHE_BYTES = 256L * 1024 * 1024 // 256 MB
@@ -40,6 +45,14 @@ class PageImageLoader @Inject constructor(
     }
 
     private val cacheDir: File = File(context.cacheDir, CACHE_DIR)
+
+    /**
+     * Активное качество картинок. Применяется к URL в момент загрузки —
+     * смена качества действует на новые/префетченные страницы сразу,
+     * без пересборки главы. Обновляется из READER_IMAGE_QUALITY.
+     */
+    @Volatile
+    var quality: ImageQuality = ImageQuality.HIGH
 
     private val mutex = Mutex()
 
@@ -61,23 +74,32 @@ class PageImageLoader @Inject constructor(
      * вперёд или следующая глава). Ошибки игнорируются — load() при
      * показе повторит запрос.
      */
-    fun prefetch(urls: List<String>) {
-        if (urls.isEmpty()) return
+    fun prefetch(pages: List<ReaderItem.Page>) {
+        if (pages.isEmpty()) return
         prefetchScope.launch {
-            urls.forEach { load(it) }
+            pages.forEach { load(it.chapterUrl, it.url) }
         }
     }
 
     /**
      * Возвращает страницу из кэша или скачивает её. null — ошибка сети/CDN.
      * Размеры декодируются из заголовка файла (inJustDecodeBounds).
+     * Ключ кэша/дедупликации — URL после применения качества.
+     *
+     * Сначала ищем локально скачанную копию (скачанная глава = оффлайн
+     * чтение без сети): файл уже лежит в скачанном виде — качество
+     * повторно не применяется.
      */
-    suspend fun load(url: String): PageImage? {
-        inflight[url]?.let { return it.await() }
+    suspend fun load(chapterUrl: String, url: String): PageImage? {
+        downloadedPageChaptersStore.getLocalPageFile(chapterUrl, url)?.let { file ->
+            decodeBounds(file)?.let { return PageImage(file, it.first, it.second) }
+        }
+        val fetchUrl = rewritePageUrlForQuality(url, quality)
+        inflight[fetchUrl]?.let { return it.await() }
         val deferred = kotlinx.coroutines.CompletableDeferred<PageImage?>()
-        inflight[url] = deferred
+        inflight[fetchUrl] = deferred
         try {
-            val result = doLoad(url)
+            val result = doLoad(fetchUrl)
             deferred.complete(result)
             return result
         } catch (e: Exception) {
@@ -85,7 +107,7 @@ class PageImageLoader @Inject constructor(
             deferred.complete(null)
             return null
         } finally {
-            inflight.remove(url)
+            inflight.remove(fetchUrl)
         }
     }
 

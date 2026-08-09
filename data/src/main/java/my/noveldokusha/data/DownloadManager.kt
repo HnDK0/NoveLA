@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import my.noveldokusha.core.ImageQuality
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.states.NotificationsCenter
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
@@ -112,6 +113,7 @@ class DownloadManager @Inject constructor(
     private val appPreferences: AppPreferences,
     private val appRepository: my.noveldokusha.data.AppRepository,
     private val chapterBodyRepository: ChapterBodyRepository,
+    private val downloadedPageChaptersStore: DownloadedPageChaptersStore,
     private val translationManager: TranslationManager,
     private val chapterTranslationDao: my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao,
     private val notificationsCenter: NotificationsCenter,
@@ -409,11 +411,15 @@ class DownloadManager @Inject constructor(
                         .map { it.chapterUrl }
                         .toSet()
                     uniqueUrls.filter { url ->
-                        chapterBodyRepository.getCachedBody(url) != null && url !in translatedUrls
+                        !downloadedPageChaptersStore.isDownloaded(url) &&
+                            chapterBodyRepository.getCachedBody(url) != null && url !in translatedUrls
                     }
                 }
             } else {
-                uniqueUrls.filter { url -> chapterBodyRepository.getCachedBody(url) == null }
+                uniqueUrls.filter { url ->
+                    chapterBodyRepository.getCachedBody(url) == null &&
+                        !downloadedPageChaptersStore.isDownloaded(url)
+                }
             }
         }
 
@@ -633,7 +639,8 @@ class DownloadManager @Inject constructor(
                     // Уже скачанные — дозаполняем перевод или просто пропускаем.
                     // Перевод делает сетевой запрос, поэтому между главами есть пауза.
                     val cachedBody = chapterBodyRepository.getCachedBody(chapterUrl)
-                    if (cachedBody != null) {
+                    val pageDownloaded = downloadedPageChaptersStore.isDownloaded(chapterUrl)
+                    if (cachedBody != null || pageDownloaded) {
                         val pair = appPreferences.translationPairForBook(bookUrl)
                         val sourceLang = pair.source
                         val targetLang = pair.target
@@ -649,7 +656,9 @@ class DownloadManager @Inject constructor(
                             Timber.d("interrupted before translate (cached): $chapterUrl")
                             return@launch
                         }
-                        val translated = if (needsTranslation) translateWithNetworkWait(bookUrl, chapterUrl, cachedBody) else null
+                        val translated = if (needsTranslation) {
+                            cachedBody?.let { translateWithNetworkWait(bookUrl, chapterUrl, it) }
+                        } else null
                         Timber.d("skip cached: $chapterUrl (translated=$translated)")
                         when (translated) {
                             is TranslateResult.Translated -> updateTask(bookUrl) {
@@ -715,7 +724,14 @@ class DownloadManager @Inject constructor(
                                 return@launch
                             }
 
-                            when (translateWithNetworkWait(bookUrl, chapterUrl, fetchResult.body)) {
+                            // Страничные главы (манхва/манга) не переводятся:
+                            // тело пустое, перевод нечего обрабатывать.
+                            val translated = if (fetchResult.body.isBlank()) {
+                                TranslateResult.Skipped
+                            } else {
+                                translateWithNetworkWait(bookUrl, chapterUrl, fetchResult.body)
+                            }
+                            when (translated) {
                                 is TranslateResult.Translated -> updateTask(bookUrl) {
                                     it.copy(successCount = it.successCount + 1, consecutiveErrors = 0)
                                 }
@@ -727,6 +743,9 @@ class DownloadManager @Inject constructor(
                                     )
                                 }
                                 is TranslateResult.Interrupted -> return@launch
+                                is TranslateResult.Skipped -> updateTask(bookUrl) {
+                                    it.copy(successCount = it.successCount + 1, consecutiveErrors = 0)
+                                }
                             }
                             i++
 
@@ -783,6 +802,7 @@ class DownloadManager @Inject constructor(
         object Translated : TranslateResult()
         object Failed : TranslateResult()
         object Interrupted : TranslateResult()
+        object Skipped : TranslateResult()
     }
 
     /**
@@ -861,15 +881,13 @@ class DownloadManager @Inject constructor(
                 }
             }
 
-            val result = chapterBodyRepository.fetchBody(chapterUrl)
+            val quality = ImageQuality.parse(appPreferences.READER_IMAGE_QUALITY.value)
+            val result = chapterBodyRepository.fetchChapterForDownload(chapterUrl, quality)
             when (result) {
                 is my.noveldokusha.core.Response.Success -> {
-                    val body = result.data
-                    if (body.isNullOrBlank()) {
-                        Timber.w("empty body attempt=$attempt: $chapterUrl")
-                        continue
-                    }
-                    return FetchResult.Success(body)
+                    // Пустое тело — легитимный успех: страничная глава
+                    // (манхва/манга) скачана файлами в store.
+                    return FetchResult.Success(result.data)
                 }
                 is my.noveldokusha.core.Response.Error -> {
                     Timber.w("fetch error attempt=$attempt: $chapterUrl — ${result.message}")
@@ -936,14 +954,10 @@ class DownloadManager @Inject constructor(
             }
 
             Timber.d("network retry for $chapterUrl (hasNetwork=$hasNetwork, delay=${delayMs}ms)")
-            val result = chapterBodyRepository.fetchBody(chapterUrl)
+            val quality = ImageQuality.parse(appPreferences.READER_IMAGE_QUALITY.value)
+            val result = chapterBodyRepository.fetchChapterForDownload(chapterUrl, quality)
             when (result) {
                 is my.noveldokusha.core.Response.Success -> {
-                    val body = result.data
-                    if (body.isNullOrBlank()) {
-                        Timber.w("network retry empty body: $chapterUrl")
-                        continue
-                    }
                     updateTask(bookUrl) { it.copy(isWaitingForNetwork = false) }
                     notifications[bookUrl]?.showDownloading(
                         tasksMutex.withLock { _tasks.value[bookUrl] }

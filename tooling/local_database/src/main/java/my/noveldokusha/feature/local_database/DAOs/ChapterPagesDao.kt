@@ -35,4 +35,11 @@ interface ChapterPagesDao {
 
     @Query("DELETE FROM ChapterPages")
     suspend fun deleteAll(): Int
+
+    @Query("""
+        SELECT ChapterPages.* FROM ChapterPages
+        INNER JOIN Chapter ON Chapter.url = ChapterPages.url
+        WHERE Chapter.bookUrl IN (:bookUrls)
+    """)
+    fun getByBookUrls(bookUrls: List<String>): Flow<List<ChapterPages>>
 }

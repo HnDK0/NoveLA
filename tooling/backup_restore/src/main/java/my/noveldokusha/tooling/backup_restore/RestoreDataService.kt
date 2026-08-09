@@ -38,7 +38,9 @@ import my.noveldokusha.core.tryAsResponse
 import my.noveldokusha.core.utils.Extra_Boolean
 import my.noveldokusha.core.utils.Extra_Uri
 import my.noveldokusha.core.utils.isServiceRunning
+import my.noveldokusha.data.DownloadedPageChaptersStore
 import my.noveldokusha.feature.local_database.AppDatabase
+import my.noveldokusha.network.NetworkClient
 import my.noveldokusha.feature.local_database.tables.Book
 import org.json.JSONObject
 import timber.log.Timber
@@ -71,6 +73,9 @@ class RestoreDataService : Service() {
 
     @Inject
     lateinit var downloaderRepository: DownloaderRepository
+
+    @Inject
+    lateinit var networkClient: NetworkClient
 
     @Inject
     lateinit var appPreferences: AppPreferences
@@ -285,13 +290,19 @@ class RestoreDataService : Service() {
                         throw e
                     }
                     val bookChapters = BookChaptersRepository(chapterDao = newDatabase.chapterDao(), appDatabase = newDatabase)
+                    val pageChaptersStore = DownloadedPageChaptersStore(
+                        context = context,
+                        dao = newDatabase.downloadedPageChaptersDao(),
+                        networkClient = networkClient
+                    )
                     val chapterBody = ChapterBodyRepository(
                         chapterBodyDao = newDatabase.chapterBodyDao(),
                         chapterPagesDao = newDatabase.chapterPagesDao(),
                         appDatabase = newDatabase,
                         chapterTranslationDao = newDatabase.chapterTranslationDao(),
                         bookChaptersRepository = bookChapters,
-                        downloaderRepository = downloaderRepository
+                        downloaderRepository = downloaderRepository,
+                        downloadedPageChaptersStore = pageChaptersStore
                     )
                     val libraryBooks = LibraryBooksRepository(
                         libraryDao = newDatabase.libraryDao(),
@@ -302,7 +313,8 @@ class RestoreDataService : Service() {
                         context = context,
                         appFileResolver = appFileResolver,
                         appCoroutineScope = appCoroutineScope,
-                        appPreferences = AppPreferences(context)
+                        appPreferences = AppPreferences(context),
+                        downloadedPageChaptersStore = pageChaptersStore
                     )
                     fun close() = newDatabase.closeDatabase()
                     fun delete() {

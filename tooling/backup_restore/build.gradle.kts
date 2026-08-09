@@ -13,6 +13,7 @@ dependencies {
     implementation(projects.strings)
     implementation(projects.data)
     implementation(projects.tooling.localDatabase)
+    implementation(projects.networking)
 
     implementation(libs.timber)
     implementation(libs.compose.androidx.activity)
