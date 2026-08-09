@@ -253,8 +253,8 @@ internal class MangaReaderActivity : ComponentActivity() {
             null
         }
         binding.mangaViewerContainer.setLayerType(
-            type = if (needsFilter) View.LAYER_TYPE_HARDWARE else View.LAYER_TYPE_NONE,
-            paint = filterPaint,
+            if (needsFilter) View.LAYER_TYPE_HARDWARE else View.LAYER_TYPE_NONE,
+            filterPaint,
         )
 
         if (settings.fullscreen) setupFullScreenMode() else setupNormalScreenMode()
