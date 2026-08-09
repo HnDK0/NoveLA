@@ -571,7 +571,11 @@ internal class ReaderChaptersLoader(
                     chapterUrl = chapter.url,
                     chapterIndex = chapterIndex,
                     chapterItemPosition = chapterItemPosition + index,
-                    location = ReaderItem.Location.MIDDLE,
+                    location = when (index) {
+                        0 -> ReaderItem.Location.FIRST
+                        pagesResult.data.lastIndex -> ReaderItem.Location.LAST
+                        else -> ReaderItem.Location.MIDDLE
+                    },
                     url = rewritePageUrlForQuality(pageUrl, quality),
                 )
             }
