@@ -116,6 +116,7 @@ internal fun ReaderScreen(
     onTtsHighlightEnabledChange: (Boolean) -> Unit,
     onTtsHighlightColorChange: (String) -> Unit,
     onManualHighlightEnabledChange: (Boolean) -> Unit = {},
+    onImageQualityChange: (String) -> Unit = {},
     manualHighlight: ManualHighlightSettingData? = null,
     onManualHighlightStart: () -> Unit = {},
     manualHighlightInitialPosition: Pair<Float, Float>? = null,
@@ -252,6 +253,7 @@ internal fun ReaderScreen(
                         onTtsHighlightEnabledChange = onTtsHighlightEnabledChange,
                         onTtsHighlightColorChange = onTtsHighlightColorChange,
                         onManualHighlightEnabledChange = onManualHighlightEnabledChange,
+                        onImageQualityChange = onImageQualityChange,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     BottomAppBar(
@@ -616,6 +618,7 @@ private fun ViewsPreview(
                             clear = {},
                         ),
                         manualHighlightEnabled = remember { mutableStateOf(false) },
+                        imageQuality = remember { mutableStateOf("high") },
                     ),
                     showInvalidChapterDialog = remember { mutableStateOf(false) }
                 ),
@@ -635,6 +638,7 @@ private fun ViewsPreview(
                 onSingleTapToOpenSettingsChange = {},
                 onTtsHighlightEnabledChange = {},
                 onTtsHighlightColorChange = {},
+                onImageQualityChange = {},
             )
         }
     }

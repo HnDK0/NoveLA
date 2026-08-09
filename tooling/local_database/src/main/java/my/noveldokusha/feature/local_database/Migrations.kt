@@ -370,6 +370,15 @@ internal fun databaseMigrations() = arrayOf(
         // следующем обновлении метаданных (pull-to-refresh, добавление в библиотеку).
         it.addColumnIfNotExists("Book", "rating", "TEXT NOT NULL DEFAULT ''")
     },
+    migration(27) {
+        // Страничные главы (манхва/манга): кэш упорядоченных URL страниц.
+        it.execSQL("""
+            CREATE TABLE IF NOT EXISTS ChapterPages (
+                url TEXT NOT NULL PRIMARY KEY,
+                pages TEXT NOT NULL
+            )
+        """)
+    },
 )
 
 internal fun migration(vi: Int, migrate: (SupportSQLiteDatabase) -> Unit) =

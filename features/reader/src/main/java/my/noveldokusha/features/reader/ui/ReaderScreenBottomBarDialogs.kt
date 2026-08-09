@@ -39,6 +39,7 @@ internal fun ReaderScreenBottomBarDialogs(
     onTtsHighlightEnabledChange: (Boolean) -> Unit,
     onTtsHighlightColorChange: (String) -> Unit,
     onManualHighlightEnabledChange: (Boolean) -> Unit = {},
+    onImageQualityChange: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -83,6 +84,8 @@ internal fun ReaderScreenBottomBarDialogs(
                         onTtsHighlightColorChange = onTtsHighlightColorChange,
                         manualHighlightEnabled = settings.manualHighlightEnabled.value,
                         onManualHighlightEnabledChange = onManualHighlightEnabledChange,
+                        imageQuality = settings.imageQuality.value,
+                        onImageQualityChange = onImageQualityChange,
                     )
                     ReaderScreenState.Settings.Type.None -> Unit
                     ReaderScreenState.Settings.Type.RegexRules -> {

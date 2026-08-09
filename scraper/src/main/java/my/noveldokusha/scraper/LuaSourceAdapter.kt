@@ -406,6 +406,39 @@ open class LuaSourceAdapter(
             }
         }
 
+    /**
+     * Плагины-картинки (манхва/манга): getPageList(html, url) → массив URL страниц.
+     * null когда плагин не объявил getPageList — читалка тогда идёт старым
+     * HTML-путём (getChapterText). Пустой список = плагин есть, но страницы
+     * не извлеклись — тоже фолбэк на HTML.
+     */
+    override suspend fun getChapterPages(doc: Document): List<String>? =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                withSourceContext {
+                    val fn = luaScript.get("getPageList")
+                    if (fn.isnil()) return@withSourceContext null
+                    val result = try {
+                        fn.call(
+                            LuaValue.valueOf(doc.outerHtml()),
+                            LuaValue.valueOf(doc.location())
+                        )
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getPageList [${metadata.id}]")
+                        return@withSourceContext emptyList()
+                    }
+                    if (!result.istable()) return@withSourceContext emptyList()
+                    val table = result.checktable()
+                    val pages = mutableListOf<String>()
+                    for (i in 1..table.length()) {
+                        val v = table.get(LuaValue.valueOf(i)).optjstring(null)
+                        if (!v.isNullOrBlank()) pages.add(v)
+                    }
+                    pages
+                }
+            }
+        }
+
     override suspend fun getChapterListHash(bookUrl: String): Response<String?> =
         withContext(Dispatchers.IO) {
             mutex.withLock {

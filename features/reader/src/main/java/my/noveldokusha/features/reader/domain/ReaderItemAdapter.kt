@@ -16,6 +16,8 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
+import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.updateLayoutParams
@@ -23,12 +25,14 @@ import coil.load
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.utils.inflater
 import my.noveldokusha.features.reader.features.TextSynthesis
+import my.noveldokusha.features.reader.tools.PageImageLoader
 import my.noveldokusha.reader.R
 import my.noveldokusha.reader.databinding.ActivityReaderListItemBodyBinding
 import my.noveldokusha.reader.databinding.ActivityReaderListItemDividerBinding
 import my.noveldokusha.reader.databinding.ActivityReaderListItemErrorBinding
 import my.noveldokusha.reader.databinding.ActivityReaderListItemGoogleTranslateAttributionBinding
 import my.noveldokusha.reader.databinding.ActivityReaderListItemImageBinding
+import my.noveldokusha.reader.databinding.ActivityReaderListItemPageBinding
 import my.noveldokusha.reader.databinding.ActivityReaderListItemPaddingBinding
 import my.noveldokusha.reader.databinding.ActivityReaderListItemProgressBarBinding
 import my.noveldokusha.reader.databinding.ActivityReaderListItemSpecialTitleBinding
@@ -61,6 +65,8 @@ internal class ReaderItemAdapter(
     private val currentTtsHighlightColor: () -> String = { "FFFF6D00" },
     private val currentSpokenWordRange: () -> IntRange? = { null },
     private val currentManualHighlight: () -> HighlightPosition? = { null },
+    private val pageImageLoader: PageImageLoader? = null,
+    private val itemViewScope: kotlinx.coroutines.CoroutineScope? = null,
 ) : ArrayAdapter<ReaderItem>(ctx, 0, list) {
     private val appFileResolver = AppFileResolver(ctx)
     override fun getCount() = super.getCount() + 2
@@ -111,7 +117,7 @@ internal class ReaderItemAdapter(
         }
     }
 
-    override fun getViewTypeCount(): Int = 12
+    override fun getViewTypeCount(): Int = 13
     override fun getItemViewType(position: Int) = when (getItem(position)) {
         is ReaderItem.Body -> 0
         is ReaderItem.Image -> 1
@@ -125,6 +131,7 @@ internal class ReaderItemAdapter(
         is ReaderItem.Translating -> 9
         is ReaderItem.GoogleTranslateAttribution -> 10
         is ReaderItem.TranslateAttribution -> 11
+        is ReaderItem.Page -> 12
     }
 
     private fun viewTranslateAttribution(convertView: View?, parent: ViewGroup): View {
@@ -259,6 +266,75 @@ internal class ReaderItemAdapter(
             ReaderItem.Location.FIRST -> onChapterStartVisible(item.chapterUrl)
             ReaderItem.Location.LAST -> onChapterEndVisible(item.chapterUrl)
             else -> run {}
+        }
+        return bind.root
+    }
+
+    /**
+     * Страница манхвы/манги: PageImageLoader → файл в кэше → SSIV
+     * (тайловый декод, высота ряда = пропорция страницы, yrel не нужен).
+     * Ошибка: evict + weserv-фолбэк в loader (авто-очистка кэша) и кнопка
+     * повтора; текстовая HTML-ветка (viewImage/Coil) не затронута.
+     */
+    private fun viewPage(item: ReaderItem.Page, convertView: View?, parent: ViewGroup): View {
+        val bind = when (convertView) {
+            null -> ActivityReaderListItemPageBinding.inflate(parent.inflater, parent, false).also { it.root.tag = it }
+            else -> ActivityReaderListItemPageBinding.bind(convertView)
+        }
+
+        // Метка для отмены устаревшего асинхронного результата при переиспользовании.
+        bind.root.tag = item.url
+
+        bind.pageLoading.visibility = View.VISIBLE
+        bind.pageError.visibility = View.GONE
+        bind.pageImage.visibility = View.GONE
+        bind.pageContainer.setOnClickListener { onClick() }
+
+        when (item.location) {
+            ReaderItem.Location.FIRST -> onChapterStartVisible(item.chapterUrl)
+            ReaderItem.Location.LAST -> onChapterEndVisible(item.chapterUrl)
+            else -> run {}
+        }
+
+        val loader = pageImageLoader
+        val scope = itemViewScope
+        if (loader == null || scope == null) {
+            // Адаптер без DI (тесты/старые вызовы) — без картинок, только заглушка.
+            bind.pageLoading.visibility = View.GONE
+            bind.pageError.visibility = View.VISIBLE
+            return bind.root
+        }
+
+        fun showPage(page: my.noveldokusha.features.reader.tools.PageImage) {
+            if (bind.root.tag != item.url) return
+            bind.pageLoading.visibility = View.GONE
+            bind.pageError.visibility = View.GONE
+            bind.pageImage.visibility = View.VISIBLE
+            bind.pageImage.setMinimumScaleType(SubsamplingScaleImageView.SCALE_TYPE_START)
+            bind.pageImage.setImage(page.file)
+        }
+
+        fun showError() {
+            if (bind.root.tag != item.url) return
+            bind.pageLoading.visibility = View.GONE
+            bind.pageImage.visibility = View.GONE
+            bind.pageError.visibility = View.VISIBLE
+        }
+
+        fun retry() {
+            bind.pageLoading.visibility = View.VISIBLE
+            bind.pageError.visibility = View.GONE
+            scope.launch {
+                val result = loader.load(item.url)
+                if (result != null) showPage(result) else showError()
+            }
+        }
+
+        bind.pageRetry.setOnClickListener { retry() }
+
+        scope.launch {
+            val result = loader.load(item.url)
+            if (result != null) showPage(result) else showError()
         }
         return bind.root
     }
@@ -451,6 +527,7 @@ internal class ReaderItemAdapter(
             is ReaderItem.TranslateAttribution -> viewTranslateAttributionNew(item, convertView, parent)
             is ReaderItem.Body -> viewBody(item, convertView, parent)
             is ReaderItem.Image -> viewImage(item, convertView, parent)
+            is ReaderItem.Page -> viewPage(item, convertView, parent)
             is ReaderItem.BookEnd -> viewBookEnd(convertView, parent)
             is ReaderItem.BookStart -> viewBookStart(convertView, parent)
             is ReaderItem.Divider -> viewDivider(convertView, parent)

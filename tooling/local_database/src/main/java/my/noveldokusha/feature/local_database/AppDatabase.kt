@@ -31,6 +31,7 @@ interface AppDatabase {
     fun libraryDao(): LibraryDao
     fun chapterDao(): ChapterDao
     fun chapterBodyDao(): ChapterBodyDao
+    fun chapterPagesDao(): ChapterPagesDao
     fun chapterTranslationDao(): ChapterTranslationDao
     fun downloadTaskDao(): DownloadTaskDao
     fun extensionDao(): ExtensionDao
@@ -114,19 +115,21 @@ interface AppDatabase {
         Book::class,
         Chapter::class,
         ChapterBody::class,
+        ChapterPages::class,
         ChapterTranslation::class,
         DownloadTaskEntity::class,
         Extension::class,
         MigrationRecord::class,
         ReadingHistory::class
     ],
-    version = 27,
+    version = 28,
     exportSchema = false
 )
 internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {
     abstract override fun libraryDao(): LibraryDao
     abstract override fun chapterDao(): ChapterDao
     abstract override fun chapterBodyDao(): ChapterBodyDao
+    abstract override fun chapterPagesDao(): ChapterPagesDao
     abstract override fun chapterTranslationDao(): ChapterTranslationDao
     abstract override fun downloadTaskDao(): DownloadTaskDao
     abstract override fun extensionDao(): ExtensionDao

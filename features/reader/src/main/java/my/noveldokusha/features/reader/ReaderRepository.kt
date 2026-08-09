@@ -8,6 +8,7 @@ import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.BookChaptersRepository
 import my.noveldokusha.data.LibraryBooksRepository
 import my.noveldokusha.core.AppCoroutineScope
+import my.noveldokusha.core.Response
 import my.noveldokusha.feature.local_database.AppDatabase
 import my.noveldokusha.feature.local_database.DAOs.ReadingHistoryDao
 import my.noveldokusha.features.reader.domain.ChapterState
@@ -107,4 +108,12 @@ internal class ReaderRepository @Inject constructor(
     }
     suspend fun downloadChapter(chapterUrl: String) =
         appRepository.chapterBody.fetchBody(chapterUrl)
+
+    /**
+     * Список URL страниц манхвы/манги (getPageList) или null, если источник
+     * не поддерживает страничные главы. Используется до fetchBody: одна
+     * сетевая загрузка HTML обслуживает и pages, и кэш тела.
+     */
+    suspend fun downloadChapterPages(chapterUrl: String): Response<List<String>> =
+        appRepository.chapterBody.fetchPages(chapterUrl)
 }

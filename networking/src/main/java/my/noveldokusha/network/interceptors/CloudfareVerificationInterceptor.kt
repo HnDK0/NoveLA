@@ -48,7 +48,14 @@ private val MANUAL_TIMEOUT = 35.seconds
 
 private val CLOUDFLARE_WHITELIST = listOf(
     "github.com",
-    "raw.githubusercontent.com"
+    "raw.githubusercontent.com",
+    // Картинки манхвы/манги через weserv-прокси: исходный CDN отвечает
+    // челленджем 403/503/429, и прокси пробрасывает тело ответа как есть.
+    // WebView-обход здесь бессмысленен (cf_clearance выпекается не для
+    // images.weserv.nl), а flow «челлендж → WebView → cooldown» вешал
+    // чтение главы на 35с таймаут и 120с кулдаун хоста.
+    "images.weserv.nl",
+    "wsrv.nl",
 )
 
 data class CfDomainOptions(

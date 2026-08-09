@@ -93,6 +93,7 @@ class AppRepository @Inject constructor(
                     nonLibraryBookUrls.chunked(500).forEach { chunk ->
                         db.chapterTranslationDao().deleteTranslationsByBookUrls(chunk)
                         db.chapterBodyDao().removeChapterBodiesByBookUrls(chunk)
+                        db.chapterPagesDao().removeChapterPagesByBookUrls(chunk)
                         db.chapterDao().removeAllFromBooks(chunk)
                     }
                     db.libraryDao().removeBooksByUrls(nonLibraryBookUrls)
@@ -114,6 +115,7 @@ class AppRepository @Inject constructor(
             db.transaction {
                 db.chapterDao().removeAllNonLibraryRows()
                 db.chapterBodyDao().removeAllNonChapterRows()
+                db.chapterPagesDao().removeAllNonChapterRows()
                 db.chapterTranslationDao().removeOrphanedTranslations()
             }
         }
@@ -124,13 +126,15 @@ class AppRepository @Inject constructor(
          */
         suspend fun clearChapterCache() = withContext(Dispatchers.IO) {
             db.chapterBodyDao().deleteAll()
+            db.chapterPagesDao().deleteAll()
             db.chapterTranslationDao().deleteAllTranslations()
         }
 
         /**
          * Approximate size (in bytes) of all cached chapter bodies.
          */
-        suspend fun getChapterCacheSizeBytes(): Long = db.chapterBodyDao().getCacheSizeBytes()
+        suspend fun getChapterCacheSizeBytes(): Long =
+            db.chapterBodyDao().getCacheSizeBytes() + db.chapterPagesDao().getCacheSizeBytes()
 
         /**
          * Folder where additional book data like images is stored.

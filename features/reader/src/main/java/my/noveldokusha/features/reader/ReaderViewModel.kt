@@ -81,6 +81,7 @@ internal class ReaderViewModel @Inject constructor(
             ),
             manualHighlight = readerSession.readerManualHighlight.state,
             manualHighlightEnabled = appPreferences.MANUAL_HIGHLIGHT_ENABLED.state(viewModelScope),
+            imageQuality = appPreferences.READER_IMAGE_QUALITY.state(viewModelScope),
             style = ReaderScreenState.Settings.StyleSettingsData(
                 currentDarkMode = mutableStateOf(DarkMode.SYSTEM).also { state ->
                     viewModelScope.launch {

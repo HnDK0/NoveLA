@@ -169,6 +169,7 @@
     <string name="global_search">Глобальный поиск</string>
 
     <string name="error_loading">Ошибка загрузки</string>
+    <string name="page_load_error">Не удалось загрузить страницу.\nПроверьте соединение или попробуйте ещё раз.</string>
 
     <string name="open_the_web_view">Открыть веб-просмотр</string>
 
@@ -584,6 +585,10 @@
     <string name="features_reader_full_screen">Полноэкранный режим</string>
 
     <string name="single_tap_to_open_settings">Открывать меню одним тапом</string>
+    <string name="image_quality">Качество картинок</string>
+    <string name="image_quality_high">Высокое</string>
+    <string name="image_quality_balanced">Сбалансированное</string>
+    <string name="image_quality_saver">Экономия трафика</string>
 
     <string name="move_to">Отправить в</string>
 
