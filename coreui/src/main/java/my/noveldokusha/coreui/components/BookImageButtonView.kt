@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -32,9 +34,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -270,8 +275,10 @@ private fun SourceStrip(
 
 /**
  * Компактная полупрозрачная полоса «счётчик · источник» для ВЕРХНЕЙ кромки обложки
- * (рядом с рейтингом). Один эллипсируемый текст — динамически уплотняется под
- * ширину колонки: на узких обложках сначала режется имя источника.
+ * (рядом с рейтингом). Имя источника показывается ПОЛНОСТЬЮ: если оно не
+ * помещается при базовом размере, кегль уменьшается пропорционально доступной
+ * ширине (динамически, под каждую обложку). Многоточие — лишь страховка при
+ * крайне узких колонках ниже минимального кегля.
  */
 @Composable
 private fun TopSourceStrip(
@@ -279,31 +286,57 @@ private fun TopSourceStrip(
     sourceName: String,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .height(18.dp)
-            .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, bottomEnd = 6.dp))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-            .padding(horizontal = 6.dp)
-    ) {
-        if (unreadCount == 0) {
-            Icon(
-                imageVector = Icons.Filled.Check,
-                contentDescription = null,
-                modifier = Modifier.size(12.dp),
-                tint = MaterialTheme.colorScheme.onPrimary
-            )
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val maxFontSize = 8.sp
+    val minFontSize = 6.sp
+    val iconReserve = if (unreadCount == 0) 12.dp + 4.dp else 0.dp
+    BoxWithConstraints(modifier = modifier.height(18.dp)) {
+        val fullText = if (unreadCount == 0) sourceName else "$unreadCount · $sourceName"
+        val bodyStyle = MaterialTheme.typography.labelSmall.copy(
+            fontWeight = FontWeight.Bold,
+            fontSize = maxFontSize
+        )
+        // Интринсивная ширина текста при базовом кегле (одна строка, без переносов)
+        val measured = textMeasurer.measure(
+            text = AnnotatedString(fullText),
+            style = bodyStyle,
+            softWrap = false,
+            maxLines = 1,
+        )
+        val intrinsicWidth = with(density) { measured.size.width.toDp() }
+        // Доступная ширина текста: BoxWithConstraints maxWidth = место, оставшееся
+        // в верхнем ряду (после рейтинга), минус внутренние отступы и иконка.
+        val availableTextWidth = maxWidth - 12.dp - iconReserve
+        val scale = if (intrinsicWidth > 0f && availableTextWidth > 0f) {
+            (availableTextWidth / intrinsicWidth).coerceAtMost(1f)
         } else {
+            1f
+        }
+        val fontSize = (maxFontSize * scale).coerceIn(minFontSize, maxFontSize)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, bottomEnd = 6.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
+                .padding(horizontal = 6.dp)
+        ) {
+            if (unreadCount == 0) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+            }
             Text(
-                text = "$unreadCount · $sourceName",
+                text = fullText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onPrimary,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 8.sp
-                )
+                modifier = Modifier.widthIn(max = availableTextWidth),
+                style = bodyStyle.copy(fontSize = fontSize)
             )
         }
     }
