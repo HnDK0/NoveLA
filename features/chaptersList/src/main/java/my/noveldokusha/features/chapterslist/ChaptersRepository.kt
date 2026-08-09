@@ -6,6 +6,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.DownloaderRepository
 import my.noveldokusha.core.ImageQuality
@@ -62,46 +63,56 @@ internal class ChaptersRepository @Inject constructor(
     }
 
 
-    fun getChaptersSortedFlow(bookUrl: String) = combine(
-        combine(
-            appRepository.bookChapters.getChaptersWithContextFlow(bookUrl = bookUrl),
-            chapterBodyDao.getDownloadedUrlsFlow(bookUrl),
-            chapterBodyDao.getSizesByBookUrls(listOf(bookUrl)),
-        ) { chapters, downloadedUrls, bodySizes ->
-            Triple(chapters, downloadedUrls, bodySizes)
-        },
-        combine(
-            chapterPagesDao.getByBookUrls(listOf(bookUrl)),
-            downloadedPageChaptersDao.getByBookUrlsFlow(listOf(bookUrl)),
-            appPreferences.READER_IMAGE_QUALITY.flow(),
-        ) { cachedPages, pageDownloads, qualityName ->
-            Triple(cachedPages, pageDownloads, qualityName)
-        },
-    ) { (chapters, downloadedUrls, bodySizes), (cachedPages, pageDownloads, qualityName) ->
+    /**
+     * Размер скачанного содержимого главы (тело или файлы страниц) или
+     * оценка для страничной главы (манхва/манга) в текущем качестве.
+     */
+    data class ChapterSize(
+        val sizeBytes: Long? = null,
+        val estimatedBytes: Long? = null
+    )
+
+    private data class DownloadInfo(
+        val downloadedUrls: Set<String>,
+        val sizeByUrl: Map<String, ChapterSize>
+    )
+
+    private fun downloadInfoFlow(bookUrl: String) = combine(
+        chapterBodyDao.getDownloadedUrlsFlow(bookUrl),
+        chapterBodyDao.getSizesByBookUrls(listOf(bookUrl)),
+        chapterPagesDao.getByBookUrls(listOf(bookUrl)),
+        downloadedPageChaptersDao.getByBookUrlsFlow(listOf(bookUrl)),
+        appPreferences.READER_IMAGE_QUALITY.flow(),
+    ) { downloadedUrls, bodySizes, cachedPages, pageDownloads, qualityName ->
         val downloadedSet = downloadedUrls.toSet() + pageDownloads.map { it.url }
-        val sizeByUrl = HashMap<String, Long>()
-        bodySizes.forEach { sizeByUrl[it.url] = it.sizeBytes }
+        val sizeByUrl = HashMap<String, ChapterSize>()
+        bodySizes.forEach { sizeByUrl[it.url] = ChapterSize(sizeBytes = it.sizeBytes) }
         val pageCountByUrl = HashMap<String, Int>()
         cachedPages.forEach { row ->
             decodePages(row.pages)?.let { pages ->
                 if (pages.isNotEmpty()) pageCountByUrl[row.url] = pages.size
             }
         }
-        val pageBytesByUrl = HashMap<String, Long>()
-        pageDownloads.forEach { pageBytesByUrl[it.url] = it.totalBytes }
+        pageDownloads.forEach { pageDownloadsRow ->
+            sizeByUrl[pageDownloadsRow.url] = ChapterSize(sizeBytes = pageDownloadsRow.totalBytes)
+        }
         val avgPageBytes = averagePageBytes(ImageQuality.parse(qualityName))
-        chapters.map { ch ->
-            val url = ch.chapter.url
-            var result = if (url in downloadedSet) ch.copy(downloaded = true) else ch
-            val actual = sizeByUrl[url] ?: pageBytesByUrl[url]
-            if (actual != null) {
-                result = result.copy(sizeBytes = actual)
-            } else {
-                pageCountByUrl[url]?.let { count ->
-                    result = result.copy(estimatedBytes = count * avgPageBytes)
-                }
+        pageCountByUrl.forEach { (url, count) ->
+            // Оценка только если глава ещё не скачана (реального размера нет).
+            if (sizeByUrl[url] == null) {
+                sizeByUrl[url] = ChapterSize(estimatedBytes = count * avgPageBytes)
             }
-            result
+        }
+        DownloadInfo(downloadedSet, sizeByUrl)
+    }
+
+    fun getChaptersSortedFlow(bookUrl: String) = combine(
+        appRepository.bookChapters.getChaptersWithContextFlow(bookUrl = bookUrl),
+        downloadInfoFlow(bookUrl)
+    ) { chapters, info ->
+        if (info.downloadedUrls.isEmpty()) chapters
+        else chapters.map {
+            if (it.chapter.url in info.downloadedUrls) it.copy(downloaded = true) else it
         }
     }
         .combine(appPreferences.CHAPTERS_SORT_ASCENDING.flow()) { chapters, sorted ->
@@ -112,6 +123,11 @@ internal class ChaptersRepository @Inject constructor(
             }
         }
         .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+
+    /** URL главы → размер (реальный или оценка), для списка глав. */
+    fun getChapterSizesFlow(bookUrl: String) = downloadInfoFlow(bookUrl)
+        .map { it.sizeByUrl }
         .flowOn(Dispatchers.Default)
 
     suspend fun getLastReadChapter(bookUrl: String): String? =

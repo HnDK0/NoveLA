@@ -15,6 +15,8 @@ internal data class ChaptersScreenState(
     val error: MutableState<String>,
     val selectedChaptersUrl: SnapshotStateMap<String, Unit>,
     val chapters: SnapshotStateList<ChapterWithContext>,
+    /** URL главы → размер (реальный или оценка для страничных глав). */
+    val chapterSizes: SnapshotStateMap<String, ChaptersRepository.ChapterSize>,
     val isRefreshing: MutableState<Boolean>,
     val sourceCatalogNameStrRes: State<Int?>,
     val settingChapterSort: MutableState<TernaryState>,

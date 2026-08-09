@@ -170,6 +170,7 @@ internal fun ChaptersScreenBody(
             ) {
                 ChaptersScreenChapterItem(
                     chapterWithContext = it,
+                    chapterSize = state.chapterSizes[it.chapter.url],
                     translatedTitle = state.translatedChapterTitles.value[it.chapter.url],
                     selected = state.selectedChaptersUrl.containsKey(it.chapter.url),
                     isLocalSource = state.isLocalSource.value,

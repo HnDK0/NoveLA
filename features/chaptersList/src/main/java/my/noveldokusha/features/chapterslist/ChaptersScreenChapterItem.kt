@@ -44,6 +44,7 @@ import my.noveldokusha.feature.local_database.tables.Chapter
 @Composable
 internal fun ChaptersScreenChapterItem(
     chapterWithContext: ChapterWithContext,
+    chapterSize: ChaptersRepository.ChapterSize? = null,
     translatedTitle: String? = null,
     selected: Boolean,
     isLocalSource: Boolean,
@@ -109,12 +110,12 @@ internal fun ChaptersScreenChapterItem(
     // Реальный размер скачанного содержимого или оценка для страничной
     // главы (манхва/манга) в текущем качестве. Оценка — только когда
     // список страниц уже известен (никаких лишних сетевых запросов).
-    val sizeText: String? = with(chapterWithContext) {
+    val sizeText: String? = chapterSize?.let { size ->
         when {
-            sizeBytes != null -> formatBytes(sizeBytes!!)
-            estimatedBytes != null -> stringResource(
+            size.sizeBytes != null -> formatBytes(size.sizeBytes)
+            size.estimatedBytes != null -> stringResource(
                 R.string.chapter_size_estimate,
-                formatBytes(estimatedBytes!!)
+                formatBytes(size.estimatedBytes)
             )
             else -> null
         }
