@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import my.noveldokusha.core.Response.getOrNull
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.BookChaptersRepository
@@ -76,7 +75,7 @@ internal class MangaReaderViewModel @Inject constructor(
             loading.value = true
             loadError.value = false
             val response = readerRepository.downloadChapterPages(url)
-            val urls = response.getOrNull()
+            val urls = response.toSuccessOrNull()?.data
             if (urls == null) {
                 loading.value = false
                 loadError.value = true

@@ -245,9 +245,16 @@ internal class MangaReaderActivity : ComponentActivity() {
             }
             needsFilter = true
         }
+        val filterPaint = if (needsFilter) {
+            android.graphics.Paint().apply {
+                colorFilter = ColorMatrixColorFilter(matrix)
+            }
+        } else {
+            null
+        }
         binding.mangaViewerContainer.setLayerType(
-            if (needsFilter) View.LAYER_TYPE_HARDWARE else View.LAYER_TYPE_NONE,
-            if (needsFilter) ColorMatrixColorFilter(matrix) else null,
+            type = if (needsFilter) View.LAYER_TYPE_HARDWARE else View.LAYER_TYPE_NONE,
+            paint = filterPaint,
         )
 
         if (settings.fullscreen) setupFullScreenMode() else setupNormalScreenMode()
@@ -378,7 +385,7 @@ internal class MangaReaderActivity : ComponentActivity() {
             if (settings.showPageNumber && chapter != null && !viewModel.loading.value) {
                 Text(
                     text = stringResource(R.string.manga_reader_page_of, viewModel.currentPage.value + 1, chapter.pageCount),
-                    color = Color.WHITE,
+                    color = Color.White,
                     fontSize = 12.sp,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -399,11 +406,11 @@ internal class MangaReaderActivity : ComponentActivity() {
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    CircularProgressIndicator(color = Color.WHITE)
+                    CircularProgressIndicator(color = Color.White)
                     Spacer(Modifier.height(12.dp))
                     Text(
                         text = stringResource(R.string.manga_reader_chapter_loading),
-                        color = Color.WHITE,
+                        color = Color.White,
                         fontSize = 14.sp,
                     )
                 }
@@ -414,7 +421,7 @@ internal class MangaReaderActivity : ComponentActivity() {
                 ) {
                     Text(
                         text = stringResource(R.string.manga_reader_chapter_failed),
-                        color = Color.WHITE,
+                        color = Color.White,
                         fontSize = 14.sp,
                     )
                     Spacer(Modifier.height(12.dp))
@@ -453,7 +460,7 @@ internal class MangaReaderActivity : ComponentActivity() {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(R.string.close),
-                    tint = Color.WHITE,
+                    tint = Color.White,
                 )
             }
             IconButton(
@@ -463,7 +470,7 @@ internal class MangaReaderActivity : ComponentActivity() {
                 Icon(
                     Icons.Filled.SkipPrevious,
                     contentDescription = stringResource(R.string.manga_reader_prev_chapter),
-                    tint = Color.WHITE,
+                    tint = Color.White,
                 )
             }
             Column(
@@ -482,7 +489,7 @@ internal class MangaReaderActivity : ComponentActivity() {
                 }
                 Text(
                     text = chapterTitle ?: "",
-                    color = Color.WHITE,
+                    color = Color.White,
                     fontSize = 15.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -495,14 +502,14 @@ internal class MangaReaderActivity : ComponentActivity() {
                 Icon(
                     Icons.Filled.SkipNext,
                     contentDescription = stringResource(R.string.manga_reader_next_chapter),
-                    tint = Color.WHITE,
+                    tint = Color.White,
                 )
             }
             IconButton(onClick = { showSettingsSheet.value = true }) {
                 Icon(
                     Icons.Filled.Settings,
                     contentDescription = stringResource(R.string.manga_reader_settings),
-                    tint = Color.WHITE,
+                    tint = Color.White,
                 )
             }
         }
