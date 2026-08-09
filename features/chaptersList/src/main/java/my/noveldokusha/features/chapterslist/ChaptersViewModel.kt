@@ -114,6 +114,7 @@ internal class ChaptersViewModel @Inject constructor(
         book = book,
         error = mutableStateOf(""),
         chapters = mutableStateListOf(),
+        chapterSizes = mutableStateMapOf(),
         selectedChaptersUrl = mutableStateMapOf(),
         isRefreshing = mutableStateOf(false),
         sourceCatalogNameStrRes = mutableStateOf(source?.nameStrId),
@@ -228,6 +229,10 @@ internal class ChaptersViewModel @Inject constructor(
                 chaptersRepository.getChaptersSortedFlow(bookUrl = url).collect {
                     state.chapters.clear()
                     state.chapters.addAll(it)
+                }
+                chaptersRepository.getChapterSizesFlow(bookUrl = url).collect {
+                    state.chapterSizes.clear()
+                    state.chapterSizes.putAll(it)
                 }
             }
         }
