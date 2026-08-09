@@ -145,7 +145,7 @@ class DownloadedPageChaptersStore @Inject constructor(
     /** Полная очистка: все файлы страничных глав + строки БД (настройки → данные). */
     suspend fun deleteAll() = withContext(Dispatchers.IO) {
         dao.deleteAll()
-        rootDir.deleteRecursively()
+        root.deleteRecursively()
     }
 
     private fun refererFor(url: String): String = try {
