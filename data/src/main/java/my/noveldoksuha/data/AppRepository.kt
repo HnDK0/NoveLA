@@ -30,6 +30,7 @@ class AppRepository @Inject constructor(
     private val localBookImporterRepository: LocalBookImporterRepository,
     val downloaderRepository: DownloaderRepository,
     private val libraryDao: LibraryDao,
+    private val downloadedPageChaptersStore: DownloadedPageChaptersStore,
 ) {
     val settings = Settings()
     val eventDataRestored = MutableSharedFlow<Unit>()
@@ -98,6 +99,8 @@ class AppRepository @Inject constructor(
                     }
                     db.libraryDao().removeBooksByUrls(nonLibraryBookUrls)
                 }
+
+                downloadedPageChaptersStore.deleteBookChapters(nonLibraryBookUrls)
 
                 libraryBooks.clearPerNovelData(nonLibraryBookUrls)
 

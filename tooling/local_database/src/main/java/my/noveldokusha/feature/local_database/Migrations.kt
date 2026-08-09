@@ -379,6 +379,18 @@ internal fun databaseMigrations() = arrayOf(
             )
         """)
     },
+    migration(28) {
+        // Скачанные страничные главы: файлы в filesDir/downloaded_pages,
+        // здесь — источник URL, размер и качество загрузки.
+        it.execSQL("""
+            CREATE TABLE IF NOT EXISTS DownloadedPageChapter (
+                url TEXT NOT NULL PRIMARY KEY,
+                pages TEXT NOT NULL,
+                totalBytes INTEGER NOT NULL,
+                quality TEXT NOT NULL
+            )
+        """)
+    },
 )
 
 internal fun migration(vi: Int, migrate: (SupportSQLiteDatabase) -> Unit) =

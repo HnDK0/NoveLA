@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import my.noveldokusha.core.ImageQuality
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.BaseActivity
 import my.noveldokusha.coreui.composableActions.SetSystemBarTransparent
@@ -199,6 +200,10 @@ class ReaderActivity : BaseActivity() {
 
     private val fontsLoader by lazy { FontsLoader(this) }
 
+    private fun initPageImageLoaderQuality() {
+        pageImageLoader.quality = ImageQuality.parse(appPreferences.READER_IMAGE_QUALITY.value)
+    }
+
     /**
      * Префетч страниц манхвы/манги на ~8 рядов вперёд по скроллу.
      * URL известны из getPageList заранее; load() дедуплицирует
@@ -208,11 +213,11 @@ class ReaderActivity : BaseActivity() {
         val adapter = viewAdapter.listView
         val start = (firstVisibleItem + visibleItemCount).coerceIn(0, adapter.count - 1)
         val end = (start + 8).coerceAtMost(adapter.count - 1)
-        val urls = ArrayList<String>(end - start + 1)
+        val pages = ArrayList<ReaderItem.Page>(end - start + 1)
         for (pos in start..end) {
-            (adapter.getItem(pos) as? ReaderItem.Page)?.let { urls.add(it.url) }
+            (adapter.getItem(pos) as? ReaderItem.Page)?.let { pages.add(it) }
         }
-        pageImageLoader.prefetch(urls)
+        pageImageLoader.prefetch(pages)
     }
 
     private val backPressedCallback = object : OnBackPressedCallback(true) {
@@ -233,6 +238,7 @@ class ReaderActivity : BaseActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        initPageImageLoaderQuality()
 
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
         viewBind.listView.adapter = viewAdapter.listView
@@ -482,7 +488,12 @@ class ReaderActivity : BaseActivity() {
                         appPreferences.MANUAL_HIGHLIGHT_ENABLED.value = it
                         if (!it) viewModel.stopManualHighlight()
                     },
-                    onImageQualityChange = { appPreferences.READER_IMAGE_QUALITY.value = it },
+                    onImageQualityChange = {
+                        appPreferences.READER_IMAGE_QUALITY.value = it
+                        // Действует сразу: новые/префетченные страницы
+                        // грузятся в новом качестве без пересборки главы.
+                        pageImageLoader.quality = ImageQuality.parse(it)
+                    },
                     manualHighlight = viewModel.state.settings.manualHighlight,
                     onManualHighlightStart = {
                         val firstVisible = getFirstFullyVisibleItemIndex()

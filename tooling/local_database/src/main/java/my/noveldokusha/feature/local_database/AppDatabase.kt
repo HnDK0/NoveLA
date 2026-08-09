@@ -13,6 +13,7 @@ import my.noveldokusha.feature.local_database.DAOs.ChapterDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterPagesDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
+import my.noveldokusha.feature.local_database.DAOs.DownloadedPageChaptersDao
 import my.noveldokusha.feature.local_database.DAOs.ExtensionDao
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.feature.local_database.DAOs.NovelMigrationDao
@@ -23,6 +24,7 @@ import my.noveldokusha.feature.local_database.tables.ChapterBody
 import my.noveldokusha.feature.local_database.tables.ChapterPages
 import my.noveldokusha.feature.local_database.tables.ChapterTranslation
 import my.noveldokusha.feature.local_database.tables.DownloadTaskEntity
+import my.noveldokusha.feature.local_database.tables.DownloadedPageChapter
 import my.noveldokusha.feature.local_database.tables.Extension
 import my.noveldokusha.feature.local_database.tables.MigrationRecord
 import my.noveldokusha.feature.local_database.tables.ReadingHistory
@@ -34,6 +36,7 @@ interface AppDatabase {
     fun chapterDao(): ChapterDao
     fun chapterBodyDao(): ChapterBodyDao
     fun chapterPagesDao(): ChapterPagesDao
+    fun downloadedPageChaptersDao(): DownloadedPageChaptersDao
     fun chapterTranslationDao(): ChapterTranslationDao
     fun downloadTaskDao(): DownloadTaskDao
     fun extensionDao(): ExtensionDao
@@ -120,11 +123,12 @@ interface AppDatabase {
         ChapterPages::class,
         ChapterTranslation::class,
         DownloadTaskEntity::class,
+        DownloadedPageChapter::class,
         Extension::class,
         MigrationRecord::class,
         ReadingHistory::class
     ],
-    version = 28,
+    version = 29,
     exportSchema = false
 )
 internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {
@@ -132,6 +136,7 @@ internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {
     abstract override fun chapterDao(): ChapterDao
     abstract override fun chapterBodyDao(): ChapterBodyDao
     abstract override fun chapterPagesDao(): ChapterPagesDao
+    abstract override fun downloadedPageChaptersDao(): DownloadedPageChaptersDao
     abstract override fun chapterTranslationDao(): ChapterTranslationDao
     abstract override fun downloadTaskDao(): DownloadTaskDao
     abstract override fun extensionDao(): ExtensionDao

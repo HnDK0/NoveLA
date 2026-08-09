@@ -58,4 +58,14 @@ interface ChapterBodyDao {
         WHERE Chapter.bookUrl = :bookUrl
     """)
     fun getDownloadedUrlsFlow(bookUrl: String): Flow<List<String>>
+
+    data class UrlSize(val url: String, val sizeBytes: Long)
+
+    @Query("""
+        SELECT ChapterBody.url AS url, LENGTH(ChapterBody.body) AS sizeBytes
+        FROM ChapterBody
+        INNER JOIN Chapter ON Chapter.url = ChapterBody.url
+        WHERE Chapter.bookUrl IN (:bookUrls)
+    """)
+    fun getSizesByBookUrls(bookUrls: List<String>): Flow<List<UrlSize>>
 }

@@ -1,6 +1,7 @@
 package my.noveldokusha.feature.local_database
 
 import androidx.room.Embedded
+import androidx.room.Ignore
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.feature.local_database.tables.Chapter
 
@@ -33,5 +34,9 @@ data class BookWithContext(
 data class ChapterWithContext(
     @Embedded val chapter: Chapter,
     val downloaded: Boolean,
-    val lastReadChapter: Boolean
+    val lastReadChapter: Boolean,
+    /** Реальный размер скачанного содержимого (тело главы или файлы страниц), байты. */
+    @Ignore val sizeBytes: Long? = null,
+    /** Оценка размера страничной главы (манхва/манга) в текущем качестве, байты. */
+    @Ignore val estimatedBytes: Long? = null
 )

@@ -2,6 +2,7 @@ package my.noveldokusha.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import my.noveldokusha.core.ImageQuality
 import my.noveldokusha.core.Response
 import my.noveldokusha.core.isLocalUri
 import my.noveldokusha.core.isValidChapterContent
@@ -12,6 +13,7 @@ import my.noveldokusha.feature.local_database.DAOs.ChapterPagesDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.feature.local_database.tables.ChapterBody
 import my.noveldokusha.feature.local_database.tables.ChapterPages
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,6 +25,7 @@ class ChapterBodyRepository @Inject constructor(
     private val appDatabase: AppDatabase,
     private val bookChaptersRepository: BookChaptersRepository,
     private val downloaderRepository: DownloaderRepository,
+    private val downloadedPageChaptersStore: DownloadedPageChaptersStore,
 ) {
     suspend fun getAll() = chapterBodyDao.getAll()
     suspend fun insertReplace(chapterBodies: List<ChapterBody>) =
@@ -39,6 +42,58 @@ class ChapterBodyRepository @Inject constructor(
                 chunk.forEach { chapterUrl ->
                     chapterTranslationDao.deleteChapterTranslations(chapterUrl)
                 }
+            }
+        }
+        // Файлы скачанных страничных глав удаляем вместе с записями.
+        downloadedPageChaptersStore.deleteChapters(chaptersUrl)
+    }
+
+    /**
+     * Скачивание главы для оффлайн-доступа.
+     * - Страничная глава (манхва/манга): файлы картинок в [DownloadedPageChaptersStore]
+     *   (качество из преференса), кэш списка страниц для оффлайн-открытия;
+     *   возвращает "" — легитимный успех, ретраи не нужны.
+     * - Текстовая глава: как [fetchBody] + сохранение тела в кэш.
+     * - Ошибка: [Response.Error] — DownloadManager ретраит.
+     */
+    suspend fun fetchChapterForDownload(
+        urlChapter: String,
+        quality: ImageQuality
+    ): Response<String> {
+        if (urlChapter.isLocalUri) {
+            // Локальные главы — только текст, страниц у них нет.
+            return fetchBody(urlChapter, tryCache = false)
+        }
+        return withContext(Dispatchers.IO) {
+            downloaderRepository.bookChapter(urlChapter)
+        }.let { response ->
+            when (response) {
+                is Response.Success -> {
+                    val download = response.data
+                    val pages = download.pages
+                    if (!pages.isNullOrEmpty()) {
+                        try {
+                            chapterPagesDao.insertReplace(
+                                ChapterPages(url = urlChapter, pages = encodePages(pages))
+                            )
+                            val bytes = downloadedPageChaptersStore.downloadChapter(urlChapter, quality, pages)
+                            Timber.d("page chapter downloaded: $urlChapter ($bytes bytes)")
+                            Response.Success("")
+                        } catch (e: Exception) {
+                            Timber.e(e, "page download failed: $urlChapter")
+                            Response.Error("Page download failed: ${e.message}", e)
+                        }
+                    } else if (download.body.isNotBlank() && isValidChapterContent(download.body)) {
+                        insertWithTitle(
+                            ChapterBody(url = urlChapter, body = download.body),
+                            title = download.title
+                        )
+                        Response.Success(download.body)
+                    } else {
+                        Response.Error("Empty content for $urlChapter", Exception())
+                    }
+                }
+                is Response.Error -> response
             }
         }
     }

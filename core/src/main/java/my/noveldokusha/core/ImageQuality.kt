@@ -1,4 +1,4 @@
-package my.noveldokusha.features.reader.tools
+package my.noveldokusha.core
 
 import java.net.URLEncoder
 
