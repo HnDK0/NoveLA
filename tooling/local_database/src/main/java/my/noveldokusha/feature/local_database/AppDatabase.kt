@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import my.noveldokusha.feature.local_database.DAOs.ChapterBodyDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterDao
+import my.noveldokusha.feature.local_database.DAOs.ChapterPagesDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
 import my.noveldokusha.feature.local_database.DAOs.ExtensionDao
@@ -19,6 +20,7 @@ import my.noveldokusha.feature.local_database.DAOs.ReadingHistoryDao
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.feature.local_database.tables.Chapter
 import my.noveldokusha.feature.local_database.tables.ChapterBody
+import my.noveldokusha.feature.local_database.tables.ChapterPages
 import my.noveldokusha.feature.local_database.tables.ChapterTranslation
 import my.noveldokusha.feature.local_database.tables.DownloadTaskEntity
 import my.noveldokusha.feature.local_database.tables.Extension
