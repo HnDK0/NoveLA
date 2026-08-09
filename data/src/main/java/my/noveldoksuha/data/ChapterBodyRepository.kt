@@ -8,6 +8,7 @@ import my.noveldokusha.core.isValidChapterContent
 import my.noveldokusha.core.map
 import my.noveldokusha.feature.local_database.AppDatabase
 import my.noveldokusha.feature.local_database.DAOs.ChapterBodyDao
+import my.noveldokusha.feature.local_database.DAOs.ChapterPagesDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.feature.local_database.tables.ChapterBody
 import my.noveldokusha.feature.local_database.tables.ChapterPages
