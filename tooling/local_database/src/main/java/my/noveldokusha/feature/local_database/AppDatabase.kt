@@ -128,7 +128,7 @@ interface AppDatabase {
         MigrationRecord::class,
         ReadingHistory::class
     ],
-    version = 29,
+    version = 30,
     exportSchema = false
 )
 internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {

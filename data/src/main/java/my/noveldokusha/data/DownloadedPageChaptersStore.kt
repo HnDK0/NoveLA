@@ -142,6 +142,12 @@ class DownloadedPageChaptersStore @Inject constructor(
         rows.forEach { chapterDir(it.url).deleteRecursively() }
     }
 
+    /** Полная очистка: все файлы страничных глав + строки БД (настройки → данные). */
+    suspend fun deleteAll() = withContext(Dispatchers.IO) {
+        dao.deleteAll()
+        rootDir.deleteRecursively()
+    }
+
     private fun refererFor(url: String): String = try {
         val uri = java.net.URI(url)
         "${uri.scheme}://${uri.host}/"

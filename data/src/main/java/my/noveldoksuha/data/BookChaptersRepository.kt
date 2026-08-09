@@ -66,7 +66,7 @@ class BookChaptersRepository @Inject constructor(
             current.merge(
                 chapter.url,
                 chapter
-            ) { old, new -> old.copy(position = new.position) }
+            ) { old, new -> old.copy(position = new.position, uploaded = new.uploaded ?: old.uploaded) }
         appDatabase.transaction {
             insertReplace(current.values.toList())
 

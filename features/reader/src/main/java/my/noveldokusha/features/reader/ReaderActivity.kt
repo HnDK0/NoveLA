@@ -958,9 +958,31 @@ class ReaderActivity : BaseActivity() {
     }
 
     private fun updateInfoView() {
-        val lastVisiblePosition = viewBind.listView.lastVisiblePosition
-        val itemIndex = viewAdapter.listView.fromPositionToIndex(lastVisiblePosition)
-        viewModel.updateInfoViewTo(itemIndex, userHasScrolled = userHasScrolled)
+        // Прогресс привязан к ВЕРХУ экрана (позиция чтения), а не к низу:
+        // у страничных глав ряд — целый экран высотой, и нижний элемент при
+        // чтении последней страницы главы уже принадлежит следующей — процент
+        // прыгал (99% → 0% → 3%). Доля прокрутки внутри ряда даёт точный
+        // процент при каждой маленькой прокрутке.
+        val listView = viewBind.listView
+        var firstPosition = listView.firstVisiblePosition
+        var itemIndex = viewAdapter.listView.fromPositionToIndex(firstPosition)
+        if (itemIndex < 0) {
+            // Верхний видимый — служебный ряд-отступ (6px): берём следующий.
+            firstPosition += 1
+            itemIndex = viewAdapter.listView.fromPositionToIndex(firstPosition)
+        }
+        val fraction = listView.getChildAt(firstPosition - listView.firstVisiblePosition)?.let { child ->
+            if (child.top < listView.paddingTop && child.height > 0) {
+                ((listView.paddingTop - child.top).toFloat() / child.height).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+        } ?: 0f
+        viewModel.updateInfoViewTo(
+            itemIndex,
+            userHasScrolled = userHasScrolled,
+            withinItemFraction = fraction,
+        )
     }
 
     override fun onPause() {

@@ -37,6 +37,7 @@ internal class ChaptersRepository @Inject constructor(
             ImageQuality.HIGH -> 400L * 1024
             ImageQuality.BALANCED -> 150L * 1024
             ImageQuality.DATA_SAVER -> 70L * 1024
+            ImageQuality.LOW -> 40L * 1024
         }
 
         private fun decodePages(json: String): List<String>? = try {

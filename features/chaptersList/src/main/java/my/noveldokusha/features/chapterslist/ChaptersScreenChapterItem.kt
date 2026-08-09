@@ -132,6 +132,30 @@ internal fun ChaptersScreenChapterItem(
         }
     } else null
 
+    // Дата и время публикации главы (из списка глав источника; работает и
+    // для новелл, и для манхвы/манги — любой плагин, отдающий uploaded).
+    val dateText: String? = remember(chapter.uploaded) {
+        chapter.uploaded?.let { epochSeconds ->
+            try {
+                java.text.DateFormat.getDateTimeInstance(
+                    java.text.DateFormat.MEDIUM,
+                    java.text.DateFormat.SHORT
+                ).format(java.util.Date(epochSeconds * 1000L))
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+    val dateLabel: @Composable (() -> Unit)? = if (dateText != null) {
+        {
+            Text(
+                text = dateText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    } else null
+
     Surface(
         shape = RoundedCornerShape(8.dp),
         tonalElevation = 0.5.dp,
@@ -155,7 +179,7 @@ internal fun ChaptersScreenChapterItem(
                         color = if (chapter.read) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
                     )
                 },
-                supportingContent = if (badge != null || sizeLabel != null) {
+                supportingContent = if (badge != null || sizeLabel != null || dateLabel != null) {
                     {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -163,6 +187,7 @@ internal fun ChaptersScreenChapterItem(
                         ) {
                             badge?.invoke()
                             sizeLabel?.invoke()
+                            dateLabel?.invoke()
                         }
                     }
                 } else null,

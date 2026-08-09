@@ -495,7 +495,8 @@ open class LuaSourceAdapter(
     private fun convertLuaTableToChapterResult(table: LuaTable) = ChapterResult(
         title  = table.get("title").optjstring(""),
         url    = table.get("url").optjstring(""),
-        volume = table.get("volume").optjstring(null)
+        volume = table.get("volume").optjstring(null),
+        uploaded = table.get("uploaded").takeIf { it.isnumber() }?.tolong()
     )
 }
 

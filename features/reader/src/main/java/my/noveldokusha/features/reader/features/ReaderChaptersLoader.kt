@@ -108,10 +108,14 @@ internal class ReaderChaptersLoader(
 
     fun getItems(): List<ReaderItem> = items
 
-    fun getItemContext(itemIndex: Int, chapterUrl: String): ReadingChapterPosStats? {
+    fun getItemContext(itemIndex: Int, chapterUrl: String, withinItemFraction: Float = 0f): ReadingChapterPosStats? {
         val item = items.getOrNull(itemIndex) ?: return null
         if (item !is ReaderItem.Position) return null
-        val chapterStats = chaptersStats[chapterUrl] ?: return null
+        // Статистика БЕРЕТСЯ из главы самого элемента, а не из переданной
+        // chapterUrl: на границе глав нижний/первый видимый элемент может
+        // уже принадлежать следующей главе, и процент считался по чужим
+        // счётчикам (прыжки прогресса 99% → 0% → 3%).
+        val chapterStats = chaptersStats[item.chapterUrl] ?: return null
         return ReadingChapterPosStats(
             chapterIndex = item.chapterIndex,
             chapterCount = orderedChapters.size,
@@ -119,6 +123,7 @@ internal class ReaderChaptersLoader(
             chapterItemsCount = chapterStats.itemsCount,
             chapterTitle = chapterStats.chapter.title,
             chapterUrl = chapterStats.chapter.url,
+            withinItemFraction = withinItemFraction,
         )
     }
 

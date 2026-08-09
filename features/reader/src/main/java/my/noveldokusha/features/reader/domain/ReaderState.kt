@@ -29,9 +29,19 @@ internal data class ReadingChapterPosStats(
     val chapterItemsCount: Int,
     val chapterTitle: String,
     val chapterUrl: String,
+    /**
+     * Доля прокрутки ВНУТРИ текущего элемента (0..1). Для страниц манхвы
+     * ряд — целый экран высотой: позиция по элементам не меняется между
+     * страницами, и прогресс «застывал». С долей каждая маленькая
+     * прокрутка даёт точный процент. Для текстовых глав всегда 0.
+     */
+    val withinItemFraction: Float = 0f,
 )
 
 internal fun ReadingChapterPosStats.chapterReadPercentage() = when (chapterItemsCount) {
     0 -> 100f
-    else -> ceil((chapterItemPosition.toFloat() / chapterItemsCount.toFloat()) * 100f)
+    else -> ceil(
+        (((chapterItemPosition + withinItemFraction) / chapterItemsCount) * 100f)
+            .coerceAtMost(100f)
+    )
 }
