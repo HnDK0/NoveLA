@@ -287,6 +287,7 @@ class RestoreDataService : Service() {
                     val bookChapters = BookChaptersRepository(chapterDao = newDatabase.chapterDao(), appDatabase = newDatabase)
                     val chapterBody = ChapterBodyRepository(
                         chapterBodyDao = newDatabase.chapterBodyDao(),
+                        chapterPagesDao = newDatabase.chapterPagesDao(),
                         appDatabase = newDatabase,
                         chapterTranslationDao = newDatabase.chapterTranslationDao(),
                         bookChaptersRepository = bookChapters,
