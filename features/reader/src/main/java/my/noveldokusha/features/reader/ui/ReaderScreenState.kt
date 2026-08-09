@@ -40,8 +40,13 @@ internal data class ReaderScreenState(
         val ttsHighlight: TtsHighlightSettingsData,
         val manualHighlight: ManualHighlightSettingData,
         val manualHighlightEnabled: State<Boolean>,
-        // "high" | "balanced" | "saver" — качество картинок манхвы/манги
-        val imageQuality: State<String>,
+        // ── Чтение манхвы/манги (страничные главы) ──
+        val autoscrollEnabled: State<Boolean>,
+        val autoscrollInterval: State<Float>,
+        val autoscrollSmooth: State<Boolean>,
+        val pagePrefetchCount: State<Int>,
+        // true, когда в текущем списке есть страницы (гейт UI автопрокрутки)
+        val isPageChapter: State<Boolean>,
     ) {
         @Stable
         data class StyleSettingsData(

@@ -8,8 +8,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import my.noveldokusha.core.ImageQuality
-import my.noveldokusha.core.rewritePageUrlForQuality
 import my.noveldokusha.data.DownloadedPageChaptersStore
 import my.noveldokusha.features.reader.domain.ReaderItem
 import my.noveldokusha.network.NetworkClient
@@ -26,6 +24,7 @@ import javax.inject.Singleton
  * пропорции ряда). Файл кэшируется в page_images (LRU по размеру) —
  * Coil/OkHttp-кэши не задействуются, чтобы ошибки (404/503 от CDN) не
  * отравляли общий кэш: evict(url) просто удаляет файл.
+ * URL грузятся ОРИГИНАЛЬНЫМИ (tachiyomi-style): никакого пересжатия.
  */
 data class PageImage(
     val file: File,
@@ -45,14 +44,6 @@ class PageImageLoader @Inject constructor(
     }
 
     private val cacheDir: File = File(context.cacheDir, CACHE_DIR)
-
-    /**
-     * Активное качество картинок. Применяется к URL в момент загрузки —
-     * смена качества действует на новые/префетченные страницы сразу,
-     * без пересборки главы. Обновляется из READER_IMAGE_QUALITY.
-     */
-    @Volatile
-    var quality: ImageQuality = ImageQuality.HIGH
 
     private val mutex = Mutex()
 
@@ -84,7 +75,7 @@ class PageImageLoader @Inject constructor(
      */
     fun getDimensions(chapterUrl: String, url: String): Pair<Int, Int>? {
         dimsCache[url]?.let { return it }
-        val fromCache = fileFor(rewritePageUrlForQuality(url, quality))
+        val fromCache = fileFor(url)
             .takeIf { it.exists() && it.length() > 0 }
             ?.let { decodeBounds(it) }
         if (fromCache != null) dimsCache[url] = fromCache
@@ -104,13 +95,13 @@ class PageImageLoader @Inject constructor(
     }
 
     /**
-     * Возвращает страницу из кэша или скачивает её. null — ошибка сети/CDN.
-     * Размеры декодируются из заголовка файла (inJustDecodeBounds).
-     * Ключ кэша/дедупликации — URL после применения качества.
+     * Возвращает страницу из кэша или скачивает её (оригинал, без
+     * пересжатия). null — ошибка сети/CDN. Размеры декодируются из
+     * заголовка файла (inJustDecodeBounds). Ключ кэша/дедупликации —
+     * исходный URL страницы.
      *
      * Сначала ищем локально скачанную копию (скачанная глава = оффлайн
-     * чтение без сети): файл уже лежит в скачанном виде — качество
-     * повторно не применяется.
+     * чтение без сети): файл уже лежит в скачанном виде.
      */
     suspend fun load(chapterUrl: String, url: String): PageImage? {
         downloadedPageChaptersStore.getLocalPageFile(chapterUrl, url)?.let { file ->
@@ -119,12 +110,11 @@ class PageImageLoader @Inject constructor(
                 return PageImage(file, dims.first, dims.second)
             }
         }
-        val fetchUrl = rewritePageUrlForQuality(url, quality)
-        inflight[fetchUrl]?.let { return it.await() }
+        inflight[url]?.let { return it.await() }
         val deferred = kotlinx.coroutines.CompletableDeferred<PageImage?>()
-        inflight[fetchUrl] = deferred
+        inflight[url] = deferred
         try {
-            val result = doLoad(fetchUrl)
+            val result = doLoad(url)
             if (result != null) dimsCache[url] = result.width to result.height
             deferred.complete(result)
             return result
@@ -133,7 +123,7 @@ class PageImageLoader @Inject constructor(
             deferred.complete(null)
             return null
         } finally {
-            inflight.remove(fetchUrl)
+            inflight.remove(url)
         }
     }
 

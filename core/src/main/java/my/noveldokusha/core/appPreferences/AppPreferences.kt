@@ -219,12 +219,32 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_String(name, preferences, "serif")
     }
     /**
-     * Качество картинок манхвы/манги: "high" (оригинал), "balanced" (weserv
-     * q=80 + ширина), "saver" (weserv q=60 + уже). Переписывание URL —
-     * только на страницах-картинках, текстовые главы не затрагиваются.
+     * Автопрокрутка страничных глав (манхва/манга): скролл на высоту
+     * экрана с интервалом READER_AUTOSCROLL_INTERVAL. Текстовые главы
+     * не затрагиваются — раннер проверяет наличие Page-элементов.
      */
-    val READER_IMAGE_QUALITY = object : Preference<String>("READER_IMAGE_QUALITY") {
-        override var value by SharedPreference_String(name, preferences, "high")
+    val READER_AUTOSCROLL_ENABLED = object : Preference<Boolean>("READER_AUTOSCROLL_ENABLED") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+    /**
+     * Интервал автопрокрутки в секундах (как tachiyomisy autoscrollInterval).
+     */
+    val READER_AUTOSCROLL_INTERVAL = object : Preference<Float>("READER_AUTOSCROLL_INTERVAL") {
+        override var value by SharedPreference_Float(name, preferences, 3f)
+    }
+    /**
+     * Плавная автопрокрутка: smoothScrollBy на весь экран за интервал;
+     * иначе мгновенный сдвиг на 3/4 экрана (как scrollDown в tachiyomisy).
+     */
+    val READER_AUTOSCROLL_SMOOTH = object : Preference<Boolean>("READER_AUTOSCROLL_SMOOTH") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+    /**
+     * Сколько рядов страниц префетчится вперёд при скролле (tachiyomisy
+     * preloadSize — 10 страниц; тут ряды, т.к. лента = ListView).
+     */
+    val READER_PAGE_PREFETCH_COUNT = object : Preference<Int>("READER_PAGE_PREFETCH_COUNT") {
+        override var value by SharedPreference_Int(name, preferences, 8)
     }
     val READER_LINE_HEIGHT = object : Preference<Float>("READER_LINE_HEIGHT") {
         override var value by SharedPreference_Float(name, preferences, 1.35f)

@@ -4,8 +4,6 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import my.noveldokusha.core.ImageQuality
-import my.noveldokusha.core.rewritePageUrlForQuality
 import my.noveldokusha.feature.local_database.DAOs.DownloadedPageChaptersDao
 import my.noveldokusha.feature.local_database.tables.DownloadedPageChapter
 import my.noveldokusha.network.NetworkClient
@@ -22,9 +20,10 @@ import javax.inject.Singleton
 /**
  * Скачанные страничные главы (манхва/манга): картинки лежат в
  * filesDir/downloaded_pages/<sha256(chapterUrl)>/000.ext, 001.ext…
- * Ряд в БД хранит исходные URL страниц (порядок = индексы файлов),
- * суммарный размер и качество загрузки. Удаление главы из приложения
- * удаляет и файлы (deleteChapters/deleteBookChapters).
+ * Ряд в БД хранит исходные URL страниц (порядок = индексы файлов) и
+ * суммарный РЕАЛЬНЫЙ размер сохранённых байт (quality всегда "HIGH" —
+ * оригиналы без пересжатия). Удаление главы из приложения удаляет и
+ * файлы (deleteChapters/deleteBookChapters).
  */
 @Singleton
 class DownloadedPageChaptersStore @Inject constructor(
@@ -80,14 +79,14 @@ class DownloadedPageChaptersStore @Inject constructor(
     }
 
     /**
-     * Скачивает страницы главы в приложение. Уже скачанные файлы
-     * переиспользуются (ретраи после частичного успеха не качают заново).
-     * Возвращает суммарный размер в байтах; кидает IOException при сетевой
-     * ошибке — DownloadManager ретраит главу целиком.
+     * Скачивает страницы главы в приложение (оригиналы, без пересжатия).
+     * Уже скачанные файлы переиспользуются (ретраи после частичного успеха
+     * не качают заново). Возвращает СУММАРНЫЙ РАЗМЕР СОХРАНЁННЫХ байт —
+     * точное значение, отображаемое в списке глав. Кидает IOException при
+     * сетевой ошибке — DownloadManager ретраит главу целиком.
      */
     suspend fun downloadChapter(
         chapterUrl: String,
-        quality: ImageQuality,
         pages: List<String>
     ): Long = withContext(Dispatchers.IO) {
         val dir = chapterDir(chapterUrl)
@@ -99,7 +98,7 @@ class DownloadedPageChaptersStore @Inject constructor(
                 total += file.length()
                 return@forEachIndexed
             }
-            val fetchUrl = rewritePageUrlForQuality(pageUrl, quality)
+            val fetchUrl = pageUrl
             val request = Request.Builder()
                 .url(fetchUrl)
                 .header("Referer", refererFor(fetchUrl))
@@ -122,7 +121,7 @@ class DownloadedPageChaptersStore @Inject constructor(
                 url = chapterUrl,
                 pages = encodePages(pages),
                 totalBytes = total,
-                quality = quality.name
+                quality = "HIGH"
             )
         )
         total

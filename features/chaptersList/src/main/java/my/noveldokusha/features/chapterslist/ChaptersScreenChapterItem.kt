@@ -108,18 +108,10 @@ internal fun ChaptersScreenChapterItem(
         }
     }
 
-    // Реальный размер скачанного содержимого или оценка для страничной
-    // главы (манхва/манга) в текущем качестве. Оценка — только когда
-    // список страниц уже известен (никаких лишних сетевых запросов).
+    // Реальный размер скачанного содержимого (байты сохранённых файлов).
+    // Нескачанные главы размера не показывают — никаких оценок.
     val sizeText: String? = chapterSize?.let { size ->
-        when {
-            size.sizeBytes != null -> formatBytes(size.sizeBytes)
-            size.estimatedBytes != null -> stringResource(
-                R.string.chapter_size_estimate,
-                formatBytes(size.estimatedBytes)
-            )
-            else -> null
-        }
+        size.sizeBytes?.let(::formatBytes)
     }
 
     val sizeLabel: @Composable (() -> Unit)? = if (sizeText != null) {

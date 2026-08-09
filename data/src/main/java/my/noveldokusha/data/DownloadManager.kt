@@ -27,7 +27,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import my.noveldokusha.core.ImageQuality
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.states.NotificationsCenter
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
@@ -884,8 +883,7 @@ class DownloadManager @Inject constructor(
                 }
             }
 
-            val quality = ImageQuality.parse(appPreferences.READER_IMAGE_QUALITY.value)
-            val result = chapterBodyRepository.fetchChapterForDownload(chapterUrl, quality)
+            val result = chapterBodyRepository.fetchChapterForDownload(chapterUrl)
             when (result) {
                 is my.noveldokusha.core.Response.Success -> {
                     // Пустое тело — легитимный успех: страничная глава
@@ -957,8 +955,7 @@ class DownloadManager @Inject constructor(
             }
 
             Timber.d("network retry for $chapterUrl (hasNetwork=$hasNetwork, delay=${delayMs}ms)")
-            val quality = ImageQuality.parse(appPreferences.READER_IMAGE_QUALITY.value)
-            val result = chapterBodyRepository.fetchChapterForDownload(chapterUrl, quality)
+            val result = chapterBodyRepository.fetchChapterForDownload(chapterUrl)
             when (result) {
                 is my.noveldokusha.core.Response.Success -> {
                     updateTask(bookUrl) { it.copy(isWaitingForNetwork = false) }

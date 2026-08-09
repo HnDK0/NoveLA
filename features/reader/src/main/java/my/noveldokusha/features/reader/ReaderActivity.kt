@@ -27,11 +27,13 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.doOnNextLayout
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.distinctUntilChanged
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -43,10 +45,10 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import my.noveldokusha.core.ImageQuality
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.BaseActivity
 import my.noveldokusha.coreui.composableActions.SetSystemBarTransparent
@@ -156,6 +158,10 @@ class ReaderActivity : BaseActivity() {
     private var lastTapTime = 0L
     private val doubleTapThresholdMs = 350L
 
+    // Есть ли в текущем списке страницы манхвы/манги (обновляется в onScroll).
+    // Гейт для UI автопрокрутки: в текстовых главах секция скрыта.
+    private val isPageChapter = mutableStateOf(false)
+
     private val viewModel by viewModels<ReaderViewModel>()
 
     private val viewBind by lazy { ActivityReaderBinding.inflate(layoutInflater) }
@@ -213,24 +219,67 @@ class ReaderActivity : BaseActivity() {
 
     private val fontsLoader by lazy { FontsLoader(this) }
 
-    private fun initPageImageLoaderQuality() {
-        pageImageLoader.quality = ImageQuality.parse(appPreferences.READER_IMAGE_QUALITY.value)
-    }
-
     /**
-     * Префетч страниц манхвы/манги на ~8 рядов вперёд по скроллу.
+     * Префетч страниц манхвы/манги на N рядов вперёд по скроллу
+     * (READER_PAGE_PREFETCH_COUNT, аналог preloadSize в tachiyomisy).
      * URL известны из getPageList заранее; load() дедуплицирует
      * одновременные запросы, повторный показ после ошибки — отдельный load.
      */
     private fun prefetchPagesNear(firstVisibleItem: Int, visibleItemCount: Int) {
         val adapter = viewAdapter.listView
+        val prefetchCount = appPreferences.READER_PAGE_PREFETCH_COUNT.value
         val start = (firstVisibleItem + visibleItemCount).coerceIn(0, adapter.count - 1)
-        val end = (start + 8).coerceAtMost(adapter.count - 1)
+        val end = (start + prefetchCount).coerceAtMost(adapter.count - 1)
         val pages = ArrayList<ReaderItem.Page>(end - start + 1)
         for (pos in start..end) {
             (adapter.getItem(pos) as? ReaderItem.Page)?.let { pages.add(it) }
         }
         pageImageLoader.prefetch(pages)
+    }
+
+    /**
+     * Автопрокрутка страничных глав (манхва/манга), порт из tachiyomisy
+     * (enableExhAutoScroll): пока включена и меню скрыто — каждые
+     * INTERVAL секунд плавно скроллим на высоту экрана (smooth) либо
+     * сдвигаем на 3/4 экрана мгновенно. Текстовые главы не трогаем:
+     * каждый тик проверяем наличие Page-элементов.
+     */
+    private fun enableAutoScroll() {
+        lifecycleScope.launch {
+            combine(
+                appPreferences.READER_AUTOSCROLL_ENABLED.flow(),
+                appPreferences.READER_AUTOSCROLL_INTERVAL.flow(),
+                appPreferences.READER_AUTOSCROLL_SMOOTH.flow(),
+            ) { enabled, interval, smooth -> Triple(enabled, interval, smooth) }
+                .mapLatest { (enabled, interval, smooth) ->
+                    if (!enabled) return@mapLatest
+                    repeatOnLifecycle(Lifecycle.State.STARTED) {
+                        while (true) {
+                            val listView = viewBind.listView
+                            val hasPages = viewModel.items.any { it is ReaderItem.Page }
+                            val menuVisible = viewModel.state.showReaderInfo.value
+                            // Меню открыто — ждём 100 мс (как в tachiyomisy) и
+                            // продолжаем, чтобы скролл возобновился сразу после закрытия.
+                            if (hasPages && !menuVisible && listView.count > 0) {
+                                val screenHeight = resources.displayMetrics.heightPixels
+                                if (smooth) {
+                                    listView.smoothScrollBy(
+                                        0,
+                                        screenHeight,
+                                        (interval * 1000).toInt().coerceAtLeast(100)
+                                    )
+                                } else {
+                                    listView.scrollBy(0, screenHeight * 3 / 4)
+                                }
+                                delay((interval * 1000).toLong().coerceAtLeast(100L))
+                            } else {
+                                delay(100L)
+                            }
+                        }
+                    }
+                }
+                .launchIn(lifecycleScope)
+        }
     }
 
     private val backPressedCallback = object : OnBackPressedCallback(true) {
@@ -251,11 +300,12 @@ class ReaderActivity : BaseActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        initPageImageLoaderQuality()
 
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
         viewBind.listView.adapter = viewAdapter.listView
         readerViewHandlersActions.listView = viewBind.listView
+
+        enableAutoScroll()
 
         fadeInTextLiveData.distinctUntilChanged().observe(this) {
             if (it) {
@@ -506,12 +556,10 @@ class ReaderActivity : BaseActivity() {
                         appPreferences.MANUAL_HIGHLIGHT_ENABLED.value = it
                         if (!it) viewModel.stopManualHighlight()
                     },
-                    onImageQualityChange = {
-                        appPreferences.READER_IMAGE_QUALITY.value = it
-                        // Действует сразу: новые/префетченные страницы
-                        // грузятся в новом качестве без пересборки главы.
-                        pageImageLoader.quality = ImageQuality.parse(it)
-                    },
+                    onAutoScrollChange = { appPreferences.READER_AUTOSCROLL_ENABLED.value = it },
+                    onAutoScrollIntervalChange = { appPreferences.READER_AUTOSCROLL_INTERVAL.value = it },
+                    onAutoScrollSmoothChange = { appPreferences.READER_AUTOSCROLL_SMOOTH.value = it },
+                    onPagePrefetchCountChange = { appPreferences.READER_PAGE_PREFETCH_COUNT.value = it },
                     manualHighlight = viewModel.state.settings.manualHighlight,
                     onManualHighlightStart = {
                         val firstVisible = getFirstFullyVisibleItemIndex()
@@ -567,6 +615,7 @@ class ReaderActivity : BaseActivity() {
                     totalItemCount: Int
                 ) {
                     lastScrollEventTime = SystemClock.elapsedRealtime()
+                    isPageChapter.value = viewModel.items.any { it is ReaderItem.Page }
                     prefetchPagesNear(firstVisibleItem, visibleItemCount)
                     updateCurrentReadingPosSavingState(
                         firstVisibleItemIndex = viewAdapter.listView.fromPositionToIndex(
