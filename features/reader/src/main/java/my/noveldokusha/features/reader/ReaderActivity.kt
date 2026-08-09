@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -232,41 +233,40 @@ class ReaderActivity : BaseActivity() {
      * каждый тик проверяем наличие Page-элементов.
      */
     private fun enableAutoScroll() {
-        lifecycleScope.launch {
-            combine(
-                appPreferences.READER_AUTOSCROLL_ENABLED.flow(),
-                appPreferences.READER_AUTOSCROLL_INTERVAL.flow(),
-                appPreferences.READER_AUTOSCROLL_SMOOTH.flow(),
-            ) { enabled, interval, smooth -> Triple(enabled, interval, smooth) }
-                .mapLatest { (enabled, interval, smooth) ->
-                    if (!enabled) return@mapLatest
-                    repeatOnLifecycle(Lifecycle.State.STARTED) {
-                        while (true) {
-                            val listView = viewBind.listView
-                            val hasPages = viewModel.items.any { it is ReaderItem.Page }
-                            val menuVisible = viewModel.state.showReaderInfo.value
-                            // Меню открыто — ждём 100 мс (как в tachiyomisy) и
-                            // продолжаем, чтобы скролл возобновился сразу после закрытия.
-                            if (hasPages && !menuVisible && listView.count > 0) {
-                                val screenHeight = resources.displayMetrics.heightPixels
-                                if (smooth) {
-                                    listView.smoothScrollBy(
-                                        0,
-                                        screenHeight,
-                                        (interval * 1000).toInt().coerceAtLeast(100)
-                                    )
-                                } else {
-                                    listView.scrollBy(0, screenHeight * 3 / 4)
-                                }
-                                delay((interval * 1000).toLong().coerceAtLeast(100L))
+        combine(
+            appPreferences.READER_AUTOSCROLL_ENABLED.flow(),
+            appPreferences.READER_AUTOSCROLL_INTERVAL.flow(),
+            appPreferences.READER_AUTOSCROLL_SMOOTH.flow(),
+        ) { enabled, interval, smooth -> Triple(enabled, interval, smooth) }
+            .mapLatest { (enabled, interval, smooth) ->
+                if (!enabled) return@mapLatest
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    while (true) {
+                        val listView = viewBind.listView
+                        val hasPages = viewModel.items.any { it is ReaderItem.Page }
+                        val menuVisible = viewModel.state.showReaderInfo.value
+                        // Меню открыто — ждём 100 мс (как в tachiyomisy) и
+                        // продолжаем, чтобы скролл возобновился сразу после закрытия.
+                        if (hasPages && !menuVisible && listView.count > 0) {
+                            val screenHeight = resources.displayMetrics.heightPixels
+                            if (smooth) {
+                                // AbsListView.smoothScrollBy(distance, duration):
+                                // плавный скролл на высоту экрана за интервал.
+                                listView.smoothScrollBy(
+                                    screenHeight,
+                                    (interval * 1000).toInt().coerceAtLeast(100)
+                                )
                             } else {
-                                delay(100L)
+                                listView.scrollBy(0, screenHeight * 3 / 4)
                             }
+                            delay((interval * 1000).toLong().coerceAtLeast(100L))
+                        } else {
+                            delay(100L)
                         }
                     }
                 }
-                .launchIn(lifecycleScope)
-        }
+            }
+            .launchIn(lifecycleScope)
     }
 
     private val backPressedCallback = object : OnBackPressedCallback(true) {
