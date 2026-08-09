@@ -585,11 +585,12 @@
     <string name="features_reader_full_screen">Полноэкранный режим</string>
 
     <string name="single_tap_to_open_settings">Открывать меню одним тапом</string>
-    <string name="image_quality">Качество картинок</string>
-    <string name="image_quality_high">Высокое</string>
-    <string name="image_quality_balanced">Сбалансированное</string>
-    <string name="image_quality_saver">Экономия трафика</string>
-    <string name="image_quality_low">Низкое</string>
+    <string name="manga_manhwa_settings">Манга / Манхва</string>
+    <string name="auto_scroll">Автопрокрутка</string>
+    <string name="auto_scroll_interval">Интервал прокрутки</string>
+    <string name="auto_scroll_interval_value">%1$s с</string>
+    <string name="auto_scroll_smooth">Плавная автопрокрутка</string>
+    <string name="page_prefetch_count">Рядов предзагрузки</string>
 
     <string name="move_to">Отправить в</string>
 

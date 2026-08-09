@@ -75,8 +75,6 @@ fun BookImageButtonView(
     val stripUnreadCount = sourceStripUnreadCount
     val stripSourceName = sourceStripSourceName
     val showStrip = stripUnreadCount != null && stripSourceName != null
-    // При полосе на кромке (18.dp) поднимаем заголовок, чтобы он не перекрывался.
-    val titleBottomPadding = if (showStrip && sourceStripOnCover) 30.dp else 8.dp
     Column(modifier = modifier.testTag(AppTestTags.BOOK_IMAGE_BUTTON_VIEW)) {
         Box(
             Modifier
@@ -108,14 +106,37 @@ fun BookImageButtonView(
                 )
             }
 
-            // Top-left badge (count, etc.) — not clipped
-            topLeftBadge?.let {
-                Box(modifier = Modifier.align(Alignment.TopStart)) { it() }
-            }
+            // Полоса источника на ВЕРХНЕЙ кромке обложки: полупрозрачная,
+            // компактная, рядом с рейтингом (topRightBadge) — как просил
+            // пользователь («source name и remaining chapters сверху,
+            // side by side с рейтингом»). Имя источника эллипсится —
+            // динамическое уплотнение под ширину колонки.
+            if (sourceStripOnCover && showStrip) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                ) {
+                    TopSourceStrip(
+                        unreadCount = stripUnreadCount,
+                        sourceName = stripSourceName,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    topRightBadge?.invoke()
+                }
+            } else {
+                // Top-left badge (count, etc.) — not clipped
+                topLeftBadge?.let {
+                    Box(modifier = Modifier.align(Alignment.TopStart)) { it() }
+                }
 
-            // Top-right badge (rating, etc.) — not clipped
-            topRightBadge?.let {
-                Box(modifier = Modifier.align(Alignment.TopEnd)) { it() }
+                // Top-right badge (rating, etc.) — not clipped
+                topRightBadge?.let {
+                    Box(modifier = Modifier.align(Alignment.TopEnd)) { it() }
+                }
             }
             if (bookTitlePosition == BookTitlePosition.Inside) {
                 // Stroke outline for better readability
@@ -132,7 +153,7 @@ fun BookImageButtonView(
                                 1f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                             )
                         )
-                        .padding(top = 30.dp, bottom = titleBottomPadding)
+                        .padding(top = 30.dp, bottom = 8.dp)
                         .padding(horizontal = 8.dp),
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontWeight = FontWeight.ExtraBold,
@@ -151,23 +172,12 @@ fun BookImageButtonView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(top = 30.dp, bottom = titleBottomPadding)
+                        .padding(top = 30.dp, bottom = 8.dp)
                         .padding(horizontal = 8.dp),
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.inverseOnSurface,
                     )
-                )
-            }
-
-            // Полоса источника на кромке обложки — низ скругляется внешним clip(ImageBorderShape)
-            if (sourceStripOnCover && stripUnreadCount != null && stripSourceName != null) {
-                SourceStrip(
-                    unreadCount = stripUnreadCount,
-                    sourceName = stripSourceName,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
                 )
             }
         }
@@ -255,6 +265,47 @@ private fun SourceStrip(
                 fontSize = 8.sp
             )
         )
+    }
+}
+
+/**
+ * Компактная полупрозрачная полоса «счётчик · источник» для ВЕРХНЕЙ кромки обложки
+ * (рядом с рейтингом). Один эллипсируемый текст — динамически уплотняется под
+ * ширину колонки: на узких обложках сначала режется имя источника.
+ */
+@Composable
+private fun TopSourceStrip(
+    unreadCount: Int,
+    sourceName: String,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .height(18.dp)
+            .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, bottomEnd = 6.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
+            .padding(horizontal = 6.dp)
+    ) {
+        if (unreadCount == 0) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
+        } else {
+            Text(
+                text = "$unreadCount · $sourceName",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 8.sp
+                )
+            )
+        }
     }
 }
 

@@ -116,7 +116,10 @@ internal fun ReaderScreen(
     onTtsHighlightEnabledChange: (Boolean) -> Unit,
     onTtsHighlightColorChange: (String) -> Unit,
     onManualHighlightEnabledChange: (Boolean) -> Unit = {},
-    onImageQualityChange: (String) -> Unit = {},
+    onAutoScrollChange: (Boolean) -> Unit = {},
+    onAutoScrollIntervalChange: (Float) -> Unit = {},
+    onAutoScrollSmoothChange: (Boolean) -> Unit = {},
+    onPagePrefetchCountChange: (Int) -> Unit = {},
     manualHighlight: ManualHighlightSettingData? = null,
     onManualHighlightStart: () -> Unit = {},
     manualHighlightInitialPosition: Pair<Float, Float>? = null,
@@ -253,7 +256,10 @@ internal fun ReaderScreen(
                         onTtsHighlightEnabledChange = onTtsHighlightEnabledChange,
                         onTtsHighlightColorChange = onTtsHighlightColorChange,
                         onManualHighlightEnabledChange = onManualHighlightEnabledChange,
-                        onImageQualityChange = onImageQualityChange,
+                        onAutoScrollChange = onAutoScrollChange,
+                        onAutoScrollIntervalChange = onAutoScrollIntervalChange,
+                        onAutoScrollSmoothChange = onAutoScrollSmoothChange,
+                        onPagePrefetchCountChange = onPagePrefetchCountChange,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     BottomAppBar(
@@ -618,7 +624,11 @@ private fun ViewsPreview(
                             clear = {},
                         ),
                         manualHighlightEnabled = remember { mutableStateOf(false) },
-                        imageQuality = remember { mutableStateOf("high") },
+                        autoscrollEnabled = remember { mutableStateOf(false) },
+                        autoscrollInterval = remember { mutableFloatStateOf(3f) },
+                        autoscrollSmooth = remember { mutableStateOf(true) },
+                        pagePrefetchCount = remember { mutableIntStateOf(8) },
+                        isPageChapter = remember { mutableStateOf(true) },
                     ),
                     showInvalidChapterDialog = remember { mutableStateOf(false) }
                 ),
@@ -638,7 +648,6 @@ private fun ViewsPreview(
                 onSingleTapToOpenSettingsChange = {},
                 onTtsHighlightEnabledChange = {},
                 onTtsHighlightColorChange = {},
-                onImageQualityChange = {},
             )
         }
     }

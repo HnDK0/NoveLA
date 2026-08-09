@@ -49,6 +49,12 @@ internal class ReaderViewModel @Inject constructor(
 
     private val readingPosStats = readerSession.readingStats
 
+    /**
+     * Обновляется ReaderActivity в onScroll: true, когда в текущем списке
+     * есть страницы манхвы/манги. Гейт для секции автопрокрутки в меню.
+     */
+    val isPageChapter = mutableStateOf(false)
+
     val state = ReaderScreenState(
         showReaderInfo = mutableStateOf(false),
         readerInfo = ReaderScreenState.CurrentInfo(
@@ -81,7 +87,11 @@ internal class ReaderViewModel @Inject constructor(
             ),
             manualHighlight = readerSession.readerManualHighlight.state,
             manualHighlightEnabled = appPreferences.MANUAL_HIGHLIGHT_ENABLED.state(viewModelScope),
-            imageQuality = appPreferences.READER_IMAGE_QUALITY.state(viewModelScope),
+            autoscrollEnabled = appPreferences.READER_AUTOSCROLL_ENABLED.state(viewModelScope),
+            autoscrollInterval = appPreferences.READER_AUTOSCROLL_INTERVAL.state(viewModelScope),
+            autoscrollSmooth = appPreferences.READER_AUTOSCROLL_SMOOTH.state(viewModelScope),
+            pagePrefetchCount = appPreferences.READER_PAGE_PREFETCH_COUNT.state(viewModelScope),
+            isPageChapter = isPageChapter,
             style = ReaderScreenState.Settings.StyleSettingsData(
                 currentDarkMode = mutableStateOf(DarkMode.SYSTEM).also { state ->
                     viewModelScope.launch {

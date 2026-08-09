@@ -7,10 +7,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Highlight
 import androidx.compose.material.icons.outlined.LightMode
@@ -19,6 +23,7 @@ import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -65,8 +70,15 @@ internal fun MoreSettingDialog(
     onTtsHighlightColorChange: (String) -> Unit,
     manualHighlightEnabled: Boolean = false,
     onManualHighlightEnabledChange: (Boolean) -> Unit = {},
-    imageQuality: String = "high",
-    onImageQualityChange: (String) -> Unit = {},
+    autoscrollEnabled: Boolean = false,
+    onAutoscrollChange: (Boolean) -> Unit = {},
+    autoscrollInterval: Float = 3f,
+    onAutoscrollIntervalChange: (Float) -> Unit = {},
+    autoscrollSmooth: Boolean = true,
+    onAutoscrollSmoothChange: (Boolean) -> Unit = {},
+    pagePrefetchCount: Int = 8,
+    onPagePrefetchCountChange: (Int) -> Unit = {},
+    isPageChapter: Boolean = false,
 ) {
     ElevatedCard(
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp)
@@ -223,62 +235,133 @@ internal fun MoreSettingDialog(
                 )
             }
         )
-        // Image quality (manga/manhwa pages)
-        SlimListItem(
-            modifier = Modifier,
-            headlineContent = {
-                Text(text = stringResource(id = R.string.image_quality))
-            },
-            leadingContent = {
-                Icon(
-                    Icons.Outlined.Highlight,
-                    null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingContent = {
-                Text(
-                    text = stringResource(
-                        id = when (imageQuality) {
-                            "balanced" -> R.string.image_quality_balanced
-                            "saver" -> R.string.image_quality_saver
-                            "low" -> R.string.image_quality_low
-                            else -> R.string.image_quality_high
+        // ── Чтение манхвы/манги (только для страничных глав) ──
+        if (isPageChapter) {
+            Text(
+                text = stringResource(R.string.manga_manhwa_settings),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp)
+            )
+            // Auto-scroll
+            SlimListItem(
+                modifier = Modifier
+                    .clickable { onAutoscrollChange(!autoscrollEnabled) },
+                headlineContent = {
+                    Text(text = stringResource(id = R.string.auto_scroll))
+                },
+                leadingContent = {
+                    Icon(
+                        Icons.Outlined.TouchApp,
+                        null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = autoscrollEnabled,
+                        onCheckedChange = onAutoscrollChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = colorAccent(),
+                            checkedTrackColor = colorAccent().copy(alpha = 0.4f),
+                        )
+                    )
+                }
+            )
+            if (autoscrollEnabled) {
+                // Interval
+                SlimListItem(
+                    modifier = Modifier,
+                    headlineContent = {
+                        Text(text = stringResource(id = R.string.auto_scroll_interval))
+                    },
+                    trailingContent = {
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = {
+                                    onAutoscrollIntervalChange(
+                                        (autoscrollInterval - 0.5f).coerceAtLeast(1f)
+                                    )
+                                }
+                            ) {
+                                Icon(Icons.Filled.Remove, null)
+                            }
+                            Text(
+                                text = stringResource(
+                                    R.string.auto_scroll_interval_value,
+                                    if (autoscrollInterval % 1f == 0f) {
+                                        autoscrollInterval.toInt().toString()
+                                    } else {
+                                        "%.1f".format(autoscrollInterval)
+                                    }
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(48.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            IconButton(
+                                onClick = {
+                                    onAutoscrollIntervalChange(
+                                        (autoscrollInterval + 0.5f).coerceAtMost(60f)
+                                    )
+                                }
+                            ) {
+                                Icon(Icons.Filled.Add, null)
+                            }
                         }
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+                // Smooth
+                SlimListItem(
+                    modifier = Modifier
+                        .clickable { onAutoscrollSmoothChange(!autoscrollSmooth) },
+                    headlineContent = {
+                        Text(text = stringResource(id = R.string.auto_scroll_smooth))
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = autoscrollSmooth,
+                            onCheckedChange = onAutoscrollSmoothChange,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = colorAccent(),
+                                checkedTrackColor = colorAccent().copy(alpha = 0.4f),
+                            )
+                        )
+                    }
                 )
             }
-        )
-        FlowRow(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            listOf(
-                "high" to R.string.image_quality_high,
-                "balanced" to R.string.image_quality_balanced,
-                "saver" to R.string.image_quality_saver,
-                "low" to R.string.image_quality_low,
-            ).forEach { (value, labelRes) ->
-                val isSelected = value == imageQuality
-                Box(
-                    modifier = Modifier
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(
-                            if (isSelected) colorAccent()
-                            else MaterialTheme.colorScheme.surfaceVariant
+            // Prefetch count
+            SlimListItem(
+                modifier = Modifier,
+                headlineContent = {
+                    Text(text = stringResource(id = R.string.page_prefetch_count))
+                },
+            )
+            FlowRow(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                listOf(4, 8, 12, 24).forEach { value ->
+                    val isSelected = value == pagePrefetchCount
+                    Box(
+                        modifier = Modifier
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(
+                                if (isSelected) colorAccent()
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                            .clickable { onPagePrefetchCountChange(value) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = value.toString(),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (isSelected) Color.White
+                            else MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        .clickable { onImageQualityChange(value) }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = stringResource(id = labelRes),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (isSelected) Color.White
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    }
                 }
             }
         }

@@ -2,7 +2,6 @@ package my.noveldokusha.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import my.noveldokusha.core.ImageQuality
 import my.noveldokusha.core.Response
 import my.noveldokusha.core.isLocalUri
 import my.noveldokusha.core.isValidChapterContent
@@ -51,14 +50,13 @@ class ChapterBodyRepository @Inject constructor(
     /**
      * Скачивание главы для оффлайн-доступа.
      * - Страничная глава (манхва/манга): файлы картинок в [DownloadedPageChaptersStore]
-     *   (качество из преференса), кэш списка страниц для оффлайн-открытия;
+     *   (всегда оригиналы, без пересжатия), кэш списка страниц для оффлайн-открытия;
      *   возвращает "" — легитимный успех, ретраи не нужны.
      * - Текстовая глава: как [fetchBody] + сохранение тела в кэш.
      * - Ошибка: [Response.Error] — DownloadManager ретраит.
      */
     suspend fun fetchChapterForDownload(
         urlChapter: String,
-        quality: ImageQuality
     ): Response<String> {
         if (urlChapter.isLocalUri) {
             // Локальные главы — только текст, страниц у них нет.
@@ -76,7 +74,7 @@ class ChapterBodyRepository @Inject constructor(
                             chapterPagesDao.insertReplace(
                                 ChapterPages(url = urlChapter, pages = encodePages(pages))
                             )
-                            val bytes = downloadedPageChaptersStore.downloadChapter(urlChapter, quality, pages)
+                            val bytes = downloadedPageChaptersStore.downloadChapter(urlChapter, pages)
                             Timber.d("page chapter downloaded: $urlChapter ($bytes bytes)")
                             Response.Success("")
                         } catch (e: Exception) {

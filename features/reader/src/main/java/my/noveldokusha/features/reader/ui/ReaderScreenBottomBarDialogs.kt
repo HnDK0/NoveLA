@@ -39,7 +39,10 @@ internal fun ReaderScreenBottomBarDialogs(
     onTtsHighlightEnabledChange: (Boolean) -> Unit,
     onTtsHighlightColorChange: (String) -> Unit,
     onManualHighlightEnabledChange: (Boolean) -> Unit = {},
-    onImageQualityChange: (String) -> Unit = {},
+    onAutoScrollChange: (Boolean) -> Unit = {},
+    onAutoScrollIntervalChange: (Float) -> Unit = {},
+    onAutoScrollSmoothChange: (Boolean) -> Unit = {},
+    onPagePrefetchCountChange: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -84,8 +87,15 @@ internal fun ReaderScreenBottomBarDialogs(
                         onTtsHighlightColorChange = onTtsHighlightColorChange,
                         manualHighlightEnabled = settings.manualHighlightEnabled.value,
                         onManualHighlightEnabledChange = onManualHighlightEnabledChange,
-                        imageQuality = settings.imageQuality.value,
-                        onImageQualityChange = onImageQualityChange,
+                        autoscrollEnabled = settings.autoscrollEnabled.value,
+                        onAutoscrollChange = onAutoScrollChange,
+                        autoscrollInterval = settings.autoscrollInterval.value,
+                        onAutoscrollIntervalChange = onAutoScrollIntervalChange,
+                        autoscrollSmooth = settings.autoscrollSmooth.value,
+                        onAutoscrollSmoothChange = onAutoScrollSmoothChange,
+                        pagePrefetchCount = settings.pagePrefetchCount.value,
+                        onPagePrefetchCountChange = onPagePrefetchCountChange,
+                        isPageChapter = settings.isPageChapter.value,
                     )
                     ReaderScreenState.Settings.Type.None -> Unit
                     ReaderScreenState.Settings.Type.RegexRules -> {
