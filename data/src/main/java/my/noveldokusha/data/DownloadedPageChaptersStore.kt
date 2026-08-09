@@ -66,8 +66,6 @@ class DownloadedPageChaptersStore @Inject constructor(
 
     suspend fun isDownloaded(chapterUrl: String): Boolean = dao.get(chapterUrl) != null
 
-    suspend fun getTotalBytes(chapterUrl: String): Long? = dao.get(chapterUrl)?.totalBytes
-
     /**
      * Файл локально скачанной страницы (глава + исходный URL страницы),
      * или null. Используется ридером для оффлайн-рендера.
