@@ -150,6 +150,9 @@ class ReaderActivity : BaseActivity() {
     // Гейт для UI автопрокрутки: в текстовых главах секция скрыта.
     private val isPageChapter = mutableStateOf(false)
 
+    // Манга-редирект выполнен (глава-картинка открыта в MangaReaderActivity).
+    private var mangaRedirectHandled = false
+
     private val viewModel by viewModels<ReaderViewModel>()
 
     private val viewBind by lazy { ActivityReaderBinding.inflate(layoutInflater) }
@@ -291,6 +294,29 @@ class ReaderActivity : BaseActivity() {
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
         viewBind.listView.adapter = viewAdapter.listView
         readerViewHandlersActions.listView = viewBind.listView
+
+        // Глава-картинка (манхва/манга: getPageList есть, текста нет) →
+        // манга-читалка. Редирект срабатывает один раз после первой
+        // загрузки главы; текстовый путь не затрагивается.
+        lifecycleScope.launch {
+            snapshotFlow { viewModel.items }
+                .collect { items ->
+                    if (mangaRedirectHandled) return@collect
+                    if (items.isEmpty()) return@collect
+                    if (
+                        items.any { it is ReaderItem.Page } &&
+                        items.none { it is ReaderItem.Text }
+                    ) {
+                        mangaRedirectHandled = true
+                        MangaReaderActivity.start(
+                            this@ReaderActivity,
+                            viewModel.bookUrl,
+                            viewModel.chapterUrl,
+                        )
+                        finish()
+                    }
+                }
+        }
 
         enableAutoScroll()
 
