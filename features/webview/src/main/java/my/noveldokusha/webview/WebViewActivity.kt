@@ -9,6 +9,7 @@ import android.webkit.*
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
+import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
@@ -20,7 +21,9 @@ import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.network.interceptors.CloudflareBypassSignal
 import my.noveldokusha.network.interceptors.PluginUARegistry
 import my.noveldokusha.network.interceptors.resolveUserAgent
+import my.noveldokusha.text_translator.domain.TranslationManager
 import timber.log.Timber
+import java.util.Locale
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -29,11 +32,13 @@ class WebViewActivity : ComponentActivity() {
     @Inject lateinit var toasty: Toasty
     @Inject lateinit var themeProvider: AppThemeProvider
     @Inject lateinit var appPreferences: AppPreferences
+    @Inject lateinit var translationManager: TranslationManager
 
     private var currentTargetUrl: String = ""
     private var isBypassMode: Boolean = false
     private var oldCfClearance: String = ""
     private lateinit var webView: WebView
+    private lateinit var translateBridge: NovelaTranslateBridge
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +66,8 @@ class WebViewActivity : ComponentActivity() {
         setContent {
             var isReady by remember { mutableStateOf(isBypassMode) }
             var currentUrl by remember { mutableStateOf(currentTargetUrl) }
+            var isTranslated by remember { mutableStateOf(false) }
+            val translationEnabled = !isBypassMode
 
             webView.webViewClient = object : WebViewClient() {
 
@@ -94,6 +101,17 @@ class WebViewActivity : ComponentActivity() {
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
+                    // Инъекция JS-обвязки перевода только вне bypass-режима и только на http(s)-документы.
+                    // Повторный сброс isTranslated здесь безвреден: JS-гард идемпотентности
+                    // (if (window.__novelaPageTranslator) return) не даёт обвязке перезаписаться,
+                    // а при активном переводе новый onPageFinished невозможен без смены документа
+                    // (reload/навигация) — страница в любом случае начинает с чистого состояния,
+                    // и кнопка корректно возвращается в «Translate».
+                    if (!isBypassMode && url != null && (url.startsWith("http://") || url.startsWith("https://"))) {
+                        webView.evaluateJavascript(PAGE_TRANSLATOR_JS, null)
+                        isTranslated = false  // новый документ → страница непереведена; повторные onPageFinished при активном переводе безвредны (JS-гард идемпотентности)
+                        translateBridge.setActive(false)  // новый документ → гейт моста закрыт до следующего клика Translate
+                    }
                     CookieManager.getInstance().flush()
                     val cookies = CookieManager.getInstance().getCookie(url) ?: ""
                     if (cookies.contains("cf_clearance")) {
@@ -178,11 +196,44 @@ class WebViewActivity : ComponentActivity() {
                     },
                     onReloadClicked = { webView.reload() },
                     onClearCookiesClicked = { hardResetSession() },
-                    onCopyUrlClicked = { copyToClipboard(webView.url ?: currentUrl) }
+                    onCopyUrlClicked = { copyToClipboard(webView.url ?: currentUrl) },
+                    translationEnabled = translationEnabled,
+                    isTranslated = isTranslated,
+                    onTranslateClicked = {
+                        if (isTranslated) {
+                            // Закрываем гейт моста до restore(): отказ летящего батча
+                            // (устаревшей генерации) не должен показывать toast.
+                            translateBridge.setActive(false)
+                            webView.evaluateJavascript("window.__novelaPageTranslator.restore()", null)
+                        } else {
+                            // Целевой язык всегда из белого списка GOOGLE_TRANSLATE_LANGUAGES
+                            // (или "en") — резолвер гарантирует отсутствие кавычек/небезопасных
+                            // символов, поэтому интерполяция в JS-литерал в одинарных кавычках безопасна.
+                            val target = TargetLanguageResolver.resolve(
+                                appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value,
+                                Locale.getDefault().language
+                            )
+                            // Микроокно (мс) между setActive(true) и исполнением start() в JS:
+                            // гейт уже открыт, но перевод ещё не начался — вызов translateAsync
+                            // в этом окне пропустится (ограничение проектирования, см. NovelaTranslateBridge).
+                            translateBridge.setActive(true)
+                            webView.evaluateJavascript("window.__novelaPageTranslator.start('$target')", null)
+                        }
+                        isTranslated = !isTranslated
+                    }
                 )
             }
         }
 
+        // Мост JS→Kotlin→JS регистрируется безусловно (в bypass-режиме он просто
+        // не используется — JS-обвязка в onPageFinished не инъецируется, кнопка скрыта).
+        translateBridge = NovelaTranslateBridge(
+            webView,
+            translationManager,
+            lifecycleScope,
+            onError = { toasty.show("Translation failed") }
+        )
+        webView.addJavascriptInterface(translateBridge, "NovelaTranslate")
         webView.loadUrl(currentTargetUrl)
     }
 

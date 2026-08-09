@@ -13,6 +13,7 @@ dependencies {
     implementation(projects.strings)
     implementation(projects.networking)
     implementation(projects.navigation)
+    implementation(projects.tooling.textTranslator.domain)
 
     implementation(libs.material)
     implementation(libs.androidx.lifecycle.livedata.ktx)
@@ -25,4 +26,6 @@ dependencies {
     implementation(libs.compose.material3.android)
     implementation(libs.compose.androidx.material.icons.extended)
     implementation(libs.compose.foundation.layout)
+
+    testImplementation(libs.test.junit)
 }

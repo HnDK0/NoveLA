@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -75,6 +76,10 @@ internal fun <T : View> WebViewScreen(
     onReloadClicked: () -> Unit,
     onClearCookiesClicked: () -> Unit,
     onCopyUrlClicked: () -> Unit,
+    // Дефолты до подключения состояния: WebViewActivity передаёт значения после инициализации.
+    translationEnabled: Boolean = false,
+    isTranslated: Boolean = false,
+    onTranslateClicked: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -156,6 +161,15 @@ internal fun <T : View> WebViewScreen(
                         }
 
                         Spacer(modifier = Modifier.weight(1f))
+
+                        // Кнопка перевода страницы: состояние приходит из Activity.
+                        if (translationEnabled) {
+                            LabeledIconButton(
+                                icon = Icons.Default.Translate,
+                                label = if (isTranslated) "Original" else "Translate",
+                                onClick = onTranslateClicked
+                            )
+                        }
 
                         LabeledIconButton(
                             icon = Icons.Default.ContentPaste,
