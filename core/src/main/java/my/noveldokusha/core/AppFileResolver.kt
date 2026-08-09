@@ -40,11 +40,12 @@ class AppFileResolver @Inject constructor(
         bookFolderName.removeLocalUriPrefix
     ).toString().addLocalUriPrefix
 
-    fun getStorageBookCoverImageFile(bookFolderName: String): File = Paths.get(
-        folderBooks.absolutePath,
-        bookFolderName.removeLocalUriPrefix,
-        COVER_PATH_RELATIVE_TO_BOOK
-    ).toFile()
+    fun getStorageBookCoverImageFile(bookFolderName: String): File =
+        Paths.get(
+            folderBooks.absolutePath,
+            bookFolderName.removeLocalUriPrefix,
+            COVER_PATH_RELATIVE_TO_BOOK
+        ).toFile().also { ensureInsideBooksDir(it, bookFolderName) }
 
     fun getStorageBookImageFile(bookFolderName: String, imagePath: String): File {
         val localBookFolderName = when {
@@ -55,7 +56,20 @@ class AppFileResolver @Inject constructor(
             folderBooks.absolutePath,
             localBookFolderName.removeLocalUriPrefix,
             imagePath.removeLocalUriPrefix
-        ).toFile()
+        ).toFile().also { ensureInsideBooksDir(it, imagePath) }
+    }
+
+    /**
+     * Отклоняет пути, которые через `..` выходят за пределы каталога книг.
+     * Защита от записи в произвольные каталоги приложения (lua_extensions и т.п.)
+     * через недоверенные имена путей из импортируемых книг.
+     */
+    private fun ensureInsideBooksDir(file: File, sourcePath: String) {
+        val canonicalBase = folderBooks.canonicalFile
+        val canonicalFile = file.canonicalFile
+        require(canonicalFile.path.startsWith(canonicalBase.path + File.separator)) {
+            "Image path escapes the books directory: $sourcePath"
+        }
     }
 
     fun getLocalBookFolderName(bookUrl: String): String = when {

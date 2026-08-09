@@ -7,6 +7,7 @@ import my.noveldokusha.core.Extension
 import my.noveldokusha.core.ExtensionManager
 import my.noveldokusha.feature.local_database.AppDatabase
 import my.noveldokusha.scraper.configs.HtmlSelectors
+import my.noveldokusha.scraper.isValidExtensionId
 import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
@@ -44,6 +45,7 @@ class ExtensionRepository @Inject constructor(
 
     override suspend fun installExtensionFromInfo(id: String, name: String, version: String, language: String, imageUrl: String?, codeUrl: String?) {
         try {
+            check(isValidExtensionId(id)) { "Invalid extension id: $id" }
             val settingsJson = if (!codeUrl.isNullOrBlank()) {
                 Gson().toJson(mapOf("codeUrl" to codeUrl))
             } else {

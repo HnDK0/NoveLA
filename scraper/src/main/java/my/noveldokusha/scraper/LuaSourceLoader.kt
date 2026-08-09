@@ -900,6 +900,13 @@ class LuaEngine @Inject constructor(
 // ── Песочница и байткод-утилиты (top-level internal для unit-тестов) ─────────
 
 /**
+ * Проверяет, что id расширения безопасен для использования в пути к файлу.
+ * Отклоняет разделители пути и `..`, не давая выйти за пределы lua_extensions.
+ */
+fun isValidExtensionId(id: String): Boolean =
+    id.isNotBlank() && !id.contains('/') && !id.contains('\\') && !id.contains("..")
+
+/**
  * Создаёт globals с минимально необходимым набором библиотек.
  * Удаляет глобалы, дающие RCE / доступ к файловой системе / загрузку произвольного кода,
  * чтобы внешние Lua-плагины не могли выйти из песочницы.
@@ -920,6 +927,7 @@ internal fun createLuaSandboxGlobals(): Globals {
     // убираем всё, что даёт доступ к ОС/файлам.
     (globals.get("os") as? LuaTable)?.apply {
         set("execute", LuaValue.NIL)
+        set("exit", LuaValue.NIL)
         set("getenv", LuaValue.NIL)
         set("rename", LuaValue.NIL)
         set("remove", LuaValue.NIL)
@@ -978,6 +986,7 @@ class LuaSourceLoader @Inject constructor(
 
     suspend fun saveScript(id: String, code: String): Boolean = withContext(Dispatchers.IO) {
         try {
+            check(isValidExtensionId(id)) { "Invalid extension id: $id" }
             atomicWrite(scriptFile(id), code.toByteArray(Charsets.UTF_8))
             cache.remove(id)
             Timber.d("Saved $id.lua")
@@ -1022,6 +1031,7 @@ class LuaSourceLoader @Inject constructor(
 
     suspend fun downloadAndCacheScript(id: String, codeUrl: String): Boolean = withContext(Dispatchers.IO) {
         try {
+            check(isValidExtensionId(id)) { "Invalid extension id: $id" }
             val response = networkClient.get(codeUrl)
             if (!response.isSuccessful) {
                 Timber.e("Download failed $id: HTTP ${response.code}")
@@ -1041,7 +1051,13 @@ class LuaSourceLoader @Inject constructor(
         }
     }
 
-    fun removeScript(id: String) { luaFile(id).delete(); cache.remove(id) }
+    fun removeScript(id: String) {
+        if (!isValidExtensionId(id)) {
+            Timber.w("removeScript: invalid id $id")
+            return
+        }
+        luaFile(id).delete(); cache.remove(id)
+    }
 
     // ── Private ───────────────────────────────────────────────────────────────
 
