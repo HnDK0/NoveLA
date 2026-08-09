@@ -312,7 +312,7 @@ internal class ReaderItemAdapter(
             bind.pageError.visibility = View.GONE
             bind.pageImage.visibility = View.VISIBLE
             bind.pageImage.setMinimumScaleType(SubsamplingScaleImageView.SCALE_TYPE_START)
-            bind.pageImage.setImage(ImageSource.uri(page.file))
+            bind.pageImage.setImage(ImageSource.uri(android.net.Uri.fromFile(page.file)))
         }
 
         fun showError() {
