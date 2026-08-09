@@ -15,6 +15,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
@@ -30,9 +31,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.SkipNext
-import androidx.compose.material.icons.automirrored.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -43,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -61,14 +63,14 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.mapLatest
 import my.noveldokusha.core.appPreferences.AppPreferences
-import my.noveldokusha.features.reader.R
-import my.noveldokusha.features.reader.databinding.ActivityMangaReaderBinding
 import my.noveldokusha.features.reader.manga.setting.MangaReadingMode
 import my.noveldokusha.features.reader.manga.ui.MangaReaderSettingsSheet
 import my.noveldokusha.features.reader.manga.viewer.Viewer
 import my.noveldokusha.features.reader.manga.viewer.pager.createPagerViewer
 import my.noveldokusha.features.reader.manga.viewer.webtoon.MangaWebtoonViewer
 import my.noveldokusha.features.reader.tools.PageImageLoader
+import my.noveldokusha.reader.R
+import my.noveldokusha.reader.databinding.ActivityMangaReaderBinding
 import javax.inject.Inject
 import kotlin.math.min
 
@@ -139,7 +141,11 @@ internal class MangaReaderActivity : ComponentActivity() {
 
         enableAutoScroll()
 
-        onBackPressedDispatcher.addCallback(this) {
+        onBackPressedDispatcher.addCallback(this, backPressedCallback)
+    }
+
+    private val backPressedCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
             viewModel.saveState()
             finish()
         }
@@ -358,10 +364,13 @@ internal class MangaReaderActivity : ComponentActivity() {
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .background(
-                            Color(settings.colorFilterValue),
-                            blendModeFor(settings.colorFilterMode),
-                        ),
+                        .drawWithContent {
+                            drawContent()
+                            drawRect(
+                                color = Color(settings.colorFilterValue),
+                                blendMode = blendModeFor(settings.colorFilterMode),
+                            )
+                        },
                 )
             }
 
@@ -452,7 +461,7 @@ internal class MangaReaderActivity : ComponentActivity() {
                 enabled = viewModel.hasPrevChapter(),
             ) {
                 Icon(
-                    Icons.AutoMirrored.Filled.SkipPrevious,
+                    Icons.Filled.SkipPrevious,
                     contentDescription = stringResource(R.string.manga_reader_prev_chapter),
                     tint = Color.WHITE,
                 )
@@ -484,7 +493,7 @@ internal class MangaReaderActivity : ComponentActivity() {
                 enabled = viewModel.hasNextChapter(),
             ) {
                 Icon(
-                    Icons.AutoMirrored.Filled.SkipNext,
+                    Icons.Filled.SkipNext,
                     contentDescription = stringResource(R.string.manga_reader_next_chapter),
                     tint = Color.WHITE,
                 )
