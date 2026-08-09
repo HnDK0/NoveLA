@@ -12,10 +12,13 @@ import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
  * (даже когда pan/zoom выключены) — ListView не получает ни драга, ни тапа:
  * лента не скроллится, меню не открывается.
  *
- * Здесь, пока жесты выключены (режим ленты — включить их можно позже для
- * зума), onTouchEvent отдаёт событие родителю: скролл идёт через ListView,
- * тап — через pageContainer. Тайловый декод и отрисовка в полном разрешении
- * не меняются.
+ * Маршрутизация жестов:
+ *  - один палец при немасштабированном виде → false: скролл через ListView,
+ *    тап — через pageContainer (открыть меню);
+ *  - два пальца (пинч) → SSIV: зум страницы (тайловый декод, детали в
+ *    полном разрешении);
+ *  - один палец при увеличенном виде (scale > minScale) → SSIV: пан внутри
+ *    страницы (ListView не скроллится, пока страница увеличена).
  */
 class ReaderPageView @JvmOverloads constructor(
     context: Context,
@@ -23,10 +26,10 @@ class ReaderPageView @JvmOverloads constructor(
 ) : SubsamplingScaleImageView(context, attrs) {
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        return if (isPanEnabled || isZoomEnabled) {
-            super.onTouchEvent(event)
-        } else {
-            false
+        return when {
+            event.pointerCount >= 2 && isZoomEnabled -> super.onTouchEvent(event)
+            isZoomEnabled && scale > minScale + 0.01f -> super.onTouchEvent(event)
+            else -> false
         }
     }
 }

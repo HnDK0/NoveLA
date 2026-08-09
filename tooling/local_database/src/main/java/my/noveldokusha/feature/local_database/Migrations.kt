@@ -391,6 +391,11 @@ internal fun databaseMigrations() = arrayOf(
             )
         """)
     },
+    migration(29) {
+        // Дата публикации главы (список глав: «добавлено»). NULL — старая
+        // запись или источник без дат; заполняется при обновлении метаданных.
+        it.execSQL("ALTER TABLE Chapter ADD COLUMN uploaded INTEGER")
+    },
 )
 
 internal fun migration(vi: Int, migrate: (SupportSQLiteDatabase) -> Unit) =

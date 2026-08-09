@@ -589,6 +589,7 @@
     <string name="image_quality_high">Высокое</string>
     <string name="image_quality_balanced">Сбалансированное</string>
     <string name="image_quality_saver">Экономия трафика</string>
+    <string name="image_quality_low">Низкое</string>
 
     <string name="move_to">Отправить в</string>
 
@@ -927,7 +928,7 @@
 
     <string name="clean_chapter_cache">Очистить кеш глав</string>
     <string name="clean_database_confirmation">Вы уверены, что хотите очистить базу данных? Это удалит все книги не из библиотеки и их данные.</string>
-    <string name="clean_images_folder_confirmation">Вы уверены, что хотите очистить папку изображений? Это удалит изображения книг не из библиотеки.</string>
+    <string name="clean_images_folder_confirmation">Вы уверены, что хотите очистить папку изображений? Это удалит кэш картинок, скачанные страницы манхвы/манги и изображения книг не из библиотеки.</string>
     <string name="clean_chapter_cache_confirmation">Вы уверены, что хотите очистить кеш глав? Это удалит кешированные тексты глав и переводы.</string>
 
     <string name="cleaning_chapter_cache">Очистка кеша глав…</string>

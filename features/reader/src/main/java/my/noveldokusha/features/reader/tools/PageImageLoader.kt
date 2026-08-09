@@ -56,6 +56,13 @@ class PageImageLoader @Inject constructor(
 
     private val mutex = Mutex()
 
+    /**
+     * Пропорции страниц (raw URL → ширина/высота) для стабильной высоты
+     * рядов: высота известна до появления картинки, ListView не дёргается.
+     * Заполняется при загрузке/префетче и из локально скачанных файлов.
+     */
+    private val dimsCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Int, Int>>()
+
     // Дедупликация одновременных загрузок одной страницы (скролл + префетч).
     private val inflight = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.CompletableDeferred<PageImage?>>()
     private val prefetchScope = kotlinx.coroutines.CoroutineScope(
@@ -68,6 +75,21 @@ class PageImageLoader @Inject constructor(
             .joinToString("") { "%02x".format(it) }
 
     private fun fileFor(url: String): File = File(cacheDir, sha256(url) + ".img")
+
+    /**
+     * Размеры страницы без сетевых запросов: память → файл кэша. null —
+     * неизвестны (страница ещё ни разу не грузилась). Только чтение
+     * заголовка файла (inJustDecodeBounds) — безопасно с любого потока.
+     * Скачанные главы: dims записываются в память при первом load().
+     */
+    fun getDimensions(chapterUrl: String, url: String): Pair<Int, Int>? {
+        dimsCache[url]?.let { return it }
+        val fromCache = fileFor(rewritePageUrlForQuality(url, quality))
+            .takeIf { it.exists() && it.length() > 0 }
+            ?.let { decodeBounds(it) }
+        if (fromCache != null) dimsCache[url] = fromCache
+        return fromCache
+    }
 
     /**
      * Фоновая загрузка страниц, которые вот-вот станут видны (скролл
@@ -92,7 +114,10 @@ class PageImageLoader @Inject constructor(
      */
     suspend fun load(chapterUrl: String, url: String): PageImage? {
         downloadedPageChaptersStore.getLocalPageFile(chapterUrl, url)?.let { file ->
-            decodeBounds(file)?.let { return PageImage(file, it.first, it.second) }
+            decodeBounds(file)?.let { dims ->
+                dimsCache[url] = dims
+                return PageImage(file, dims.first, dims.second)
+            }
         }
         val fetchUrl = rewritePageUrlForQuality(url, quality)
         inflight[fetchUrl]?.let { return it.await() }
@@ -100,6 +125,7 @@ class PageImageLoader @Inject constructor(
         inflight[fetchUrl] = deferred
         try {
             val result = doLoad(fetchUrl)
+            if (result != null) dimsCache[url] = result.width to result.height
             deferred.complete(result)
             return result
         } catch (e: Exception) {

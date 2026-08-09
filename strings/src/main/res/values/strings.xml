@@ -383,6 +383,7 @@
     <string name="image_quality_high">High</string>
     <string name="image_quality_balanced">Balanced</string>
     <string name="image_quality_saver">Data saver</string>
+    <string name="image_quality_low">Low</string>
     <string name="source_name_local">Local</string>
 
     <string name="delete_novel">Delete novel</string>
@@ -571,7 +572,7 @@
     <string name="auto_backup_never">Never</string>
     <string name="clean_chapter_cache">Clear chapter cache</string>
     <string name="clean_database_confirmation">Are you sure you want to clean the database? This will remove all non-library books and their data.</string>
-    <string name="clean_images_folder_confirmation">Are you sure you want to clean the images folder? This will remove images of non-library books.</string>
+    <string name="clean_images_folder_confirmation">Are you sure you want to clean the images folder? This will remove cached images, downloaded manga/manhwa pages and images of non-library books.</string>
     <string name="clean_chapter_cache_confirmation">Are you sure you want to clear the chapter cache? This will remove cached chapter bodies and translations.</string>
     <string name="cleaning_chapter_cache">Clearing chapter cache…</string>
     <string name="chapter_cache_cleaned">Chapter cache cleared</string>

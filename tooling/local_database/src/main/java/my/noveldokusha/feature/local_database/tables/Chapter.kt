@@ -16,5 +16,7 @@ data class Chapter(
     val position: Int,
     val read: Boolean = false,
     val lastReadPosition: Int = 0,
-    val lastReadOffset: Int = 0
+    val lastReadOffset: Int = 0,
+    /** Дата публикации главы (unix epoch, секунды); null — неизвестна. */
+    val uploaded: Long? = null
 )

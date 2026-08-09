@@ -18,6 +18,7 @@ import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.core.appPreferences.AppLanguage
 import my.noveldokusha.data.AppRemoteRepository
 import my.noveldokusha.data.AppRepository
+import my.noveldokusha.data.DownloadedPageChaptersStore
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.isCoverValid
@@ -42,6 +43,7 @@ internal class SettingsViewModel @Inject constructor(
     private val appRemoteRepository: AppRemoteRepository,
     private val toasty: Toasty,
     private val appWorkersInteractions: AppWorkersInteractions,
+    private val downloadedPageChaptersStore: DownloadedPageChaptersStore,
 ) : ViewModel() {
 
     var onRestartApp: (() -> Unit)? = null
@@ -225,6 +227,11 @@ internal class SettingsViewModel @Inject constructor(
             }
 
             context.cacheDir.resolve("image_cache").deleteRecursively()
+            // Манхва/манга: кэш загруженных страниц (PageImageLoader) и
+            // скачанные файлы глав-картинок (файлы + строки БД) — тоже
+            // «изображения», очистка должна удалять и их.
+            context.cacheDir.resolve("page_images").deleteRecursively()
+            downloadedPageChaptersStore.deleteAll()
             withContext(Dispatchers.Main) {
                 coil.Coil.imageLoader(context).memoryCache?.clear()
             }

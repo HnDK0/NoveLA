@@ -242,6 +242,7 @@ internal fun MoreSettingDialog(
                         id = when (imageQuality) {
                             "balanced" -> R.string.image_quality_balanced
                             "saver" -> R.string.image_quality_saver
+                            "low" -> R.string.image_quality_low
                             else -> R.string.image_quality_high
                         }
                     ),
@@ -259,6 +260,7 @@ internal fun MoreSettingDialog(
                 "high" to R.string.image_quality_high,
                 "balanced" to R.string.image_quality_balanced,
                 "saver" to R.string.image_quality_saver,
+                "low" to R.string.image_quality_low,
             ).forEach { (value, labelRes) ->
                 val isSelected = value == imageQuality
                 Box(

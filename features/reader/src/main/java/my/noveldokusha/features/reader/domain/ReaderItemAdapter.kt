@@ -289,6 +289,7 @@ internal class ReaderItemAdapter(
         bind.pageLoading.visibility = View.VISIBLE
         bind.pageError.visibility = View.GONE
         bind.pageImage.visibility = View.GONE
+        bind.pageContainer.attachImage(bind.pageImage)
         bind.pageContainer.setOnClickListener { onClick() }
 
         when (item.location) {
@@ -306,17 +307,32 @@ internal class ReaderItemAdapter(
             return bind.root
         }
 
+        // Стабильная высота ряда: пропорции из кэша размеров (память →
+        // локально скачанный файл → файл кэша) или placeholder 4:3, пока
+        // страница ещё ни разу не грузилась. Без этого ряд 0px «выстреливает»
+        // в полную высоту при появлении картинки, и список под пальцем прыгает.
+        val pageWidthPx = ctx.resources.displayMetrics.widthPixels
+        val knownDims = loader.getDimensions(item.chapterUrl, item.url)
+        val placeholderHeight = pageWidthPx * 4 / 3
+        val reservedHeight = knownDims?.let { (pageWidthPx * it.second) / it.first } ?: placeholderHeight
+        bind.pageImage.layoutParams = bind.pageImage.layoutParams.apply { height = reservedHeight }
+
         fun showPage(page: my.noveldokusha.features.reader.tools.PageImage) {
             if (bind.root.tag != item.url) return
             bind.pageLoading.visibility = View.GONE
             bind.pageError.visibility = View.GONE
             bind.pageImage.visibility = View.VISIBLE
             bind.pageImage.setMinimumScaleType(SubsamplingScaleImageView.SCALE_TYPE_START)
-            // Жесты SSIV перехватывают вертикальный скролл и тапы, не давая
-            // ListView прокручиваться и открывать меню. Отключаем pan/zoom —
-            // тайловый декод и отрисовка в полном разрешении остаются.
+            // Пинч (два пальца) — зум; один палец — скролл ListView (см.
+            // ReaderPageView.onTouchEvent). Пан внутри увеличенной страницы
+            // включается самим ReaderPageView при scale > minScale.
             bind.pageImage.setPanEnabled(false)
-            bind.pageImage.setZoomEnabled(false)
+            bind.pageImage.setZoomEnabled(true)
+            // Точная высота по пропорциям загруженной страницы (placeholder
+            // мог отличаться) — до setImage, чтобы SSIV не перемерился.
+            bind.pageImage.layoutParams = bind.pageImage.layoutParams.apply {
+                height = (pageWidthPx * page.height) / page.width
+            }
             bind.pageImage.setImage(ImageSource.uri(android.net.Uri.fromFile(page.file)))
         }
 

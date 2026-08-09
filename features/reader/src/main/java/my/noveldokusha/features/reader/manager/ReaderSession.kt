@@ -423,13 +423,18 @@ internal class ReaderSession(
         readerTextToSpeech.stop()
     }
 
-    fun updateInfoViewTo(itemIndex: Int, userHasScrolled: Boolean = false) {
+    fun updateInfoViewTo(
+        itemIndex: Int,
+        userHasScrolled: Boolean = false,
+        withinItemFraction: Float = 0f,
+    ) {
         val sessionAge = System.currentTimeMillis() - sessionCreatedTime
         if (sessionAge < 3000) return
 
         val stats = readerChaptersLoader.getItemContext(
             itemIndex = itemIndex,
-            chapterUrl = chapterUrl
+            chapterUrl = chapterUrl,
+            withinItemFraction = withinItemFraction,
         ) ?: return
         readingStats.value = stats
 
