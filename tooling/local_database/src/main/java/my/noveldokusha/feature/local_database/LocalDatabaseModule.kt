@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import my.noveldokusha.feature.local_database.DAOs.ChapterBodyDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterDao
+import my.noveldokusha.feature.local_database.DAOs.ChapterPagesDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
@@ -41,6 +42,10 @@ abstract class LocalDatabaseModule {
         @Provides
         @Singleton
         fun provideChapterBodyDao(database: AppDatabase): ChapterBodyDao = database.chapterBodyDao()
+
+        @Provides
+        @Singleton
+        fun provideChapterPagesDao(database: AppDatabase): ChapterPagesDao = database.chapterPagesDao()
 
         @Provides
         @Singleton
