@@ -95,6 +95,17 @@ class PageImageLoader @Inject constructor(
     }
 
     /**
+     * Префетч страниц манга-ридера (следующие страницы текущей главы).
+     * Ошибки игнорируются — load() при показе повторит запрос.
+     */
+    internal fun prefetchPages(chapterUrl: String, pages: List<my.noveldokusha.features.reader.manga.MangaPage>) {
+        if (pages.isEmpty()) return
+        prefetchScope.launch {
+            pages.forEach { load(chapterUrl, it.url) }
+        }
+    }
+
+    /**
      * Возвращает страницу из кэша или скачивает её (оригинал, без
      * пересжатия). null — ошибка сети/CDN. Размеры декодируются из
      * заголовка файла (inJustDecodeBounds). Ключ кэша/дедупликации —

@@ -985,4 +985,102 @@ class AppPreferences @Inject constructor(
         override fun component1(): T = value
         override fun component2() = ::value::set
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Manga/Manhwa reader (tachiyomisy-style) — applies to page chapters ONLY.
+    // Keys prefixed MANGA_READER_; autoscroll+prefetch reuse READER_* keys.
+    // ─────────────────────────────────────────────────────────────────────
+
+    /** MangaReadingMode.flagValue (4 = WEBTOON). */
+    val MANGA_READER_READING_MODE = object : Preference<Int>("MANGA_READER_READING_MODE") {
+        override var value by SharedPreference_Int(name, preferences, 4)
+    }
+    /** MangaReaderOrientation.flagValue (8 = FREE). */
+    val MANGA_READER_ORIENTATION = object : Preference<Int>("MANGA_READER_ORIENTATION") {
+        override var value by SharedPreference_Int(name, preferences, 8)
+    }
+    /** Пейджер: анимация перелистывания между страницами. */
+    val MANGA_READER_TRANSITIONS_PAGER = object : Preference<Boolean>("MANGA_READER_TRANSITIONS_PAGER") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+    /** Webtoon: «подсматривание» соседних страниц по краям. */
+    val MANGA_READER_TRANSITIONS_WEBTOON = object : Preference<Boolean>("MANGA_READER_TRANSITIONS_WEBTOON") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+    /** Показывать счётчик «страница / всего». */
+    val MANGA_READER_SHOW_PAGE_NUMBER = object : Preference<Boolean>("MANGA_READER_SHOW_PAGE_NUMBER") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+    val MANGA_READER_KEEP_SCREEN_ON = object : Preference<Boolean>("MANGA_READER_KEEP_SCREEN_ON") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+    val MANGA_READER_FULLSCREEN = object : Preference<Boolean>("MANGA_READER_FULLSCREEN") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+    /** Фон читалки: 0=WHITE, 1=BLACK, 2=GRAY, 3=AUTO (как tachiyomisy readerTheme). */
+    val MANGA_READER_THEME = object : Preference<Int>("MANGA_READER_THEME") {
+        override var value by SharedPreference_Int(name, preferences, 1)
+    }
+    /** Боковой отступ webtoon-ленты в dp (0..25). */
+    val MANGA_READER_WEBTOON_SIDE_PADDING = object : Preference<Int>("MANGA_READER_WEBTOON_SIDE_PADDING") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+    val MANGA_READER_WEBTOON_DOUBLE_TAP_ZOOM = object : Preference<Boolean>("MANGA_READER_WEBTOON_DOUBLE_TAP_ZOOM") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+    /** Webtoon: запрет отдаления до размеров меньше экрана (zoom-out на первую страницу). */
+    val MANGA_READER_WEBTOON_DISABLE_ZOOM_OUT = object : Preference<Boolean>("MANGA_READER_WEBTOON_DISABLE_ZOOM_OUT") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+    /** MangaZoomStart.value (0 = AUTOMATIC). */
+    val MANGA_READER_ZOOM_START = object : Preference<Int>("MANGA_READER_ZOOM_START") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+    /** Длительность анимации дабл-тап зума в мс (fast=300, medium=500, slow=750). */
+    val MANGA_READER_DOUBLE_TAP_ANIM_SPEED = object : Preference<Int>("MANGA_READER_DOUBLE_TAP_ANIM_SPEED") {
+        override var value by SharedPreference_Int(name, preferences, 500)
+    }
+    /** MangaNavigationMode.value для пейджера (0 = default). */
+    val MANGA_READER_NAV_MODE_PAGER = object : Preference<Int>("MANGA_READER_NAV_MODE_PAGER") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+    /** MangaNavigationMode.value для webtoon (0 = default). */
+    val MANGA_READER_NAV_MODE_WEBTOON = object : Preference<Int>("MANGA_READER_NAV_MODE_WEBTOON") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+    /** MangaTappingInvertMode.storageKey. */
+    val MANGA_READER_TAPPING_INVERTED_PAGER = object : Preference<String>("MANGA_READER_TAPPING_INVERTED_PAGER") {
+        override var value by SharedPreference_String(name, preferences, "NONE")
+    }
+    /** MangaTappingInvertMode.storageKey. */
+    val MANGA_READER_TAPPING_INVERTED_WEBTOON = object : Preference<String>("MANGA_READER_TAPPING_INVERTED_WEBTOON") {
+        override var value by SharedPreference_String(name, preferences, "NONE")
+    }
+    val MANGA_READER_VOLUME_KEYS = object : Preference<Boolean>("MANGA_READER_VOLUME_KEYS") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+    val MANGA_READER_VOLUME_KEYS_INVERTED = object : Preference<Boolean>("MANGA_READER_VOLUME_KEYS_INVERTED") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+    /** Долгое нажатие по странице открывает меню. */
+    val MANGA_READER_LONG_TAP = object : Preference<Boolean>("MANGA_READER_LONG_TAP") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+    val MANGA_READER_COLOR_FILTER = object : Preference<Boolean>("MANGA_READER_COLOR_FILTER") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+    /** ARGB-цвет оверлея. */
+    val MANGA_READER_COLOR_FILTER_VALUE = object : Preference<Int>("MANGA_READER_COLOR_FILTER_VALUE") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+    /** 0=normal,1=multiply,2=screen,3=overlay,4=lighten,5=darken. */
+    val MANGA_READER_COLOR_FILTER_MODE = object : Preference<Int>("MANGA_READER_COLOR_FILTER_MODE") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+    val MANGA_READER_GRAYSCALE = object : Preference<Boolean>("MANGA_READER_GRAYSCALE") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+    val MANGA_READER_INVERTED_COLORS = object : Preference<Boolean>("MANGA_READER_INVERTED_COLORS") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
 }

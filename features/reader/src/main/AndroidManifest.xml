@@ -5,6 +5,9 @@
 
 	<application>
 		<activity android:name="my.noveldokusha.features.reader.ReaderActivity" />
+		<activity
+			android:name="my.noveldokusha.features.reader.manga.MangaReaderActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden" />
 
 		<service
 			android:name="my.noveldokusha.features.reader.services.NarratorMediaControlsService"
