@@ -672,6 +672,9 @@ class DownloadManager @Inject constructor(
                                 )
                             }
                             is TranslateResult.Interrupted -> return@launch
+                            is TranslateResult.Skipped -> updateTask(bookUrl) {
+                                it.copy(skippedCount = it.skippedCount + 1, consecutiveErrors = 0)
+                            }
                             null -> updateTask(bookUrl) {
                                 it.copy(skippedCount = it.skippedCount + 1, consecutiveErrors = 0)
                             }
