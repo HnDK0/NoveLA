@@ -966,7 +966,7 @@ class DownloadManager @Inject constructor(
                         tasksMutex.withLock { _tasks.value[bookUrl] }
                             ?: return FetchResult.Interrupted
                     )
-                    return FetchResult.Success(body)
+                    return FetchResult.Success(result.data)
                 }
                 is my.noveldokusha.core.Response.Error -> {
                     if (isNetworkError(result)) {
