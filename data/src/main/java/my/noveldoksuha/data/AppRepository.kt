@@ -90,6 +90,10 @@ class AppRepository @Inject constructor(
 
             if (nonLibraryBookUrls.isNotEmpty()) {
                 Timber.d("clearNonLibraryData: Removing ${nonLibraryBookUrls.size} non-library books")
+                // Файлы скачанных страничных глав удаляем ДО удаления глав:
+                // deleteBookChapters находит ряды по JOIN с Chapter.
+                downloadedPageChaptersStore.deleteBookChapters(nonLibraryBookUrls)
+
                 db.transaction {
                     nonLibraryBookUrls.chunked(500).forEach { chunk ->
                         db.chapterTranslationDao().deleteTranslationsByBookUrls(chunk)
@@ -99,8 +103,6 @@ class AppRepository @Inject constructor(
                     }
                     db.libraryDao().removeBooksByUrls(nonLibraryBookUrls)
                 }
-
-                downloadedPageChaptersStore.deleteBookChapters(nonLibraryBookUrls)
 
                 libraryBooks.clearPerNovelData(nonLibraryBookUrls)
 

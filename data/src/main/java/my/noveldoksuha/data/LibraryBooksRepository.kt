@@ -101,6 +101,9 @@ class LibraryBooksRepository @Inject constructor(
      * This is the correct way to remove a book from the library.
      */
     suspend fun deleteBookCompletely(bookUrl: String) = withContext(Dispatchers.IO) {
+        // Файлы скачанных страничных глав удаляем ДО удаления глав:
+        // deleteBookChapters находит ряды по JOIN с Chapter.
+        downloadedPageChaptersStore.deleteBookChapters(listOf(bookUrl))
         appDatabase.transaction {
             // 1. Delete chapter translations
             chapterTranslationDao.deleteTranslationsByBookUrls(listOf(bookUrl))
@@ -111,7 +114,6 @@ class LibraryBooksRepository @Inject constructor(
             // 4. Delete the book record itself
             libraryDao.remove(bookUrl)
         }
-        downloadedPageChaptersStore.deleteBookChapters(listOf(bookUrl))
         clearPerNovelData(listOf(bookUrl))
     }
 
@@ -120,6 +122,9 @@ class LibraryBooksRepository @Inject constructor(
      */
     suspend fun deleteBooksCompletely(bookUrls: List<String>) = withContext(Dispatchers.IO) {
         if (bookUrls.isEmpty()) return@withContext
+        // Файлы скачанных страничных глав удаляем ДО удаления глав:
+        // deleteBookChapters находит ряды по JOIN с Chapter.
+        downloadedPageChaptersStore.deleteBookChapters(bookUrls)
         appDatabase.transaction {
             // Process in chunks to avoid SQLite variable limit
             bookUrls.chunked(500).forEach { chunk ->
@@ -129,7 +134,6 @@ class LibraryBooksRepository @Inject constructor(
                 libraryDao.removeBooksByUrls(chunk)
             }
         }
-        downloadedPageChaptersStore.deleteBookChapters(bookUrls)
         clearPerNovelData(bookUrls)
     }
 
