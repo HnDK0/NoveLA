@@ -16,6 +16,7 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
+import com.davemorrissey.labs.subscaleview.ImageSource
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -311,7 +312,7 @@ internal class ReaderItemAdapter(
             bind.pageError.visibility = View.GONE
             bind.pageImage.visibility = View.VISIBLE
             bind.pageImage.setMinimumScaleType(SubsamplingScaleImageView.SCALE_TYPE_START)
-            bind.pageImage.setImage(page.file)
+            bind.pageImage.setImage(ImageSource.uri(page.file))
         }
 
         fun showError() {
