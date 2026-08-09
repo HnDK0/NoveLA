@@ -40,6 +40,8 @@ internal data class ReaderScreenState(
         val ttsHighlight: TtsHighlightSettingsData,
         val manualHighlight: ManualHighlightSettingData,
         val manualHighlightEnabled: State<Boolean>,
+        // "high" | "balanced" | "saver" — качество картинок манхвы/манги
+        val imageQuality: State<String>,
     ) {
         @Stable
         data class StyleSettingsData(

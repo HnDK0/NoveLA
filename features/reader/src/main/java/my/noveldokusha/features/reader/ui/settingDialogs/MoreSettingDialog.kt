@@ -65,6 +65,8 @@ internal fun MoreSettingDialog(
     onTtsHighlightColorChange: (String) -> Unit,
     manualHighlightEnabled: Boolean = false,
     onManualHighlightEnabledChange: (Boolean) -> Unit = {},
+    imageQuality: String = "high",
+    onImageQualityChange: (String) -> Unit = {},
 ) {
     ElevatedCard(
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp)
@@ -221,6 +223,63 @@ internal fun MoreSettingDialog(
                 )
             }
         )
+        // Image quality (manga/manhwa pages)
+        SlimListItem(
+            modifier = Modifier,
+            headlineContent = {
+                Text(text = stringResource(id = R.string.image_quality))
+            },
+            leadingContent = {
+                Icon(
+                    Icons.Outlined.Highlight,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingContent = {
+                Text(
+                    text = stringResource(
+                        id = when (imageQuality) {
+                            "balanced" -> R.string.image_quality_balanced
+                            "saver" -> R.string.image_quality_saver
+                            else -> R.string.image_quality_high
+                        }
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
+        FlowRow(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            listOf(
+                "high" to R.string.image_quality_high,
+                "balanced" to R.string.image_quality_balanced,
+                "saver" to R.string.image_quality_saver,
+            ).forEach { (value, labelRes) ->
+                val isSelected = value == imageQuality
+                Box(
+                    modifier = Modifier
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(
+                            if (isSelected) colorAccent()
+                            else MaterialTheme.colorScheme.surfaceVariant
+                        )
+                        .clickable { onImageQualityChange(value) }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = stringResource(id = labelRes),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (isSelected) Color.White
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
         // Single tap to open settings
         SlimListItem(
             modifier = Modifier

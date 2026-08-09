@@ -92,6 +92,7 @@
     <string name="no_more_results">No more results</string>
     <string name="global_search">Global search</string>
     <string name="error_loading">Error loading</string>
+    <string name="page_load_error">Failed to load page image.\nCheck your connection or try again.</string>
     <string name="open_the_web_view">Open the web view</string>
     <string name="search_for_title">Search for title</string>
     <string name="search_here">Search here</string>
@@ -377,6 +378,10 @@
     <string name="tried_but_failed_to_bypass_cloudfare_firewall">Tried but failed to bypass cloudfare firewall</string>
     <string name="features_reader_full_screen">Full screen</string>
     <string name="single_tap_to_open_settings">Single tap to open menu</string>
+    <string name="image_quality">Image quality</string>
+    <string name="image_quality_high">High</string>
+    <string name="image_quality_balanced">Balanced</string>
+    <string name="image_quality_saver">Data saver</string>
     <string name="source_name_local">Local</string>
 
     <string name="delete_novel">Delete novel</string>

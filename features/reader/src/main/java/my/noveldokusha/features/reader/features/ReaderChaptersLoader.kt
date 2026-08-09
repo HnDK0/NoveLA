@@ -25,6 +25,8 @@ import my.noveldokusha.features.reader.domain.ReaderState
 import my.noveldokusha.features.reader.domain.ReadingChapterPosStats
 import my.noveldokusha.features.reader.domain.indexOfReaderItem
 import my.noveldokusha.features.reader.tools.applyUserRegexRules
+import my.noveldokusha.features.reader.tools.ImageQuality
+import my.noveldokusha.features.reader.tools.rewritePageUrlForQuality
 import my.noveldokusha.features.reader.tools.textToItemsConverter
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
@@ -53,6 +55,8 @@ internal class ReaderChaptersLoader(
     private val readerViewHandlersActions: ReaderViewHandlersActions,
     private val chapterTranslationDao: ChapterTranslationDao,
     private val regexRulesProvider: () -> List<my.noveldokusha.core.models.RegexRule> = { emptyList() },
+    private val imageQualityProvider: () -> my.noveldokusha.features.reader.tools.ImageQuality =
+        { my.noveldokusha.features.reader.tools.ImageQuality.HIGH },
 ) : CoroutineScope {
     override val coroutineContext: CoroutineContext = SupervisorJob() + Dispatchers.Main.immediate
 
@@ -556,6 +560,56 @@ internal class ReaderChaptersLoader(
                 insert(itemProgressBar)
                 readerViewHandlersActions.doForceUpdateListViewState()
             }
+        }
+
+        // ── Манхва/манга: глава = список URL страниц (getPageList) ──
+        val pagesResult = readerRepository.downloadChapterPages(chapter.url)
+        if (pagesResult is Response.Success && pagesResult.data.isNotEmpty()) {
+            val quality = imageQualityProvider()
+            val pageItems = pagesResult.data.mapIndexed { index, pageUrl ->
+                ReaderItem.Page(
+                    chapterUrl = chapter.url,
+                    chapterIndex = chapterIndex,
+                    chapterItemPosition = chapterItemPosition + index,
+                    location = ReaderItem.Location.MIDDLE,
+                    url = rewritePageUrlForQuality(pageUrl, quality),
+                )
+            }
+            chapterItemPosition += pageItems.size
+            Timber.d("page chapter[%d] %s: %d pages", chapterIndex, chapter.title, pageItems.size)
+
+            withContext(Dispatchers.Main.immediate) {
+                chaptersStats[chapter.url] = ChapterStats(
+                    chapter = chapter,
+                    itemsCount = pageItems.size,
+                    orderedChaptersIndex = chapterIndex
+                )
+            }
+
+            // Перевод текста к страницам неприменим (картинки) — сразу коммитим.
+            if (maintainOnSuccess) {
+                maintainPosition {
+                    remove(itemProgressBar)
+                    withContext(Dispatchers.Main.immediate) {
+                        val idx = this@ReaderChaptersLoader.items.indexOf(itemTitle)
+                        if (idx != -1) this@ReaderChaptersLoader.items[idx] = itemTitle
+                    }
+                    insertAll(pageItems)
+                    insert(ReaderItem.Divider(chapterIndex = chapterIndex))
+                    readerViewHandlersActions.doForceUpdateListViewState()
+                }
+            } else {
+                withContext(Dispatchers.Main.immediate) {
+                    val backingList = this@ReaderChaptersLoader.items
+                    backingList.remove(itemProgressBar)
+                    val idx = backingList.indexOf(itemTitle)
+                    if (idx != -1) backingList[idx] = itemTitle
+                    backingList.addAll(pageItems)
+                    backingList.add(ReaderItem.Divider(chapterIndex = chapterIndex))
+                    readerViewHandlersActions.forceUpdateListViewState?.invoke()
+                }
+            }
+            return@_addChapterInternal true
         }
 
         when (val res = readerRepository.downloadChapter(chapter.url)) {

@@ -66,6 +66,7 @@ import my.noveldokusha.features.reader.domain.indexOfReaderItem
 import my.noveldokusha.features.reader.manager.ReaderManager
 import my.noveldokusha.features.reader.services.NarratorMediaControlsService
 import my.noveldokusha.features.reader.tools.FontsLoader
+import my.noveldokusha.features.reader.tools.PageImageLoader
 import my.noveldokusha.features.reader.ui.ReaderScreen
 import my.noveldokusha.features.reader.ui.ReaderScreenState
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
@@ -112,6 +113,9 @@ class ReaderActivity : BaseActivity() {
 
     @Inject
     internal lateinit var appRepository: AppRepository
+
+    @Inject
+    internal lateinit var pageImageLoader: PageImageLoader
 
     private var listIsScrolling = false
     // Время последнего события скролла: используется как watchdog для сброса
@@ -187,11 +191,29 @@ class ReaderActivity : BaseActivity() {
                 currentTtsHighlightColor = { appPreferences.TTS_HIGHLIGHT_COLOR.value },
                 currentSpokenWordRange = { viewModel.readerSpeaker.state.spokenWordRange.value },
                 currentManualHighlight = { viewModel.state.settings.manualHighlight.highlightedItem.value },
+                pageImageLoader = pageImageLoader,
+                itemViewScope = lifecycleScope,
             )
         }
     }
 
     private val fontsLoader by lazy { FontsLoader(this) }
+
+    /**
+     * Префетч страниц манхвы/манги на ~8 рядов вперёд по скроллу.
+     * URL известны из getPageList заранее; load() дедуплицирует
+     * одновременные запросы, повторный показ после ошибки — отдельный load.
+     */
+    private fun prefetchPagesNear(firstVisibleItem: Int, visibleItemCount: Int) {
+        val adapter = viewAdapter.listView
+        val start = (firstVisibleItem + visibleItemCount).coerceIn(0, adapter.count - 1)
+        val end = (start + 8).coerceAtMost(adapter.count - 1)
+        val urls = ArrayList<String>(end - start + 1)
+        for (pos in start..end) {
+            (adapter.getItem(pos) as? ReaderItem.Page)?.let { urls.add(it.url) }
+        }
+        pageImageLoader.prefetch(urls)
+    }
 
     private val backPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
@@ -460,6 +482,7 @@ class ReaderActivity : BaseActivity() {
                         appPreferences.MANUAL_HIGHLIGHT_ENABLED.value = it
                         if (!it) viewModel.stopManualHighlight()
                     },
+                    onImageQualityChange = { appPreferences.READER_IMAGE_QUALITY.value = it },
                     manualHighlight = viewModel.state.settings.manualHighlight,
                     onManualHighlightStart = {
                         val firstVisible = getFirstFullyVisibleItemIndex()
@@ -515,6 +538,7 @@ class ReaderActivity : BaseActivity() {
                     totalItemCount: Int
                 ) {
                     lastScrollEventTime = SystemClock.elapsedRealtime()
+                    prefetchPagesNear(firstVisibleItem, visibleItemCount)
                     updateCurrentReadingPosSavingState(
                         firstVisibleItemIndex = viewAdapter.listView.fromPositionToIndex(
                             viewBind.listView.firstVisiblePosition

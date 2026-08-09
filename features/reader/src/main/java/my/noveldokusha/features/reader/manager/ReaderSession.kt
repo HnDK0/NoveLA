@@ -145,6 +145,7 @@ internal class ReaderSession(
         readerViewHandlersActions = readerViewHandlersActions,
         chapterTranslationDao = chapterTranslationDao,
         regexRulesProvider = { appPreferences.effectiveRegexRules(bookUrl) },
+        imageQualityProvider = { my.noveldokusha.features.reader.tools.ImageQuality.parse(appPreferences.READER_IMAGE_QUALITY.value) },
     )
 
     val items = readerChaptersLoader.getItems()

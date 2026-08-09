@@ -33,6 +33,14 @@ sealed interface SourceInterface {
 
     suspend fun getChapterText(doc: Document): String? = null
 
+    /**
+     * Chapters rendered as a plain ordered list of page images (manga/manhwa).
+     * Returns the page URLs extracted from the fetched chapter [doc], or null
+     * when the source has no page-list support for this chapter — callers then
+     * fall back to the legacy HTML [getChapterText] path.
+     */
+    suspend fun getChapterPages(doc: Document): List<String>? = null
+
     interface Base : SourceInterface
     interface Catalog : SourceInterface {
         val catalogUrl: String

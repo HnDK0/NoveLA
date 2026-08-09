@@ -35,6 +35,7 @@ dependencies {
     implementation(libs.compose.material3.android)
     implementation(libs.coil)
     implementation(libs.jsoup)
+    implementation(libs.subsampling.scale.image.view)
     implementation(libs.timber)
 
     // Kotlin reflection for dynamic batch translator lookup

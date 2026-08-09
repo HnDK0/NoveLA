@@ -218,6 +218,14 @@ class AppPreferences @Inject constructor(
     val READER_FONT_FAMILY = object : Preference<String>("READER_FONT_FAMILY") {
         override var value by SharedPreference_String(name, preferences, "serif")
     }
+    /**
+     * Качество картинок манхвы/манги: "high" (оригинал), "balanced" (weserv
+     * q=80 + ширина), "saver" (weserv q=60 + уже). Переписывание URL —
+     * только на страницах-картинках, текстовые главы не затрагиваются.
+     */
+    val READER_IMAGE_QUALITY = object : Preference<String>("READER_IMAGE_QUALITY") {
+        override var value by SharedPreference_String(name, preferences, "high")
+    }
     val READER_LINE_HEIGHT = object : Preference<Float>("READER_LINE_HEIGHT") {
         override var value by SharedPreference_Float(name, preferences, 1.35f)
     }

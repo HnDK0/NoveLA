@@ -61,6 +61,9 @@ okhttp-interceptor-logging = "5.0.0-alpha.14"
 
 readability4j = "1.0.8"
 
+# SubsamplingScaleImageView: тайловый рендер страниц манхвы/манги
+subsampling-scale-image-view = "3.10.0"
+
 timber = "5.0.1"
 kotlin-metadata-jvm = "2.4.0"
 sora-editor = "0.24.4"
@@ -95,6 +98,8 @@ androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "
 
 #Networking
 okhttp-interceptor-logging = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp-interceptor-logging" }
+
+subsampling-scale-image-view = { module = "com.davemorrissey.labs:subsampling-scale-image-view", version.ref = "subsampling-scale-image-view" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 okhttp-interceptor-brotli = { module = "com.squareup.okhttp3:okhttp-brotli", version.ref = "okhttp" }
 

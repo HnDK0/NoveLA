@@ -59,6 +59,19 @@ internal sealed interface ReaderItem {
         val image: ImgEntry,
     ) : ReaderItem, Position, ParagraphLocation
 
+    /**
+     * Страница главы-картинки (манхва/манга): упорядоченный URL из
+     * getPageList. Рендерится через PageImageLoader + SSIV на всю ширину
+     * с пропорцией из декодированного изображения (yrel не нужен).
+     */
+    data class Page(
+        override val chapterUrl: String,
+        override val chapterItemPosition: Int,
+        override val location: Location,
+        override val chapterIndex: Int,
+        val url: String,
+    ) : ReaderItem, Position, ParagraphLocation
+
     data class Translating(
         override val chapterIndex: Int,
         val sourceLang: String,

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:id="@+id/pageContainer"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	>
+
+	<com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
+		android:id="@+id/pageImage"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:contentDescription="@string/image"
+		android:visibility="gone"
+		/>
+
+	<ProgressBar
+		android:id="@+id/pageLoading"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_gravity="center"
+		/>
+
+	<LinearLayout
+		android:id="@+id/pageError"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="center"
+		android:orientation="vertical"
+		android:padding="16dp"
+		android:visibility="gone"
+		>
+
+		<TextView
+			android:id="@+id/pageErrorText"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:gravity="center"
+			android:text="@string/page_load_error"
+			android:textColor="?android:attr/textColorSecondary"
+			/>
+
+		<Button
+			android:id="@+id/pageRetry"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:text="@string/retry"
+			style="?android:attr/borderlessButtonStyle"
+			/>
+	</LinearLayout>
+</FrameLayout>
