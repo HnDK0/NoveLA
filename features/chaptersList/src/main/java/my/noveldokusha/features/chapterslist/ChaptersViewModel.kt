@@ -226,13 +226,17 @@ internal class ChaptersViewModel @Inject constructor(
 
         viewModelScope.launch {
             bookUrlFlow.collect { url ->
-                chaptersRepository.getChaptersSortedFlow(bookUrl = url).collect {
-                    state.chapters.clear()
-                    state.chapters.addAll(it)
+                launch {
+                    chaptersRepository.getChaptersSortedFlow(bookUrl = url).collect {
+                        state.chapters.clear()
+                        state.chapters.addAll(it)
+                    }
                 }
-                chaptersRepository.getChapterSizesFlow(bookUrl = url).collect {
-                    state.chapterSizes.clear()
-                    state.chapterSizes.putAll(it)
+                launch {
+                    chaptersRepository.getChapterSizesFlow(bookUrl = url).collect {
+                        state.chapterSizes.clear()
+                        state.chapterSizes.putAll(it)
+                    }
                 }
             }
         }
