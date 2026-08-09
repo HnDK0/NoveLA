@@ -30,6 +30,12 @@ internal abstract class MangaPagerViewer(
 
     override val view: View get() = pager
 
+    /** Горизонтальный (L2R/R2L) или вертикальный пейджер. */
+    protected abstract val isHorizontal: Boolean
+
+    /** R2L — reverseLayout: первая страница справа, листание влево. */
+    protected open val reverseLayout: Boolean = false
+
     val pager: MangaPager = MangaPager(
         context,
         isHorizontal = isHorizontal,
@@ -81,12 +87,6 @@ internal abstract class MangaPagerViewer(
             pager.post { adapter.refresh() }
         }
     }
-
-    /** Горизонтальный (L2R/R2L) или вертикальный пейджер. */
-    protected abstract val isHorizontal: Boolean
-
-    /** R2L — reverseLayout: первая страница справа, листание влево. */
-    protected open val reverseLayout: Boolean = false
 
     override fun setChapter(chapter: MangaChapter, startPage: Int) {
         currentChapter = chapter
