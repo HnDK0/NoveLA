@@ -37,6 +37,8 @@
     <string name="cookies_saved">Sabrosas cookies guardadas</string>
     <string name="database">Base de datos</string>
     <string name="chapters">Capítulos</string>
+    <string name="book_rating_format">Calificación: %1$s</string>
+    <string name="book_rank_format">Puesto: %1$s</string>
     <string name="open_in_browser">Abrir en el navegador</string>
     <string name="sources">Fuentes</string>
     <string name="search_for_sources">Buscar fuentes</string>
@@ -405,6 +407,9 @@
     <string name="google_pa_api_keys_tip">Una clave por línea. Las claves se validan automáticamente — las claves muertas se omiten y se obtiene una clave nueva de wtr-lab si es necesario.</string>
     <string name="all_genres">Todos</string>
     <string name="grid_columns">Tamaño de cuadrícula</string>
+    <string name="source_strip_position">Posición de la franja de fuente</string>
+    <string name="source_strip_on_cover">En la portada</string>
+    <string name="source_strip_below_cover">Debajo de la portada</string>
     <string name="apply">Aplicar</string>
     <!-- Filters -->
     <string name="filters">Filtros</string>

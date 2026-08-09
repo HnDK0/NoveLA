@@ -37,6 +37,8 @@
     <string name="cookies_saved">টেস্টি কুকিজ সংরক্ষিত</string>
     <string name="database">ডাটাবেস</string>
     <string name="chapters">অধ্যায়</string>
+    <string name="book_rating_format">রেটিং: %1$s</string>
+    <string name="book_rank_format">র্যাঙ্ক: %1$s</string>
     <string name="open_in_browser">ব্রাউজারে খুলুন</string>
     <string name="sources">উৎস</string>
     <string name="search_for_sources">উৎস অনুসন্ধান করুন</string>
@@ -405,6 +407,9 @@
     <string name="google_pa_api_keys_tip">One key per line. Keys are validated automatically — dead keys are skipped and a fresh key is fetched from wtr-lab if needed.</string>
     <string name="all_genres">সব</string>
     <string name="grid_columns">গ্রিডের আকার</string>
+    <string name="source_strip_position">সোর্স স্ট্রিপের অবস্থান</string>
+    <string name="source_strip_on_cover">কভারে</string>
+    <string name="source_strip_below_cover">কভারের নিচে</string>
     <string name="apply">প্রয়োগ</string>
     <!-- Filters -->
     <string name="filters">ফিল্টার</string>

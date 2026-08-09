@@ -37,6 +37,8 @@
     <string name="cookies_saved">Đã lưu cookies</string>
     <string name="database">Cơ sở dữ liệu</string>
     <string name="chapters">Chương</string>
+    <string name="book_rating_format">Đánh giá: %1$s</string>
+    <string name="book_rank_format">Xếp hạng: %1$s</string>
     <string name="open_in_browser">Mở trong trình duyệt</string>
     <string name="sources">Nguồn</string>
     <string name="search_for_sources">Tìm kiếm nguồn</string>
@@ -405,6 +407,9 @@
     <string name="google_pa_api_keys_tip">Mỗi dòng một khóa. Các khóa được xác thực tự động — các khóa chết được bỏ qua và khóa mới được lấy từ wtr-lab nếu cần.</string>
     <string name="all_genres">Tất cả</string>
     <string name="grid_columns">Kích thước lưới</string>
+    <string name="source_strip_position">Vị trí dải nguồn</string>
+    <string name="source_strip_on_cover">Trên bìa</string>
+    <string name="source_strip_below_cover">Dưới bìa</string>
     <string name="apply">Áp dụng</string>
     <!-- Filters -->
     <string name="filters">Bộ lọc</string>

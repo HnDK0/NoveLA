@@ -37,6 +37,8 @@
     <string name="cookies_saved">Lezzetli çerezler kaydedildi</string>
     <string name="database">Veritabanı</string>
     <string name="chapters">Bölümler</string>
+    <string name="book_rating_format">Puan: %1$s</string>
+    <string name="book_rank_format">Sıralama: %1$s</string>
     <string name="open_in_browser">Tarayıcıda aç</string>
     <string name="sources">Kaynaklar</string>
     <string name="search_for_sources">Kaynakları ara</string>
@@ -405,6 +407,9 @@
     <string name="google_pa_api_keys_tip">Her satıra bir anahtar. Anahtarlar otomatik olarak doğrulanır — ölü anahtarlar atlanır ve gerekirse wtr-lab\'dan yeni bir anahtar alınır.</string>
     <string name="all_genres">Tümü</string>
     <string name="grid_columns">Izgara boyutu</string>
+    <string name="source_strip_position">Kaynak şeridi konumu</string>
+    <string name="source_strip_on_cover">Kapakta</string>
+    <string name="source_strip_below_cover">Kapağın altında</string>
     <string name="apply">Uygula</string>
     <!-- Filters -->
     <string name="filters">Filtreler</string>

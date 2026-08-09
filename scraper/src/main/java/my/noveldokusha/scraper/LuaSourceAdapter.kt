@@ -303,6 +303,28 @@ open class LuaSourceAdapter(
             }
         }
 
+    override suspend fun getBookRating(bookUrl: String): Response<String?> =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                withSourceContext {
+                    try {
+                        val fn = luaScript.get("getBookRating")
+                        if (fn.isnil()) return@withSourceContext Response.Success(null)
+                        val result = fn.call(LuaValue.valueOf(bookUrl))
+                        val rating = when {
+                            result.isnil() -> null
+                            result.isstring() || result.isnumber() -> result.tojstring().takeIf { it.isNotBlank() }
+                            else -> null
+                        }
+                        Response.Success(rating)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getBookRating [${metadata.id}]")
+                        Response.Error(e.message ?: "Unknown error", e)
+                    }
+                }
+            }
+        }
+
     override suspend fun getChapterList(bookUrl: String): Response<List<ChapterResult>> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
@@ -426,7 +448,15 @@ open class LuaSourceAdapter(
     private fun convertLuaTableToBookResult(table: LuaTable) = BookResult(
         title         = table.get("title").optjstring(""),
         url           = table.get("url").optjstring(""),
-        coverImageUrl = table.get("cover").optjstring("")
+        coverImageUrl = table.get("cover").optjstring(""),
+        // rating: string | number | nil. Числа (например 4.6) конвертируются в строку.
+        rating        = table.get("rating").let { v ->
+            when {
+                v.isnil() -> null
+                v.isstring() || v.isnumber() -> v.tojstring().takeIf { it.isNotBlank() }
+                else -> null
+            }
+        }
     )
 
     private fun convertLuaTableToChapterResult(table: LuaTable) = ChapterResult(

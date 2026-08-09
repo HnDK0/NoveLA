@@ -37,6 +37,8 @@
     <string name="cookies_saved">Pyszne ciasteczka zapisane</string>
     <string name="database">Baza danych</string>
     <string name="chapters">Rozdziały</string>
+    <string name="book_rating_format">Ocena: %1$s</string>
+    <string name="book_rank_format">Pozycja: %1$s</string>
     <string name="open_in_browser">Otwórz w przeglądarce</string>
     <string name="sources">Źródła</string>
     <string name="search_for_sources">Szukaj źródeł</string>
@@ -405,6 +407,9 @@
     <string name="google_pa_api_keys_tip">Jeden klucz na linię. Klucze są automatycznie weryfikowane — martwe klucze są pomijane, a nowy klucz jest pobierany z wtr-lab w razie potrzeby.</string>
     <string name="all_genres">Wszystkie</string>
     <string name="grid_columns">Rozmiar siatki</string>
+    <string name="source_strip_position">Pozycja paska źródła</string>
+    <string name="source_strip_on_cover">Na okładce</string>
+    <string name="source_strip_below_cover">Pod okładką</string>
     <string name="apply">Zastosuj</string>
     <!-- Filters -->
     <string name="filters">Filtry</string>

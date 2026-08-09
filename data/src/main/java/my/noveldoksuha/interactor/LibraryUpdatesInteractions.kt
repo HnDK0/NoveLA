@@ -184,6 +184,15 @@ class LibraryUpdatesInteractions @Inject constructor(
             }
         }
 
+        // Загружаем и сохраняем рейтинг книги только если он ещё не заполнен
+        if (activeBook.rating.isBlank()) {
+            downloaderRepository.bookRating(bookUrl = activeBook.url).onSuccess { rating ->
+                if (!rating.isNullOrBlank()) {
+                    libraryDao.updateRating(activeBook.url, rating)
+                }
+            }
+        }
+
         // Быстрая проверка хэша — только для книг без chaptersLastPage (старый путь).
         // parsePage-плагины не используют хэш.
         if (activeBook.chaptersLastPage == null && activeBook.chaptersListHash != null) {
@@ -447,6 +456,13 @@ class LibraryUpdatesInteractions @Inject constructor(
                         downloaderRepository.bookGenres(bookUrl = canonical).toSuccessOrNull()?.data?.let { genres ->
                             if (genres.isNotEmpty()) {
                                 libraryDao.updateGenres(canonical, my.noveldokusha.core.utils.GenreUtils.normalize(genres))
+                            }
+                        }
+                    }
+                    if (book.rating.isBlank()) {
+                        downloaderRepository.bookRating(bookUrl = canonical).toSuccessOrNull()?.data?.let { rating ->
+                            if (!rating.isNullOrBlank()) {
+                                libraryDao.updateRating(canonical, rating)
                             }
                         }
                     }

@@ -37,6 +37,8 @@
     <string name="cookies_saved">맛있는 쿠키 저장됨</string>
     <string name="database">데이터베이스</string>
     <string name="chapters">화</string>
+    <string name="book_rating_format">평점: %1$s</string>
+    <string name="book_rank_format">순위: %1$s</string>
     <string name="open_in_browser">브라우저에서 열기</string>
     <string name="sources">소스</string>
     <string name="search_for_sources">소스 검색</string>
@@ -405,6 +407,9 @@
     <string name="google_pa_api_keys_tip">줄당 하나의 키. 키는 자동으로 검증됩니다 — 죽은 키는 건너뛰고 필요한 경우 wtr-lab에서 새 키를 가져옵니다.</string>
     <string name="all_genres">전체</string>
     <string name="grid_columns">그리드 크기</string>
+    <string name="source_strip_position">소스 스트립 위치</string>
+    <string name="source_strip_on_cover">커버 위</string>
+    <string name="source_strip_below_cover">커버 아래</string>
     <string name="apply">적용</string>
     <!-- Filters -->
     <string name="filters">필터</string>

@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CheckCircle
@@ -31,9 +30,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import my.noveldokusha.core.appPreferences.SourceStripPosition
 import my.noveldokusha.coreui.R
 import my.noveldokusha.coreui.components.BookImageButtonView
+import my.noveldokusha.coreui.components.BookRatingBadge
 import my.noveldokusha.coreui.theme.ImageBorderShape
 import my.noveldokusha.coreui.theme.isLightTheme
 import my.noveldokusha.coreui.theme.Grey0
@@ -41,7 +41,6 @@ import my.noveldokusha.coreui.theme.Grey75
 import my.noveldokusha.coreui.theme.Grey400
 import my.noveldokusha.coreui.theme.Grey1000
 import my.noveldokusha.coreui.theme.Error300
-import my.noveldokusha.core.isLocalUri
 import my.noveldokusha.core.rememberResolvedBookImagePath
 import my.noveldokusha.feature.local_database.BookWithContext
 
@@ -53,6 +52,8 @@ internal fun LibraryPageBody(
     getSourceName: (String) -> String,
     // Количество колонок: от 2 до 6, дефолт 3
     gridColumns: Int = 3,
+    // Позиция полосы источника: кромка обложки (OnCover) или плашка под обложкой (BelowCover)
+    sourceStripPosition: SourceStripPosition = SourceStripPosition.BelowCover,
     selectedBooks: Map<String, Boolean> = emptyMap(),
     isSelectionMode: Boolean = false,
     pendingRemoval: Set<String> = emptySet(),
@@ -96,7 +97,7 @@ internal fun LibraryPageBody(
                     exit = fadeOut(animationSpec = tween(300)) + scaleOut(animationSpec = tween(300))
                 ) {
                 Box {
-                    val notReadCount = it.chaptersCount - it.chaptersReadCount
+                    val notReadCount = (it.chaptersCount - it.chaptersReadCount).coerceAtLeast(0)
                     BookImageButtonView(
                         title = it.book.title,
                         coverImageModel = rememberResolvedBookImagePath(
@@ -105,43 +106,10 @@ internal fun LibraryPageBody(
                         ),
                         onClick = { onClick(it) },
                         onLongClick = { onLongClick(it) },
-                        sourceText = getSourceName(it.book.url),
-                        topLeftBadge = if (notReadCount != 0) {
-                            {
-                                Text(
-                                    text = notReadCount.toString(),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier
-                                        .background(
-                                            color = MaterialTheme.colorScheme.primary,
-                                            shape = RoundedCornerShape(topStart = 0.dp, bottomEnd = 12.dp)
-                                        )
-                                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                        fontSize = 8.sp
-                                    )
-                                )
-                            }
-                        } else null,
-                        topRightBadge = if (it.book.url.isLocalUri) {
-                            {
-                                Text(
-                                    text = stringResource(R.string.local),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier
-                                        .background(
-                                            color = MaterialTheme.colorScheme.primary,
-                                            shape = RoundedCornerShape(topEnd = 0.dp, bottomStart = 12.dp)
-                                        )
-                                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                        fontSize = 8.sp
-                                    )
-                                )
-                            }
-                        } else null,
+                        sourceStripUnreadCount = notReadCount,
+                        sourceStripSourceName = getSourceName(it.book.url),
+                        sourceStripOnCover = sourceStripPosition == SourceStripPosition.OnCover,
+                        topRightBadge = { BookRatingBadge(rating = it.book.rating) },
                         forceCache = true
                     )
 

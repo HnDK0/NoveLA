@@ -37,6 +37,8 @@
     <string name="cookies_saved">Délicieux cookies enregistrés</string>
     <string name="database">Base de données</string>
     <string name="chapters">Chapitres</string>
+    <string name="book_rating_format">Note : %1$s</string>
+    <string name="book_rank_format">Rang : %1$s</string>
     <string name="open_in_browser">Ouvrir dans le navigateur</string>
     <string name="sources">Sources</string>
     <string name="search_for_sources">Rechercher des sources</string>
@@ -405,6 +407,9 @@
     <string name="google_pa_api_keys_tip">Une clé par ligne. Les clés sont validées automatiquement — les clés mortes sont ignorées et une nouvelle clé est récupérée depuis wtr-lab si nécessaire.</string>
     <string name="all_genres">Tout</string>
     <string name="grid_columns">Taille de la grille</string>
+    <string name="source_strip_position">Position de la bande de source</string>
+    <string name="source_strip_on_cover">Sur la couverture</string>
+    <string name="source_strip_below_cover">Sous la couverture</string>
     <string name="apply">Appliquer</string>
     <!-- Filters -->
     <string name="filters">Filtres</string>

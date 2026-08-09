@@ -20,7 +20,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import my.noveldokusha.core.LanguageCode
 import my.noveldokusha.core.SharedPreference_Boolean
 import my.noveldokusha.core.SharedPreference_Enum
 import my.noveldokusha.core.SharedPreference_Float
@@ -351,7 +350,7 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_StringSet(
             name,
             preferences,
-            setOf(LanguageCode.ENGLISH.iso639_1)
+            setOf()
         )
     }
     val EXTENSIONS_LANGUAGES_FILTER = object : Preference<Set<String>>("EXTENSIONS_LANGUAGES_FILTER") {
@@ -408,6 +407,16 @@ class AppPreferences @Inject constructor(
     val BOOKS_GRID_COLUMNS = object : Preference<Int>("BOOKS_GRID_COLUMNS") {
         override var value by SharedPreference_Int(name, preferences, 3)
     }
+    // Позиция полосы источника на карточке книги в библиотеке:
+    // кромка обложки (OnCover) или плашка под обложкой (BelowCover — дефолт).
+    val LIBRARY_SOURCE_STRIP_POSITION =
+        object : Preference<SourceStripPosition>("LIBRARY_SOURCE_STRIP_POSITION") {
+            override var value by SharedPreference_Enum(
+                name,
+                preferences,
+                SourceStripPosition.BelowCover
+            ) { enumValueOf(it) }
+        }
     val SOURCE_SORT_ORDER = object : Preference<SortOrder>("SOURCE_SORT_ORDER") {
         override var value by SharedPreference_Enum(
             name,

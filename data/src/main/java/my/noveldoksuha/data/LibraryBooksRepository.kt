@@ -177,7 +177,8 @@ class LibraryBooksRepository @Inject constructor(
 
     suspend fun toggleBookmark(
         bookUrl: String,
-        bookTitle: String
+        bookTitle: String,
+        rating: String? = null
     ): Boolean = appDatabase.transaction {
         val currentTime = System.currentTimeMillis()
         when (val existing = getByUrl(bookUrl)) {
@@ -187,6 +188,7 @@ class LibraryBooksRepository @Inject constructor(
                         title = bookTitle,
                         url = bookUrl,
                         inLibrary = true,
+                        rating = rating.orEmpty(),
                         addedToLibraryEpochTimeMilli = currentTime,
                         lastUpdateEpochTimeMilli = currentTime
                     )
@@ -195,10 +197,18 @@ class LibraryBooksRepository @Inject constructor(
             }
             else -> {
                 libraryDao.toggleInLibrary(existing.url, currentTime)
+                // Дозаполняем рейтинг при добавлении в библиотеку, если его ещё нет
+                // (например, книга была не-library строкой из поиска/каталога).
+                if (!existing.inLibrary && existing.rating.isBlank() && !rating.isNullOrBlank()) {
+                    libraryDao.updateRating(existing.url, rating)
+                }
                 !existing.inLibrary
             }
         }
     }
+
+    suspend fun updateRating(bookUrl: String, rating: String) =
+        libraryDao.updateRating(bookUrl, rating)
 
     fun saveImageAsCover(imageUri: Uri, bookUrl: String) {
         appCoroutineScope.launch {

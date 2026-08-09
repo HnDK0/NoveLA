@@ -37,6 +37,8 @@
     <string name="cookies_saved">स्वादिष्ट कुकीज़ सहेजी गईं</string>
     <string name="database">डेटाबेस</string>
     <string name="chapters">अध्याय</string>
+    <string name="book_rating_format">रेटिंग: %1$s</string>
+    <string name="book_rank_format">रैंक: %1$s</string>
     <string name="open_in_browser">ब्राउज़र में खोलें</string>
     <string name="sources">स्रोत</string>
     <string name="search_for_sources">स्रोत खोजें</string>
@@ -405,6 +407,9 @@
     <string name="google_pa_api_keys_tip">एक पंक्ति में एक कुंजी। कुंजियाँ स्वचालित रूप से मान्य की जाती हैं — मृत कुंजियाँ छोड़ दी जाती हैं और आवश्यकता होने पर wtr-lab से नई कुंजी लाई जाती है।</string>
     <string name="all_genres">सभी</string>
     <string name="grid_columns">ग्रिड आकार</string>
+    <string name="source_strip_position">स्रोत पट्टी की स्थिति</string>
+    <string name="source_strip_on_cover">कवर पर</string>
+    <string name="source_strip_below_cover">कवर के नीचे</string>
     <string name="apply">लागू करें</string>
     <!-- Filters -->
     <string name="filters">फ़िल्टर</string>

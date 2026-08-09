@@ -34,7 +34,7 @@ class AppRepository @Inject constructor(
     val settings = Settings()
     val eventDataRestored = MutableSharedFlow<Unit>()
 
-    suspend fun toggleBookmark(bookUrl: String, bookTitle: String): Boolean {
+    suspend fun toggleBookmark(bookUrl: String, bookTitle: String, rating: String? = null): Boolean {
         val realUrl = appFileResolver.getLocalIfContentType(bookUrl, bookFolderName = bookTitle)
         val normalizedUrl = normalizeBookUrl(realUrl)
         val result = if (bookUrl.isContentUri && libraryBooks.get(normalizedUrl) == null) {
@@ -44,7 +44,7 @@ class AppRepository @Inject constructor(
                 addToLibrary = true
             ) is Response.Success
         } else {
-            libraryBooks.toggleBookmark(bookUrl = normalizedUrl, bookTitle = bookTitle)
+            libraryBooks.toggleBookmark(bookUrl = normalizedUrl, bookTitle = bookTitle, rating = rating)
         }
         return result
     }

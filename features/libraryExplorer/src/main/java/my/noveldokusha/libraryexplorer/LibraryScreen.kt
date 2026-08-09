@@ -265,6 +265,7 @@ fun LibraryScreen(
                 onBookClick = handleBookClick,
                 onBookLongClick = handleBookLongClick,
                 gridColumns = gridColumns,
+                sourceStripPosition = uiState.sourceStripPosition,
                 selectedBooks = libraryModel.selectedBooks,
                 isSelectionMode = uiState.isSelectionMode,
                 pendingRemoval = libraryModel.pendingRemoval.keys.toSet(),

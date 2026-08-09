@@ -52,6 +52,13 @@ sealed interface SourceInterface {
         /** Возвращает список жанров/тегов книги. Реализуется в Lua через getBookGenres(). */
         suspend fun getBookGenres(bookUrl: String): Response<List<String>> = Response.Success(emptyList())
 
+        /**
+         * Возвращает рейтинг/ранг книги как строку (гетерогенные форматы источников:
+         * "4.5", "4.8/5", "RANK 216", "#12"). Реализуется в Lua через getBookRating().
+         * null → рейтинг неизвестен.
+         */
+        suspend fun getBookRating(bookUrl: String): Response<String?> = Response.Success(null)
+
         suspend fun getChapterList(bookUrl: String): Response<List<ChapterResult>>
         suspend fun getCatalogList(index: Int): Response<PagedList<BookResult>>
         suspend fun getCatalogSearch(index: Int, input: String): Response<PagedList<BookResult>>

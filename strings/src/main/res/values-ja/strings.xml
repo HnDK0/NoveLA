@@ -37,6 +37,8 @@
     <string name="cookies_saved">美味しいクッキーを保存しました</string>
     <string name="database">データベース</string>
     <string name="chapters">チャプター</string>
+    <string name="book_rating_format">評価: %1$s</string>
+    <string name="book_rank_format">順位: %1$s</string>
     <string name="open_in_browser">ブラウザで開く</string>
     <string name="sources">ソース</string>
     <string name="search_for_sources">ソースを検索</string>
@@ -405,6 +407,9 @@
     <string name="google_pa_api_keys_tip">1行に1つのキー。キーは自動的に検証され、無効なキーはスキップされ、必要に応じてwtr-labから新しいキーが取得されます。</string>
     <string name="all_genres">すべて</string>
     <string name="grid_columns">グリッドサイズ</string>
+    <string name="source_strip_position">ソースストリップの位置</string>
+    <string name="source_strip_on_cover">表紙の上</string>
+    <string name="source_strip_below_cover">表紙の下</string>
     <string name="apply">適用</string>
     <!-- Filters -->
     <string name="filters">フィルター</string>

@@ -64,6 +64,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import my.noveldokusha.coreui.components.BookImageButtonView
+import my.noveldokusha.coreui.components.BookRatingChip
 import my.noveldokusha.coreui.components.BookTitlePosition
 import my.noveldokusha.coreui.components.ExpandableText
 import my.noveldokusha.coreui.components.ImageView
@@ -76,6 +77,7 @@ import my.noveldokusha.core.rememberResolvedBookImagePath
 internal fun ChaptersScreenHeader(
     bookState: ChaptersScreenState.BookState,
     genres: List<String>,
+    rating: String,
     sourceCatalogName: String,
     numberOfChapters: Int,
     readChapters: Int,
@@ -222,6 +224,11 @@ internal fun ChaptersScreenHeader(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    // Rating
+                    if (rating.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    BookRatingChip(rating)
                     // Category chip
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {

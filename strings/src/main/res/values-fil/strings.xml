@@ -37,6 +37,8 @@
     <string name="cookies_saved">Na-save ang masasarap na cookies</string>
     <string name="database">Database</string>
     <string name="chapters">Mga Kabanata</string>
+    <string name="book_rating_format">Rating: %1$s</string>
+    <string name="book_rank_format">Ranggo: %1$s</string>
     <string name="open_in_browser">Buksan sa browser</string>
     <string name="sources">Mga Pinagmulan</string>
     <string name="search_for_sources">Maghanap ng mga pinagmulan</string>
@@ -405,6 +407,9 @@
     <string name="google_pa_api_keys_tip">Isang key bawat linya. Ang mga key ay awtomatikong nabe-validate — ang mga patay na key ay nilalaktawan at isang bagong key ang kukunin mula sa wtr-lab kung kinakailangan.</string>
     <string name="all_genres">Lahat</string>
     <string name="grid_columns">Laki ng grid</string>
+    <string name="source_strip_position">Posisyon ng source strip</string>
+    <string name="source_strip_on_cover">Sa pabalat</string>
+    <string name="source_strip_below_cover">Sa ibaba ng pabalat</string>
     <string name="apply">Ilapat</string>
     <!-- Filters -->
     <string name="filters">Mga Filter</string>

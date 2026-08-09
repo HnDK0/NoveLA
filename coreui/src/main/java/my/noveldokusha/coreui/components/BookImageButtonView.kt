@@ -7,19 +7,25 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,16 +60,23 @@ fun BookImageButtonView(
     bookTitlePosition: BookTitlePosition = BookTitlePosition.Inside,
     indication: Indication = LocalIndication.current,
     interactionSource: MutableInteractionSource? = null,
-    sourceIcon: (@Composable () -> Unit)? = null,
-    sourceText: String? = null,
     topLeftBadge: (@Composable () -> Unit)? = null,
     topRightBadge: (@Composable () -> Unit)? = null,
+    sourceStripUnreadCount: Int? = null,
+    sourceStripSourceName: String? = null,
+    sourceStripOnCover: Boolean = true,
     forceCache: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit = { },
 ) {
     val rememberedInteractionSource = remember { MutableInteractionSource() }
     val effectiveInteractionSource = interactionSource ?: rememberedInteractionSource
+    // Полоса источника рендерится только когда заданы оба значения — иначе вёрстка идентична прежней.
+    val stripUnreadCount = sourceStripUnreadCount
+    val stripSourceName = sourceStripSourceName
+    val showStrip = stripUnreadCount != null && stripSourceName != null
+    // При полосе на кромке (18.dp) поднимаем заголовок, чтобы он не перекрывался.
+    val titleBottomPadding = if (showStrip && sourceStripOnCover) 30.dp else 8.dp
     Column(modifier = modifier.testTag(AppTestTags.BOOK_IMAGE_BUTTON_VIEW)) {
         Box(
             Modifier
@@ -95,53 +108,14 @@ fun BookImageButtonView(
                 )
             }
 
-            // Source text in top-right corner (on top of image, not clipped)
-            sourceText?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .background(
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = RoundedCornerShape(topEnd = 0.dp, bottomStart = 12.dp)
-                        )
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 8.sp
-                    ),
-                    textAlign = TextAlign.Center
-                )
-            }
-
             // Top-left badge (count, etc.) — not clipped
             topLeftBadge?.let {
                 Box(modifier = Modifier.align(Alignment.TopStart)) { it() }
             }
 
-            // Top-right badge (priority over sourceText) — not clipped
-            if (sourceText == null) topRightBadge?.let {
+            // Top-right badge (rating, etc.) — not clipped
+            topRightBadge?.let {
                 Box(modifier = Modifier.align(Alignment.TopEnd)) { it() }
-            }
-
-            // Source icon in top-right corner (only if no source text or badge)
-            if (sourceText == null && topRightBadge == null) {
-                sourceIcon?.let {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(4.dp)
-                            .size(24.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                                shape = androidx.compose.foundation.shape.CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        it()
-                    }
-                }
             }
             if (bookTitlePosition == BookTitlePosition.Inside) {
                 // Stroke outline for better readability
@@ -158,7 +132,7 @@ fun BookImageButtonView(
                                 1f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                             )
                         )
-                        .padding(top = 30.dp, bottom = 8.dp)
+                        .padding(top = 30.dp, bottom = titleBottomPadding)
                         .padding(horizontal = 8.dp),
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontWeight = FontWeight.ExtraBold,
@@ -177,7 +151,7 @@ fun BookImageButtonView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(top = 30.dp, bottom = 8.dp)
+                        .padding(top = 30.dp, bottom = titleBottomPadding)
                         .padding(horizontal = 8.dp),
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontWeight = FontWeight.ExtraBold,
@@ -185,6 +159,28 @@ fun BookImageButtonView(
                     )
                 )
             }
+
+            // Полоса источника на кромке обложки — низ скругляется внешним clip(ImageBorderShape)
+            if (sourceStripOnCover && stripUnreadCount != null && stripSourceName != null) {
+                SourceStrip(
+                    unreadCount = stripUnreadCount,
+                    sourceName = stripSourceName,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                )
+            }
+        }
+        // Плашка под обложкой: рендерится только при непустом контенте полосы
+        if (!sourceStripOnCover && stripUnreadCount != null && stripSourceName != null) {
+            SourceStrip(
+                unreadCount = stripUnreadCount,
+                sourceName = stripSourceName,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp)
+                    .clip(RoundedCornerShape(6.dp))
+            )
         }
         if (bookTitlePosition == BookTitlePosition.Outside) {
             Text(
@@ -202,6 +198,66 @@ fun BookImageButtonView(
     }
 }
 
+/** Полоса «непрочитанные | источник»: фикс. окно 32.dp слева, делитель 1.dp, имя источника справа (weight). */
+@Composable
+private fun SourceStrip(
+    unreadCount: Int,
+    sourceName: String,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .height(18.dp)
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
+            .padding(horizontal = 6.dp)
+    ) {
+        // Фиксированное окно счётчика: без внутреннего horizontal padding — делитель всегда на одном месте
+        Box(
+            modifier = Modifier.width(32.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (unreadCount == 0) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text(
+                    text = unreadCount.toString(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 8.sp
+                    )
+                )
+            }
+        }
+        Box(
+            Modifier
+                .width(1.dp)
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f))
+        )
+        Text(
+            text = sourceName,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onPrimary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 8.sp
+            )
+        )
+    }
+}
+
 @PreviewThemes
 @Composable
 private fun PreviewView() {
@@ -213,6 +269,8 @@ private fun PreviewView() {
                 onClick = { },
                 onLongClick = { },
                 bookTitlePosition = BookTitlePosition.Inside,
+                sourceStripUnreadCount = 0,
+                sourceStripSourceName = "Local",
                 modifier = Modifier.weight(1f)
             )
             BookImageButtonView(
@@ -221,6 +279,40 @@ private fun PreviewView() {
                 onClick = { },
                 onLongClick = { },
                 bookTitlePosition = BookTitlePosition.Outside,
+                sourceStripUnreadCount = 99999,
+                sourceStripSourceName = "Very long source name that must be cut off with ellipsis",
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+// Плашка под обложкой (sourceStripOnCover = false) — вариант для сравнения на F3
+@PreviewThemes
+@Composable
+private fun PreviewViewStripPlaque() {
+    InternalTheme {
+        Row {
+            BookImageButtonView(
+                title = "Hello there",
+                coverImageModel = "",
+                onClick = { },
+                onLongClick = { },
+                bookTitlePosition = BookTitlePosition.Inside,
+                sourceStripUnreadCount = 0,
+                sourceStripSourceName = "Local",
+                sourceStripOnCover = false,
+                modifier = Modifier.weight(1f)
+            )
+            BookImageButtonView(
+                title = "Hello there text very long for a title, but many cases just like this",
+                coverImageModel = "",
+                onClick = { },
+                onLongClick = { },
+                bookTitlePosition = BookTitlePosition.Inside,
+                sourceStripUnreadCount = 99999,
+                sourceStripSourceName = "Very long source name that must be cut off with ellipsis",
+                sourceStripOnCover = false,
                 modifier = Modifier.weight(1f)
             )
         }

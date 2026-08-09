@@ -142,4 +142,8 @@ interface LibraryDao {
     @Query("UPDATE Book SET genres = :genres WHERE url == :bookUrl")
     suspend fun updateGenres(bookUrl: String, genres: String)
 
+    /** Обновить рейтинг/ранг книги (строка, гетерогенные форматы источников) */
+    @Query("UPDATE Book SET rating = :rating WHERE url == :bookUrl")
+    suspend fun updateRating(bookUrl: String, rating: String)
+
 }

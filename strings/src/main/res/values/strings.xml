@@ -41,6 +41,8 @@
     <string name="cookies_saved">Tasty cookies saved</string>
     <string name="database">Database</string>
     <string name="chapters">Chapters</string>
+    <string name="book_rating_format">Rating: %1$s</string>
+    <string name="book_rank_format">Rank: %1$s</string>
     <string name="open_in_browser">Open in browser</string>
     <string name="sources">Sources</string>
     <string name="search_for_sources">Search for sources</string>
@@ -456,6 +458,9 @@
     <string name="google_pa_api_keys_tip">One key per line. Keys are validated automatically — dead keys are skipped and a fresh key is fetched from wtr-lab if needed.</string>
     <string name="all_genres">All</string>
     <string name="grid_columns">Grid size</string>
+    <string name="source_strip_position">Source strip position</string>
+    <string name="source_strip_on_cover">On cover</string>
+    <string name="source_strip_below_cover">Below cover</string>
     <string name="apply">Apply</string>
     <!-- Filters -->
     <string name="filters">Filters</string>

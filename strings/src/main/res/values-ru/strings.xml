@@ -77,6 +77,8 @@
     <string name="database">База данных</string>
 
     <string name="chapters">Главы</string>
+    <string name="book_rating_format">Рейтинг: %1$s</string>
+    <string name="book_rank_format">Ранг: %1$s</string>
 
     <string name="open_in_browser">Открыть в браузере</string>
 
@@ -722,6 +724,10 @@
     <string name="all_genres">Все</string>
 
     <string name="grid_columns">Размер сетки</string>
+
+    <string name="source_strip_position">Позиция полосы источника</string>
+    <string name="source_strip_on_cover">На обложке</string>
+    <string name="source_strip_below_cover">Под обложкой</string>
 
     <!-- Filters -->
 

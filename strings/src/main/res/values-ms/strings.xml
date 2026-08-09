@@ -37,6 +37,8 @@
     <string name="cookies_saved">Kuki sedap disimpan</string>
     <string name="database">Pangkalan data</string>
     <string name="chapters">Bab</string>
+    <string name="book_rating_format">Penilaian: %1$s</string>
+    <string name="book_rank_format">Kedudukan: %1$s</string>
     <string name="open_in_browser">Buka dalam pelayar</string>
     <string name="sources">Sumber</string>
     <string name="search_for_sources">Cari sumber</string>
@@ -405,6 +407,9 @@
     <string name="google_pa_api_keys_tip">Satu kunci setiap baris. Kunci disahkan secara automatik — kunci mati dilangkau dan kunci baru diambil dari wtr-lab jika perlu.</string>
     <string name="all_genres">Semua</string>
     <string name="grid_columns">Saiz grid</string>
+    <string name="source_strip_position">Kedudukan jalur sumber</string>
+    <string name="source_strip_on_cover">Pada kulit</string>
+    <string name="source_strip_below_cover">Di bawah kulit</string>
     <string name="apply">Guna</string>
     <!-- Filters -->
     <string name="filters">Penapis</string>
