@@ -313,7 +313,9 @@ private fun TopSourceStrip(
         } else {
             1f
         }
-        val fontSize = (maxFontSize * scale).coerceIn(minFontSize, maxFontSize)
+        val fontSize = (maxFontSize.value * scale)
+            .coerceIn(minFontSize.value, maxFontSize.value)
+            .sp
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
