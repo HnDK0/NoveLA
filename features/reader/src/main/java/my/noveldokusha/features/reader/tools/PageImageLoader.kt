@@ -74,7 +74,7 @@ class PageImageLoader @Inject constructor(
      * вперёд или следующая глава). Ошибки игнорируются — load() при
      * показе повторит запрос.
      */
-    fun prefetch(pages: List<ReaderItem.Page>) {
+    internal fun prefetch(pages: List<ReaderItem.Page>) {
         if (pages.isEmpty()) return
         prefetchScope.launch {
             pages.forEach { load(it.chapterUrl, it.url) }
