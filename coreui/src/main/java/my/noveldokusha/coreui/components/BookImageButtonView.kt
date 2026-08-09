@@ -308,7 +308,7 @@ private fun TopSourceStrip(
         // Доступная ширина текста: BoxWithConstraints maxWidth = место, оставшееся
         // в верхнем ряду (после рейтинга), минус внутренние отступы и иконка.
         val availableTextWidth = maxWidth - 12.dp - iconReserve
-        val scale = if (intrinsicWidth > 0f && availableTextWidth > 0f) {
+        val scale = if (intrinsicWidth > 0.dp && availableTextWidth > 0.dp) {
             (availableTextWidth / intrinsicWidth).coerceAtMost(1f)
         } else {
             1f
