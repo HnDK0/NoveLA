@@ -6,7 +6,7 @@
 	android:layout_height="wrap_content"
 	>
 
-	<com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
+	<my.noveldokusha.features.reader.tools.ReaderPageView
 		android:id="@+id/pageImage"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
