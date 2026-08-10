@@ -373,7 +373,9 @@ private fun AutoScrollSection(
     }
 }
 
-/** Вкладка "Custom filter" — порт SY ColorFilterPage (RGBA-слайдеры вместо палитры). */
+/** Вкладка "Custom filter" — точный порт SY ColorFilterPage:
+ * custom brightness → color filter (R,G,B,A слайдеры + режимы) → grayscale →
+ * inverted colors. */
 @Composable
 private fun ColorFilterPage(
     settings: MangaReaderSettingsState,
@@ -381,16 +383,24 @@ private fun ColorFilterPage(
 ) {
     SettingsPage {
         SwitchSettingItem(
-            titleRes = R.string.manga_color_filter_enable,
+            titleRes = R.string.manga_custom_brightness,
+            checked = settings.customBrightness,
+            onCheckedChange = actions::setCustomBrightness,
+        )
+        if (settings.customBrightness) {
+            RgbaSliderItem(
+                titleRes = R.string.manga_custom_brightness,
+                value = settings.customBrightnessValue.toFloat(),
+                valueRange = -75f..100f,
+                onValueChange = { v -> actions.setCustomBrightnessValue(v.toInt()) },
+            )
+        }
+        SwitchSettingItem(
+            titleRes = R.string.manga_custom_color_filter,
             checked = settings.colorFilterEnabled,
             onCheckedChange = actions::setColorFilterEnabled,
         )
         if (settings.colorFilterEnabled) {
-            RgbaSliderItem(
-                titleRes = R.string.manga_color_filter_alpha,
-                value = ((settings.colorFilterValue ushr 24) and 0xFF).toFloat(),
-                onValueChange = { v -> actions.setColorFilterValue(withChannel(settings.colorFilterValue, 24, v)) },
-            )
             RgbaSliderItem(
                 titleRes = R.string.manga_color_filter_red,
                 value = ((settings.colorFilterValue ushr 16) and 0xFF).toFloat(),
@@ -405,6 +415,11 @@ private fun ColorFilterPage(
                 titleRes = R.string.manga_color_filter_blue,
                 value = (settings.colorFilterValue and 0xFF).toFloat(),
                 onValueChange = { v -> actions.setColorFilterValue(withChannel(settings.colorFilterValue, 0, v)) },
+            )
+            RgbaSliderItem(
+                titleRes = R.string.manga_color_filter_alpha,
+                value = ((settings.colorFilterValue ushr 24) and 0xFF).toFloat(),
+                onValueChange = { v -> actions.setColorFilterValue(withChannel(settings.colorFilterValue, 24, v)) },
             )
             ChipSettingItem(
                 titleRes = R.string.manga_color_filter_mode,
@@ -553,6 +568,7 @@ private fun StepperSettingItem(
 private fun RgbaSliderItem(
     @StringRes titleRes: Int,
     value: Float,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..255f,
     onValueChange: (Float) -> Unit,
 ) {
     SlimListItem(
@@ -561,7 +577,7 @@ private fun RgbaSliderItem(
             Slider(
                 value = value,
                 onValueChange = onValueChange,
-                valueRange = 0f..255f,
+                valueRange = valueRange,
                 modifier = Modifier.padding(end = 16.dp),
             )
         },

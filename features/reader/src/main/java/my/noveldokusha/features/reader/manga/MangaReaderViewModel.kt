@@ -166,6 +166,8 @@ internal class MangaReaderViewModel @Inject constructor(
         colorFilterEnabled = appPreferences.MANGA_READER_COLOR_FILTER.value,
         colorFilterValue = appPreferences.MANGA_READER_COLOR_FILTER_VALUE.value,
         colorFilterMode = appPreferences.MANGA_READER_COLOR_FILTER_MODE.value,
+        customBrightness = appPreferences.MANGA_READER_CUSTOM_BRIGHTNESS.value,
+        customBrightnessValue = appPreferences.MANGA_READER_CUSTOM_BRIGHTNESS_VALUE.value,
         grayscale = appPreferences.MANGA_READER_GRAYSCALE.value,
         invertedColors = appPreferences.MANGA_READER_INVERTED_COLORS.value,
         autoscrollEnabled = appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.value,
@@ -256,6 +258,16 @@ internal class MangaReaderViewModel @Inject constructor(
 
         override fun setColorFilterMode(mode: Int) {
             appPreferences.MANGA_READER_COLOR_FILTER_MODE.value = mode
+            settings.value = buildSettingsState()
+        }
+
+        override fun setCustomBrightness(enabled: Boolean) {
+            appPreferences.MANGA_READER_CUSTOM_BRIGHTNESS.value = enabled
+            settings.value = buildSettingsState()
+        }
+
+        override fun setCustomBrightnessValue(value: Int) {
+            appPreferences.MANGA_READER_CUSTOM_BRIGHTNESS_VALUE.value = value
             settings.value = buildSettingsState()
         }
 

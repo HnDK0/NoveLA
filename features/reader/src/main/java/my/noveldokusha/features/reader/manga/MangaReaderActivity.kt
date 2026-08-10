@@ -321,6 +321,18 @@ internal class MangaReaderActivity : ComponentActivity() {
             applySettings()
         }
 
+        // Пользовательская яркость (tachiyomisy custom brightness):
+        // >0 — screenBrightness, <0 — почти минимум + чёрный оверлей, 0 — системная.
+        LaunchedEffect(settings.customBrightness, settings.customBrightnessValue) {
+            val brightness = when {
+                !settings.customBrightness || settings.customBrightnessValue == 0 ->
+                    WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                settings.customBrightnessValue > 0 -> settings.customBrightnessValue / 100f
+                else -> 0.01f
+            }
+            window.attributes = window.attributes.apply { screenBrightness = brightness }
+        }
+
         LaunchedEffect(toolbarVisible.value) {
             if (viewModel.settings.value.fullscreen) {
                 if (toolbarVisible.value) showSystemBars() else hideSystemBars()
@@ -328,17 +340,28 @@ internal class MangaReaderActivity : ComponentActivity() {
         }
 
         Box(Modifier.fillMaxSize()) {
-            // Цветовой фильтр поверх вьюера (tachiyomisy ContentOverlay).
-            if (settings.colorFilterEnabled) {
+            // Оверлей поверх вьюера (tachiyomisy ReaderContentOverlay):
+            // сначала затемнение custom brightness, затем цветовой фильтр.
+            if (settings.colorFilterEnabled || (settings.customBrightness && settings.customBrightnessValue < 0)) {
+                val dim = if (settings.customBrightness && settings.customBrightnessValue < 0) {
+                    (-settings.customBrightnessValue) / 100f
+                } else {
+                    0f
+                }
                 Box(
                     Modifier
                         .fillMaxSize()
                         .drawWithContent {
                             drawContent()
-                            drawRect(
-                                color = Color(settings.colorFilterValue),
-                                blendMode = blendModeFor(settings.colorFilterMode),
-                            )
+                            if (dim > 0f) {
+                                drawRect(Color.Black.copy(alpha = dim))
+                            }
+                            if (settings.colorFilterEnabled) {
+                                drawRect(
+                                    color = Color(settings.colorFilterValue),
+                                    blendMode = blendModeFor(settings.colorFilterMode),
+                                )
+                            }
                         },
                 )
             }
