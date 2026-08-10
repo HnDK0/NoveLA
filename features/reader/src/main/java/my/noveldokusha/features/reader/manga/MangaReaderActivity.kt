@@ -3,6 +3,7 @@ package my.noveldokusha.features.reader.manga
 import android.content.Context
 import android.content.Intent
 import android.graphics.ColorMatrix
+import android.net.Uri
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
@@ -26,6 +27,8 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,17 +45,20 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderState
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,6 +67,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,7 +89,9 @@ import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.AppThemeProvider
 import my.noveldokusha.coreui.theme.LocalIsDark
 import my.noveldokusha.coreui.theme.Theme
+import my.noveldokusha.feature.local_database.BookMetadata
 import my.noveldokusha.features.reader.manga.setting.MangaReadingMode
+import my.noveldokusha.navigation.NavigationRoutes
 import my.noveldokusha.features.reader.manga.ui.MangaReaderSettingsSheet
 import my.noveldokusha.features.reader.manga.viewer.Viewer
 import my.noveldokusha.features.reader.manga.viewer.pager.createPagerViewer
@@ -124,6 +133,9 @@ internal class MangaReaderActivity : ComponentActivity() {
 
     @Inject
     lateinit var appPreferences: AppPreferences
+
+    @Inject
+    lateinit var navigationRoutes: NavigationRoutes
 
     @Inject
     lateinit var themeProvider: AppThemeProvider
@@ -334,6 +346,7 @@ internal class MangaReaderActivity : ComponentActivity() {
     private fun MangaReaderComposeContent() {
         val settings = viewModel.settings.value
         val chapter = viewModel.chapter.value
+        val mode = settings.readingMode
 
         LaunchedEffect(viewModel.chapterLoadId.value) {
             val loadedChapter = viewModel.chapter.value ?: return@LaunchedEffect
@@ -392,9 +405,8 @@ internal class MangaReaderActivity : ComponentActivity() {
                 )
             }
 
-            val inWebtoon = mode == MangaReadingMode.WEBTOON
-
-            // Индикатор страницы (над панелью автопрокрутки, когда та видна).
+            // Индикатор страницы (когда тулбар скрыт; при открытом тулбаре его
+            // заменяет нижний навигатор с номерами страниц).
             if (settings.showPageNumber && chapter != null && !viewModel.loading.value && !toolbarVisible.value) {
                 Text(
                     text = stringResource(R.string.manga_reader_page_of, viewModel.currentPage.value + 1, chapter.pageCount),
@@ -402,36 +414,34 @@ internal class MangaReaderActivity : ComponentActivity() {
                     fontSize = 12.sp,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = if (inWebtoon) 84.dp else 24.dp)
+                        .padding(bottom = 24.dp)
                         .background(Color(0x99000000), RoundedCornerShape(8.dp))
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
 
-            // Навигатор по главе (порт tachiyomisy ChapterNavigator): линия-слайдер
-            // для перехода по страницам + кнопки предыдущей/следующей главы.
-            // Показывается вместе с тулбаром во всех режимах.
-            if (toolbarVisible.value && chapter != null && !viewModel.loading.value) {
-                MangaChapterNavigator(
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                    onJumpToPage = { viewer?.moveToPage(it) },
-                )
-            }
-
-            // Автопрокрутка — панель на странице (только лента): Play/Pause связан
-            // с кнопкой тулбара (один и тот же преф), строка разворачивает скорость.
-            // При открытом тулбаре панель скрыта — там свой Play/Pause и навигатор.
-            if (inWebtoon && !toolbarVisible.value && chapter != null && !viewModel.loading.value) {
-                AutoScrollControl(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp),
-                )
-            }
-
-            // Тулбар.
+            // Верх: тулбар (назад + названия) и под ним раскрывающаяся панель
+            // автопрокрутки (SY: ReaderTopBar + ExhUtils под ней).
             if (toolbarVisible.value) {
-                MangaReaderToolbar()
+                Column(Modifier.align(Alignment.TopCenter).fillMaxWidth()) {
+                    MangaReaderToolbar()
+                    if (mode == MangaReadingMode.WEBTOON) {
+                        AutoScrollPanel()
+                    }
+                }
+            }
+
+            // Низ: горизонтальный навигатор по главе — линия-слайдер страниц
+            // с кнопками prev/next по бокам (SY: ChapterNavigator), под ним
+            // планка: настройки, список глав, открыть в браузере (SY: bottom bar).
+            if (toolbarVisible.value && chapter != null && !viewModel.loading.value) {
+                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                    MangaChapterNavigator(
+                        modifier = Modifier.fillMaxWidth(),
+                        onJumpToPage = { viewer?.moveToPage(it) },
+                    )
+                    MangaReaderBottomBar()
+                }
             }
 
             // Загрузка главы / ошибка.
@@ -497,16 +507,6 @@ internal class MangaReaderActivity : ComponentActivity() {
                     tint = Color.White,
                 )
             }
-            IconButton(
-                onClick = { viewModel.moveChapter(-1) },
-                enabled = viewModel.hasPrevChapter(),
-            ) {
-                Icon(
-                    Icons.Filled.SkipPrevious,
-                    contentDescription = stringResource(R.string.manga_reader_prev_chapter),
-                    tint = Color.White,
-                )
-            }
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -529,51 +529,16 @@ internal class MangaReaderActivity : ComponentActivity() {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(
-                onClick = { viewModel.moveChapter(1) },
-                enabled = viewModel.hasNextChapter(),
-            ) {
-                Icon(
-                    Icons.Filled.SkipNext,
-                    contentDescription = stringResource(R.string.manga_reader_next_chapter),
-                    tint = Color.White,
-                )
-            }
-            // Автопрокрутка (только для ленты; пауза/возобновление).
-            val mode = viewModel.settings.value.readingMode
-            if (mode == MangaReadingMode.WEBTOON) {
-                val autoscrollOn by appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.flow()
-                    .collectAsState(initial = appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.value)
-                IconButton(
-                    onClick = {
-                        appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.value = !autoscrollOn
-                    },
-                ) {
-                    Icon(
-                        if (autoscrollOn) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = stringResource(R.string.manga_reader_auto_scroll),
-                        tint = Color.White,
-                    )
-                }
-            }
-            IconButton(onClick = { showSettingsSheet.value = true }) {
-                Icon(
-                    Icons.Filled.Settings,
-                    contentDescription = stringResource(R.string.manga_reader_settings),
-                    tint = Color.White,
-                )
-            }
         }
     }
 
     /**
-     * Панель автопрокрутки на странице читалки (tachiyomisy EH-autoscroll).
-     * Иконка Play/Pause меняет тот же преф, что и кнопка тулбара, — состояния
-     * связаны: пока не нажата пауза, лента скроллится. Тап по строке
-     * разворачивает/сворачивает настройку скорости.
+     * Панель автопрокрутки под тулбаром (SY: ExhUtils). Строка тап
+     * вкл/выкл (Play/Pause на тулбар-эквиваленте); связаны через один преф —
+     * пока не нажата пауза, лента скроллится. Шеврон разворачивает скорость.
      */
     @Composable
-    private fun AutoScrollControl(modifier: Modifier = Modifier) {
+    private fun AutoScrollPanel(modifier: Modifier = Modifier) {
         var expanded by rememberSaveable { mutableStateOf(false) }
         val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f)
         val autoscrollOn by appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.flow()
@@ -581,79 +546,82 @@ internal class MangaReaderActivity : ComponentActivity() {
         val speed by appPreferences.MANGA_READER_AUTOSCROLL_SPEED.flow()
             .collectAsState(initial = appPreferences.MANGA_READER_AUTOSCROLL_SPEED.value)
 
-        Surface(
-            color = Color(0xCC000000),
-            shape = RoundedCornerShape(24.dp),
-            modifier = modifier,
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(Color(0xEE000000))
+                .animateContentSize(),
         ) {
-            Column(modifier = Modifier.animateContentSize()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.value = !autoscrollOn
+                    }
+                    .padding(start = 16.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    if (autoscrollOn) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = stringResource(R.string.manga_reader_auto_scroll),
+                    tint = Color.White,
+                )
+                Text(
+                    text = stringResource(R.string.manga_expand_autoscroll),
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp),
+                )
+                Switch(
+                    checked = autoscrollOn,
+                    onCheckedChange = {
+                        appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.value = it
+                    },
+                )
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        Icons.Filled.ExpandMore,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.graphicsLayer { rotationZ = chevronRotation },
+                    )
+                }
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, end = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     IconButton(
                         onClick = {
-                            appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.value = !autoscrollOn
+                            appPreferences.MANGA_READER_AUTOSCROLL_SPEED.value =
+                                (speed - 10).coerceAtLeast(10)
                         },
                     ) {
-                        Icon(
-                            if (autoscrollOn) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = stringResource(R.string.manga_reader_auto_scroll),
-                            tint = Color.White,
-                        )
+                        Icon(Icons.Filled.Remove, contentDescription = null, tint = Color.White)
                     }
-                    Row(
-                        modifier = Modifier
-                            .clickable { expanded = !expanded }
-                            .padding(start = 4.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    Text(
+                        text = stringResource(R.string.manga_autoscroll_speed_value, speed),
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(
+                        onClick = {
+                            appPreferences.MANGA_READER_AUTOSCROLL_SPEED.value =
+                                (speed + 10).coerceAtMost(200)
+                        },
                     ) {
-                        Text(
-                            text = stringResource(R.string.manga_expand_autoscroll),
-                            color = Color.White,
-                            fontSize = 13.sp,
-                        )
-                        Icon(
-                            Icons.Filled.ExpandMore,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier
-                                .padding(start = 4.dp)
-                                .graphicsLayer { rotationZ = chevronRotation },
-                        )
-                    }
-                }
-                AnimatedVisibility(
-                    visible = expanded,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut(),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(start = 4.dp, end = 4.dp, bottom = 4.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        IconButton(
-                            onClick = {
-                                appPreferences.MANGA_READER_AUTOSCROLL_SPEED.value =
-                                    (speed - 10).coerceAtLeast(10)
-                            },
-                        ) {
-                            Icon(Icons.Filled.Remove, contentDescription = null, tint = Color.White)
-                        }
-                        Text(
-                            text = stringResource(R.string.manga_autoscroll_speed_value, speed),
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.weight(1f),
-                        )
-                        IconButton(
-                            onClick = {
-                                appPreferences.MANGA_READER_AUTOSCROLL_SPEED.value =
-                                    (speed + 10).coerceAtMost(200)
-                            },
-                        ) {
-                            Icon(Icons.Filled.Add, contentDescription = null, tint = Color.White)
-                        }
+                        Icon(Icons.Filled.Add, contentDescription = null, tint = Color.White)
                     }
                 }
             }
@@ -664,6 +632,7 @@ internal class MangaReaderActivity : ComponentActivity() {
      * Горизонтальный навигатор по главе (порт tachiyomisy ChapterNavigator):
      * кнопки предыдущей/следующей главы и линия-слайдер по страницам главы.
      */
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun MangaChapterNavigator(
         modifier: Modifier = Modifier,
@@ -740,6 +709,68 @@ internal class MangaReaderActivity : ComponentActivity() {
                     tint = Color.White,
                 )
             }
+        }
+    }
+
+    /**
+     * Нижняя планка (SY: ReaderBottomBar): настройки, список глав,
+     * открыть главу в браузере. Тёмная, как остальные бары читалки.
+     */
+    @Composable
+    private fun MangaReaderBottomBar(modifier: Modifier = Modifier) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(Color(0xEE000000))
+                .navigationBarsPadding()
+                .padding(vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            IconButton(onClick = { showSettingsSheet.value = true }) {
+                Icon(
+                    Icons.Filled.Settings,
+                    contentDescription = stringResource(R.string.manga_reader_settings),
+                    tint = Color.White,
+                )
+            }
+            IconButton(onClick = { openChapterList() }) {
+                Icon(
+                    Icons.Filled.List,
+                    contentDescription = stringResource(R.string.manga_reader_chapter_list),
+                    tint = Color.White,
+                )
+            }
+            IconButton(onClick = { openInBrowser() }) {
+                Icon(
+                    Icons.AutoMirrored.Filled.OpenInNew,
+                    contentDescription = stringResource(R.string.manga_reader_open_in_browser),
+                    tint = Color.White,
+                )
+            }
+        }
+    }
+
+    /** Список глав книги (ChaptersActivity), как из библиотеки. */
+    private fun openChapterList() {
+        runCatching {
+            startActivity(
+                navigationRoutes.chapters(
+                    this,
+                    BookMetadata(
+                        title = viewModel.bookTitle.value.orEmpty(),
+                        url = viewModel.bookUrl,
+                    ),
+                ),
+            )
+        }
+    }
+
+    /** Открыть текущую главу в браузере (URL источника, не текст). */
+    private fun openInBrowser() {
+        val url = viewModel.chapter.value?.url ?: return
+        runCatching {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         }
     }
 
