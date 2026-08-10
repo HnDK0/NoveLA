@@ -38,11 +38,28 @@ class DownloadedPageChaptersStore @Inject constructor(
     private val root: File
         get() = File(context.filesDir, ROOT_DIR)
 
-    private fun chapterDir(chapterUrl: String): File {
-        val hash = MessageDigest.getInstance("SHA-256")
-            .digest(chapterUrl.toByteArray())
+    private fun sha256(input: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(input.toByteArray())
             .joinToString("") { "%02x".format(it) }
-        return File(root, hash)
+
+    private fun chapterDir(chapterUrl: String): File = File(root, sha256(chapterUrl))
+
+    /**
+     * Загруженные (не скачанные) страницы ридера живут в кэше
+     * page_images/<sha256(pageUrl)>.img. При удалении главы чистим и их —
+     * иначе после удаления скачанной главы её «загруженные» картинки
+     * остаются в локальном хранилище.
+     */
+    private val pageImagesDir: File
+        get() = File(context.cacheDir, "page_images")
+
+    private fun pageImageFileFor(pageUrl: String): File =
+        File(pageImagesDir, sha256(pageUrl) + ".img")
+
+    private fun purgePageImages(pages: List<String>) {
+        if (pages.isEmpty()) return
+        pages.forEach { pageImageFileFor(it).delete() }
     }
 
     private fun pageFile(chapterUrl: String, index: Int, url: String): File =
@@ -129,6 +146,8 @@ class DownloadedPageChaptersStore @Inject constructor(
 
     suspend fun deleteChapters(chapterUrls: List<String>) = withContext(Dispatchers.IO) {
         if (chapterUrls.isEmpty()) return@withContext
+        val rows = dao.getByUrls(chapterUrls)
+        rows.forEach { purgePageImages(decodePages(it.pages)) }
         dao.removeRows(chapterUrls)
         chapterUrls.forEach { chapterDir(it).deleteRecursively() }
     }
@@ -171,14 +190,17 @@ class DownloadedPageChaptersStore @Inject constructor(
         if (bookUrls.isEmpty()) return@withContext
         val rows = dao.getByBookUrls(bookUrls)
         if (rows.isEmpty()) return@withContext
+        rows.forEach { purgePageImages(decodePages(it.pages)) }
         dao.removeRows(rows.map { it.url })
         rows.forEach { chapterDir(it.url).deleteRecursively() }
     }
 
-    /** Полная очистка: все файлы страничных глав + строки БД (настройки → данные). */
+    /** Полная очистка: файлы страничных глав + строки БД + загруженные
+     * картинки ридера (настройки → данные). */
     suspend fun deleteAll() = withContext(Dispatchers.IO) {
         dao.deleteAll()
         root.deleteRecursively()
+        pageImagesDir.deleteRecursively()
     }
 
     private fun refererFor(url: String): String = try {

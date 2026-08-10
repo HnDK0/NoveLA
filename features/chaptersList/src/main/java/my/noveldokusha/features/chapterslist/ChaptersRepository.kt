@@ -73,21 +73,17 @@ internal class ChaptersRepository @Inject constructor(
         pageDownloads.forEach { pageDownloadsRow ->
             sizeByUrl[pageDownloadsRow.url] = ChapterSize(sizeBytes = pageDownloadsRow.totalBytes)
         }
-        // Манга/манхва без строки метаданных (старые загрузки, обновлённая
-        // схема) — размер из реальных файлов страниц на диске.
+        // Истина в последней инстанции — РЕАЛЬНЫЕ байты файлов на диске:
+        // скан всех страничных глав книги (и строки, и «сироты» без строки:
+        // старые загрузки, обновлённая схема). totalBytes из строки может
+        // отставать после перекачки или смены страниц источника.
         val missing = chapters.map { it.chapter.url }.filterNot { it in sizeByUrl }
-        val diskSizes: Map<String, Long>
-        val diskDownloaded: Set<String>
-        if (missing.isNotEmpty()) {
-            val (sizes, dirs) = downloadedPageChaptersStore.getDiskState(missing)
-            diskSizes = sizes
-            diskDownloaded = dirs
-            diskSizes.forEach { (url, bytes) ->
-                sizeByUrl[url] = ChapterSize(sizeBytes = bytes)
-            }
-        } else {
-            diskSizes = emptyMap()
-            diskDownloaded = emptySet()
+        val scanUrls = (pageDownloads.map { it.url } + missing).distinct()
+        val (diskSizes, diskDownloaded) =
+            if (scanUrls.isEmpty()) emptyMap<String, Long>() to emptySet()
+            else downloadedPageChaptersStore.getDiskState(scanUrls)
+        diskSizes.forEach { (url, bytes) ->
+            sizeByUrl[url] = ChapterSize(sizeBytes = bytes)
         }
         DownloadInfo(downloadedSet + diskDownloaded, sizeByUrl)
     }

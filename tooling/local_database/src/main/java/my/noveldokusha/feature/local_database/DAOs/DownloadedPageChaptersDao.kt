@@ -18,6 +18,9 @@ interface DownloadedPageChaptersDao {
     @Query("DELETE FROM DownloadedPageChapter WHERE url IN (:urls)")
     suspend fun removeRows(urls: List<String>)
 
+    @Query("SELECT * FROM DownloadedPageChapter WHERE url IN (:urls)")
+    suspend fun getByUrls(urls: List<String>): List<DownloadedPageChapter>
+
     @Query("""
         SELECT DownloadedPageChapter.* FROM DownloadedPageChapter
         INNER JOIN Chapter ON Chapter.url = DownloadedPageChapter.url
