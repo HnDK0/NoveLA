@@ -1247,6 +1247,8 @@
     <string name="manga_color_filter_custom">Свой фильтр</string>
     <string name="manga_custom_brightness">Пользовательская яркость</string>
     <string name="manga_expand_autoscroll">Автопрокрутка</string>
+    <string name="manga_reader_chapter_list">Список глав</string>
+    <string name="manga_reader_open_in_browser">Открыть в браузере</string>
     <string name="manga_autoscroll_speed">Скорость</string>
     <string name="manga_autoscroll_speed_value">%1$d dp/с</string>
     <string name="manga_grayscale">Оттенки серого</string>

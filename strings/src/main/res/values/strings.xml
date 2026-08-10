@@ -773,6 +773,8 @@
     <string name="manga_color_filter_custom">Custom filter</string>
     <string name="manga_custom_brightness">Custom brightness</string>
     <string name="manga_expand_autoscroll">Auto-scroll</string>
+    <string name="manga_reader_chapter_list">Chapter list</string>
+    <string name="manga_reader_open_in_browser">Open in browser</string>
     <string name="manga_autoscroll_speed">Speed</string>
     <string name="manga_autoscroll_speed_value">%1$d dp/s</string>
     <string name="manga_grayscale">Grayscale</string>
