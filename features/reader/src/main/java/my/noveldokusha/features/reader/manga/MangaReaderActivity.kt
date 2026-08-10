@@ -323,8 +323,9 @@ internal class MangaReaderActivity : ComponentActivity() {
             viewer?.setChapter(loadedChapter, viewModel.currentPage.value)
         }
 
-        LaunchedEffect(viewModel.settings.value, LocalIsDark.current) {
-            applySettings(isDark = LocalIsDark.current)
+        val isDark = LocalIsDark.current
+        LaunchedEffect(viewModel.settings.value, isDark) {
+            applySettings(isDark = isDark)
         }
 
         // Пользовательская яркость (tachiyomisy custom brightness):
