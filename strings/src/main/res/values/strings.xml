@@ -714,7 +714,6 @@
     <string name="manga_reader_general">General</string>
     <string name="manga_reader_controls">Controls</string>
     <string name="manga_reader_webtoon">Webtoon</string>
-    <string name="manga_reader_color_filter">Color filter</string>
     <string name="manga_reader_auto_scroll">Auto-scroll</string>
     <string name="manga_reader_reading_mode">Reading mode</string>
     <string name="manga_reader_orientation">Orientation</string>
@@ -761,7 +760,6 @@
     <string name="manga_zoom_start_center">Center</string>
     <string name="manga_zoom_start_right">Right</string>
     <string name="manga_color_filter_enable">Color filter</string>
-    <string name="manga_color_filter_value">Filter color</string>
     <string name="manga_color_filter_mode">Filter mode</string>
     <string name="manga_color_filter_mode_normal">Normal</string>
     <string name="manga_color_filter_mode_multiply">Multiply</string>

@@ -278,6 +278,8 @@ private fun GeneralPage(
     settings: MangaReaderSettingsState,
     actions: MangaReaderSettingsActions,
 ) {
+    val isWebtoon = settings.readingMode == MangaReadingMode.WEBTOON ||
+        settings.readingMode == MangaReadingMode.CONTINUOUS_VERTICAL
     SettingsPage {
         SwitchSettingItem(
             titleRes = R.string.manga_reader_show_page_number,
@@ -300,7 +302,11 @@ private fun GeneralPage(
             onCheckedChange = actions::setLongTap,
         )
 
-        AutoScrollSection(settings, actions)
+        // Автопрокрутка — только для ленты: в пейджер-режимах секция
+        // не показывается, чтобы не было мёртвого управления.
+        if (isWebtoon) {
+            AutoScrollSection(settings, actions)
+        }
     }
 }
 
