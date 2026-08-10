@@ -103,15 +103,21 @@ class ChapterBodyRepository @Inject constructor(
     suspend fun count() = chapterBodyDao.count()
     suspend fun getChunk(limit: Int, offset: Int) = chapterBodyDao.getChunk(limit, offset)
 
-    suspend fun clearAllCache(): Int = appDatabase.transaction {
-        val count = chapterBodyDao.deleteAll()
-        chapterPagesDao.deleteAll()
-        chapterTranslationDao.deleteAllTranslations()
-        count
+    suspend fun clearAllCache(): Int {
+        val count = appDatabase.transaction {
+            val c = chapterBodyDao.deleteAll()
+            chapterPagesDao.deleteAll()
+            chapterTranslationDao.deleteAllTranslations()
+            c
+        }
+        // Файлы скачанных страничных глав — вместе со строками.
+        downloadedPageChaptersStore.deleteAll()
+        return count
     }
 
     suspend fun getCacheSizeBytes(): Long =
-        chapterBodyDao.getCacheSizeBytes() + chapterPagesDao.getCacheSizeBytes()
+        chapterBodyDao.getCacheSizeBytes() + chapterPagesDao.getCacheSizeBytes() +
+            downloadedPageChaptersStore.getDiskSizeBytes()
 
     suspend fun getCachedBody(urlChapter: String): String? {
         return chapterBodyDao.get(urlChapter)?.body?.takeIf { it.isNotBlank() && isValidChapterContent(it) }
