@@ -1208,7 +1208,6 @@
     <string name="manga_mode_rtl">Справа налево</string>
     <string name="manga_mode_vertical">Вертикальный (пейджер)</string>
     <string name="manga_mode_webtoon">Webtoon</string>
-    <string name="manga_mode_continuous_vertical">Непрерывный вертикальный</string>
     <string name="manga_orientation_default">По умолчанию</string>
     <string name="manga_orientation_free">Свободная</string>
     <string name="manga_orientation_portrait">Портретная</string>

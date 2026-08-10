@@ -82,7 +82,7 @@ private val colorFilterModes = listOf(
  * Вкладки зеркалят SY ReadingModePage / GeneralSettingsPage / ColorFilterPage.
  * Фона читалки нет (тема NoveLA); авто-скролл — раскрывающаяся секция
  * в General: тап по строке разворачивает её логические настройки
- * (интервал, плавность) под ней.
+ * (скорость) под ней.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -182,8 +182,7 @@ private fun ReadingModePage(
             },
         )
 
-        val isWebtoon = settings.readingMode == MangaReadingMode.WEBTOON ||
-            settings.readingMode == MangaReadingMode.CONTINUOUS_VERTICAL
+        val isWebtoon = settings.readingMode == MangaReadingMode.WEBTOON
         if (isWebtoon) {
             // Лента: навигация/инверсия — только для webtoon-вьюера.
             ChipSettingItem(
@@ -278,8 +277,7 @@ private fun GeneralPage(
     settings: MangaReaderSettingsState,
     actions: MangaReaderSettingsActions,
 ) {
-    val isWebtoon = settings.readingMode == MangaReadingMode.WEBTOON ||
-        settings.readingMode == MangaReadingMode.CONTINUOUS_VERTICAL
+    val isWebtoon = settings.readingMode == MangaReadingMode.WEBTOON
     SettingsPage {
         SwitchSettingItem(
             titleRes = R.string.manga_reader_show_page_number,
@@ -312,7 +310,7 @@ private fun GeneralPage(
 
 /**
  * Авто-скролл: раскрывающаяся/сворачиваемая секция. Тап по строке
- * разворачивает логические настройки (скорость, плавность) под ней.
+ * разворачивает настройки скорости под ней.
  */
 @Composable
 private fun AutoScrollSection(
@@ -362,11 +360,6 @@ private fun AutoScrollSection(
                     onIncrease = {
                         actions.setAutoscrollSpeed((settings.autoscrollSpeed + 10).coerceAtMost(200))
                     },
-                )
-                SwitchSettingItem(
-                    titleRes = R.string.auto_scroll_smooth,
-                    checked = settings.autoscrollSmooth,
-                    onCheckedChange = actions::setAutoscrollSmooth,
                 )
             }
         }

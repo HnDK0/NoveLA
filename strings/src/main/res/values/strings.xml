@@ -734,7 +734,6 @@
     <string name="manga_mode_rtl">Right to left</string>
     <string name="manga_mode_vertical">Vertical (pager)</string>
     <string name="manga_mode_webtoon">Webtoon</string>
-    <string name="manga_mode_continuous_vertical">Continuous vertical</string>
     <string name="manga_orientation_default">Default</string>
     <string name="manga_orientation_free">Free</string>
     <string name="manga_orientation_portrait">Portrait</string>

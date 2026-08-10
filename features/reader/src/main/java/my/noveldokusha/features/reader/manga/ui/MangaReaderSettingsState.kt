@@ -38,7 +38,6 @@ internal data class MangaReaderSettingsState(
     val invertedColors: Boolean = false,
     val autoscrollEnabled: Boolean = false,
     val autoscrollSpeed: Int = 40, // dp/с (10..200)
-    val autoscrollSmooth: Boolean = true,
 )
 
 /** Сеттеры — Activity обновляет AppPreferences и пересобирает state. */
@@ -66,5 +65,4 @@ internal interface MangaReaderSettingsActions {
     fun setInvertedColors(enabled: Boolean)
     fun setAutoscrollEnabled(enabled: Boolean)
     fun setAutoscrollSpeed(speed: Int)
-    fun setAutoscrollSmooth(enabled: Boolean)
 }
