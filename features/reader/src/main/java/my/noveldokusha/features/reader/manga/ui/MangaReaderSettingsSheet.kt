@@ -1,13 +1,6 @@
 package my.noveldokusha.features.reader.manga.ui
 
 import androidx.annotation.StringRes
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,7 +19,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.CardDefaults
@@ -43,14 +35,9 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -80,9 +67,8 @@ private val colorFilterModes = listOf(
  * HorizontalPager с свайпом между ними.
  *
  * Вкладки зеркалят SY ReadingModePage / GeneralSettingsPage / ColorFilterPage.
- * Фона читалки нет (тема NoveLA); авто-скролл — раскрывающаяся секция
- * в General: тап по строке разворачивает её логические настройки
- * (скорость) под ней.
+ * Фона читалки нет (тема NoveLA); авто-скролл вынесен на страницу читалки
+ * (панель снизу, только лента), в настройках его больше нет.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -277,7 +263,6 @@ private fun GeneralPage(
     settings: MangaReaderSettingsState,
     actions: MangaReaderSettingsActions,
 ) {
-    val isWebtoon = settings.readingMode == MangaReadingMode.WEBTOON
     SettingsPage {
         SwitchSettingItem(
             titleRes = R.string.manga_reader_show_page_number,
@@ -300,69 +285,8 @@ private fun GeneralPage(
             onCheckedChange = actions::setLongTap,
         )
 
-        // Автопрокрутка — только для ленты: в пейджер-режимах секция
-        // не показывается, чтобы не было мёртвого управления.
-        if (isWebtoon) {
-            AutoScrollSection(settings, actions)
-        }
-    }
-}
-
-/**
- * Авто-скролл: раскрывающаяся/сворачиваемая секция. Тап по строке
- * разворачивает настройки скорости под ней.
- */
-@Composable
-private fun AutoScrollSection(
-    settings: MangaReaderSettingsState,
-    actions: MangaReaderSettingsActions,
-) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f)
-
-    Column(modifier = Modifier.animateContentSize()) {
-        SlimListItem(
-            onClick = { expanded = !expanded },
-            headlineContent = { Text(stringResource(R.string.manga_expand_autoscroll)) },
-            trailingContent = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Switch(
-                        checked = settings.autoscrollEnabled,
-                        onCheckedChange = actions::setAutoscrollEnabled,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = colorAccent(),
-                            checkedTrackColor = colorAccent().copy(alpha = 0.4f),
-                        ),
-                    )
-                    Icon(
-                        Icons.Filled.ExpandMore,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .padding(start = 8.dp, end = 12.dp)
-                            .graphicsLayer { rotationZ = chevronRotation },
-                    )
-                }
-            },
-        )
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
-            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp)) {
-                StepperSettingItem(
-                    titleRes = R.string.manga_autoscroll_speed,
-                    valueText = stringResource(R.string.manga_autoscroll_speed_value, settings.autoscrollSpeed),
-                    onDecrease = {
-                        actions.setAutoscrollSpeed((settings.autoscrollSpeed - 10).coerceAtLeast(10))
-                    },
-                    onIncrease = {
-                        actions.setAutoscrollSpeed((settings.autoscrollSpeed + 10).coerceAtMost(200))
-                    },
-                )
-            }
-        }
+        // Автопрокрутка убрана из настроек: управляется на странице читалки
+        // (панель внизу, связана с Play/Pause тулбара, только для ленты).
     }
 }
 
