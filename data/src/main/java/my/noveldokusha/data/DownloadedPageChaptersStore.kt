@@ -133,6 +133,27 @@ class DownloadedPageChaptersStore @Inject constructor(
         chapterUrls.forEach { chapterDir(it).deleteRecursively() }
     }
 
+    /**
+     * Состояние страничных глав на диске (без строки метаданных):
+     * url -> реальные байты файлов страниц + set каталогов, которые
+     * существуют (главы скачаны). Сумма длин файлов — истина в последней
+     * инстанции, переживает потерю строки/старые загрузки.
+     */
+    suspend fun getDiskState(chapterUrls: List<String>): Pair<Map<String, Long>, Set<String>> =
+        withContext(Dispatchers.IO) {
+            val sizes = HashMap<String, Long>()
+            val dirs = HashSet<String>()
+            chapterUrls.forEach { url ->
+                val dir = chapterDir(url)
+                if (dir.isDirectory) {
+                    dirs.add(url)
+                    val bytes = dir.listFiles()?.sumOf { it.length() } ?: 0L
+                    if (bytes > 0L) sizes[url] = bytes
+                }
+            }
+            sizes to dirs
+        }
+
     suspend fun deleteBookChapters(bookUrls: List<String>) = withContext(Dispatchers.IO) {
         if (bookUrls.isEmpty()) return@withContext
         val rows = dao.getByBookUrls(bookUrls)
