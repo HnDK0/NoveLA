@@ -89,13 +89,10 @@ internal class MangaWebtoonPageHolder(
         }
     }
 
-    /** Обновляет отступы (side padding) и нижний margin для !isContinuous. */
+    /** Обновляет отступы (side padding). Страницы стыкуются без зазоров. */
     private fun refreshLayoutParams() {
         val padding = viewer.config.sidePaddingPx
         root.layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
-            if (!viewer.isContinuous) {
-                bottomMargin = (15 * context.resources.displayMetrics.density).toInt()
-            }
             leftMargin = padding
             rightMargin = padding
         }

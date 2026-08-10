@@ -172,7 +172,6 @@ internal class MangaReaderViewModel @Inject constructor(
         invertedColors = appPreferences.MANGA_READER_INVERTED_COLORS.value,
         autoscrollEnabled = appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.value,
         autoscrollSpeed = appPreferences.MANGA_READER_AUTOSCROLL_SPEED.value,
-        autoscrollSmooth = appPreferences.MANGA_READER_AUTOSCROLL_SMOOTH.value,
     )
 
     private inner class MangaReaderSettingsActionsImpl : MangaReaderSettingsActions {
@@ -288,11 +287,6 @@ internal class MangaReaderViewModel @Inject constructor(
 
         override fun setAutoscrollSpeed(speed: Int) {
             appPreferences.MANGA_READER_AUTOSCROLL_SPEED.value = speed
-            settings.value = buildSettingsState()
-        }
-
-        override fun setAutoscrollSmooth(enabled: Boolean) {
-            appPreferences.MANGA_READER_AUTOSCROLL_SMOOTH.value = enabled
             settings.value = buildSettingsState()
         }
 

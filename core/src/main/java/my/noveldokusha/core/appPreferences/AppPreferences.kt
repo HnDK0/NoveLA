@@ -1058,10 +1058,6 @@ class AppPreferences @Inject constructor(
     val MANGA_READER_AUTOSCROLL_SPEED = object : Preference<Int>("MANGA_READER_AUTOSCROLL_SPEED") {
         override var value by SharedPreference_Int(name, preferences, 40)
     }
-    /** Плавная (smoothScrollBy) или мгновенная (scrollBy) автопрокрутка. */
-    val MANGA_READER_AUTOSCROLL_SMOOTH = object : Preference<Boolean>("MANGA_READER_AUTOSCROLL_SMOOTH") {
-        override var value by SharedPreference_Boolean(name, preferences, true)
-    }
     val MANGA_READER_COLOR_FILTER = object : Preference<Boolean>("MANGA_READER_COLOR_FILTER") {
         override var value by SharedPreference_Boolean(name, preferences, false)
     }

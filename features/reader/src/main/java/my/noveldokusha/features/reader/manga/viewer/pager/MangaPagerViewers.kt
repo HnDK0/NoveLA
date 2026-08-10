@@ -23,7 +23,7 @@ internal fun createPagerViewer(
             MangaL2RPagerViewer(context, pageImageLoader, config, scope)
         MangaReadingMode.RIGHT_TO_LEFT ->
             MangaR2LPagerViewer(context, pageImageLoader, config, scope)
-        MangaReadingMode.VERTICAL, MangaReadingMode.CONTINUOUS_VERTICAL ->
+        MangaReadingMode.VERTICAL ->
             MangaVerticalPagerViewer(context, pageImageLoader, config, scope)
         MangaReadingMode.WEBTOON ->
             error("WEBTOON mode is handled by the webtoon viewer, not the pager factory")

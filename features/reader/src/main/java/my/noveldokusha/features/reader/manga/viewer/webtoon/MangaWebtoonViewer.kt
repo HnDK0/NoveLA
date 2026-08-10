@@ -34,8 +34,6 @@ internal class MangaWebtoonViewer(
     private val context: Context,
     internal val pageImageLoader: PageImageLoader,
     private val appPreferences: AppPreferences,
-    /** false — «непрерывность» выключена (нижний margin у страниц). */
-    internal val isContinuous: Boolean = true,
 ) : Viewer {
 
     private val scope = MainScope()
@@ -124,16 +122,10 @@ internal class MangaWebtoonViewer(
         val density = context.resources.displayMetrics.density
         while (isActive) {
             if (!autoScrollPaused && recycler.width > 0 && recycler.height > 0) {
-                // Читаем префы каждый тик — смена скорости/плавности в настройках
-                // применяется на лету.
+                // Читаем скорость каждый тик — смена в настройках применяется на лету.
                 val speedPxPerSec = appPreferences.MANGA_READER_AUTOSCROLL_SPEED.value * density
-                val smooth = appPreferences.MANGA_READER_AUTOSCROLL_SMOOTH.value
                 val step = (speedPxPerSec * 0.016f).toInt().coerceAtLeast(1)
-                if (smooth) {
-                    recycler.smoothScrollBy(0, step)
-                } else {
-                    recycler.scrollBy(0, step)
-                }
+                recycler.smoothScrollBy(0, step)
             }
             delay(16)
         }

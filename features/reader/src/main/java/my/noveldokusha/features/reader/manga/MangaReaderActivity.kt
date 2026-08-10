@@ -2,7 +2,6 @@ package my.noveldokusha.features.reader.manga
 
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.drawable.ColorDrawable
@@ -61,6 +60,9 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import my.noveldokusha.core.appPreferences.AppPreferences
+import my.noveldokusha.coreui.AppThemeProvider
+import my.noveldokusha.coreui.theme.LocalIsDark
+import my.noveldokusha.coreui.theme.Theme
 import my.noveldokusha.features.reader.manga.setting.MangaReadingMode
 import my.noveldokusha.features.reader.manga.ui.MangaReaderSettingsSheet
 import my.noveldokusha.features.reader.manga.viewer.Viewer
@@ -105,6 +107,9 @@ internal class MangaReaderActivity : ComponentActivity() {
     lateinit var appPreferences: AppPreferences
 
     @Inject
+    lateinit var themeProvider: AppThemeProvider
+
+    @Inject
     lateinit var pageImageLoader: PageImageLoader
 
     private val viewModel by viewModels<MangaReaderViewModel>()
@@ -134,7 +139,11 @@ internal class MangaReaderActivity : ComponentActivity() {
         viewModel.init(bookUrl, chapterUrl)
 
         binding.mangaComposeHost.setContent {
-            MangaReaderComposeContent()
+            // Общая тема NoveLA (тёмная/светлая/AMOLED из настроек приложения),
+            // как у текстового ридера — настройки и тулбар не светятся в тёмном.
+            Theme(themeProvider) {
+                MangaReaderComposeContent()
+            }
         }
 
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
@@ -163,8 +172,7 @@ internal class MangaReaderActivity : ComponentActivity() {
         val container = binding.mangaViewerContainer
         container.removeAllViews()
         val newViewer = when (mode) {
-            MangaReadingMode.WEBTOON -> MangaWebtoonViewer(this, pageImageLoader, appPreferences, isContinuous = false)
-            MangaReadingMode.CONTINUOUS_VERTICAL -> MangaWebtoonViewer(this, pageImageLoader, appPreferences, isContinuous = true)
+            MangaReadingMode.WEBTOON -> MangaWebtoonViewer(this, pageImageLoader, appPreferences)
             else -> createPagerViewer(mode, this, pageImageLoader, appPreferences, lifecycleScope)
         }
         newViewer.onPageChanged = { page -> onViewerPageChanged(page) }
@@ -210,7 +218,7 @@ internal class MangaReaderActivity : ComponentActivity() {
 
     // ---------- Настройки (применение) ----------
 
-    private fun applySettings() {
+    private fun applySettings(isDark: Boolean) {
         val settings = viewModel.settings.value
         val window = window
 
@@ -224,7 +232,7 @@ internal class MangaReaderActivity : ComponentActivity() {
 
         // Фон читалки следует теме приложения (night-aware), как остальной UI
         // NoveLA; отдельной "темы читалки" в манга-режиме больше нет.
-        val bg = if (isNightMode()) 0xFF202125.toInt() else android.graphics.Color.WHITE
+        val bg = if (isDark) 0xFF202125.toInt() else android.graphics.Color.WHITE
         binding.mangaViewerContainer.setBackgroundColor(bg)
         window.setBackgroundDrawable(ColorDrawable(bg))
 
@@ -257,9 +265,6 @@ internal class MangaReaderActivity : ComponentActivity() {
 
         if (settings.fullscreen) setupFullScreenMode() else setupNormalScreenMode()
     }
-
-    private fun isNightMode(): Boolean =
-        (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 
     private fun setupFullScreenMode() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -318,8 +323,8 @@ internal class MangaReaderActivity : ComponentActivity() {
             viewer?.setChapter(loadedChapter, viewModel.currentPage.value)
         }
 
-        LaunchedEffect(viewModel.settings.value) {
-            applySettings()
+        LaunchedEffect(viewModel.settings.value, LocalIsDark.current) {
+            applySettings(isDark = LocalIsDark.current)
         }
 
         // Пользовательская яркость (tachiyomisy custom brightness):
@@ -493,7 +498,7 @@ internal class MangaReaderActivity : ComponentActivity() {
             }
             // Автопрокрутка (только для ленты; пауза/возобновление).
             val mode = viewModel.settings.value.readingMode
-            if (mode == MangaReadingMode.WEBTOON || mode == MangaReadingMode.CONTINUOUS_VERTICAL) {
+            if (mode == MangaReadingMode.WEBTOON) {
                 val autoscrollOn by appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.flow()
                     .collectAsState(initial = appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.value)
                 IconButton(
