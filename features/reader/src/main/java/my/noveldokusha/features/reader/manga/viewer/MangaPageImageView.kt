@@ -1,6 +1,7 @@
 package my.noveldokusha.features.reader.manga.viewer
 
 import android.content.Context
+import android.graphics.PointF
 import android.net.Uri
 import android.util.AttributeSet
 import android.view.MotionEvent
@@ -85,7 +86,32 @@ internal class MangaPageImageView @JvmOverloads constructor(
             setDoubleTapZoomScale(scale * 2f)
             setMaxScale(scale * 5f) // MAX_ZOOM_SCALE = 5F
         }
+        applyZoomStart()
         imageLoadedListener?.invoke()
+    }
+
+    /**
+     * Стартовая позиция зума — реальная, а не декоративная:
+     * в официальном SSIV 3.10 нет SCALE_TYPE_CENTER/END (это форк
+     * tachiyomisy), поэтому CENTER/RIGHT выставляются вручную через
+     * setScaleAndCenter. Минимальный масштаб поднимается до width-fit —
+     * как в tachiyomisy стартовая позиция не считается "зумом" (пейджер
+     * продолжает перехватывать листание), а пользователь видит начало
+     * страницы по центру/у правого края.
+     */
+    private fun applyZoomStart() {
+        val start = config.zoomStart
+        if (start == MangaZoomStart.LEFT || sWidth <= 0) return
+        val focalX = when (start) {
+            MangaZoomStart.CENTER -> sWidth / 2f
+            MangaZoomStart.RIGHT -> sWidth.toFloat()
+            else -> return // AUTOMATIC — CENTER_INSIDE, весь лист виден
+        }
+        post {
+            val fitWidthScale = if (width > 0) width.toFloat() / sWidth else scale
+            setMinScale(fitWidthScale)
+            setScaleAndCenter(fitWidthScale, PointF(focalX, 0f))
+        }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

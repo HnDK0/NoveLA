@@ -1188,7 +1188,6 @@
     <string name="manga_reader_general">Общие</string>
     <string name="manga_reader_controls">Управление</string>
     <string name="manga_reader_webtoon">Webtoon</string>
-    <string name="manga_reader_color_filter">Цветовой фильтр</string>
     <string name="manga_reader_auto_scroll">Автопрокрутка</string>
     <string name="manga_reader_reading_mode">Режим чтения</string>
     <string name="manga_reader_orientation">Ориентация</string>
@@ -1235,7 +1234,6 @@
     <string name="manga_zoom_start_center">По центру</string>
     <string name="manga_zoom_start_right">Справа</string>
     <string name="manga_color_filter_enable">Цветовой фильтр</string>
-    <string name="manga_color_filter_value">Цвет фильтра</string>
     <string name="manga_color_filter_mode">Режим фильтра</string>
     <string name="manga_color_filter_mode_normal">Обычный</string>
     <string name="manga_color_filter_mode_multiply">Умножение</string>
