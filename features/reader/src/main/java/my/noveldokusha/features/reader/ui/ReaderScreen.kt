@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.outlined.ColorLens
@@ -120,6 +121,10 @@ internal fun ReaderScreen(
     onAutoScrollIntervalChange: (Float) -> Unit = {},
     onAutoScrollSmoothChange: (Boolean) -> Unit = {},
     onPagePrefetchCountChange: (Int) -> Unit = {},
+    /** Глава-картинка: показать кнопку «Манга-читалка» в шапке. */
+    showMangaReaderButton: Boolean = false,
+    /** Открыть манга-читалку (MangaReaderActivity) для страничной главы. */
+    onOpenMangaReader: (() -> Unit)? = null,
     manualHighlight: ManualHighlightSettingData? = null,
     onManualHighlightStart: () -> Unit = {},
     manualHighlightInitialPosition: Pair<Float, Float>? = null,
@@ -220,6 +225,11 @@ internal fun ReaderScreen(
                                 }
                                 IconButton(onClick = { toggleOrSet(Type.More) }, modifier = Modifier.size(36.dp)) {
                                     Icon(Icons.Filled.Build, stringResource(R.string.more), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.More) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                }
+                                if (showMangaReaderButton && onOpenMangaReader != null) {
+                                    IconButton(onClick = onOpenMangaReader, modifier = Modifier.size(36.dp)) {
+                                        Icon(Icons.Filled.PhotoLibrary, stringResource(R.string.manga_reader_open), modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
+                                    }
                                 }
                                 IconButton(onClick = onOpenChapterInWeb, modifier = Modifier.size(36.dp)) {
                                     Icon(Icons.Filled.Public, stringResource(R.string.open_in_browser), modifier = Modifier.size(20.dp))

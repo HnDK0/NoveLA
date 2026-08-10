@@ -154,6 +154,30 @@ class ReaderActivity : BaseActivity() {
     // Манга-редирект выполнен (глава-картинка открыта в MangaReaderActivity).
     private var mangaRedirectHandled = false
 
+    /**
+     * Глава-картинка (есть ReaderItem.Page и нет ReaderItem.Text) →
+     * манга-читалка. Вызывается при показе содержимого и при скролле
+     * (onScroll); срабатывает один раз за сессию читалки.
+     */
+    private fun redirectToMangaReaderIfNeeded() {
+        if (mangaRedirectHandled) return
+        val items = viewModel.items
+        if (items.isEmpty()) return
+        if (items.any { it is ReaderItem.Page } && items.none { it is ReaderItem.Text }) {
+            mangaRedirectHandled = true
+            MangaReaderActivity.start(this, viewModel.bookUrl, viewModel.chapterUrl)
+            finish()
+        }
+    }
+
+    /** Кнопка «Манга-читалка» в шапке читалки (страничные главы). */
+    private fun openMangaReader() {
+        if (mangaRedirectHandled) return
+        mangaRedirectHandled = true
+        MangaReaderActivity.start(this, viewModel.bookUrl, viewModel.chapterUrl)
+        finish()
+    }
+
     private val viewModel by viewModels<ReaderViewModel>()
 
     private val viewBind by lazy { ActivityReaderBinding.inflate(layoutInflater) }
@@ -297,33 +321,18 @@ class ReaderActivity : BaseActivity() {
         readerViewHandlersActions.listView = viewBind.listView
 
         // Глава-картинка (манхва/манга: getPageList есть, текста нет) →
-        // манга-читалка. Редирект срабатывает один раз после первой
-        // загрузки главы; текстовый путь не затрагивается.
-        lifecycleScope.launch {
-            snapshotFlow { viewModel.items }
-                .collect { items ->
-                    if (mangaRedirectHandled) return@collect
-                    if (items.isEmpty()) return@collect
-                    if (
-                        items.any { it is ReaderItem.Page } &&
-                        items.none { it is ReaderItem.Text }
-                    ) {
-                        mangaRedirectHandled = true
-                        MangaReaderActivity.start(
-                            this@ReaderActivity,
-                            viewModel.bookUrl,
-                            viewModel.chapterUrl,
-                        )
-                        finish()
-                    }
-                }
-        }
+        // манга-читалка. items — обычный MutableList, snapshotFlow его не
+        // отслеживает, поэтому редирект проверяется по факту показа
+        // содержимого (fadeIn) и при первом скролле; текстовый путь не
+        // затрагивается. Плюс кнопка «Манга-читалка» в шапке читалки.
+        redirectToMangaReaderIfNeeded()
 
         enableAutoScroll()
 
         fadeInTextLiveData.distinctUntilChanged().observe(this) {
             if (it) {
                 viewBind.listView.fadeIn(durationMillis = 150)
+                redirectToMangaReaderIfNeeded()
             }
         }
 
@@ -569,6 +578,8 @@ class ReaderActivity : BaseActivity() {
                     onAutoScrollIntervalChange = { appPreferences.READER_AUTOSCROLL_INTERVAL.value = it },
                     onAutoScrollSmoothChange = { appPreferences.READER_AUTOSCROLL_SMOOTH.value = it },
                     onPagePrefetchCountChange = { appPreferences.READER_PAGE_PREFETCH_COUNT.value = it },
+                    showMangaReaderButton = isPageChapter.value,
+                    onOpenMangaReader = ::openMangaReader,
                     manualHighlight = viewModel.state.settings.manualHighlight,
                     onManualHighlightStart = {
                         val firstVisible = getFirstFullyVisibleItemIndex()
@@ -625,6 +636,7 @@ class ReaderActivity : BaseActivity() {
                 ) {
                     lastScrollEventTime = SystemClock.elapsedRealtime()
                     isPageChapter.value = viewModel.items.any { it is ReaderItem.Page }
+                    redirectToMangaReaderIfNeeded()
                     prefetchPagesNear(firstVisibleItem, visibleItemCount)
                     updateCurrentReadingPosSavingState(
                         firstVisibleItemIndex = viewAdapter.listView.fromPositionToIndex(
