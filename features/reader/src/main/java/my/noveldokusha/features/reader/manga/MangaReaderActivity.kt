@@ -136,8 +136,6 @@ internal class MangaReaderActivity : ComponentActivity() {
             MangaReaderComposeContent()
         }
 
-        enableAutoScroll()
-
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
     }
 
