@@ -198,18 +198,6 @@ internal abstract class MangaPagerViewer(
         val ctrlPressed = event.metaState and KeyEvent.META_CTRL_ON > 0
 
         when (event.keyCode) {
-            KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                if (!config.volumeKeysEnabled) return false
-                if (isUp) {
-                    if (!config.volumeKeysInverted) moveDown() else moveUp()
-                }
-            }
-            KeyEvent.KEYCODE_VOLUME_UP -> {
-                if (!config.volumeKeysEnabled) return false
-                if (isUp) {
-                    if (!config.volumeKeysInverted) moveUp() else moveDown()
-                }
-            }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 if (isUp) {
                     if (ctrlPressed) moveToNext() else moveRight()

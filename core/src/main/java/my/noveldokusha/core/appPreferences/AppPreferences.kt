@@ -1017,28 +1017,13 @@ class AppPreferences @Inject constructor(
     val MANGA_READER_FULLSCREEN = object : Preference<Boolean>("MANGA_READER_FULLSCREEN") {
         override var value by SharedPreference_Boolean(name, preferences, true)
     }
-    /** Фон читалки: 0=WHITE, 1=BLACK, 2=GRAY, 3=AUTO (как tachiyomisy readerTheme). */
-    val MANGA_READER_THEME = object : Preference<Int>("MANGA_READER_THEME") {
-        override var value by SharedPreference_Int(name, preferences, 1)
-    }
     /** Боковой отступ webtoon-ленты в dp (0..25). */
     val MANGA_READER_WEBTOON_SIDE_PADDING = object : Preference<Int>("MANGA_READER_WEBTOON_SIDE_PADDING") {
         override var value by SharedPreference_Int(name, preferences, 0)
     }
-    val MANGA_READER_WEBTOON_DOUBLE_TAP_ZOOM = object : Preference<Boolean>("MANGA_READER_WEBTOON_DOUBLE_TAP_ZOOM") {
-        override var value by SharedPreference_Boolean(name, preferences, true)
-    }
-    /** Webtoon: запрет отдаления до размеров меньше экрана (zoom-out на первую страницу). */
-    val MANGA_READER_WEBTOON_DISABLE_ZOOM_OUT = object : Preference<Boolean>("MANGA_READER_WEBTOON_DISABLE_ZOOM_OUT") {
-        override var value by SharedPreference_Boolean(name, preferences, false)
-    }
     /** MangaZoomStart.value (0 = AUTOMATIC). */
     val MANGA_READER_ZOOM_START = object : Preference<Int>("MANGA_READER_ZOOM_START") {
         override var value by SharedPreference_Int(name, preferences, 0)
-    }
-    /** Длительность анимации дабл-тап зума в мс (fast=300, medium=500, slow=750). */
-    val MANGA_READER_DOUBLE_TAP_ANIM_SPEED = object : Preference<Int>("MANGA_READER_DOUBLE_TAP_ANIM_SPEED") {
-        override var value by SharedPreference_Int(name, preferences, 500)
     }
     /** MangaNavigationMode.value для пейджера (0 = default). */
     val MANGA_READER_NAV_MODE_PAGER = object : Preference<Int>("MANGA_READER_NAV_MODE_PAGER") {
@@ -1056,14 +1041,25 @@ class AppPreferences @Inject constructor(
     val MANGA_READER_TAPPING_INVERTED_WEBTOON = object : Preference<String>("MANGA_READER_TAPPING_INVERTED_WEBTOON") {
         override var value by SharedPreference_String(name, preferences, "NONE")
     }
-    val MANGA_READER_VOLUME_KEYS = object : Preference<Boolean>("MANGA_READER_VOLUME_KEYS") {
-        override var value by SharedPreference_Boolean(name, preferences, false)
-    }
-    val MANGA_READER_VOLUME_KEYS_INVERTED = object : Preference<Boolean>("MANGA_READER_VOLUME_KEYS_INVERTED") {
-        override var value by SharedPreference_Boolean(name, preferences, false)
-    }
     /** Долгое нажатие по странице открывает меню. */
     val MANGA_READER_LONG_TAP = object : Preference<Boolean>("MANGA_READER_LONG_TAP") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+    /**
+     * Автопрокрутка ленты (только манга-режим, tachiyomisy-стиль):
+     * плавный непрерывный скролл webtoon со скоростью MANGA_READER_AUTOSCROLL_SPEED.
+     * Отдельные префы (НЕ READER_AUTOSCROLL_* новеллы) — настройки
+     * манги не влияют на текстовую читалку.
+     */
+    val MANGA_READER_AUTOSCROLL_ENABLED = object : Preference<Boolean>("MANGA_READER_AUTOSCROLL_ENABLED") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+    /** Скорость автопрокрутки ленты в dp/с (10..200, шаг 10). */
+    val MANGA_READER_AUTOSCROLL_SPEED = object : Preference<Int>("MANGA_READER_AUTOSCROLL_SPEED") {
+        override var value by SharedPreference_Int(name, preferences, 40)
+    }
+    /** Плавная (smoothScrollBy) или мгновенная (scrollBy) автопрокрутка. */
+    val MANGA_READER_AUTOSCROLL_SMOOTH = object : Preference<Boolean>("MANGA_READER_AUTOSCROLL_SMOOTH") {
         override var value by SharedPreference_Boolean(name, preferences, true)
     }
     val MANGA_READER_COLOR_FILTER = object : Preference<Boolean>("MANGA_READER_COLOR_FILTER") {

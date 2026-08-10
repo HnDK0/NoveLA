@@ -156,28 +156,21 @@ internal class MangaReaderViewModel @Inject constructor(
         showPageNumber = appPreferences.MANGA_READER_SHOW_PAGE_NUMBER.value,
         keepScreenOn = appPreferences.MANGA_READER_KEEP_SCREEN_ON.value,
         fullscreen = appPreferences.MANGA_READER_FULLSCREEN.value,
-        readerTheme = appPreferences.MANGA_READER_THEME.value,
         webtoonSidePadding = appPreferences.MANGA_READER_WEBTOON_SIDE_PADDING.value,
-        webtoonDoubleTapZoom = appPreferences.MANGA_READER_WEBTOON_DOUBLE_TAP_ZOOM.value,
-        webtoonDisableZoomOut = appPreferences.MANGA_READER_WEBTOON_DISABLE_ZOOM_OUT.value,
         zoomStart = MangaZoomStart.fromPreference(appPreferences.MANGA_READER_ZOOM_START.value),
-        doubleTapAnimSpeed = appPreferences.MANGA_READER_DOUBLE_TAP_ANIM_SPEED.value,
         navModePager = MangaNavigationMode.fromPreference(appPreferences.MANGA_READER_NAV_MODE_PAGER.value),
         navModeWebtoon = MangaNavigationMode.fromPreference(appPreferences.MANGA_READER_NAV_MODE_WEBTOON.value),
         tappingInvertedPager = MangaTappingInvertMode.fromStorage(appPreferences.MANGA_READER_TAPPING_INVERTED_PAGER.value),
         tappingInvertedWebtoon = MangaTappingInvertMode.fromStorage(appPreferences.MANGA_READER_TAPPING_INVERTED_WEBTOON.value),
-        volumeKeys = appPreferences.MANGA_READER_VOLUME_KEYS.value,
-        volumeKeysInverted = appPreferences.MANGA_READER_VOLUME_KEYS_INVERTED.value,
         longTap = appPreferences.MANGA_READER_LONG_TAP.value,
         colorFilterEnabled = appPreferences.MANGA_READER_COLOR_FILTER.value,
         colorFilterValue = appPreferences.MANGA_READER_COLOR_FILTER_VALUE.value,
         colorFilterMode = appPreferences.MANGA_READER_COLOR_FILTER_MODE.value,
         grayscale = appPreferences.MANGA_READER_GRAYSCALE.value,
         invertedColors = appPreferences.MANGA_READER_INVERTED_COLORS.value,
-        autoscrollEnabled = appPreferences.READER_AUTOSCROLL_ENABLED.value,
-        autoscrollInterval = appPreferences.READER_AUTOSCROLL_INTERVAL.value,
-        autoscrollSmooth = appPreferences.READER_AUTOSCROLL_SMOOTH.value,
-        pagePrefetchCount = appPreferences.READER_PAGE_PREFETCH_COUNT.value,
+        autoscrollEnabled = appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.value,
+        autoscrollSpeed = appPreferences.MANGA_READER_AUTOSCROLL_SPEED.value,
+        autoscrollSmooth = appPreferences.MANGA_READER_AUTOSCROLL_SMOOTH.value,
     )
 
     private inner class MangaReaderSettingsActionsImpl : MangaReaderSettingsActions {
@@ -216,33 +209,13 @@ internal class MangaReaderViewModel @Inject constructor(
             settings.value = buildSettingsState()
         }
 
-        override fun setReaderTheme(theme: Int) {
-            appPreferences.MANGA_READER_THEME.value = theme
-            settings.value = buildSettingsState()
-        }
-
         override fun setWebtoonSidePadding(padding: Int) {
             appPreferences.MANGA_READER_WEBTOON_SIDE_PADDING.value = padding
             settings.value = buildSettingsState()
         }
 
-        override fun setWebtoonDoubleTapZoom(enabled: Boolean) {
-            appPreferences.MANGA_READER_WEBTOON_DOUBLE_TAP_ZOOM.value = enabled
-            settings.value = buildSettingsState()
-        }
-
-        override fun setWebtoonDisableZoomOut(enabled: Boolean) {
-            appPreferences.MANGA_READER_WEBTOON_DISABLE_ZOOM_OUT.value = enabled
-            settings.value = buildSettingsState()
-        }
-
         override fun setZoomStart(zoomStart: MangaZoomStart) {
             appPreferences.MANGA_READER_ZOOM_START.value = zoomStart.value
-            settings.value = buildSettingsState()
-        }
-
-        override fun setDoubleTapAnimSpeed(speed: Int) {
-            appPreferences.MANGA_READER_DOUBLE_TAP_ANIM_SPEED.value = speed
             settings.value = buildSettingsState()
         }
 
@@ -263,16 +236,6 @@ internal class MangaReaderViewModel @Inject constructor(
 
         override fun setTappingInvertedWebtoon(mode: MangaTappingInvertMode) {
             appPreferences.MANGA_READER_TAPPING_INVERTED_WEBTOON.value = mode.storageKey
-            settings.value = buildSettingsState()
-        }
-
-        override fun setVolumeKeys(enabled: Boolean) {
-            appPreferences.MANGA_READER_VOLUME_KEYS.value = enabled
-            settings.value = buildSettingsState()
-        }
-
-        override fun setVolumeKeysInverted(enabled: Boolean) {
-            appPreferences.MANGA_READER_VOLUME_KEYS_INVERTED.value = enabled
             settings.value = buildSettingsState()
         }
 
@@ -307,23 +270,19 @@ internal class MangaReaderViewModel @Inject constructor(
         }
 
         override fun setAutoscrollEnabled(enabled: Boolean) {
-            appPreferences.READER_AUTOSCROLL_ENABLED.value = enabled
+            appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.value = enabled
             settings.value = buildSettingsState()
         }
 
-        override fun setAutoscrollInterval(interval: Float) {
-            appPreferences.READER_AUTOSCROLL_INTERVAL.value = interval
+        override fun setAutoscrollSpeed(speed: Int) {
+            appPreferences.MANGA_READER_AUTOSCROLL_SPEED.value = speed
             settings.value = buildSettingsState()
         }
 
         override fun setAutoscrollSmooth(enabled: Boolean) {
-            appPreferences.READER_AUTOSCROLL_SMOOTH.value = enabled
+            appPreferences.MANGA_READER_AUTOSCROLL_SMOOTH.value = enabled
             settings.value = buildSettingsState()
         }
 
-        override fun setPagePrefetchCount(count: Int) {
-            appPreferences.READER_PAGE_PREFETCH_COUNT.value = count
-            settings.value = buildSettingsState()
-        }
     }
 }

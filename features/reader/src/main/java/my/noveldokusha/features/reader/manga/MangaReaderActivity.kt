@@ -31,6 +31,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -41,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,14 +57,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.mapLatest
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.features.reader.manga.setting.MangaReadingMode
 import my.noveldokusha.features.reader.manga.ui.MangaReaderSettingsSheet
@@ -185,7 +182,7 @@ internal class MangaReaderActivity : ComponentActivity() {
         val chapter = viewModel.chapter.value ?: return
         // Префетч страниц вперёд (значение настройки применяется к обоим
         // вьюерам: у пейджера кэш прогревается, у ленты — холдеры).
-        val count = viewModel.settings.value.pagePrefetchCount
+        val count = appPreferences.READER_PAGE_PREFETCH_COUNT.value
         if (count > 0 && page + 1 < chapter.pageCount) {
             val end = min(page + 1 + count, chapter.pageCount)
             pageImageLoader.prefetchPages(chapter.url, chapter.pages.subList(page + 1, end))
@@ -226,7 +223,9 @@ internal class MangaReaderActivity : ComponentActivity() {
 
         requestedOrientation = settings.orientation.flag
 
-        val bg = themeColor(settings.readerTheme)
+        // Фон читалки следует теме приложения (night-aware), как остальной UI
+        // NoveLA; отдельной "темы читалки" в манга-режиме больше нет.
+        val bg = if (isNightMode()) 0xFF202125.toInt() else android.graphics.Color.WHITE
         binding.mangaViewerContainer.setBackgroundColor(bg)
         window.setBackgroundDrawable(ColorDrawable(bg))
 
@@ -258,13 +257,6 @@ internal class MangaReaderActivity : ComponentActivity() {
         )
 
         if (settings.fullscreen) setupFullScreenMode() else setupNormalScreenMode()
-    }
-
-    private fun themeColor(theme: Int): Int = when (theme) {
-        0 -> android.graphics.Color.WHITE
-        2 -> 0xFF202125.toInt() // tachiyomisy grayBackgroundColor
-        3 -> if (isNightMode()) android.graphics.Color.BLACK else android.graphics.Color.WHITE
-        else -> android.graphics.Color.BLACK
     }
 
     private fun isNightMode(): Boolean =
@@ -311,34 +303,6 @@ internal class MangaReaderActivity : ComponentActivity() {
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
         if (viewer?.handleGenericMotionEvent(event) == true) return true
         return super.onGenericMotionEvent(event)
-    }
-
-    // ---------- Автопрокрутка (лента) ----------
-
-    private fun enableAutoScroll() {
-        combine(
-            appPreferences.READER_AUTOSCROLL_ENABLED.flow(),
-            appPreferences.READER_AUTOSCROLL_INTERVAL.flow(),
-            appPreferences.READER_AUTOSCROLL_SMOOTH.flow(),
-        ) { enabled, interval, smooth -> Triple(enabled, interval, smooth) }
-            .mapLatest { (enabled, interval, smooth) ->
-                if (!enabled) return@mapLatest
-                repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    while (true) {
-                        val v = viewer
-                        if (v is MangaWebtoonViewer && !toolbarVisible.value && !viewModel.loading.value) {
-                            val recycler = v.recycler
-                            if (smooth) {
-                                recycler.smoothScrollBy(0, recycler.height)
-                            } else {
-                                recycler.scrollBy(0, (recycler.height * 0.75).toInt())
-                            }
-                        }
-                        delay((interval * 1000L).toLong())
-                    }
-                }
-            }
-            .launchIn(lifecycleScope)
     }
 
     // ---------- Compose UI ----------
@@ -504,6 +468,23 @@ internal class MangaReaderActivity : ComponentActivity() {
                     contentDescription = stringResource(R.string.manga_reader_next_chapter),
                     tint = Color.White,
                 )
+            }
+            // Автопрокрутка (только для ленты; пауза/возобновление).
+            val mode = viewModel.settings.value.readingMode
+            if (mode == MangaReadingMode.WEBTOON || mode == MangaReadingMode.CONTINUOUS_VERTICAL) {
+                val autoscrollOn by appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.flow()
+                    .collectAsState(initial = appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.value)
+                IconButton(
+                    onClick = {
+                        appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.value = !autoscrollOn
+                    },
+                ) {
+                    Icon(
+                        if (autoscrollOn) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = stringResource(R.string.manga_reader_auto_scroll),
+                        tint = Color.White,
+                    )
+                }
             }
             IconButton(onClick = { showSettingsSheet.value = true }) {
                 Icon(

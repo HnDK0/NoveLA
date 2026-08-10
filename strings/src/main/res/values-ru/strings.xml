@@ -1197,7 +1197,6 @@
     <string name="manga_reader_show_page_number">Показывать номер страницы</string>
     <string name="manga_reader_keep_screen_on">Не выключать экран</string>
     <string name="manga_reader_fullscreen">Полный экран</string>
-    <string name="manga_reader_theme">Фон</string>
     <string name="manga_reader_prev_chapter">Предыдущая глава</string>
     <string name="manga_reader_next_chapter">Следующая глава</string>
     <string name="manga_reader_chapter_loading">Загрузка главы…</string>
@@ -1228,21 +1227,13 @@
     <string name="manga_tapping_inverted_horizontal">По горизонтали</string>
     <string name="manga_tapping_inverted_vertical">По вертикали</string>
     <string name="manga_tapping_inverted_both">Обе оси</string>
-    <string name="manga_volume_keys">Клавиши громкости</string>
-    <string name="manga_volume_keys_inverted">Инвертировать клавиши громкости</string>
     <string name="manga_long_tap">Долгий тап открывает меню</string>
     <string name="manga_webtoon_side_padding">Боковой отступ</string>
-    <string name="manga_webtoon_double_tap_zoom">Зум двойным тапом</string>
-    <string name="manga_webtoon_disable_zoom_out">Запретить отдаление</string>
     <string name="manga_zoom_start">Начальная позиция зума</string>
     <string name="manga_zoom_start_automatic">Автоматически</string>
     <string name="manga_zoom_start_left">Слева</string>
     <string name="manga_zoom_start_center">По центру</string>
     <string name="manga_zoom_start_right">Справа</string>
-    <string name="manga_double_tap_speed">Скорость анимации зума</string>
-    <string name="manga_double_tap_speed_fast">Быстро</string>
-    <string name="manga_double_tap_speed_medium">Средне</string>
-    <string name="manga_double_tap_speed_slow">Медленно</string>
     <string name="manga_color_filter_enable">Цветовой фильтр</string>
     <string name="manga_color_filter_value">Цвет фильтра</string>
     <string name="manga_color_filter_mode">Режим фильтра</string>
@@ -1252,12 +1243,16 @@
     <string name="manga_color_filter_mode_overlay">Перекрытие</string>
     <string name="manga_color_filter_mode_lighten">Осветление</string>
     <string name="manga_color_filter_mode_darken">Затемнение</string>
+    <string name="manga_color_filter_alpha">Прозрачность</string>
+    <string name="manga_color_filter_red">Красный</string>
+    <string name="manga_color_filter_green">Зелёный</string>
+    <string name="manga_color_filter_blue">Синий</string>
+    <string name="manga_color_filter_custom">Свой фильтр</string>
+    <string name="manga_expand_autoscroll">Автопрокрутка</string>
+    <string name="manga_autoscroll_speed">Скорость</string>
+    <string name="manga_autoscroll_speed_value">%1$d dp/с</string>
     <string name="manga_grayscale">Оттенки серого</string>
     <string name="manga_inverted_colors">Инвертированные цвета</string>
-    <string name="manga_theme_black">Чёрный</string>
-    <string name="manga_theme_white">Белый</string>
-    <string name="manga_theme_gray">Серый</string>
-    <string name="manga_theme_auto">Автоматически</string>
 
 </resources>
 

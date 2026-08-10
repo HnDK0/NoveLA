@@ -53,10 +53,6 @@ internal class MangaPagerConfig(
             .onEach { imageZoomStart = zoomStartFromPreference(it) }
             .launchIn(scope)
 
-        appPreferences.MANGA_READER_DOUBLE_TAP_ANIM_SPEED.flow()
-            .onEach { doubleTapAnimDuration = it }
-            .launchIn(scope)
-
         appPreferences.MANGA_READER_NAV_MODE_PAGER.flow()
             .onEach {
                 navigationMode = it
@@ -69,14 +65,6 @@ internal class MangaPagerConfig(
                 tappingInverted = MangaTappingInvertMode.fromStorage(it)
                 navigator.invertMode = tappingInverted
             }
-            .launchIn(scope)
-
-        appPreferences.MANGA_READER_VOLUME_KEYS.flow()
-            .onEach { volumeKeysEnabled = it }
-            .launchIn(scope)
-
-        appPreferences.MANGA_READER_VOLUME_KEYS_INVERTED.flow()
-            .onEach { volumeKeysInverted = it }
             .launchIn(scope)
 
         appPreferences.MANGA_READER_LONG_TAP.flow()

@@ -50,19 +50,22 @@ internal class MangaPageImageView @JvmOverloads constructor(
         setImage(ImageSource.uri(Uri.fromFile(file)))
     }
 
-    override fun onImageLoaded() {
-        super.onImageLoaded()
-        imageLoadedListener?.invoke()
-    }
-
     fun updateConfig(config: Config) {
         this.config = config
         applyConfig()
     }
 
+    /**
+     * Жесты 1-в-1 с tachiyomisy ReaderPageImageView:
+     * пан ограничен внутри изображения, дабл-тап зумит в 2x "по месту" (центр
+     * тапа) с максимумом 5x, тайлы декодируются в высоком dpi.
+     */
     private fun applyConfig() {
         setQuickScaleEnabled(config.doubleTapZoomEnabled)
         setDoubleTapZoomDuration(config.zoomAnimationDuration)
+        setDoubleTapZoomStyle(ZOOM_FOCUS_CENTER)
+        setPanLimit(PAN_LIMIT_INSIDE)
+        setMinimumTileDpi(180)
         // В официальном SSIV 3.10.0 нет SCALE_TYPE_CENTER/END (это форк
         // tachiyomisy) — доступны только CENTER_INSIDE/CENTER_CROP/CUSTOM/START.
         setMinimumScaleType(
@@ -73,6 +76,16 @@ internal class MangaPageImageView @JvmOverloads constructor(
                 MangaZoomStart.AUTOMATIC -> SCALE_TYPE_CENTER_INSIDE // для пейджера
             },
         )
+    }
+
+    override fun onImageLoaded() {
+        super.onImageLoaded()
+        if (config.doubleTapZoomEnabled) {
+            // "дабл-тап = идеально вписать в экран" как в tachiyomisy: 2x от fit-масштаба.
+            setDoubleTapZoomScale(scale * 2f)
+            setMaxScale(scale * 5f) // MAX_ZOOM_SCALE = 5F
+        }
+        imageLoadedListener?.invoke()
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

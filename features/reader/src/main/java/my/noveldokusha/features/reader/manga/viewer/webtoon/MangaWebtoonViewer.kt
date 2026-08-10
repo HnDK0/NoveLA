@@ -8,8 +8,15 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.features.reader.manga.MangaChapter
 import my.noveldokusha.features.reader.manga.viewer.Viewer
@@ -80,6 +87,56 @@ internal class MangaWebtoonViewer(
 
         frame.layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
         frame.addView(recycler)
+
+        setupAutoScroll()
+    }
+
+    // ── Автопрокрутка (tachiyomisy-стиль: непрерывный плавный скролл) ──
+
+    private var autoScrollJob: Job? = null
+
+    /** Пауза по касанию: любой тач по ленте останавливает скролл. */
+    private var autoScrollPaused = false
+
+    private fun setupAutoScroll() {
+        // Тач по ленте — пауза (пользователь читает/листает сам).
+        recycler.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                autoScrollPaused = true
+            }
+            false // не перехватываем событие
+        }
+        appPreferences.MANGA_READER_AUTOSCROLL_ENABLED.flow()
+            .onEach { enabled ->
+                if (enabled && autoScrollJob == null) {
+                    autoScrollPaused = false
+                    autoScrollJob = scope.launch { runAutoScroll() }
+                } else if (!enabled) {
+                    autoScrollJob?.cancel()
+                    autoScrollJob = null
+                }
+            }
+            .launchIn(scope)
+    }
+
+    /** Цикл: тик каждые 16 мс, дельта = скорость (dp/с) * dt. */
+    private suspend fun CoroutineScope.runAutoScroll() {
+        val density = context.resources.displayMetrics.density
+        while (isActive) {
+            if (!autoScrollPaused && recycler.width > 0 && recycler.height > 0) {
+                // Читаем префы каждый тик — смена скорости/плавности в настройках
+                // применяется на лету.
+                val speedPxPerSec = appPreferences.MANGA_READER_AUTOSCROLL_SPEED.value * density
+                val smooth = appPreferences.MANGA_READER_AUTOSCROLL_SMOOTH.value
+                val step = (speedPxPerSec * 0.016f).toInt().coerceAtLeast(1)
+                if (smooth) {
+                    recycler.smoothScrollBy(0, step)
+                } else {
+                    recycler.scrollBy(0, step)
+                }
+            }
+            delay(16)
+        }
     }
 
     /** Корневой view вьюера. */
@@ -136,18 +193,6 @@ internal class MangaWebtoonViewer(
     override fun handleKeyEvent(event: KeyEvent): Boolean {
         val isUp = event.action == KeyEvent.ACTION_UP
         when (event.keyCode) {
-            KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                if (!config.volumeKeysEnabled) return false
-                if (isUp) {
-                    if (!config.volumeKeysInverted) scrollDown() else scrollUp()
-                }
-            }
-            KeyEvent.KEYCODE_VOLUME_UP -> {
-                if (!config.volumeKeysEnabled) return false
-                if (isUp) {
-                    if (!config.volumeKeysInverted) scrollUp() else scrollDown()
-                }
-            }
             KeyEvent.KEYCODE_MENU -> if (isUp) pageClickListener?.invoke()
 
             KeyEvent.KEYCODE_DPAD_LEFT,

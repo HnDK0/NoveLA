@@ -723,7 +723,6 @@
     <string name="manga_reader_show_page_number">Show page number</string>
     <string name="manga_reader_keep_screen_on">Keep screen on</string>
     <string name="manga_reader_fullscreen">Fullscreen</string>
-    <string name="manga_reader_theme">Background</string>
     <string name="manga_reader_prev_chapter">Previous chapter</string>
     <string name="manga_reader_next_chapter">Next chapter</string>
     <string name="manga_reader_chapter_loading">Loading chapter…</string>
@@ -754,21 +753,13 @@
     <string name="manga_tapping_inverted_horizontal">Horizontal</string>
     <string name="manga_tapping_inverted_vertical">Vertical</string>
     <string name="manga_tapping_inverted_both">Both</string>
-    <string name="manga_volume_keys">Volume keys</string>
-    <string name="manga_volume_keys_inverted">Invert volume keys</string>
     <string name="manga_long_tap">Long tap opens menu</string>
     <string name="manga_webtoon_side_padding">Side padding</string>
-    <string name="manga_webtoon_double_tap_zoom">Double tap zoom</string>
-    <string name="manga_webtoon_disable_zoom_out">Disable zoom out</string>
     <string name="manga_zoom_start">Zoom start position</string>
     <string name="manga_zoom_start_automatic">Automatic</string>
     <string name="manga_zoom_start_left">Left</string>
     <string name="manga_zoom_start_center">Center</string>
     <string name="manga_zoom_start_right">Right</string>
-    <string name="manga_double_tap_speed">Double tap animation speed</string>
-    <string name="manga_double_tap_speed_fast">Fast</string>
-    <string name="manga_double_tap_speed_medium">Medium</string>
-    <string name="manga_double_tap_speed_slow">Slow</string>
     <string name="manga_color_filter_enable">Color filter</string>
     <string name="manga_color_filter_value">Filter color</string>
     <string name="manga_color_filter_mode">Filter mode</string>
@@ -778,11 +769,15 @@
     <string name="manga_color_filter_mode_overlay">Overlay</string>
     <string name="manga_color_filter_mode_lighten">Lighten</string>
     <string name="manga_color_filter_mode_darken">Darken</string>
+    <string name="manga_color_filter_alpha">Alpha</string>
+    <string name="manga_color_filter_red">Red</string>
+    <string name="manga_color_filter_green">Green</string>
+    <string name="manga_color_filter_blue">Blue</string>
+    <string name="manga_color_filter_custom">Custom filter</string>
+    <string name="manga_expand_autoscroll">Auto-scroll</string>
+    <string name="manga_autoscroll_speed">Speed</string>
+    <string name="manga_autoscroll_speed_value">%1$d dp/s</string>
     <string name="manga_grayscale">Grayscale</string>
     <string name="manga_inverted_colors">Inverted colors</string>
-    <string name="manga_theme_black">Black</string>
-    <string name="manga_theme_white">White</string>
-    <string name="manga_theme_gray">Gray</string>
-    <string name="manga_theme_auto">Automatic</string>
 
 </resources>
