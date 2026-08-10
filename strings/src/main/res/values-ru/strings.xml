@@ -1233,7 +1233,7 @@
     <string name="manga_zoom_start_left">Слева</string>
     <string name="manga_zoom_start_center">По центру</string>
     <string name="manga_zoom_start_right">Справа</string>
-    <string name="manga_color_filter_enable">Цветовой фильтр</string>
+    <string name="manga_custom_color_filter">Пользовательский цветовой фильтр</string>
     <string name="manga_color_filter_mode">Режим фильтра</string>
     <string name="manga_color_filter_mode_normal">Обычный</string>
     <string name="manga_color_filter_mode_multiply">Умножение</string>
@@ -1246,6 +1246,7 @@
     <string name="manga_color_filter_green">Зелёный</string>
     <string name="manga_color_filter_blue">Синий</string>
     <string name="manga_color_filter_custom">Свой фильтр</string>
+    <string name="manga_custom_brightness">Пользовательская яркость</string>
     <string name="manga_expand_autoscroll">Автопрокрутка</string>
     <string name="manga_autoscroll_speed">Скорость</string>
     <string name="manga_autoscroll_speed_value">%1$d dp/с</string>

@@ -32,6 +32,8 @@ internal data class MangaReaderSettingsState(
     val colorFilterEnabled: Boolean = false,
     val colorFilterValue: Int = 0,
     val colorFilterMode: Int = 0, // 0..5 нормальный/multiply/screen/overlay/lighten/darken
+    val customBrightness: Boolean = false,
+    val customBrightnessValue: Int = 0, // -75..100, как в tachiyomisy
     val grayscale: Boolean = false,
     val invertedColors: Boolean = false,
     val autoscrollEnabled: Boolean = false,
@@ -58,6 +60,8 @@ internal interface MangaReaderSettingsActions {
     fun setColorFilterEnabled(enabled: Boolean)
     fun setColorFilterValue(value: Int)
     fun setColorFilterMode(mode: Int)
+    fun setCustomBrightness(enabled: Boolean)
+    fun setCustomBrightnessValue(value: Int)
     fun setGrayscale(enabled: Boolean)
     fun setInvertedColors(enabled: Boolean)
     fun setAutoscrollEnabled(enabled: Boolean)

@@ -1065,6 +1065,14 @@ class AppPreferences @Inject constructor(
     val MANGA_READER_COLOR_FILTER = object : Preference<Boolean>("MANGA_READER_COLOR_FILTER") {
         override var value by SharedPreference_Boolean(name, preferences, false)
     }
+    /** Пользовательская яркость (tachiyomisy custom brightness): выкл = системная. */
+    val MANGA_READER_CUSTOM_BRIGHTNESS = object : Preference<Boolean>("MANGA_READER_CUSTOM_BRIGHTNESS") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+    /** -75..100: <0 — затемнение оверлеем, >0 — screenBrightness, 0 — системная. */
+    val MANGA_READER_CUSTOM_BRIGHTNESS_VALUE = object : Preference<Int>("MANGA_READER_CUSTOM_BRIGHTNESS_VALUE") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
     /** ARGB-цвет оверлея. */
     val MANGA_READER_COLOR_FILTER_VALUE = object : Preference<Int>("MANGA_READER_COLOR_FILTER_VALUE") {
         override var value by SharedPreference_Int(name, preferences, 0)

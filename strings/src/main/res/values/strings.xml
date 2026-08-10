@@ -759,7 +759,7 @@
     <string name="manga_zoom_start_left">Left</string>
     <string name="manga_zoom_start_center">Center</string>
     <string name="manga_zoom_start_right">Right</string>
-    <string name="manga_color_filter_enable">Color filter</string>
+    <string name="manga_custom_color_filter">Custom color filter</string>
     <string name="manga_color_filter_mode">Filter mode</string>
     <string name="manga_color_filter_mode_normal">Normal</string>
     <string name="manga_color_filter_mode_multiply">Multiply</string>
@@ -772,6 +772,7 @@
     <string name="manga_color_filter_green">Green</string>
     <string name="manga_color_filter_blue">Blue</string>
     <string name="manga_color_filter_custom">Custom filter</string>
+    <string name="manga_custom_brightness">Custom brightness</string>
     <string name="manga_expand_autoscroll">Auto-scroll</string>
     <string name="manga_autoscroll_speed">Speed</string>
     <string name="manga_autoscroll_speed_value">%1$d dp/s</string>
