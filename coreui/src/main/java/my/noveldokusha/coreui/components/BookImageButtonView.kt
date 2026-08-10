@@ -267,12 +267,12 @@ private fun SourceStrip(
             modifier = Modifier.weight(1f),
             contentAlignment = Alignment.Center
         ) {
-            BasicText(
+BasicText(
                 text = sourceName,
-                color = MaterialTheme.colorScheme.onPrimary,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 8.sp
+                    fontSize = 8.sp,
+                    color = MaterialTheme.colorScheme.onPrimary
                 ),
                 maxLines = 1,
                 softWrap = false,
@@ -280,8 +280,8 @@ private fun SourceStrip(
                 modifier = Modifier.basicMarquee(
                     iterations = MarqueeIterationsInfinite,
                     animationMode = MarqueeAnimationMode.Immediately,
-                    repeatDelay = 0,
-                    initialDelay = 0,
+                    repeatDelayMillis = 0,
+                    initialDelayMillis = 0,
                     spacing = MarqueeSpacing.fractionOfContainer(0.2f),
                     velocity = 40.dp,
                 )
@@ -311,9 +311,10 @@ private fun TopSourceStrip(
             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
             .padding(horizontal = 6.dp)
     ) {
-        val bodyStyle = MaterialTheme.typography.labelSmall.copy(
+val bodyStyle = MaterialTheme.typography.labelSmall.copy(
             fontWeight = FontWeight.Bold,
-            fontSize = 8.sp
+            fontSize = 8.sp,
+            color = MaterialTheme.colorScheme.onPrimary
         )
         if (unreadCount == 0) {
             Icon(
@@ -328,7 +329,6 @@ private fun TopSourceStrip(
             Text(
                 text = "$unreadCount · ",
                 maxLines = 1,
-                color = MaterialTheme.colorScheme.onPrimary,
                 style = bodyStyle
             )
         }
@@ -336,7 +336,6 @@ private fun TopSourceStrip(
         // не помещается (basicMarquee сам определяет overflow), иначе статично.
         BasicText(
             text = sourceName,
-            color = MaterialTheme.colorScheme.onPrimary,
             style = bodyStyle,
             maxLines = 1,
             softWrap = false,
@@ -344,8 +343,8 @@ private fun TopSourceStrip(
             modifier = Modifier.basicMarquee(
                 iterations = MarqueeIterationsInfinite,
                 animationMode = MarqueeAnimationMode.Immediately,
-                repeatDelay = 0,
-                initialDelay = 0,
+                repeatDelayMillis = 0,
+                initialDelayMillis = 0,
                 spacing = MarqueeSpacing.fractionOfContainer(0.2f),
                 velocity = 40.dp,
             )
