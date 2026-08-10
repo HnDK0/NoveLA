@@ -33,7 +33,7 @@ import my.noveldokusha.features.reader.tools.PageImageLoader
 internal class MangaWebtoonViewer(
     private val context: Context,
     internal val pageImageLoader: PageImageLoader,
-    appPreferences: AppPreferences,
+    private val appPreferences: AppPreferences,
     /** false — «непрерывность» выключена (нижний margin у страниц). */
     internal val isContinuous: Boolean = true,
 ) : Viewer {
