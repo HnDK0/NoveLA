@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import my.noveldokusha.data.AppRepository
+import my.noveldokusha.data.DownloadedPageChaptersStore
 import my.noveldokusha.data.DownloaderRepository
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.TernaryState
@@ -25,6 +26,7 @@ internal class ChaptersRepository @Inject constructor(
     private val appPreferences: AppPreferences,
     private val chapterBodyDao: ChapterBodyDao,
     private val downloadedPageChaptersDao: DownloadedPageChaptersDao,
+    private val downloadedPageChaptersStore: DownloadedPageChaptersStore,
 ) {
 
     suspend fun downloadBookMetadata(bookUrl: String, bookTitle: String) = coroutineScope {
@@ -61,14 +63,33 @@ internal class ChaptersRepository @Inject constructor(
         chapterBodyDao.getDownloadedUrlsFlow(bookUrl),
         chapterBodyDao.getSizesByBookUrls(listOf(bookUrl)),
         downloadedPageChaptersDao.getByBookUrlsFlow(listOf(bookUrl)),
-    ) { downloadedUrls, bodySizes, pageDownloads ->
+        appRepository.bookChapters.getChaptersWithContextFlow(bookUrl = bookUrl),
+    ) { downloadedUrls, bodySizes, pageDownloads, chapters ->
         val downloadedSet = downloadedUrls.toSet() + pageDownloads.map { it.url }
         val sizeByUrl = HashMap<String, ChapterSize>()
+        // Текстовые главы: LENGTH(body).
         bodySizes.forEach { sizeByUrl[it.url] = ChapterSize(sizeBytes = it.sizeBytes) }
+        // Страничные главы: totalBytes из строки метаданных (если есть).
         pageDownloads.forEach { pageDownloadsRow ->
             sizeByUrl[pageDownloadsRow.url] = ChapterSize(sizeBytes = pageDownloadsRow.totalBytes)
         }
-        DownloadInfo(downloadedSet, sizeByUrl)
+        // Манга/манхва без строки метаданных (старые загрузки, обновлённая
+        // схема) — размер из реальных файлов страниц на диске.
+        val missing = chapters.map { it.chapter.url }.filterNot { it in sizeByUrl }
+        val diskSizes: Map<String, Long>
+        val diskDownloaded: Set<String>
+        if (missing.isNotEmpty()) {
+            val (sizes, dirs) = downloadedPageChaptersStore.getDiskState(missing)
+            diskSizes = sizes
+            diskDownloaded = dirs
+            diskSizes.forEach { (url, bytes) ->
+                sizeByUrl[url] = ChapterSize(sizeBytes = bytes)
+            }
+        } else {
+            diskSizes = emptyMap()
+            diskDownloaded = emptySet()
+        }
+        DownloadInfo(downloadedSet + diskDownloaded, sizeByUrl)
     }
 
     fun getChaptersSortedFlow(bookUrl: String) = combine(
