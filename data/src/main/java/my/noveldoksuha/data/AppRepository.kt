@@ -133,13 +133,20 @@ class AppRepository @Inject constructor(
             db.chapterBodyDao().deleteAll()
             db.chapterPagesDao().deleteAll()
             db.chapterTranslationDao().deleteAllTranslations()
+            // Файлы скачанных страничных глав удаляем вместе со строками —
+            // иначе дисковый fallback в списке глав снова покажет их
+            // «скачанными» с размером, хотя кэш очищен.
+            downloadedPageChaptersStore.deleteAll()
         }
 
         /**
          * Approximate size (in bytes) of all cached chapter bodies.
+         * Includes real bytes of downloaded page-chapter files on disk.
          */
         suspend fun getChapterCacheSizeBytes(): Long =
-            db.chapterBodyDao().getCacheSizeBytes() + db.chapterPagesDao().getCacheSizeBytes()
+            db.chapterBodyDao().getCacheSizeBytes() +
+                db.chapterPagesDao().getCacheSizeBytes() +
+                downloadedPageChaptersStore.getDiskSizeBytes()
 
         /**
          * Folder where additional book data like images is stored.

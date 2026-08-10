@@ -455,7 +455,11 @@ internal class SettingsViewModel @Inject constructor(
         }
         val booksSize = dirSize(file)
         val coilCacheSize = dirSize(context.cacheDir.resolve("image_cache"))
-        booksSize + coilCacheSize
+        // Загруженные/скачанные страницы манхвы-манг: кэш ридера
+        // (page_images) + скачанные главы-картинки (downloaded_pages).
+        val pageImagesSize = dirSize(context.cacheDir.resolve("page_images"))
+        val downloadedPagesSize = dirSize(context.filesDir.resolve("downloaded_pages"))
+        booksSize + coilCacheSize + pageImagesSize + downloadedPagesSize
     }
 
     // ── Auto Backup Methods ─────────────────────────────────────────────────

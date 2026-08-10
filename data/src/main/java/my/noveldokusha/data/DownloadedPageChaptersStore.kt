@@ -154,6 +154,19 @@ class DownloadedPageChaptersStore @Inject constructor(
             sizes to dirs
         }
 
+    /**
+     * Реальные байты всех скачанных страничных глав на диске
+     * (файлы в downloaded_pages). Для отображения размера кэша —
+     * истина в последней инстанции, не зависит от строк БД.
+     */
+    suspend fun getDiskSizeBytes(): Long = withContext(Dispatchers.IO) {
+        if (!root.exists()) return@withContext 0L
+        root.listFiles()
+            ?.sumOf { dir ->
+                if (dir.isDirectory) dir.listFiles()?.sumOf { it.length() } ?: 0L else 0L
+            } ?: 0L
+    }
+
     suspend fun deleteBookChapters(bookUrls: List<String>) = withContext(Dispatchers.IO) {
         if (bookUrls.isEmpty()) return@withContext
         val rows = dao.getByBookUrls(bookUrls)
