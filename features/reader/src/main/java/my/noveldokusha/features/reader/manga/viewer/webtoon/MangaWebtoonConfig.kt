@@ -20,8 +20,8 @@ import my.noveldokusha.features.reader.manga.viewer.navigation.RightAndLeftNavig
  * Конфигурация вебтун-вьюера — порт tachiyomisy WebtoonConfig.
  * Все настройки подписаны на AppPreferences (flow в [scope]).
  * Зум всей ленты (strip-zoom) в NoveLA не портирован — страницы
- * не принимают тачи (touchEnabled=false), поэтому doubleTapZoom/
- * disableZoomOut хранятся как поля конфигурации для API-паритета.
+ * не принимают тачи (touchEnabled=false), как WebtoonSubsamplingImageView
+ * в tachiyomisy (onTouchEvent всегда false).
  */
 internal class MangaWebtoonConfig(
     appPreferences: AppPreferences,
@@ -30,12 +30,6 @@ internal class MangaWebtoonConfig(
 
     /** Боковые отступы ленты в px (в настройках — dp). */
     var sidePaddingPx = 0
-        private set
-
-    var doubleTapZoomEnabled = true
-        private set
-
-    var disableZoomOut = false
         private set
 
     /** Плавный скролл по тапу/клавишам (иначе — мгновенный). */
@@ -61,28 +55,8 @@ internal class MangaWebtoonConfig(
             }
             .launchIn(scope)
 
-        appPreferences.MANGA_READER_VOLUME_KEYS.flow()
-            .onEach { volumeKeysEnabled = it }
-            .launchIn(scope)
-
-        appPreferences.MANGA_READER_VOLUME_KEYS_INVERTED.flow()
-            .onEach { volumeKeysInverted = it }
-            .launchIn(scope)
-
         appPreferences.MANGA_READER_LONG_TAP.flow()
             .onEach { longTapEnabled = it }
-            .launchIn(scope)
-
-        appPreferences.MANGA_READER_DOUBLE_TAP_ANIM_SPEED.flow()
-            .onEach { doubleTapAnimDuration = it }
-            .launchIn(scope)
-
-        appPreferences.MANGA_READER_WEBTOON_DOUBLE_TAP_ZOOM.flow()
-            .onEach { doubleTapZoomEnabled = it }
-            .launchIn(scope)
-
-        appPreferences.MANGA_READER_WEBTOON_DISABLE_ZOOM_OUT.flow()
-            .onEach { disableZoomOut = it }
             .launchIn(scope)
 
         appPreferences.MANGA_READER_WEBTOON_SIDE_PADDING.flow()

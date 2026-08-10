@@ -103,10 +103,11 @@ internal class MangaWebtoonPageHolder(
 
     /** Применяет текущие настройки к картинке (при rebind'е). */
     private fun updateImageConfig() {
+        // Лента: страницы не принимают жесты вообще (как WebtoonSubsamplingImageView
+        // в tachiyomisy — onTouchEvent всегда false), скролл/тапы ведёт RecyclerView.
         pageImage.updateConfig(
             MangaPageImageView.Config(
                 doubleTapZoomEnabled = false,
-                zoomAnimationDuration = viewer.config.doubleTapAnimDuration,
                 zoomStart = MangaZoomStart.LEFT, // fit по ширине (SCALE_TYPE_START)
                 touchEnabled = false,
             ),

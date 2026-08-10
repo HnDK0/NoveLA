@@ -18,8 +18,6 @@ internal abstract class ViewerConfig(
     var tappingInverted: MangaTappingInvertMode = MangaTappingInvertMode.NONE
     var longTapEnabled = true
     var doubleTapAnimDuration = 500
-    var volumeKeysEnabled = false
-    var volumeKeysInverted = false
 
     var navigationMode = 0
         protected set

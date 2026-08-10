@@ -1,26 +1,32 @@
 package my.noveldokusha.features.reader.manga.ui
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.CardDefaults
@@ -30,14 +36,21 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -49,35 +62,9 @@ import my.noveldokusha.features.reader.manga.setting.MangaReadingMode
 import my.noveldokusha.features.reader.manga.setting.MangaTappingInvertMode
 import my.noveldokusha.features.reader.manga.setting.MangaZoomStart
 import my.noveldokusha.reader.R
+import kotlinx.coroutines.launch
 
-/** Палитра для цветового фильтра (ARGB-значения, 0 = прозрачный/выкл). */
-private val colorFilterPalette: List<Int> = listOf(
-    0x00000000,
-    0xFFFFFFFF.toInt(),
-    0xFFFFF176.toInt(),
-    0xFFFFB74D.toInt(),
-    0xFFE57373.toInt(),
-    0xFFF06292.toInt(),
-    0xFFBA68C8.toInt(),
-    0xFF9575CD.toInt(),
-    0xFF7986CB.toInt(),
-    0xFF64B5F6.toInt(),
-    0xFF4FC3F7.toInt(),
-    0xFF4DB6AC.toInt(),
-    0xFF81C784.toInt(),
-    0xFFAED581.toInt(),
-    0xFFFF8A65.toInt(),
-    0xFFA1887F.toInt(),
-)
-
-/** Скорость анимации зума двойным тапом: значение -> label. */
-private val doubleTapSpeeds = listOf(
-    300 to R.string.manga_double_tap_speed_fast,
-    500 to R.string.manga_double_tap_speed_medium,
-    750 to R.string.manga_double_tap_speed_slow,
-)
-
-/** Режимы цветового фильтра: значение -> label. */
+/** Режимы цветового фильтра: значение -> label (tachiyomisy ColorFilterMode). */
 private val colorFilterModes = listOf(
     0 to R.string.manga_color_filter_mode_normal,
     1 to R.string.manga_color_filter_mode_multiply,
@@ -87,31 +74,35 @@ private val colorFilterModes = listOf(
     5 to R.string.manga_color_filter_mode_darken,
 )
 
-/** Фоны читалки: значение -> label (0=WHITE, 1=BLACK, 2=GRAY, 3=AUTO). */
-private val readerThemes = listOf(
-    0 to R.string.manga_theme_white,
-    1 to R.string.manga_theme_black,
-    2 to R.string.manga_theme_gray,
-    3 to R.string.manga_theme_auto,
-)
-
 /**
- * Настройки манга/манхва-читалки (страничные главы).
- * Зеркалит паттерн MoreSettingDialog: BasicAlertDialog + ElevatedCard,
- * секции с заголовками, Column с verticalScroll.
+ * Настройки манга/манхва-читалки — порт tachiyomisy ReaderSettingsDialog:
+ * три вкладки (Reading mode / General / Custom filter) в TabRow +
+ * HorizontalPager с свайпом между ними.
+ *
+ * Вкладки зеркалят SY ReadingModePage / GeneralSettingsPage / ColorFilterPage.
+ * Фона читалки нет (тема NoveLA); авто-скролл — раскрывающаяся секция
+ * в General: тап по строке разворачивает её логические настройки
+ * (интервал, плавность) под ней.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MangaReaderSettingsSheet(
     settings: MangaReaderSettingsState,
     actions: MangaReaderSettingsActions,
     onClose: () -> Unit,
 ) {
+    val pagerState = rememberPagerState(pageCount = { 3 })
+    val scope = rememberCoroutineScope()
+    fun selectPage(page: Int) {
+        scope.launch { pagerState.scrollToPage(page) }
+    }
+
     BasicAlertDialog(onDismissRequest = onClose) {
         ElevatedCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.9f),
+                .heightIn(max = 900.dp)
+                .fillMaxHeight(0.75f),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp),
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -134,276 +125,325 @@ internal fun MangaReaderSettingsSheet(
                         )
                     }
                 }
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    GeneralSection(settings, actions)
-                    ControlsSection(settings, actions)
-                    WebtoonSection(settings, actions)
-                    ColorFilterSection(settings, actions)
-                    AutoScrollSection(settings, actions)
+                TabRow(selectedTabIndex = pagerState.currentPage) {
+                    Tab(
+                        selected = pagerState.currentPage == 0,
+                        onClick = { selectPage(0) },
+                        text = { Text(stringResource(R.string.manga_reader_reading_mode)) },
+                    )
+                    Tab(
+                        selected = pagerState.currentPage == 1,
+                        onClick = { selectPage(1) },
+                        text = { Text(stringResource(R.string.manga_reader_general)) },
+                    )
+                    Tab(
+                        selected = pagerState.currentPage == 2,
+                        onClick = { selectPage(2) },
+                        text = { Text(stringResource(R.string.manga_color_filter_custom)) },
+                    )
+                }
+                HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth()) { page ->
+                    when (page) {
+                        0 -> ReadingModePage(settings, actions)
+                        1 -> GeneralPage(settings, actions)
+                        else -> ColorFilterPage(settings, actions)
+                    }
                 }
             }
         }
     }
 }
 
+/** Вкладка "Reading mode" — порт SY ReadingModePage. */
 @Composable
-private fun GeneralSection(
+private fun ReadingModePage(
     settings: MangaReaderSettingsState,
     actions: MangaReaderSettingsActions,
 ) {
-    SettingSectionTitle(R.string.manga_reader_general)
-
-    ChipSettingItem(
-        titleRes = R.string.manga_reader_reading_mode,
-        chips = MangaReadingMode.entries.map { mode ->
-            chip(
-                labelRes = mode.labelRes,
-                selected = mode == settings.readingMode,
-                onClick = { actions.setReadingMode(mode) },
-            )
-        },
-    )
-    ChipSettingItem(
-        titleRes = R.string.manga_reader_orientation,
-        chips = MangaReaderOrientation.entries.map { orientation ->
-            chip(
-                labelRes = orientation.labelRes,
-                selected = orientation == settings.orientation,
-                onClick = { actions.setOrientation(orientation) },
-            )
-        },
-    )
-    SwitchSettingItem(
-        titleRes = R.string.manga_reader_transitions_pager,
-        checked = settings.transitionsPager,
-        onCheckedChange = actions::setTransitionsPager,
-    )
-    SwitchSettingItem(
-        titleRes = R.string.manga_reader_transitions_webtoon,
-        checked = settings.transitionsWebtoon,
-        onCheckedChange = actions::setTransitionsWebtoon,
-    )
-    SwitchSettingItem(
-        titleRes = R.string.manga_reader_show_page_number,
-        checked = settings.showPageNumber,
-        onCheckedChange = actions::setShowPageNumber,
-    )
-    SwitchSettingItem(
-        titleRes = R.string.manga_reader_keep_screen_on,
-        checked = settings.keepScreenOn,
-        onCheckedChange = actions::setKeepScreenOn,
-    )
-    SwitchSettingItem(
-        titleRes = R.string.manga_reader_fullscreen,
-        checked = settings.fullscreen,
-        onCheckedChange = actions::setFullscreen,
-    )
-    ChipSettingItem(
-        titleRes = R.string.manga_reader_theme,
-        chips = readerThemes.map { (value, labelRes) ->
-            chip(
-                labelRes = labelRes,
-                selected = value == settings.readerTheme,
-                onClick = { actions.setReaderTheme(value) },
-            )
-        },
-    )
-}
-
-@Composable
-private fun ControlsSection(
-    settings: MangaReaderSettingsState,
-    actions: MangaReaderSettingsActions,
-) {
-    SettingSectionTitle(R.string.manga_reader_controls)
-
-    // Тап-зоны: единый ряд, применяется сразу к пейджеру и webtoon.
-    SettingChipRow(
-        chips = MangaNavigationMode.entries.map { mode ->
-            chip(
-                labelRes = mode.labelRes,
-                selected = mode == settings.navModePager,
-                onClick = {
-                    actions.setNavModePager(mode)
-                    actions.setNavModeWebtoon(mode)
-                },
-            )
-        },
-    )
-    ChipSettingItem(
-        titleRes = R.string.manga_zoom_start,
-        chips = MangaZoomStart.entries.map { zoomStart ->
-            chip(
-                labelRes = zoomStart.labelRes,
-                selected = zoomStart == settings.zoomStart,
-                onClick = { actions.setZoomStart(zoomStart) },
-            )
-        },
-    )
-    ChipSettingItem(
-        titleRes = R.string.manga_double_tap_speed,
-        chips = doubleTapSpeeds.map { (value, labelRes) ->
-            chip(
-                labelRes = labelRes,
-                selected = value == settings.doubleTapAnimSpeed,
-                onClick = { actions.setDoubleTapAnimSpeed(value) },
-            )
-        },
-    )
-    ChipSettingItem(
-        titleRes = R.string.manga_tapping_inverted,
-        chips = listOf(
-            MangaTappingInvertMode.NONE to R.string.manga_tapping_inverted_none,
-            MangaTappingInvertMode.HORIZONTAL to R.string.manga_tapping_inverted_horizontal,
-            MangaTappingInvertMode.VERTICAL to R.string.manga_tapping_inverted_vertical,
-            MangaTappingInvertMode.BOTH to R.string.manga_tapping_inverted_both,
-        ).map { (mode, labelRes) ->
-            chip(
-                labelRes = labelRes,
-                selected = mode == settings.tappingInvertedPager,
-                onClick = {
-                    actions.setTappingInvertedPager(mode)
-                    actions.setTappingInvertedWebtoon(mode)
-                },
-            )
-        },
-    )
-    SwitchSettingItem(
-        titleRes = R.string.manga_volume_keys,
-        checked = settings.volumeKeys,
-        onCheckedChange = actions::setVolumeKeys,
-    )
-    SwitchSettingItem(
-        titleRes = R.string.manga_volume_keys_inverted,
-        checked = settings.volumeKeysInverted,
-        onCheckedChange = actions::setVolumeKeysInverted,
-    )
-    SwitchSettingItem(
-        titleRes = R.string.manga_long_tap,
-        checked = settings.longTap,
-        onCheckedChange = actions::setLongTap,
-    )
-}
-
-@Composable
-private fun WebtoonSection(
-    settings: MangaReaderSettingsState,
-    actions: MangaReaderSettingsActions,
-) {
-    SettingSectionTitle(R.string.manga_reader_webtoon)
-
-    StepperSettingItem(
-        titleRes = R.string.manga_webtoon_side_padding,
-        valueText = settings.webtoonSidePadding.toString(),
-        onDecrease = {
-            actions.setWebtoonSidePadding((settings.webtoonSidePadding - 1).coerceAtLeast(0))
-        },
-        onIncrease = {
-            actions.setWebtoonSidePadding((settings.webtoonSidePadding + 1).coerceAtMost(25))
-        },
-    )
-}
-
-@Composable
-private fun ColorFilterSection(
-    settings: MangaReaderSettingsState,
-    actions: MangaReaderSettingsActions,
-) {
-    SettingSectionTitle(R.string.manga_reader_color_filter)
-
-    SwitchSettingItem(
-        titleRes = R.string.manga_color_filter_enable,
-        checked = settings.colorFilterEnabled,
-        onCheckedChange = actions::setColorFilterEnabled,
-    )
-    if (settings.colorFilterEnabled) {
-        SlimListItem(
-            headlineContent = { Text(stringResource(R.string.manga_color_filter_value)) },
-        )
-        ColorSwatchRow(
-            colors = colorFilterPalette,
-            selected = settings.colorFilterValue,
-            onSelect = actions::setColorFilterValue,
-        )
+    SettingsPage {
         ChipSettingItem(
-            titleRes = R.string.manga_color_filter_mode,
-            chips = colorFilterModes.map { (value, labelRes) ->
+            titleRes = R.string.manga_reader_reading_mode,
+            chips = MangaReadingMode.entries.map { mode ->
                 chip(
-                    labelRes = labelRes,
-                    selected = value == settings.colorFilterMode,
-                    onClick = { actions.setColorFilterMode(value) },
+                    labelRes = mode.labelRes,
+                    selected = mode == settings.readingMode,
+                    onClick = { actions.setReadingMode(mode) },
                 )
             },
         )
+        ChipSettingItem(
+            titleRes = R.string.manga_reader_orientation,
+            chips = MangaReaderOrientation.entries.map { orientation ->
+                chip(
+                    labelRes = orientation.labelRes,
+                    selected = orientation == settings.orientation,
+                    onClick = { actions.setOrientation(orientation) },
+                )
+            },
+        )
+
+        val isWebtoon = settings.readingMode == MangaReadingMode.WEBTOON ||
+            settings.readingMode == MangaReadingMode.CONTINUOUS_VERTICAL
+        if (isWebtoon) {
+            // Лента: навигация/инверсия — только для webtoon-вьюера.
+            ChipSettingItem(
+                titleRes = R.string.manga_reader_webtoon,
+                chips = MangaNavigationMode.entries.map { mode ->
+                    chip(
+                        labelRes = mode.labelRes,
+                        selected = mode == settings.navModeWebtoon,
+                        onClick = { actions.setNavModeWebtoon(mode) },
+                    )
+                },
+            )
+            ChipSettingItem(
+                titleRes = R.string.manga_tapping_inverted,
+                chips = listOf(
+                    MangaTappingInvertMode.NONE to R.string.manga_tapping_inverted_none,
+                    MangaTappingInvertMode.HORIZONTAL to R.string.manga_tapping_inverted_horizontal,
+                    MangaTappingInvertMode.VERTICAL to R.string.manga_tapping_inverted_vertical,
+                    MangaTappingInvertMode.BOTH to R.string.manga_tapping_inverted_both,
+                ).map { (mode, labelRes) ->
+                    chip(
+                        labelRes = labelRes,
+                        selected = mode == settings.tappingInvertedWebtoon,
+                        onClick = { actions.setTappingInvertedWebtoon(mode) },
+                    )
+                },
+            )
+            StepperSettingItem(
+                titleRes = R.string.manga_webtoon_side_padding,
+                valueText = settings.webtoonSidePadding.toString(),
+                onDecrease = {
+                    actions.setWebtoonSidePadding((settings.webtoonSidePadding - 1).coerceAtLeast(0))
+                },
+                onIncrease = {
+                    actions.setWebtoonSidePadding((settings.webtoonSidePadding + 1).coerceAtMost(25))
+                },
+            )
+            SwitchSettingItem(
+                titleRes = R.string.manga_reader_transitions_webtoon,
+                checked = settings.transitionsWebtoon,
+                onCheckedChange = actions::setTransitionsWebtoon,
+            )
+        } else {
+            // Пейджер: навигация/инверсия/стартовая позиция зума.
+            ChipSettingItem(
+                titleRes = R.string.manga_reader_controls,
+                chips = MangaNavigationMode.entries.map { mode ->
+                    chip(
+                        labelRes = mode.labelRes,
+                        selected = mode == settings.navModePager,
+                        onClick = { actions.setNavModePager(mode) },
+                    )
+                },
+            )
+            ChipSettingItem(
+                titleRes = R.string.manga_tapping_inverted,
+                chips = listOf(
+                    MangaTappingInvertMode.NONE to R.string.manga_tapping_inverted_none,
+                    MangaTappingInvertMode.HORIZONTAL to R.string.manga_tapping_inverted_horizontal,
+                    MangaTappingInvertMode.VERTICAL to R.string.manga_tapping_inverted_vertical,
+                    MangaTappingInvertMode.BOTH to R.string.manga_tapping_inverted_both,
+                ).map { (mode, labelRes) ->
+                    chip(
+                        labelRes = labelRes,
+                        selected = mode == settings.tappingInvertedPager,
+                        onClick = { actions.setTappingInvertedPager(mode) },
+                    )
+                },
+            )
+            ChipSettingItem(
+                titleRes = R.string.manga_zoom_start,
+                chips = MangaZoomStart.entries.map { zoomStart ->
+                    chip(
+                        labelRes = zoomStart.labelRes,
+                        selected = zoomStart == settings.zoomStart,
+                        onClick = { actions.setZoomStart(zoomStart) },
+                    )
+                },
+            )
+            SwitchSettingItem(
+                titleRes = R.string.manga_reader_transitions_pager,
+                checked = settings.transitionsPager,
+                onCheckedChange = actions::setTransitionsPager,
+            )
+        }
     }
-    SwitchSettingItem(
-        titleRes = R.string.manga_grayscale,
-        checked = settings.grayscale,
-        onCheckedChange = actions::setGrayscale,
-    )
-    SwitchSettingItem(
-        titleRes = R.string.manga_inverted_colors,
-        checked = settings.invertedColors,
-        onCheckedChange = actions::setInvertedColors,
-    )
 }
 
+/** Вкладка "General" — порт SY GeneralSettingsPage (без темы читалки). */
+@Composable
+private fun GeneralPage(
+    settings: MangaReaderSettingsState,
+    actions: MangaReaderSettingsActions,
+) {
+    SettingsPage {
+        SwitchSettingItem(
+            titleRes = R.string.manga_reader_show_page_number,
+            checked = settings.showPageNumber,
+            onCheckedChange = actions::setShowPageNumber,
+        )
+        SwitchSettingItem(
+            titleRes = R.string.manga_reader_keep_screen_on,
+            checked = settings.keepScreenOn,
+            onCheckedChange = actions::setKeepScreenOn,
+        )
+        SwitchSettingItem(
+            titleRes = R.string.manga_reader_fullscreen,
+            checked = settings.fullscreen,
+            onCheckedChange = actions::setFullscreen,
+        )
+        SwitchSettingItem(
+            titleRes = R.string.manga_long_tap,
+            checked = settings.longTap,
+            onCheckedChange = actions::setLongTap,
+        )
+
+        AutoScrollSection(settings, actions)
+    }
+}
+
+/**
+ * Авто-скролл: раскрывающаяся/сворачиваемая секция. Тап по строке
+ * разворачивает логические настройки (скорость, плавность) под ней.
+ */
 @Composable
 private fun AutoScrollSection(
     settings: MangaReaderSettingsState,
     actions: MangaReaderSettingsActions,
 ) {
-    SettingSectionTitle(R.string.manga_reader_auto_scroll)
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f)
 
-    SwitchSettingItem(
-        titleRes = R.string.auto_scroll,
-        checked = settings.autoscrollEnabled,
-        onCheckedChange = actions::setAutoscrollEnabled,
-    )
-    if (settings.autoscrollEnabled) {
-        val intervalText = if (settings.autoscrollInterval % 1f == 0f) {
-            settings.autoscrollInterval.toInt().toString()
-        } else {
-            "%.1f".format(settings.autoscrollInterval)
+    Column(modifier = Modifier.animateContentSize()) {
+        SlimListItem(
+            onClick = { expanded = !expanded },
+            headlineContent = { Text(stringResource(R.string.manga_expand_autoscroll)) },
+            trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(
+                        checked = settings.autoscrollEnabled,
+                        onCheckedChange = actions::setAutoscrollEnabled,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = colorAccent(),
+                            checkedTrackColor = colorAccent().copy(alpha = 0.4f),
+                        ),
+                    )
+                    Icon(
+                        Icons.Filled.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(start = 8.dp, end = 12.dp)
+                            .graphicsLayer { rotationZ = chevronRotation },
+                    )
+                }
+            },
+        )
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
+            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp)) {
+                StepperSettingItem(
+                    titleRes = R.string.manga_autoscroll_speed,
+                    valueText = stringResource(R.string.manga_autoscroll_speed_value, settings.autoscrollSpeed),
+                    onDecrease = {
+                        actions.setAutoscrollSpeed((settings.autoscrollSpeed - 10).coerceAtLeast(10))
+                    },
+                    onIncrease = {
+                        actions.setAutoscrollSpeed((settings.autoscrollSpeed + 10).coerceAtMost(200))
+                    },
+                )
+                SwitchSettingItem(
+                    titleRes = R.string.auto_scroll_smooth,
+                    checked = settings.autoscrollSmooth,
+                    onCheckedChange = actions::setAutoscrollSmooth,
+                )
+            }
         }
-        StepperSettingItem(
-            titleRes = R.string.auto_scroll_interval,
-            valueText = stringResource(R.string.auto_scroll_interval_value, intervalText),
-            onDecrease = {
-                actions.setAutoscrollInterval((settings.autoscrollInterval - 0.5f).coerceAtLeast(1f))
-            },
-            onIncrease = {
-                actions.setAutoscrollInterval((settings.autoscrollInterval + 0.5f).coerceAtMost(60f))
-            },
+    }
+}
+
+/** Вкладка "Custom filter" — порт SY ColorFilterPage (RGBA-слайдеры вместо палитры). */
+@Composable
+private fun ColorFilterPage(
+    settings: MangaReaderSettingsState,
+    actions: MangaReaderSettingsActions,
+) {
+    SettingsPage {
+        SwitchSettingItem(
+            titleRes = R.string.manga_color_filter_enable,
+            checked = settings.colorFilterEnabled,
+            onCheckedChange = actions::setColorFilterEnabled,
+        )
+        if (settings.colorFilterEnabled) {
+            RgbaSliderItem(
+                titleRes = R.string.manga_color_filter_alpha,
+                value = ((settings.colorFilterValue ushr 24) and 0xFF).toFloat(),
+                onValueChange = { v -> actions.setColorFilterValue(withChannel(settings.colorFilterValue, 24, v)) },
+            )
+            RgbaSliderItem(
+                titleRes = R.string.manga_color_filter_red,
+                value = ((settings.colorFilterValue ushr 16) and 0xFF).toFloat(),
+                onValueChange = { v -> actions.setColorFilterValue(withChannel(settings.colorFilterValue, 16, v)) },
+            )
+            RgbaSliderItem(
+                titleRes = R.string.manga_color_filter_green,
+                value = ((settings.colorFilterValue ushr 8) and 0xFF).toFloat(),
+                onValueChange = { v -> actions.setColorFilterValue(withChannel(settings.colorFilterValue, 8, v)) },
+            )
+            RgbaSliderItem(
+                titleRes = R.string.manga_color_filter_blue,
+                value = (settings.colorFilterValue and 0xFF).toFloat(),
+                onValueChange = { v -> actions.setColorFilterValue(withChannel(settings.colorFilterValue, 0, v)) },
+            )
+            ChipSettingItem(
+                titleRes = R.string.manga_color_filter_mode,
+                chips = colorFilterModes.map { (value, labelRes) ->
+                    chip(
+                        labelRes = labelRes,
+                        selected = value == settings.colorFilterMode,
+                        onClick = { actions.setColorFilterMode(value) },
+                    )
+                },
+            )
+        }
+        SwitchSettingItem(
+            titleRes = R.string.manga_grayscale,
+            checked = settings.grayscale,
+            onCheckedChange = actions::setGrayscale,
         )
         SwitchSettingItem(
-            titleRes = R.string.auto_scroll_smooth,
-            checked = settings.autoscrollSmooth,
-            onCheckedChange = actions::setAutoscrollSmooth,
+            titleRes = R.string.manga_inverted_colors,
+            checked = settings.invertedColors,
+            onCheckedChange = actions::setInvertedColors,
         )
     }
-    ChipSettingItem(
-        titleRes = R.string.page_prefetch_count,
-        chips = listOf(4, 8, 12, 24).map { count ->
-            SettingChip(
-                selected = count == settings.pagePrefetchCount,
-                onClick = { actions.setPagePrefetchCount(count) },
-            ) { Text(count.toString()) }
-        },
-    )
+}
+
+/** Подменяет один байт ARGB-значения (новое значение — 0..255). */
+private fun withChannel(argb: Int, shift: Int, newValue: Float): Int {
+    val channel = newValue.toInt().coerceIn(0, 255)
+    return (argb and (0xFF shl shift).inv()) or (channel shl shift)
+}
+
+/** Скроллируемая колонка вкладки с отступами внизу. */
+@Composable
+private fun SettingsPage(content: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 16.dp),
+    ) {
+        content()
+    }
 }
 
 // ── Вспомогательные компоненты ──────────────────────────────────────────────
-
-@Composable
-private fun SettingSectionTitle(@StringRes titleRes: Int) {
-    Text(
-        text = stringResource(titleRes),
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 4.dp),
-    )
-}
 
 /** Один chip выбора в ряду. */
 private class SettingChip(
@@ -503,38 +543,21 @@ private fun StepperSettingItem(
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ColorSwatchRow(
-    colors: List<Int>,
-    selected: Int,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier,
+private fun RgbaSliderItem(
+    @StringRes titleRes: Int,
+    value: Float,
+    onValueChange: (Float) -> Unit,
 ) {
-    FlowRow(
-        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        colors.forEach { argb ->
-            val isSelected = argb == selected
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (argb == 0) MaterialTheme.colorScheme.surfaceVariant
-                        else Color(argb)
-                    )
-                    .then(
-                        if (isSelected) {
-                            Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                        } else {
-                            Modifier
-                        }
-                    )
-                    .clickable { onSelect(argb) },
+    SlimListItem(
+        headlineContent = { Text(stringResource(titleRes)) },
+        supportingContent = {
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = 0f..255f,
+                modifier = Modifier.padding(end = 16.dp),
             )
-        }
-    }
+        },
+    )
 }
