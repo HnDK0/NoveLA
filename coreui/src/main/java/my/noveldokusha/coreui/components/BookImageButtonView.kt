@@ -3,11 +3,13 @@ package my.noveldokusha.coreui.components
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.MarqueeAnimationMode
+import androidx.compose.foundation.MarqueeSpacing
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,7 +21,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -34,16 +35,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.BasicText
 import my.noveldokusha.coreui.AppTestTags
 import my.noveldokusha.coreui.R
 import my.noveldokusha.coreui.theme.Grey0
@@ -55,6 +54,10 @@ import my.noveldokusha.coreui.theme.isLightTheme
 enum class BookTitlePosition {
     Inside, Outside, Hidden
 }
+
+// basicMarquee: iterations = сколько раз текст пробегает; 1_000_000 ≈ ∞
+// (MarqueeIterations.Infinite удалён в foundation 1.11).
+private const val MarqueeIterationsInfinite = 1_000_000
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -258,89 +261,95 @@ private fun SourceStrip(
                 .fillMaxHeight()
                 .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f))
         )
-        Text(
-            text = sourceName,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onPrimary,
-            textAlign = TextAlign.Center,
+        // Имя источника: бегущая строка — движется справа налево только когда
+        // не помещается (basicMarquee сам определяет overflow), иначе статично.
+        Box(
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 8.sp
+            contentAlignment = Alignment.Center
+        ) {
+            BasicText(
+                text = sourceName,
+                color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 8.sp
+                ),
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Clip,
+                modifier = Modifier.basicMarquee(
+                    iterations = MarqueeIterationsInfinite,
+                    animationMode = MarqueeAnimationMode.Immediately,
+                    repeatDelay = 0,
+                    initialDelay = 0,
+                    spacing = MarqueeSpacing.fractionOfContainer(0.2f),
+                    velocity = 40.dp,
+                )
             )
-        )
+        }
     }
 }
 
 /**
  * Компактная полупрозрачная полоса «счётчик · источник» для ВЕРХНЕЙ кромки обложки
  * (рядом с рейтингом). Имя источника показывается ПОЛНОСТЬЮ: если оно не
- * помещается при базовом размере, кегль уменьшается пропорционально доступной
- * ширине (динамически, под каждую обложку). Многоточие — лишь страховка при
- * крайне узких колонках ниже минимального кегля.
+ * помещается в отведённую ширину — бегущей строкой справа налево (как тикер
+ * новостей, непрерывно); если помещается — статично.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TopSourceStrip(
     unreadCount: Int,
     sourceName: String,
     modifier: Modifier = Modifier,
 ) {
-    val textMeasurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val maxFontSize = 8.sp
-    val minFontSize = 6.sp
-    val iconReserve = if (unreadCount == 0) 12.dp + 4.dp else 0.dp
-    BoxWithConstraints(modifier = modifier.height(18.dp)) {
-        val fullText = if (unreadCount == 0) sourceName else "$unreadCount · $sourceName"
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .height(18.dp)
+            .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, bottomEnd = 6.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
+            .padding(horizontal = 6.dp)
+    ) {
         val bodyStyle = MaterialTheme.typography.labelSmall.copy(
             fontWeight = FontWeight.Bold,
-            fontSize = maxFontSize
+            fontSize = 8.sp
         )
-        // Интринсивная ширина текста при базовом кегле (одна строка, без переносов)
-        val measured = textMeasurer.measure(
-            text = AnnotatedString(fullText),
-            style = bodyStyle,
-            softWrap = false,
-            maxLines = 1,
-        )
-        val intrinsicWidth = with(density) { measured.size.width.toDp() }
-        // Доступная ширина текста: BoxWithConstraints maxWidth = место, оставшееся
-        // в верхнем ряду (после рейтинга), минус внутренние отступы и иконка.
-        val availableTextWidth = maxWidth - 12.dp - iconReserve
-        val scale = if (intrinsicWidth > 0.dp && availableTextWidth > 0.dp) {
-            (availableTextWidth / intrinsicWidth).coerceAtMost(1f)
+        if (unreadCount == 0) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
+            Spacer(modifier = Modifier.width(4.dp))
         } else {
-            1f
-        }
-        val fontSize = (maxFontSize.value * scale)
-            .coerceIn(minFontSize.value, maxFontSize.value)
-            .sp
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, bottomEnd = 6.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                .padding(horizontal = 6.dp)
-        ) {
-            if (unreadCount == 0) {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-            }
+            // Счётчик статичен; двигается только имя источника.
             Text(
-                text = fullText,
+                text = "$unreadCount · ",
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.widthIn(max = availableTextWidth),
-                style = bodyStyle.copy(fontSize = fontSize)
+                style = bodyStyle
             )
         }
+        // Имя источника: бегущая строка — движется справа налево только когда
+        // не помещается (basicMarquee сам определяет overflow), иначе статично.
+        BasicText(
+            text = sourceName,
+            color = MaterialTheme.colorScheme.onPrimary,
+            style = bodyStyle,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+            modifier = Modifier.basicMarquee(
+                iterations = MarqueeIterationsInfinite,
+                animationMode = MarqueeAnimationMode.Immediately,
+                repeatDelay = 0,
+                initialDelay = 0,
+                spacing = MarqueeSpacing.fractionOfContainer(0.2f),
+                velocity = 40.dp,
+            )
+        )
     }
 }
 
