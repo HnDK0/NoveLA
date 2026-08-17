@@ -158,14 +158,14 @@ class DownloaderRepository @Inject constructor(
 
                 val error by lazy {
                     """
-					Unable to load chapter from url:
-					$chapterUrl
+				Unable to load chapter from url:
+				$chapterUrl
 
-					Redirect url:
-					$realUrl
+				Redirect url:
+				$realUrl
 
-					Source not supported
-				""".trimIndent()
+				Source not supported
+			""".trimIndent()
                 }
 
                 val matchingSource = scraper.getCompatibleSource(realUrl)
@@ -321,7 +321,7 @@ class DownloaderRepository @Inject constructor(
             val allChapters = mutableListOf<Chapter>()
 
             firstPage.chapters.forEachIndexed { idx, ch ->
-                allChapters.add(Chapter(title = ch.title, url = ch.url, bookUrl = bookUrl, position = idx))
+                allChapters.add(Chapter(title = ch.title, url = ch.url, bookUrl = bookUrl, position = idx, uploaded = ch.uploaded))
             }
 
             for (page in 2..firstPage.totalPages) {
@@ -333,7 +333,7 @@ class DownloaderRepository @Inject constructor(
                 }
                 val offset = allChapters.size
                 pageData.chapters.forEachIndexed { idx, ch ->
-                    allChapters.add(Chapter(title = ch.title, url = ch.url, bookUrl = bookUrl, position = offset + idx))
+                    allChapters.add(Chapter(title = ch.title, url = ch.url, bookUrl = bookUrl, position = offset + idx, uploaded = ch.uploaded))
                 }
                 Timber.d("bookChaptersList: page $page loaded, cumulative count=${allChapters.size}")
             }
@@ -354,7 +354,8 @@ class DownloaderRepository @Inject constructor(
                         title = it.title,
                         url = it.url,
                         bookUrl = bookUrl,
-                        position = index
+                        position = index,
+                        uploaded = it.uploaded
                     )
                 }
             }

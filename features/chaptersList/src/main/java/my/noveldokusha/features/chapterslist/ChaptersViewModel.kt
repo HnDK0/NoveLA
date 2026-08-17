@@ -458,7 +458,8 @@ internal class ChaptersViewModel @Inject constructor(
         newFromLastPage.forEachIndexed { idx, ch ->
             chaptersToAdd.add(
                 Chapter(
-                    title = ch.title, url = ch.url, bookUrl = bookUrl, position = positionOffset + idx
+                    title = ch.title, url = ch.url, bookUrl = bookUrl, position = positionOffset + idx,
+                    uploaded = ch.uploaded
                 )
             )
         }
@@ -473,7 +474,8 @@ internal class ChaptersViewModel @Inject constructor(
             pageData.chapters.forEachIndexed { idx, ch ->
                 chaptersToAdd.add(
                     Chapter(
-                        title = ch.title, url = ch.url, bookUrl = bookUrl, position = offset + idx
+                        title = ch.title, url = ch.url, bookUrl = bookUrl, position = offset + idx,
+                        uploaded = ch.uploaded
                     )
                 )
             }
