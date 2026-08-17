@@ -12,6 +12,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onSubscription
@@ -456,10 +458,42 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_Boolean(name, preferences, false)
     }
 
-    // Глобальный режим перевода: true — единая пара для всех новелл,
-    // false — у каждой новеллы собственная пара (отсутствие пары = перевод выключен).
+    // Глобальный режим перевода (fallback для новелл без явного выбора):
+    // true — единая пара для всех новелл, false — у каждой новеллы собственная пара.
     val TRANSLATION_GLOBAL_MODE = object : Preference<Boolean>("TRANSLATION_GLOBAL_MODE") {
         override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    // Режим перевода для каждой конкретной новеллы: Map<bookUrl, Boolean>.
+    // true = глобальный режим, false = персональный режим.
+    // Отсутствие ключа = используется TRANSLATION_GLOBAL_MODE (fallback).
+    val TRANSLATION_NOVEL_MODE = object : Preference<Map<String, Boolean>>("TRANSLATION_NOVEL_MODE") {
+        override var value by SharedPreference_Serializable<Map<String, Boolean>>(
+            name = name,
+            sharedPreferences = preferences,
+            defaultValue = emptyMap(),
+            encode = { encodeEnabledMap(it) },
+            decode = { decodeEnabledMap(it) }
+        )
+    }
+
+    /** Effective global-mode flag for a specific book (per-novel override or global default). */
+    fun translationModeForBook(bookUrl: String): Boolean =
+        TRANSLATION_NOVEL_MODE.value[bookUrl] ?: TRANSLATION_GLOBAL_MODE.value
+
+    /** Flow that emits the effective global-mode flag for a specific book. */
+    fun translationModeForBookFlow(bookUrl: String): Flow<Boolean> =
+        combine(
+            TRANSLATION_NOVEL_MODE.flow(),
+            TRANSLATION_GLOBAL_MODE.flow()
+        ) { novelModes, globalDefault -> novelModes[bookUrl] ?: globalDefault }
+            .distinctUntilChanged()
+
+    /** Persist the per-novel mode selection. */
+    fun setTranslationModeForBook(bookUrl: String, global: Boolean) {
+        val current = TRANSLATION_NOVEL_MODE.value.toMutableMap()
+        current[bookUrl] = global
+        TRANSLATION_NOVEL_MODE.value = current
     }
 
     val GLOBAL_TRANSLATION_PREFERRED_SOURCE =
@@ -501,7 +535,7 @@ class AppPreferences @Inject constructor(
 
     fun translationEnabledForBook(bookUrl: String): Boolean =
         resolveTranslationEnabled(
-            globalMode = TRANSLATION_GLOBAL_MODE.value,
+            globalMode = translationModeForBook(bookUrl),
             globalEnabled = GLOBAL_TRANSLATION_ENABLED.value,
             enabledMap = TRANSLATION_BOOK_ENABLED_MAP.value,
             bookUrl = bookUrl,
@@ -509,7 +543,7 @@ class AppPreferences @Inject constructor(
 
     fun translationPairForBook(bookUrl: String): TranslationLangPair =
         resolveTranslationPair(
-            globalMode = TRANSLATION_GLOBAL_MODE.value,
+            globalMode = translationModeForBook(bookUrl),
             globalSource = GLOBAL_TRANSLATION_PREFERRED_SOURCE.value,
             globalTarget = GLOBAL_TRANSLATION_PREFERRED_TARGET.value,
             map = TRANSLATION_BOOK_LANG_PAIR.value,
@@ -523,7 +557,7 @@ class AppPreferences @Inject constructor(
         translationPairForBook(bookUrl).target
 
     fun setTranslationPairForBook(bookUrl: String, source: String, target: String) {
-        if (TRANSLATION_GLOBAL_MODE.value) {
+        if (translationModeForBook(bookUrl)) {
             GLOBAL_TRANSLATION_PREFERRED_SOURCE.value = source
             GLOBAL_TRANSLATION_PREFERRED_TARGET.value = target
             return
@@ -540,7 +574,7 @@ class AppPreferences @Inject constructor(
     // Пару языков не трогает — она остаётся сохранённой и восстанавливается
     // при повторном включении.
     fun setTranslationEnabledForBook(bookUrl: String, enabled: Boolean) {
-        if (TRANSLATION_GLOBAL_MODE.value) {
+        if (translationModeForBook(bookUrl)) {
             GLOBAL_TRANSLATION_ENABLED.value = enabled
             return
         }

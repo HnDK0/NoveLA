@@ -699,6 +699,16 @@ class RestoreDataService : Service() {
                     Timber.d("mergeToSettings: Restored TRANSLATION_GLOBAL_MODE")
                 }
 
+                if (settingsJson.has("TRANSLATION_NOVEL_MODE")) {
+                    val novelModeJson = settingsJson.getJSONObject("TRANSLATION_NOVEL_MODE")
+                    val novelModeMap = mutableMapOf<String, Boolean>()
+                    for (key in novelModeJson.keys()) {
+                        novelModeMap[key] = novelModeJson.optBoolean(key, true)
+                    }
+                    appPreferences.TRANSLATION_NOVEL_MODE.value = novelModeMap
+                    Timber.d("mergeToSettings: Restored TRANSLATION_NOVEL_MODE (${novelModeMap.size} entries)")
+                }
+
                 if (settingsJson.has("GLOBAL_TRANSLATION_ENABLED")) {
                     appPreferences.GLOBAL_TRANSLATION_ENABLED.value = settingsJson.getBoolean("GLOBAL_TRANSLATION_ENABLED")
                     Timber.d("mergeToSettings: Restored GLOBAL_TRANSLATION_ENABLED")

@@ -254,12 +254,18 @@ internal class ChaptersViewModel @Inject constructor(
                 combine(
                     bookUrlFlow,
                     appPreferences.TRANSLATION_BOOK_ENABLED_MAP.flow(),
-                ) { url, bookEnabled -> url to bookEnabled },
-                appPreferences.TRANSLATION_BOOK_LANG_PAIR.flow(),
-                appPreferences.GLOBAL_TRANSLATION_ENABLED.flow(),
-                appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.flow(),
-                appPreferences.TRANSLATION_GLOBAL_MODE.flow()
-            ) { (url, bookEnabled), bookPairs, globalEnabled, globalTarget, globalMode ->
+                    appPreferences.TRANSLATION_BOOK_LANG_PAIR.flow()
+                ) { url, bookEnabled, bookPairs -> Triple(url, bookEnabled, bookPairs) },
+                combine(
+                    appPreferences.GLOBAL_TRANSLATION_ENABLED.flow(),
+                    appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.flow()
+                ) { globalEnabled, globalTarget -> globalEnabled to globalTarget },
+                combine(
+                    appPreferences.TRANSLATION_NOVEL_MODE.flow(),
+                    appPreferences.TRANSLATION_GLOBAL_MODE.flow()
+                ) { novelModes, globalDefault -> novelModes to globalDefault }
+            ) { (url, bookEnabled, bookPairs), (globalEnabled, globalTarget), (novelModes, globalDefault) ->
+                val globalMode = novelModes[url] ?: globalDefault
                 val enabled = resolveTranslationEnabled(globalMode, globalEnabled, bookEnabled, url)
                 val target = if (globalMode) globalTarget else bookPairs[url]?.target ?: ""
                 enabled to target

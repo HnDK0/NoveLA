@@ -333,6 +333,11 @@ class AutoBackupWorker(
                             }
                         })
                         put("TRANSLATION_GLOBAL_MODE", appPreferences.TRANSLATION_GLOBAL_MODE.value)
+                        put("TRANSLATION_NOVEL_MODE", org.json.JSONObject().apply {
+                            appPreferences.TRANSLATION_NOVEL_MODE.value.forEach { (url, global) ->
+                                put(url, global)
+                            }
+                        })
                         put("GLOBAL_TRANSLATION_ENABLED", appPreferences.GLOBAL_TRANSLATION_ENABLED.value)
                         put("GLOBAL_TRANSLATION_PREFERRED_SOURCE", appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value)
                         put("GLOBAL_TRANSLATION_PREFERRED_TARGET", appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value)

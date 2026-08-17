@@ -91,7 +91,7 @@ internal class ReaderLiveTranslation(
         onParallelEnabledChange = ::onParallelEnabledChange,
         parallelOrder = mutableStateOf(appPreferences.TRANSLATION_PARALLEL_ORDER.value),
         onParallelOrderChange = ::onParallelOrderChange,
-        translationGlobalMode = mutableStateOf(appPreferences.TRANSLATION_GLOBAL_MODE.value),
+        translationGlobalMode = mutableStateOf(appPreferences.translationModeForBook(bookUrl)),
         onTranslationGlobalModeChange = ::onTranslationGlobalModeChange,
     )
 
@@ -114,12 +114,12 @@ internal class ReaderLiveTranslation(
 
     private suspend fun refreshFromPrefs() {
         val pair = appPreferences.translationPairForBook(bookUrl)
-        Timber.d("refreshFromPrefs: source=${pair.source}, target=${pair.target}, globalMode=${appPreferences.TRANSLATION_GLOBAL_MODE.value}")
+        Timber.d("refreshFromPrefs: source=${pair.source}, target=${pair.target}, globalMode=${appPreferences.translationModeForBook(bookUrl)}")
 
         state.source.value = getValidTranslatorOrNull(pair.source)
         state.target.value = getValidTranslatorOrNull(pair.target)
         state.enable.value = appPreferences.translationEnabledForBook(bookUrl)
-        state.translationGlobalMode.value = appPreferences.TRANSLATION_GLOBAL_MODE.value
+        state.translationGlobalMode.value = appPreferences.translationModeForBook(bookUrl)
         Timber.d("refreshFromPrefs: sourceModel=${state.source.value?.language}, targetModel=${state.target.value?.language}, enable=${state.enable.value}")
     }
 
@@ -186,7 +186,7 @@ internal class ReaderLiveTranslation(
         Timber.d("onEnable: $it")
         try {
             // Глобальный режим: единый переключатель для всех новелл.
-            if (appPreferences.TRANSLATION_GLOBAL_MODE.value) {
+            if (appPreferences.translationModeForBook(bookUrl)) {
                 state.enable.value = it
                 appPreferences.GLOBAL_TRANSLATION_ENABLED.value = it
             } else {
@@ -247,9 +247,9 @@ internal class ReaderLiveTranslation(
     }
 
     private fun onTranslationGlobalModeChange(global: Boolean) {
-        Timber.d("onTranslationGlobalModeChange: $global")
+        Timber.d("onTranslationGlobalModeChange: $global for book=$bookUrl")
         try {
-            appPreferences.TRANSLATION_GLOBAL_MODE.value = global
+            appPreferences.setTranslationModeForBook(bookUrl, global)
             state.translationGlobalMode.value = global
             scope.launch {
                 refreshFromPrefs()
