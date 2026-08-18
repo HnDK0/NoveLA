@@ -82,20 +82,20 @@ fun parseBookRating(raw: String?): ParsedBookRating? {
 fun BookRatingBadge(rating: String?, modifier: Modifier = Modifier) {
     val parsed = remember(rating) { parseBookRating(rating) } ?: return
     Surface(
-        // Стиль в тон плашке источника (6.dp), topEnd = 0 — прижат к верхнему правому углу обложки
+        // Скруглённая плашка «уголок» в правом верхнем углу обложки.
+        // Полупрозрачный primary (эффект «стекла») — контент onPrimary контрастен в обеих темах.
         shape = RoundedCornerShape(topStart = 6.dp, topEnd = 0.dp, bottomStart = 6.dp, bottomEnd = 6.dp),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
         modifier = modifier,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            // vertical = 3.dp: высота 12.dp (иконка) + 6.dp = 18.dp — в тон плашке источника
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
         ) {
             Icon(
                 imageVector = if (parsed.type == BookRatingType.Rank) Icons.Filled.EmojiEvents else Icons.Filled.Star,
                 contentDescription = null,
-                modifier = Modifier.size(12.dp),
+                modifier = Modifier.size(8.dp),
                 tint = MaterialTheme.colorScheme.onPrimary
             )
             Spacer(modifier = Modifier.width(2.dp))

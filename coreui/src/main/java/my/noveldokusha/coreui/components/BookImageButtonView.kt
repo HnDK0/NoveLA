@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -72,8 +73,8 @@ fun BookImageButtonView(
     val stripUnreadCount = sourceStripUnreadCount
     val stripSourceName = sourceStripSourceName
     val showStrip = stripUnreadCount != null || stripSourceName != null
-    // При полосе на кромке (18.dp) поднимаем заголовок, чтобы он не перекрывался.
-    val titleBottomPadding = if (showStrip && sourceStripOnCover) 30.dp else 8.dp
+    // При полосе на кромке (20.dp) поднимаем заголовок, чтобы он не перекрывался.
+    val titleBottomPadding = if (showStrip && sourceStripOnCover) 32.dp else 8.dp
     Column(modifier = modifier.testTag(AppTestTags.BOOK_IMAGE_BUTTON_VIEW)) {
         Box(
             Modifier
@@ -162,6 +163,7 @@ fun BookImageButtonView(
                 SourceStrip(
                     unreadCount = stripUnreadCount,
                     sourceName = stripSourceName,
+                    onCover = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
@@ -173,6 +175,7 @@ fun BookImageButtonView(
             SourceStrip(
                 unreadCount = stripUnreadCount,
                 sourceName = stripSourceName,
+                onCover = false,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 2.dp)
@@ -200,13 +203,31 @@ fun BookImageButtonView(
 private fun SourceStrip(
     unreadCount: Int?,
     sourceName: String?,
+    onCover: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    // На обложке — градиентный скрим (полоса «вырастает» из обложки), под обложкой — диагональный
+    // градиент 0.65→0.85: глубина сверху вниз + затухание к правому краю
+    val stripBackground: Brush = if (onCover) {
+        Brush.verticalGradient(
+            0f to MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+            1f to MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+            ),
+            start = Offset.Zero,
+            end = Offset.Infinite
+        )
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
-            .height(18.dp)
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
+            .height(20.dp)
+            .background(stripBackground)
             .padding(horizontal = 6.dp)
     ) {
         // Фиксированное окно счётчика: без внутреннего horizontal padding — делитель всегда на одном месте
@@ -230,7 +251,7 @@ private fun SourceStrip(
                         color = MaterialTheme.colorScheme.onPrimary,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 8.sp
+                            fontSize = 9.sp
                         )
                     )
                 }
@@ -252,7 +273,7 @@ private fun SourceStrip(
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 8.sp
+                    fontSize = 9.sp
                 )
             )
         }

@@ -187,7 +187,8 @@ private fun FilterSectionHeader(title: String) {
 private fun SortSection(filter: LuaFilter.Sort, value: String, ascending: Boolean, onValueChange: (String) -> Unit, onAscendingChange: (Boolean) -> Unit) {
     Column {
         FilterSectionHeader(filter.label)
-        filter.options.forEach { opt ->
+        // Опции по алфавиту: Lua-плагины могут отдавать их в произвольном порядке
+        filter.options.sortedBy { it.label.lowercase() }.forEach { opt ->
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 RadioButton(selected = value == opt.value, onClick = { if (value == opt.value) onAscendingChange(!ascending) else onValueChange(opt.value) }, colors = RadioButtonDefaults.colors(selectedColor = colorAccent()))
                 Text(opt.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(start = 4.dp), color = if (value == opt.value) colorAccent() else MaterialTheme.colorScheme.onSurface)
@@ -207,7 +208,7 @@ private fun SelectSection(filter: LuaFilter.Select, value: String, onChange: (St
         FilterSectionHeader(filter.label)
         if (filter.options.size <= 3) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
-                filter.options.forEach { opt ->
+                filter.options.sortedBy { it.label.lowercase() }.forEach { opt ->
                     SelectOptionButton(opt.label, value == opt.value, { onChange(opt.value) }, Modifier.weight(1f).fillMaxHeight())
                 }
             }
@@ -219,7 +220,7 @@ private fun SelectSection(filter: LuaFilter.Select, value: String, onChange: (St
                     Text(currentLabel, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 }
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    filter.options.forEach { opt ->
+                    filter.options.sortedBy { it.label.lowercase() }.forEach { opt ->
                         val selected = value == opt.value
                         DropdownMenuItem(
                             text = { Text(opt.label, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, color = if (selected) colorAccent() else MaterialTheme.colorScheme.onSurface) },
@@ -239,7 +240,7 @@ private fun CheckboxSection(filter: LuaFilter.CheckboxGroup, included: Set<Strin
     Column {
         FilterSectionHeader(filter.label)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            filter.options.forEach { opt ->
+            filter.options.sortedBy { it.label.lowercase() }.forEach { opt ->
                 val isIncluded = opt.value in included
                 FilterChip(
                     selected = isIncluded,
@@ -260,7 +261,7 @@ private fun TriStateSection(filter: LuaFilter.TriState, stateMap: Map<String, Tr
     Column {
         FilterSectionHeader(filter.label)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            filter.options.forEach { opt ->
+            filter.options.sortedBy { it.label.lowercase() }.forEach { opt ->
                 TriStateChip(opt.label, stateMap[opt.value] ?: TriStateValue.NEUTRAL) { onToggle(opt.value) }
             }
         }

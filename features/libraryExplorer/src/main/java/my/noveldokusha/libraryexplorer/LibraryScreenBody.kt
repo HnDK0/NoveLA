@@ -93,7 +93,8 @@ internal fun LibraryScreenBody(
                 val allCategories = buildList {
                     add("" to stringResource(R.string.reading))
                     add("Completed" to stringResource(R.string.completed))
-                    customCategories.forEach { cat ->
+                    // Пользовательские категории — по алфавиту, после системных
+                    customCategories.sorted().forEach { cat ->
                         add(cat to cat)
                     }
                 }
