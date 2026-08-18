@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.BaseActivity
@@ -56,6 +57,8 @@ import my.noveldokusha.core.utils.Extra_String
 import my.noveldokusha.core.utils.dpToPx
 import my.noveldokusha.core.utils.fadeIn
 import my.noveldokusha.data.AppRepository
+import my.noveldokusha.data.LibraryBooksRepository
+import my.noveldokusha.data.ScraperRepository
 import my.noveldokusha.core.models.RegexRule
 import my.noveldokusha.settings.RegexCleanupSettingsViewModel
 import my.noveldokusha.features.reader.domain.ChapterState
@@ -63,6 +66,7 @@ import my.noveldokusha.features.reader.domain.ReaderItem
 import my.noveldokusha.features.reader.domain.ReaderItemAdapter
 import my.noveldokusha.features.reader.domain.ReaderState
 import my.noveldokusha.features.reader.domain.indexOfReaderItem
+import my.noveldokusha.features.reader.manga.MangaReaderActivity
 import my.noveldokusha.features.reader.manager.ReaderManager
 import my.noveldokusha.features.reader.services.NarratorMediaControlsService
 import my.noveldokusha.features.reader.tools.FontsLoader
@@ -113,6 +117,12 @@ class ReaderActivity : BaseActivity() {
     @Inject
     internal lateinit var appRepository: AppRepository
 
+    @Inject
+    internal lateinit var libraryBooksRepository: LibraryBooksRepository
+
+    @Inject
+    internal lateinit var scraperRepository: ScraperRepository
+
     private var listIsScrolling = false
     // Время последнего события скролла: используется как watchdog для сброса
     // «залипшего» listIsScrolling, если fling был прерван (notifyDataSetChanged
@@ -133,6 +143,10 @@ class ReaderActivity : BaseActivity() {
     // Сбрасывается в false при каждом открытии Activity, устанавливается в true только при
     // TOUCH_SCROLL или FLING — т.е. при реальном жесте, не при programmatic setSelectionFromTop.
     private var userHasScrolled = false
+    // Гейт создаёт ReaderViewModel только в initNovelReader (её property-initializer
+    // запускает ReaderSession). Для MANGA-пути VM не создаётся вовсе — флаг защищает
+    // onDestroy от обращения к viewModel после finish() манга-маршрута.
+    private var novelReaderInitialized = false
 
     // Double-tap detection for showing/hiding reader info
     private var lastTapTime = 0L
@@ -202,16 +216,50 @@ class ReaderActivity : BaseActivity() {
 
     override fun onDestroy() {
         readerViewHandlersActions.invalidate()
-        if (isFinishing) {
+        if (isFinishing && novelReaderInitialized) {
             viewModel.onCloseManually()
         }
         super.onDestroy()
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Гейт: тип книги решается по сохранённому в БД contentType — без сетевого
+        // probe и без обращения к viewModel (её создание запускает ReaderSession
+        // в property-initializer ReaderViewModel и гонку с MangaReaderActivity).
+        // Быстрый PK-read Room в runBlocking допустим; ошибка чтения БД или
+        // отсутствие книги не роняют Activity — падаем в NOVEL, новелл-ридер
+        // покажет свой error/retry.
+        val intentData = IntentData(intent)
+        val bookUrl = intentData.bookUrl
+        val chapterUrl = intentData.chapterUrl
+        Timber.d("ReaderStart: intent bookUrl=$bookUrl chapterUrl=$chapterUrl")
+        val readerType = runBlocking { resolveGateType(libraryBooksRepository, scraperRepository, bookUrl) }
+        Timber.d("ReaderStart: readerType=$readerType bookUrl=$bookUrl chapterUrl=$chapterUrl")
+        when (readerType) {
+            ReaderType.NOVEL -> initNovelReader(bookUrl, chapterUrl)
+
+            ReaderType.MANGA -> {
+                Timber.d("ReaderStart: redirecting to MangaReaderActivity bookUrl=$bookUrl chapterUrl=$chapterUrl")
+                MangaReaderActivity.start(this, bookUrl, chapterUrl)
+                finish()
+                return
+            }
+        }
+    }
+
+    /**
+     * Инициализация новелл-ридера: дословный перенос тела onCreate (после
+     * addCallback) — адаптер списка, observers, контентный setContent,
+     * scroll-листенер, snapshotFlow-наблюдатели, intro-scroll. Вызывается
+     * синхронно из гейта для NOVEL-глав. bookUrl/chapterUrl приходят из
+     * IntentData (гейт), а не из viewModel — первый доступ к viewModel
+     * (и создание ReaderSession) происходит только здесь.
+     */
+    @OptIn(ExperimentalMaterial3Api::class)
+    private fun initNovelReader(bookUrl: String, chapterUrl: String) {
+        novelReaderInitialized = true
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
         viewBind.listView.adapter = viewAdapter.listView
         readerViewHandlersActions.listView = viewBind.listView
@@ -413,7 +461,7 @@ class ReaderActivity : BaseActivity() {
                             appPreferences = appPreferences,
                             appRepository = appRepository,
                             stateHandler = SavedStateHandle(
-                                mapOf("bookUrl" to viewModel.bookUrl)
+                                mapOf("bookUrl" to bookUrl)
                             )
                         )
                     }
@@ -424,12 +472,12 @@ class ReaderActivity : BaseActivity() {
             LaunchedEffect(viewModel.state.settings.selectedSetting.value) {
                 val selected = viewModel.state.settings.selectedSetting.value
                 if (selected == ReaderScreenState.Settings.Type.RegexRules) {
-                    regexRulesSnapshot = appPreferences.effectiveRegexRules(viewModel.bookUrl)
+                    regexRulesSnapshot = appPreferences.effectiveRegexRules(bookUrl)
                 } else {
                     val before = regexRulesSnapshot
                     regexRulesSnapshot = null
                     if (before != null &&
-                        before != appPreferences.effectiveRegexRules(viewModel.bookUrl)
+                        before != appPreferences.effectiveRegexRules(bookUrl)
                     ) {
                         viewModel.reloadReader()
                     }
@@ -484,7 +532,9 @@ class ReaderActivity : BaseActivity() {
                         finish()
                     },
                     onOpenChapterInWeb = {
-                        val url = viewModel.chapterUrl
+                        // Текущая глава из VM (обновляется при листании); если по какой-то
+                        // причине пуста — фолбэк на главу, с которой открыт ридер.
+                        val url = viewModel.chapterUrl.ifBlank { chapterUrl }
                         if (url.isNotBlank()) {
                             navigationRoutes.webView(this, url = url).let(::startActivity)
                         }

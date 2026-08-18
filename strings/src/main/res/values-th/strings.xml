@@ -77,6 +77,9 @@
     <string name="epub_added_to_library">เพิ่ม Epub ในห้องสมุดแล้ว</string>
     <string name="invalid_chapter">บทไม่ถูกต้อง</string>
     <string name="filter">ตัวกรอง</string>
+    <string name="content_type_manga">มังงะ</string>
+    <string name="content_type_novel">นิยาย</string>
+    <string name="filter_all">ทั้งหมด</string>
     <string name="read">อ่าน</string>
     <string name="sort">เรียงลำดับ</string>
     <string name="sort_by_name">เรียงตามชื่อ</string>

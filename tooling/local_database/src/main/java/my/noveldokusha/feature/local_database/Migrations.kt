@@ -370,6 +370,38 @@ internal fun databaseMigrations() = arrayOf(
         // следующем обновлении метаданных (pull-to-refresh, добавление в библиотеку).
         it.addColumnIfNotExists("Book", "rating", "TEXT NOT NULL DEFAULT ''")
     },
+    migration(27) {
+        // Страничные главы (манхва/манга): кэш упорядоченных URL страниц.
+        it.execSQL("""
+            CREATE TABLE IF NOT EXISTS ChapterPages (
+                url TEXT NOT NULL PRIMARY KEY,
+                pages TEXT NOT NULL
+            )
+        """)
+    },
+    migration(28) {
+        // Скачанные страничные главы: файлы в filesDir/downloaded_pages,
+        // здесь — источник URL, размер и качество загрузки.
+        it.execSQL("""
+            CREATE TABLE IF NOT EXISTS DownloadedPageChapter (
+                url TEXT NOT NULL PRIMARY KEY,
+                pages TEXT NOT NULL,
+                totalBytes INTEGER NOT NULL,
+                quality TEXT NOT NULL
+            )
+        """)
+    },
+    migration(29) {
+        // Дата публикации главы (список глав: «добавлено»). NULL — старая
+        // запись или источник без дат; заполняется при обновлении метаданных.
+        it.execSQL("ALTER TABLE Chapter ADD COLUMN uploaded INTEGER")
+    },
+    migration(30) {
+        // Тип контента книги (NOVEL/MANGA/COMIC). Существующие книги получают
+        // пустую строку = NOVEL; метка заполнится при следующем добавлении
+        // в библиотеку или обновлении метаданных из Lua-источника.
+        it.addColumnIfNotExists("Book", "contentType", "TEXT NOT NULL DEFAULT ''")
+    },
 )
 
 internal fun migration(vi: Int, migrate: (SupportSQLiteDatabase) -> Unit) =

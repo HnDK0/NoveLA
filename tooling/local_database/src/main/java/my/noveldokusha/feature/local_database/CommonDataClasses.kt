@@ -9,7 +9,9 @@ data class BookMetadata(
     val url: String,
     val coverImageUrl: String = "",
     val description: String = "",
-    val rating: String = ""
+    val rating: String = "",
+    // Тип контента (NOVEL/MANGA/COMIC). Пустая строка = NOVEL.
+    val contentType: String = ""
 ) {
     override fun equals(other: Any?): Boolean =
         if (other is BookMetadata) (url == other.url) else false

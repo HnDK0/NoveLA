@@ -19,6 +19,7 @@ import my.noveldokusha.feature.local_database.AppDatabase
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.feature.local_database.tables.Chapter
 import my.noveldokusha.feature.local_database.tables.ChapterBody
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -46,6 +47,7 @@ class LocalBookImporterRepository @Inject constructor(
         val bookData = inputStream.use { stream ->
             if (fileName.isFb2File()) fb2Parser(stream) else epubParser(stream)
         }
+        Timber.d("LocalImport: file=$fileName isFb2=${fileName.isFb2File()} chapters=${bookData.chapters.size}")
         epubImporter(
             storageFolderName = bookTitle,
             epub = bookData,
@@ -61,6 +63,10 @@ class LocalBookImporterRepository @Inject constructor(
         val localBookUrl = appFileResolver.getLocalBookPath(storageFolderName)
 
         appDatabase.transaction {
+            Timber.d("LocalImport: start url=$localBookUrl chapters=${epub.chapters.size} images=${epub.images.size}")
+            if (epub.chapters.isEmpty()) {
+                Timber.w("LocalImport: EMPTY chapters for $localBookUrl — книга не откроется")
+            }
             // First clean any previous entries from the book
             bookChapters.chapters(localBookUrl)
                 .map { it.url }
@@ -99,6 +105,7 @@ class LocalBookImporterRepository @Inject constructor(
                     body = chapter.body
                 )
             }.let { chapterBody.insertReplace(it) }
+            Timber.d("LocalImport: done url=$localBookUrl inserted chapters=${epub.chapters.size} bodies=${epub.chapters.size}")
         }
 
         epub.images.map {

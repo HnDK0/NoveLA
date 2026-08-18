@@ -20,8 +20,10 @@ internal class ReaderManager @Inject constructor(
         bookUrl: String,
         chapterUrl: String,
     ): ReaderSession {
+        Timber.d("ReaderStart: initiateOrGetSession bookUrl=$bookUrl chapterUrl=$chapterUrl")
         val currentSession = session
         if (currentSession != null && bookUrl == currentSession.bookUrl && chapterUrl == currentSession.currentChapter.chapterUrl) {
+            Timber.d("ReaderStart: reusing session")
             readerViewHandlersActions.introScrollToCurrentChapter = true
             return currentSession
         }
@@ -29,6 +31,7 @@ internal class ReaderManager @Inject constructor(
         currentSession?.close()
         readerViewHandlersActions.introScrollToCurrentChapter = false
 
+        Timber.d("ReaderStart: creating new session initialChapterUrl=$chapterUrl")
         val newSession = readerSessionProvider.create(
             bookUrl = bookUrl,
             initialChapterUrl = chapterUrl,

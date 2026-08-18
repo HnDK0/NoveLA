@@ -154,6 +154,10 @@
 
     <string name="filter">Фильтр</string>
 
+    <string name="content_type_manga">Манга</string>
+    <string name="content_type_novel">Новелла</string>
+    <string name="filter_all">Все</string>
+
     <string name="read">Прочитано</string>
 
     <string name="sort">Сортировка</string>
@@ -1175,6 +1179,71 @@
     <string name="theme_name_tidal_wave">Приливная волна</string>
     <string name="theme_name_yinyang">Инь Янь</string>
     <string name="theme_name_yotsuba">Yotsuba</string>
+
+    <string name="manga_reader_chapter_failed">Не удалось загрузить главу. Проверьте соединение и попробуйте снова.</string>
+    <string name="manga_reader_retry">Повторить</string>
+    <string name="manga_mode_paged">Постранично</string>
+    <string name="manga_mode_webtoon">Лента (вебтун)</string>
+    <string name="manga_nav_swipe">Свайпы</string>
+    <string name="manga_nav_tap_edges">Тапы по краям</string>
+    <string name="manga_nav_both">Свайпы и тапы</string>
+    <string name="manga_reader_tapping_inverted">Инверсия тапов</string>
+    <string name="manga_zoom_start_automatic">Автоматически</string>
+    <string name="manga_zoom_start_left">Слева</string>
+    <string name="manga_zoom_start_center">По центру</string>
+    <string name="manga_zoom_start_right">Справа</string>
+    <string name="manga_manhwa_settings">Манга / Манхва</string>
+    <string name="manga_reader_settings">Настройки читалки</string>
+    <string name="manga_reader_general">Общие</string>
+    <string name="manga_reader_controls">Управление</string>
+    <string name="manga_reader_webtoon">Webtoon</string>
+    <string name="manga_reader_auto_scroll">Автопрокрутка</string>
+    <string name="manga_reader_reading_mode">Режим чтения</string>
+    <string name="manga_reader_orientation">Ориентация</string>
+    <string name="manga_reader_transitions_pager">Перелистывание (пейджер)</string>
+    <string name="manga_reader_transitions_webtoon">Переходы страниц (webtoon)</string>
+    <string name="manga_reader_show_page_number">Показывать номер страницы</string>
+    <string name="manga_reader_keep_screen_on">Не выключать экран</string>
+    <string name="manga_reader_fullscreen">Полный экран</string>
+    <string name="manga_reader_prev_chapter">Предыдущая глава</string>
+    <string name="manga_reader_next_chapter">Следующая глава</string>
+    <string name="manga_reader_chapter_loading">Загрузка главы…</string>
+    <string name="manga_reader_page_of">%1$d / %2$d</string>
+    <string name="manga_reader_open">Манга-читалка</string>
+    <string name="manga_reader_end_of_book">Вы дочитали книгу до конца</string>
+    <string name="manga_reader_invalid_chapter">Эту главу нельзя открыть в манга-ридере.</string>
+    <string name="manga_tapping_inverted">Инвертировать зоны тапа</string>
+    <string name="manga_tapping_inverted_none">Нет</string>
+    <string name="manga_tapping_inverted_horizontal">По горизонтали</string>
+    <string name="manga_tapping_inverted_vertical">По вертикали</string>
+    <string name="manga_tapping_inverted_both">Обе оси</string>
+    <string name="manga_long_tap">Долгий тап открывает меню</string>
+    <string name="manga_reader_download_on_open">Скачивать главу при открытии</string>
+    <string name="manga_webtoon_side_padding">Боковой отступ</string>
+    <string name="manga_zoom_start">Начальная позиция зума</string>
+    <string name="manga_custom_color_filter">Пользовательский цветовой фильтр</string>
+    <string name="manga_color_filter_mode">Режим фильтра</string>
+    <string name="manga_color_filter_mode_normal">Обычный</string>
+    <string name="manga_color_filter_mode_multiply">Умножение</string>
+    <string name="manga_color_filter_mode_screen">Экран</string>
+    <string name="manga_color_filter_mode_overlay">Перекрытие</string>
+    <string name="manga_color_filter_mode_lighten">Осветление</string>
+    <string name="manga_color_filter_mode_darken">Затемнение</string>
+    <string name="manga_color_filter_alpha">Прозрачность</string>
+    <string name="manga_color_filter_red">Красный</string>
+    <string name="manga_color_filter_green">Зелёный</string>
+    <string name="manga_color_filter_blue">Синий</string>
+    <string name="manga_color_filter_custom">Свой фильтр</string>
+    <string name="manga_custom_brightness">Пользовательская яркость</string>
+    <string name="manga_expand_autoscroll">Автопрокрутка</string>
+    <string name="manga_reader_chapter_list">Список глав</string>
+    <string name="manga_reader_chapter_list_current">Текущая</string>
+    <string name="manga_reader_chapter_list_empty">Нет глав</string>
+    <string name="manga_reader_open_in_browser">Открыть в браузере</string>
+    <string name="manga_autoscroll_speed">Скорость</string>
+    <string name="manga_autoscroll_speed_value">%1$d dp/с</string>
+    <string name="manga_grayscale">Оттенки серого</string>
+    <string name="manga_inverted_colors">Инвертированные цвета</string>
 
 </resources>
 

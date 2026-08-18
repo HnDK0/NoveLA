@@ -23,6 +23,7 @@ internal data class ChaptersScreenState(
     val genres: MutableState<List<String>>,
     val rating: MutableState<String>,
     val translatedChapterTitles: MutableState<Map<String, String>>,
+    val chapterSizes: MutableState<Map<String, ChapterSize>>,
     val downloadTask: MutableState<DownloadTaskState?>,
 ) {
 

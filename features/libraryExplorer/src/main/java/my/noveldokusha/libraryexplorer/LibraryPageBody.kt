@@ -28,12 +28,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import my.noveldokusha.core.appPreferences.SourceStripPosition
 import my.noveldokusha.coreui.R
 import my.noveldokusha.coreui.components.BookImageButtonView
 import my.noveldokusha.coreui.components.BookRatingBadge
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import my.noveldokusha.coreui.components.toContentTypeBadgeIcon
 import my.noveldokusha.coreui.theme.ImageBorderShape
 import my.noveldokusha.coreui.theme.isLightTheme
 import my.noveldokusha.coreui.theme.Grey0
@@ -108,6 +114,20 @@ internal fun LibraryPageBody(
                         onLongClick = { onLongClick(it) },
                         sourceStripUnreadCount = notReadCount,
                         sourceStripSourceName = getSourceName(it.book.url),
+                        topLeftBadge = {
+                            // Зеркальная форма рейтинг-бейджа: topStart=0 — прижат к верхнему левому углу обложки
+                            Surface(
+                                shape = RoundedCornerShape(topStart = 0.dp, topEnd = 6.dp, bottomStart = 6.dp, bottomEnd = 6.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                            ) {
+                                Icon(
+                                    painter = painterResource(it.book.contentType.toContentTypeBadgeIcon()),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp).size(14.dp)
+                                )
+                            }
+                        },
                         sourceStripOnCover = sourceStripPosition == SourceStripPosition.OnCover,
                         topRightBadge = { BookRatingBadge(rating = it.book.rating) },
                         forceCache = true

@@ -77,6 +77,9 @@
     <string name="epub_added_to_library">تمت إضافة epub إلى المكتبة</string>
     <string name="invalid_chapter">فصل غير صالح</string>
     <string name="filter">فلتر</string>
+    <string name="content_type_manga">مانجا</string>
+    <string name="content_type_novel">رواية</string>
+    <string name="filter_all">الكل</string>
     <string name="read">قراءة</string>
     <string name="sort">ترتيب</string>
     <string name="sort_by_name">ترتيب حسب الاسم</string>

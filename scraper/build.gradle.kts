@@ -34,4 +34,5 @@ dependencies {
     androidTestImplementation(libs.test.androidx.espresso.core)
 
     testImplementation(libs.test.junit)
+    testImplementation(libs.test.mockito.kotlin)
 }

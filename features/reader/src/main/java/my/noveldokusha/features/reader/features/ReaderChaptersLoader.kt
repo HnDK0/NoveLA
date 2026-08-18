@@ -318,7 +318,9 @@ internal class ReaderChaptersLoader(
         }
 
         val index = orderedChapters.indexOfFirst { it.url == chapterLastState.chapterUrl }
+        Timber.d("ReaderLoad: restartInitial chapterUrl=${chapterLastState.chapterUrl} foundIndex=$index")
         if (index == -1) {
+            Timber.w("ReaderLoad: restartInitial chapterUrl НЕ НАЙДЕН, показываем invalid dialog! requested=${chapterLastState.chapterUrl}")
             readerViewHandlersActions.doShowInvalidChapterDialog()
             return@withContext
         }
@@ -347,6 +349,7 @@ internal class ReaderChaptersLoader(
         readerViewHandlersActions.doForceUpdateListViewState()
 
         if (chapterIndex < 0 || chapterIndex >= orderedChapters.size) {
+            Timber.w("ReaderLoad: loadInitialChapter invalid chapterIndex=$chapterIndex (size=${orderedChapters.size}) — показываем invalid dialog, НЕ фолбэк на главу 0")
             readerViewHandlersActions.doShowInvalidChapterDialog()
             return@withContext
         }
@@ -377,6 +380,7 @@ internal class ReaderChaptersLoader(
         readerViewHandlersActions.doSetInitialPosition(initialPosition)
         chapterLoadedFlow.emit(ChapterLoaded(chapterIndex = chapterIndex, type = ChapterLoaded.Type.Initial))
         readerState = ReaderState.IDLE
+        Timber.d("ReaderLoad: loadInitialChapter DONE chapterIndex=$chapterIndex")
     }
 
     private suspend fun loadPreviousChapter() = withContext(Dispatchers.Main.immediate) {
@@ -479,6 +483,7 @@ internal class ReaderChaptersLoader(
         maintainOnSuccess: Boolean = false,
     ): Boolean? = withContext(Dispatchers.Default) {
         val chapter = orderedChapters.getOrNull(chapterIndex) ?: return@withContext null
+        Timber.d("ReaderLoad: addChapter chapterIndex=$chapterIndex url=${chapter.url}")
 
         loadedChaptersMutex.withLock {
             if (!skipLoadedCheck && loadedChapters.contains(chapter.url)) {
@@ -560,6 +565,7 @@ internal class ReaderChaptersLoader(
 
         when (val res = readerRepository.downloadChapter(chapter.url)) {
             is Response.Success -> {
+                Timber.d("ReaderLoad: chapter body OK idx=$chapterIndex len=${res.data.length}")
                 if (!isValidChapterContent(res.data)) {
                     failedChapterIndex = chapterIndex
                     withContext(Dispatchers.Main.immediate) {
@@ -837,6 +843,7 @@ internal class ReaderChaptersLoader(
                 return@_addChapterInternal true
             }
             is Response.Error -> {
+                Timber.w("ReaderLoad: chapter body ERROR idx=$chapterIndex msg=${res.message}")
                 failedChapterIndex = chapterIndex
                 withContext(Dispatchers.Main.immediate) {
                     chaptersStats[chapter.url] = ChapterStats(

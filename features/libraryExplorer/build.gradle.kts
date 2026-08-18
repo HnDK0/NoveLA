@@ -28,4 +28,8 @@ dependencies {
     implementation(libs.compose.lazyColumnScrollbar)
 
     implementation(libs.timber)
+
+    testImplementation(libs.test.junit)
+    testImplementation(libs.test.mockito.kotlin)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

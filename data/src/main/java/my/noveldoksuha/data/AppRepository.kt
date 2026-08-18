@@ -30,11 +30,17 @@ class AppRepository @Inject constructor(
     private val localBookImporterRepository: LocalBookImporterRepository,
     val downloaderRepository: DownloaderRepository,
     private val libraryDao: LibraryDao,
+    private val downloadedPageChaptersStore: DownloadedPageChaptersStore,
 ) {
     val settings = Settings()
     val eventDataRestored = MutableSharedFlow<Unit>()
 
-    suspend fun toggleBookmark(bookUrl: String, bookTitle: String, rating: String? = null): Boolean {
+    suspend fun toggleBookmark(
+        bookUrl: String,
+        bookTitle: String,
+        rating: String? = null,
+        contentType: String = ""
+    ): Boolean {
         val realUrl = appFileResolver.getLocalIfContentType(bookUrl, bookFolderName = bookTitle)
         val normalizedUrl = normalizeBookUrl(realUrl)
         val result = if (bookUrl.isContentUri && libraryBooks.get(normalizedUrl) == null) {
@@ -44,7 +50,12 @@ class AppRepository @Inject constructor(
                 addToLibrary = true
             ) is Response.Success
         } else {
-            libraryBooks.toggleBookmark(bookUrl = normalizedUrl, bookTitle = bookTitle, rating = rating)
+            libraryBooks.toggleBookmark(
+                bookUrl = normalizedUrl,
+                bookTitle = bookTitle,
+                rating = rating,
+                contentType = contentType
+            )
         }
         return result
     }
@@ -89,10 +100,14 @@ class AppRepository @Inject constructor(
 
             if (nonLibraryBookUrls.isNotEmpty()) {
                 Timber.d("clearNonLibraryData: Removing ${nonLibraryBookUrls.size} non-library books")
+                // Файлы скачанных страничных глав удаляем ДО удаления глав:
+                // deleteBookChapters находит ряды по JOIN с Chapter.
+                downloadedPageChaptersStore.deleteBookChapters(nonLibraryBookUrls)
                 db.transaction {
                     nonLibraryBookUrls.chunked(500).forEach { chunk ->
                         db.chapterTranslationDao().deleteTranslationsByBookUrls(chunk)
                         db.chapterBodyDao().removeChapterBodiesByBookUrls(chunk)
+                        db.chapterPagesDao().removeChapterPagesByBookUrls(chunk)
                         db.chapterDao().removeAllFromBooks(chunk)
                     }
                     db.libraryDao().removeBooksByUrls(nonLibraryBookUrls)
@@ -114,6 +129,7 @@ class AppRepository @Inject constructor(
             db.transaction {
                 db.chapterDao().removeAllNonLibraryRows()
                 db.chapterBodyDao().removeAllNonChapterRows()
+                db.chapterPagesDao().removeAllNonChapterRows()
                 db.chapterTranslationDao().removeOrphanedTranslations()
             }
         }
@@ -124,13 +140,22 @@ class AppRepository @Inject constructor(
          */
         suspend fun clearChapterCache() = withContext(Dispatchers.IO) {
             db.chapterBodyDao().deleteAll()
+            db.chapterPagesDao().deleteAll()
             db.chapterTranslationDao().deleteAllTranslations()
+            // Файлы скачанных страничных глав удаляем вместе со строками —
+            // иначе дисковый fallback в списке глав снова покажет их
+            // «скачанными» с размером, хотя кэш очищен.
+            downloadedPageChaptersStore.deleteAll()
         }
 
         /**
          * Approximate size (in bytes) of all cached chapter bodies.
+         * Includes real bytes of downloaded page-chapter files on disk.
          */
-        suspend fun getChapterCacheSizeBytes(): Long = db.chapterBodyDao().getCacheSizeBytes()
+        suspend fun getChapterCacheSizeBytes(): Long =
+            db.chapterBodyDao().getCacheSizeBytes() +
+                db.chapterPagesDao().getCacheSizeBytes() +
+                downloadedPageChaptersStore.getDiskSizeBytes()
 
         /**
          * Folder where additional book data like images is stored.

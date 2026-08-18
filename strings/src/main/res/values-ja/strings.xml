@@ -77,6 +77,9 @@
     <string name="epub_added_to_library">EPUBをライブラリに追加しました</string>
     <string name="invalid_chapter">無効なチャプター</string>
     <string name="filter">フィルター</string>
+    <string name="content_type_manga">マンガ</string>
+    <string name="content_type_novel">小説</string>
+    <string name="filter_all">すべて</string>
     <string name="read">読む</string>
     <string name="sort">並べ替え</string>
     <string name="sort_by_name">名前で並べ替え</string>

@@ -89,6 +89,7 @@ open class LuaSourceAdapter(
     }
     override val catalogUrl: String = baseUrl
     override val charset: String = metadata.charset ?: "UTF-8"
+    override val contentType: String get() = metadata.contentType
 
     override val language: LanguageCode? = when (metadata.language.lowercase().trim()) {
         "mtl", "multi" -> LanguageCode.MTL
@@ -163,7 +164,14 @@ open class LuaSourceAdapter(
 
     // ── Метаданные ────────────────────────────────────────────────────────────
 
-    private fun extractMetadata(): SourceMetadata {
+    // Чтение глобальной метки типа книги из Lua-скрипта плагина.
+    // "" = не указано/новелла; валидация на границе чтения.
+    private fun readContentType(): String {
+        val raw = try { luaScript.get("content_type").optjstring("") } catch (_: Exception) { "" }
+        return raw.lowercase().takeIf { it == "manga" || it == "novel" } ?: ""
+    }
+
+    internal fun extractMetadata(): SourceMetadata {
         fun s(key: String, def: String = "") = try {
             luaScript.get(key).optjstring(def)
         } catch (_: Exception) { def }
@@ -176,7 +184,8 @@ open class LuaSourceAdapter(
             url         = s("baseUrl"),
             icon        = s("icon"),
             language    = s("language", "en"),
-            charset     = s("charset").takeIf { it.isNotBlank() }
+            charset     = s("charset").takeIf { it.isNotBlank() },
+            contentType = readContentType()
         )
     }
 
@@ -406,6 +415,39 @@ open class LuaSourceAdapter(
             }
         }
 
+    /**
+     * Плагины-картинки (манхва/манга): getPageList(html, url) → массив URL страниц.
+     * null когда плагин не объявил getPageList — читалка тогда идёт старым
+     * HTML-путём (getChapterText). Пустой список = плагин есть, но страницы
+     * не извлеклись — тоже фолбэк на HTML.
+     */
+    override suspend fun getChapterPages(doc: Document): List<String>? =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                withSourceContext {
+                    val fn = luaScript.get("getPageList")
+                    if (fn.isnil()) return@withSourceContext null
+                    val result = try {
+                        fn.call(
+                            LuaValue.valueOf(doc.outerHtml()),
+                            LuaValue.valueOf(doc.location())
+                        )
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getPageList [${metadata.id}]")
+                        return@withSourceContext emptyList()
+                    }
+                    if (!result.istable()) return@withSourceContext emptyList()
+                    val table = result.checktable()
+                    val pages = mutableListOf<String>()
+                    for (i in 1..table.length()) {
+                        val v = table.get(LuaValue.valueOf(i)).optjstring(null)
+                        if (!v.isNullOrBlank()) pages.add(v)
+                    }
+                    pages
+                }
+            }
+        }
+
     override suspend fun getChapterListHash(bookUrl: String): Response<String?> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
@@ -445,7 +487,7 @@ open class LuaSourceAdapter(
         }
     }
 
-    private fun convertLuaTableToBookResult(table: LuaTable) = BookResult(
+    internal fun convertLuaTableToBookResult(table: LuaTable) = BookResult(
         title         = table.get("title").optjstring(""),
         url           = table.get("url").optjstring(""),
         coverImageUrl = table.get("cover").optjstring(""),
@@ -456,13 +498,17 @@ open class LuaSourceAdapter(
                 v.isstring() || v.isnumber() -> v.tojstring().takeIf { it.isNotBlank() }
                 else -> null
             }
-        }
+        },
+        // МОСТ: contentType — свойство источника (глобальная метка скрипта),
+        // а не поле таблицы книги. Читаем её тем же способом, что и в extractMetadata.
+        contentType   = readContentType()
     )
 
     private fun convertLuaTableToChapterResult(table: LuaTable) = ChapterResult(
         title  = table.get("title").optjstring(""),
         url    = table.get("url").optjstring(""),
-        volume = table.get("volume").optjstring(null)
+        volume = table.get("volume").optjstring(null),
+        uploaded = table.get("uploaded").takeIf { it.isnumber() }?.tolong()
     )
 }
 

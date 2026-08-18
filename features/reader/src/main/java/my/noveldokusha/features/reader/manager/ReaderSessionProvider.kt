@@ -8,6 +8,7 @@ import my.noveldokusha.features.reader.ReaderRepository
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.text_translator.domain.TranslationManager
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,15 +25,18 @@ internal class ReaderSessionProvider @Inject constructor(
     fun create(
         bookUrl: String,
         initialChapterUrl: String,
-    ): ReaderSession = ReaderSession(
-        bookUrl = bookUrl,
-        initialChapterUrl = initialChapterUrl,
-        appRepository = appRepository,
-        translationManager = translationManager,
-        appPreferences = appPreferences,
-        context = context,
-        readerRepository = readerRepository,
-        readerViewHandlersActions = readerViewHandlersActions,
-        chapterTranslationDao = chapterTranslationDao,
-    )
+    ): ReaderSession {
+        Timber.d("ReaderStart: ReaderSessionProvider.create bookUrl=$bookUrl initialChapterUrl=$initialChapterUrl")
+        return ReaderSession(
+            bookUrl = bookUrl,
+            initialChapterUrl = initialChapterUrl,
+            appRepository = appRepository,
+            translationManager = translationManager,
+            appPreferences = appPreferences,
+            context = context,
+            readerRepository = readerRepository,
+            readerViewHandlersActions = readerViewHandlersActions,
+            chapterTranslationDao = chapterTranslationDao,
+        )
+    }
 }

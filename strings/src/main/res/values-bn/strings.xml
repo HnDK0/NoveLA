@@ -77,6 +77,9 @@
     <string name="epub_added_to_library">Epub লাইব্রেরিতে যোগ করা হয়েছে</string>
     <string name="invalid_chapter">অবৈধ অধ্যায়</string>
     <string name="filter">ফিল্টার</string>
+    <string name="content_type_manga">মাঙ্গা</string>
+    <string name="content_type_novel">উপন্যাস</string>
+    <string name="filter_all">সব</string>
     <string name="read">পড়া</string>
     <string name="sort">সাজান</string>
     <string name="sort_by_name">নাম অনুসারে সাজান</string>

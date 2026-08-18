@@ -136,7 +136,11 @@ internal class CatalogExplorerViewModel @Inject constructor(
                         val needsTitleUpdate = title == null
 
                         // Add to library with basic info
-                        val added = appRepository.libraryBooks.toggleBookmark(url, finalTitle)
+                        val added = appRepository.libraryBooks.toggleBookmark(
+                            url,
+                            finalTitle,
+                            contentType = scraperRepository.scraper.getCompatibleSource(url)?.contentType ?: ""
+                        )
                         if (added) {
                             successCount++
                             // Track books that need title update later

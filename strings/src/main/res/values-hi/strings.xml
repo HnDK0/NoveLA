@@ -77,6 +77,9 @@
     <string name="epub_added_to_library">लाइब्रेरी में EPUB जोड़ा गया</string>
     <string name="invalid_chapter">अमान्य अध्याय</string>
     <string name="filter">फ़िल्टर</string>
+    <string name="content_type_manga">मंगा</string>
+    <string name="content_type_novel">उपन्यास</string>
+    <string name="filter_all">सभी</string>
     <string name="read">पढ़ें</string>
     <string name="sort">क्रमबद्ध करें</string>
     <string name="sort_by_name">नाम से क्रमबद्ध करें</string>

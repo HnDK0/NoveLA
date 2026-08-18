@@ -131,7 +131,8 @@ internal class SourceCatalogViewModel @Inject constructor(
                 appRepository.toggleBookmark(
                     bookUrl = book.url,
                     bookTitle = book.title,
-                    rating = book.rating
+                    rating = book.rating,
+                    contentType = book.contentType
                 )
             val res = if (isInLibrary) R.string.added_to_library else R.string.removed_from_library
             toasty.show(res)

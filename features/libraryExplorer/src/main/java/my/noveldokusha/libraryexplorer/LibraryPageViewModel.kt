@@ -1,6 +1,7 @@
 package my.noveldokusha.libraryexplorer
 
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -30,11 +31,28 @@ import my.noveldokusha.core.domain.LibraryCategory
 import my.noveldokusha.core.utils.GenreUtils
 import my.noveldokusha.core.utils.toState
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
+import my.noveldokusha.feature.local_database.BookWithContext
 import my.noveldokusha.interactor.WorkersInteractions
 import my.noveldokusha.scraper.Scraper
 import my.noveldokusha.scraper.SourceInterface
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
+
+// Фильтр библиотеки по типу контента. «Новелла» = всё, что не помечено как "manga"
+// (включая пустую метку "" — дефолт для источников без content_type).
+enum class ContentTypeFilter(@StringRes val labelRes: Int) {
+    ALL(R.string.filter_all),
+    MANGA(R.string.content_type_manga),
+    NOVEL(R.string.content_type_novel),
+}
+
+// Чистая функция фильтрации — вынесена отдельно для юнит-тестирования.
+fun List<BookWithContext>.filterByType(type: ContentTypeFilter): List<BookWithContext> =
+    when (type) {
+        ContentTypeFilter.ALL -> this
+        ContentTypeFilter.MANGA -> filter { it.book.contentType == "manga" }
+        ContentTypeFilter.NOVEL -> filter { it.book.contentType != "manga" }
+    }
 
 @HiltViewModel
 internal class LibraryPageViewModel @Inject constructor(
@@ -73,6 +91,10 @@ internal class LibraryPageViewModel @Inject constructor(
     // Фильтр по именам плагинов (источников) — пустой Set = все
     private val _selectedSources = MutableStateFlow<Set<String>>(emptySet())
     val selectedSources = _selectedSources.asStateFlow()
+
+    // Фильтр по типу контента (Все/Манга/Новелла) — состояние VM, как жанры/источники
+    private val _selectedContentType = MutableStateFlow(ContentTypeFilter.ALL)
+    val selectedContentType = _selectedContentType.asStateFlow()
 
     // Все доступные жанры в библиотеке — парсим из поля Book.genres
     val availableGenres = libraryDao.getAllLibraryGenresRawFlow()
@@ -150,6 +172,8 @@ internal class LibraryPageViewModel @Inject constructor(
                     sourceName in selectedSources
                 }
             }
+        }.combine(_selectedContentType) { list, contentType ->
+            list.filterByType(contentType)
         }.shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
 
     // Base flow with category filter — used for the actual filtered list
@@ -276,9 +300,14 @@ internal class LibraryPageViewModel @Inject constructor(
         _selectedSources.value = emptySet()
     }
 
+    fun setContentTypeFilter(filter: ContentTypeFilter) {
+        _selectedContentType.value = filter
+    }
+
     fun resetAllFilters() {
         _selectedGenres.value = emptySet()
         _selectedSources.value = emptySet()
+        _selectedContentType.value = ContentTypeFilter.ALL
         updateSearchQuery("")
         // Сбрасываем read filter в Inactive
         if (preferences.LIBRARY_FILTER_READ.value != TernaryState.Inactive) {

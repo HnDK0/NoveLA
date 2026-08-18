@@ -32,6 +32,7 @@ class LibraryBooksRepository @Inject constructor(
     private val appFileResolver: AppFileResolver,
     private val appCoroutineScope: AppCoroutineScope,
     private val appPreferences: AppPreferences,
+    private val downloadedPageChaptersStore: DownloadedPageChaptersStore,
 ) {
     val getBooksInLibraryWithContextFlow by lazy {
         libraryDao.getBooksInLibraryWithContextFlow()
@@ -100,6 +101,9 @@ class LibraryBooksRepository @Inject constructor(
      * This is the correct way to remove a book from the library.
      */
     suspend fun deleteBookCompletely(bookUrl: String) = withContext(Dispatchers.IO) {
+        // Файлы скачанных страничных глав удаляем ДО удаления глав:
+        // deleteBookChapters находит ряды по JOIN с Chapter.
+        downloadedPageChaptersStore.deleteBookChapters(listOf(bookUrl))
         appDatabase.transaction {
             // 1. Delete chapter translations
             chapterTranslationDao.deleteTranslationsByBookUrls(listOf(bookUrl))
@@ -118,6 +122,9 @@ class LibraryBooksRepository @Inject constructor(
      */
     suspend fun deleteBooksCompletely(bookUrls: List<String>) = withContext(Dispatchers.IO) {
         if (bookUrls.isEmpty()) return@withContext
+        // Файлы скачанных страничных глав удаляем ДО удаления глав:
+        // deleteBookChapters находит ряды по JOIN с Chapter.
+        downloadedPageChaptersStore.deleteBookChapters(bookUrls)
         appDatabase.transaction {
             // Process in chunks to avoid SQLite variable limit
             bookUrls.chunked(500).forEach { chunk ->
@@ -178,7 +185,8 @@ class LibraryBooksRepository @Inject constructor(
     suspend fun toggleBookmark(
         bookUrl: String,
         bookTitle: String,
-        rating: String? = null
+        rating: String? = null,
+        contentType: String = ""
     ): Boolean = appDatabase.transaction {
         val currentTime = System.currentTimeMillis()
         when (val existing = getByUrl(bookUrl)) {
@@ -189,6 +197,7 @@ class LibraryBooksRepository @Inject constructor(
                         url = bookUrl,
                         inLibrary = true,
                         rating = rating.orEmpty(),
+                        contentType = contentType,
                         addedToLibraryEpochTimeMilli = currentTime,
                         lastUpdateEpochTimeMilli = currentTime
                     )
@@ -202,6 +211,12 @@ class LibraryBooksRepository @Inject constructor(
                 if (!existing.inLibrary && existing.rating.isBlank() && !rating.isNullOrBlank()) {
                     libraryDao.updateRating(existing.url, rating)
                 }
+                // Дозаполняем метку контента при добавлении в библиотеку: Lua-источники
+                // знают формат (NOVEL/MANGA/COMIC), а старая не-library строка могла
+                // сохраниться с пустой меткой до появления колонки.
+                if (!existing.inLibrary && existing.contentType.isBlank() && contentType.isNotBlank()) {
+                    libraryDao.updateContentType(existing.url, contentType)
+                }
                 !existing.inLibrary
             }
         }
@@ -209,6 +224,9 @@ class LibraryBooksRepository @Inject constructor(
 
     suspend fun updateRating(bookUrl: String, rating: String) =
         libraryDao.updateRating(bookUrl, rating)
+
+    suspend fun updateContentType(bookUrl: String, type: String) =
+        libraryDao.updateContentType(bookUrl, type)
 
     fun saveImageAsCover(imageUri: Uri, bookUrl: String) {
         appCoroutineScope.launch {

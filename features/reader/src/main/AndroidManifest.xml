@@ -4,7 +4,13 @@
 	<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
 	<application>
-		<activity android:name="my.noveldokusha.features.reader.ReaderActivity" />
+		<activity
+			android:name="my.noveldokusha.features.reader.ReaderActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden" />
+		<activity
+			android:name="my.noveldokusha.features.reader.manga.MangaReaderActivity"
+			android:exported="false"
+			android:configChanges="orientation|screenSize|keyboardHidden" />
 
 		<service
 			android:name="my.noveldokusha.features.reader.services.NarratorMediaControlsService"

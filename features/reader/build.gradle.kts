@@ -15,6 +15,7 @@ dependencies {
     implementation(projects.core)
     implementation(projects.coreui)
     implementation(projects.data)
+    implementation(projects.scraper)
     implementation(projects.features.settings)
     implementation(projects.navigation)
     implementation(projects.tooling.localDatabase)
@@ -36,9 +37,12 @@ dependencies {
     implementation(libs.coil)
     implementation(libs.jsoup)
     implementation(libs.timber)
+    implementation(libs.subsampling.scale.image.view)
 
     // Kotlin reflection for dynamic batch translator lookup
     implementation(kotlin("reflect"))
 
     testImplementation(libs.test.junit)
+    testImplementation(libs.test.mockito.kotlin)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

@@ -8,12 +8,14 @@ import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.BookChaptersRepository
 import my.noveldokusha.data.LibraryBooksRepository
 import my.noveldokusha.core.AppCoroutineScope
+import my.noveldokusha.core.Response
 import my.noveldokusha.feature.local_database.AppDatabase
 import my.noveldokusha.feature.local_database.DAOs.ReadingHistoryDao
 import my.noveldokusha.features.reader.domain.ChapterState
 import my.noveldokusha.features.reader.domain.InitialPositionChapter
 import my.noveldokusha.feature.local_database.tables.Chapter
 import my.noveldokusha.feature.local_database.tables.ReadingHistory
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -105,6 +107,12 @@ internal class ReaderRepository @Inject constructor(
     suspend fun deleteChapterBody(chapterUrl: String) {
         appRepository.chapterBody.removeRows(listOf(chapterUrl))
     }
-    suspend fun downloadChapter(chapterUrl: String) =
-        appRepository.chapterBody.fetchBody(chapterUrl)
+    suspend fun downloadChapter(chapterUrl: String): Response<String> {
+        Timber.d("ReaderLoad: downloadChapter url=$chapterUrl")
+        return appRepository.chapterBody.fetchBody(chapterUrl).onSuccess {
+            Timber.d("ReaderLoad: downloadChapter OK url=$chapterUrl bodyLen=${it.length}")
+        }.onError {
+            Timber.w("ReaderLoad: downloadChapter ERROR url=$chapterUrl msg=${it.message}")
+        }
+    }
 }

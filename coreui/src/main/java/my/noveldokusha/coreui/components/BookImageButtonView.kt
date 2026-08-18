@@ -9,7 +9,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,11 +40,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import my.noveldokusha.coreui.AppTestTags
 import my.noveldokusha.coreui.R
-import my.noveldokusha.coreui.theme.Grey0
 import my.noveldokusha.coreui.theme.ImageBorderShape
 import my.noveldokusha.coreui.theme.InternalTheme
 import my.noveldokusha.coreui.theme.PreviewThemes
-import my.noveldokusha.coreui.theme.isLightTheme
 
 enum class BookTitlePosition {
     Inside, Outside, Hidden
@@ -71,10 +68,10 @@ fun BookImageButtonView(
 ) {
     val rememberedInteractionSource = remember { MutableInteractionSource() }
     val effectiveInteractionSource = interactionSource ?: rememberedInteractionSource
-    // Полоса источника рендерится только когда заданы оба значения — иначе вёрстка идентична прежней.
+    // Полоса источника рендерится когда задан хотя бы один из двух контентов — иначе вёрстка идентична прежней.
     val stripUnreadCount = sourceStripUnreadCount
     val stripSourceName = sourceStripSourceName
-    val showStrip = stripUnreadCount != null && stripSourceName != null
+    val showStrip = stripUnreadCount != null || stripSourceName != null
     // При полосе на кромке (18.dp) поднимаем заголовок, чтобы он не перекрывался.
     val titleBottomPadding = if (showStrip && sourceStripOnCover) 30.dp else 8.dp
     Column(modifier = modifier.testTag(AppTestTags.BOOK_IMAGE_BUTTON_VIEW)) {
@@ -161,7 +158,7 @@ fun BookImageButtonView(
             }
 
             // Полоса источника на кромке обложки — низ скругляется внешним clip(ImageBorderShape)
-            if (sourceStripOnCover && stripUnreadCount != null && stripSourceName != null) {
+            if (sourceStripOnCover && (stripUnreadCount != null || stripSourceName != null)) {
                 SourceStrip(
                     unreadCount = stripUnreadCount,
                     sourceName = stripSourceName,
@@ -172,7 +169,7 @@ fun BookImageButtonView(
             }
         }
         // Плашка под обложкой: рендерится только при непустом контенте полосы
-        if (!sourceStripOnCover && stripUnreadCount != null && stripSourceName != null) {
+        if (!sourceStripOnCover && (stripUnreadCount != null || stripSourceName != null)) {
             SourceStrip(
                 unreadCount = stripUnreadCount,
                 sourceName = stripSourceName,
@@ -201,8 +198,8 @@ fun BookImageButtonView(
 /** Полоса «непрочитанные | источник»: фикс. окно 32.dp слева, делитель 1.dp, имя источника справа (weight). */
 @Composable
 private fun SourceStrip(
-    unreadCount: Int,
-    sourceName: String,
+    unreadCount: Int?,
+    sourceName: String?,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -213,50 +210,58 @@ private fun SourceStrip(
             .padding(horizontal = 6.dp)
     ) {
         // Фиксированное окно счётчика: без внутреннего horizontal padding — делитель всегда на одном месте
-        Box(
-            modifier = Modifier.width(32.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (unreadCount == 0) {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text(
-                    text = unreadCount.toString(),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 8.sp
+        if (unreadCount != null) {
+            Box(
+                modifier = Modifier.width(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (unreadCount == 0) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
-                )
+                } else {
+                    Text(
+                        text = unreadCount.toString(),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 8.sp
+                        )
+                    )
+                }
             }
-        }
-        Box(
-            Modifier
-                .width(1.dp)
-                .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f))
-        )
-        Text(
-            text = sourceName,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onPrimary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 8.sp
+            Box(
+                Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f))
             )
-        )
+        }
+        if (sourceName != null) {
+            Text(
+                text = sourceName,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onPrimary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 8.sp
+                )
+            )
+        }
     }
 }
+
+/** Иконка типа контента: "manga" → [R.drawable.ic_content_type_manga], любое другое (включая null и "") → [R.drawable.ic_content_type_novel]. */
+fun String?.toContentTypeBadgeIcon(): Int =
+    if (this == "manga") R.drawable.ic_content_type_manga else R.drawable.ic_content_type_novel
 
 @PreviewThemes
 @Composable

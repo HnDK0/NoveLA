@@ -326,6 +326,124 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_String(name, preferences, "FFFF6D00")
     }
 
+    /**
+     * Читалка страничных глав (манхва/манга) — префикс MANGA_READER_*.
+     * Пейджер и webtoon-лента; автопрокрутка и предзагрузка переиспользуют READER_* ключи.
+     */
+    val READER_PAGE_PREFETCH_COUNT = object : Preference<Int>("READER_PAGE_PREFETCH_COUNT") {
+        override var value by SharedPreference_Int(name, preferences, 8)
+    }
+
+    /** MangaReadingMode.flagValue (4 = WEBTOON). */
+    val MANGA_READER_READING_MODE = object : Preference<Int>("MANGA_READER_READING_MODE") {
+        override var value by SharedPreference_Int(name, preferences, 4)
+    }
+
+    /** Пейджер: анимация перелистывания между страницами. */
+    val MANGA_READER_TRANSITIONS_PAGER = object : Preference<Boolean>("MANGA_READER_TRANSITIONS_PAGER") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+
+    /** Webtoon: «подсматривание» соседних страниц по краям. */
+    val MANGA_READER_TRANSITIONS_WEBTOON = object : Preference<Boolean>("MANGA_READER_TRANSITIONS_WEBTOON") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+
+    /** Показывать счётчик «страница / всего». */
+    val MANGA_READER_SHOW_PAGE_NUMBER = object : Preference<Boolean>("MANGA_READER_SHOW_PAGE_NUMBER") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+
+    val MANGA_READER_KEEP_SCREEN_ON = object : Preference<Boolean>("MANGA_READER_KEEP_SCREEN_ON") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    val MANGA_READER_FULLSCREEN = object : Preference<Boolean>("MANGA_READER_FULLSCREEN") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+
+    /** Боковой отступ webtoon-ленты в dp (0..25). */
+    val MANGA_READER_WEBTOON_SIDE_PADDING = object : Preference<Int>("MANGA_READER_WEBTOON_SIDE_PADDING") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+
+    /** MangaZoomStart.value (0 = AUTOMATIC). */
+    val MANGA_READER_ZOOM_START = object : Preference<Int>("MANGA_READER_ZOOM_START") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+
+    /** MangaNavigationMode.value для пейджера (0 = default). */
+    val MANGA_READER_NAV_MODE_PAGER = object : Preference<Int>("MANGA_READER_NAV_MODE_PAGER") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+
+    /** MangaNavigationMode.value для webtoon (0 = default). */
+    val MANGA_READER_NAV_MODE_WEBTOON = object : Preference<Int>("MANGA_READER_NAV_MODE_WEBTOON") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+
+    /** Инверсия тап-зон (левый край = вперёд, правый = назад) — общий тогл для пейджера и webtoon. */
+    val MANGA_READER_TAPPING_INVERTED = object : Preference<Boolean>("MANGA_READER_TAPPING_INVERTED") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    /** Долгое нажатие по странице открывает меню. */
+    val MANGA_READER_LONG_TAP = object : Preference<Boolean>("MANGA_READER_LONG_TAP") {
+        override var value by SharedPreference_Boolean(name, preferences, true)
+    }
+
+    /** Скачивать главу при открытии (автосохранение страниц в офлайн-хранилище). */
+    val MANGA_READER_DOWNLOAD_ON_OPEN = object : Preference<Boolean>("MANGA_READER_DOWNLOAD_ON_OPEN") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    /**
+     * Автопрокрутка ленты (только манга-режим, tachiyomisy-стиль):
+     * плавный непрерывный скролл webtoon со скоростью MANGA_READER_AUTOSCROLL_SPEED.
+     * Отдельные префы (НЕ READER_AUTOSCROLL_* новеллы) — настройки
+     * манги не влияют на текстовую читалку.
+     */
+    val MANGA_READER_AUTOSCROLL_ENABLED = object : Preference<Boolean>("MANGA_READER_AUTOSCROLL_ENABLED") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    /** Скорость автопрокрутки ленты в dp/с (10..200, шаг 10). */
+    val MANGA_READER_AUTOSCROLL_SPEED = object : Preference<Int>("MANGA_READER_AUTOSCROLL_SPEED") {
+        override var value by SharedPreference_Int(name, preferences, 40)
+    }
+
+    val MANGA_READER_COLOR_FILTER = object : Preference<Boolean>("MANGA_READER_COLOR_FILTER") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    /** Пользовательская яркость (tachiyomisy custom brightness): выкл = системная. */
+    val MANGA_READER_CUSTOM_BRIGHTNESS = object : Preference<Boolean>("MANGA_READER_CUSTOM_BRIGHTNESS") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    /** -75..100: <0 — затемнение оверлеем, >0 — screenBrightness, 0 — системная. */
+    val MANGA_READER_CUSTOM_BRIGHTNESS_VALUE = object : Preference<Int>("MANGA_READER_CUSTOM_BRIGHTNESS_VALUE") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+
+    /** ARGB-цвет оверлея. */
+    val MANGA_READER_COLOR_FILTER_VALUE = object : Preference<Int>("MANGA_READER_COLOR_FILTER_VALUE") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+
+    /** 0=normal,1=multiply,2=screen,3=overlay,4=lighten,5=darken. */
+    val MANGA_READER_COLOR_FILTER_MODE = object : Preference<Int>("MANGA_READER_COLOR_FILTER_MODE") {
+        override var value by SharedPreference_Int(name, preferences, 0)
+    }
+
+    val MANGA_READER_GRAYSCALE = object : Preference<Boolean>("MANGA_READER_GRAYSCALE") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    val MANGA_READER_INVERTED_COLORS = object : Preference<Boolean>("MANGA_READER_INVERTED_COLORS") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
     val MANUAL_HIGHLIGHT_ENABLED = object : Preference<Boolean>("MANUAL_HIGHLIGHT_ENABLED") {
         override var value by SharedPreference_Boolean(name, preferences, false)
     }

@@ -123,6 +123,7 @@ internal class ChaptersViewModel @Inject constructor(
         genres = mutableStateOf(emptyList()),
         rating = mutableStateOf(""),
         translatedChapterTitles = mutableStateOf(emptyMap()),
+        chapterSizes = mutableStateOf(emptyMap()),
         downloadTask = mutableStateOf(null),
     )
 
@@ -223,11 +224,32 @@ internal class ChaptersViewModel @Inject constructor(
             updateRating()
         }
 
+        // Дозаполняем метку контента из источника, если книга в библиотеке
+        // была добавлена до поддержки content_type (иначе манга откроется
+        // NOVEL-ридером и покажет бейдж N).
+        viewModelScope.launch {
+            val sourceType = source?.contentType ?: ""
+            if (sourceType.isBlank()) return@launch
+            val cachedBook = libraryDao.get(bookUrl)
+            if (cachedBook?.inLibrary == true && cachedBook.contentType.isBlank()) {
+                appRepository.libraryBooks.updateContentType(bookUrl, sourceType)
+            }
+        }
+
         viewModelScope.launch {
             bookUrlFlow.collect { url ->
                 chaptersRepository.getChaptersSortedFlow(bookUrl = url).collect {
                     state.chapters.clear()
                     state.chapters.addAll(it)
+                }
+            }
+        }
+
+        // Размеры глав: быстрый путь из БД, затем дебаунс-скан диска.
+        viewModelScope.launch {
+            bookUrlFlow.collect { url ->
+                chaptersRepository.getChapterSizesFlow(bookUrl = url).collect {
+                    state.chapterSizes.value = it
                 }
             }
         }
@@ -279,7 +301,8 @@ internal class ChaptersViewModel @Inject constructor(
                 appRepository.toggleBookmark(
                     bookTitle = bookTitle,
                     bookUrl = bookUrl,
-                    rating = state.rating.value
+                    rating = state.rating.value,
+                    contentType = source?.contentType ?: ""
                 )
             val msg = if (isBookmarked) R.string.added_to_library else R.string.removed_from_library
             toasty.show(msg)

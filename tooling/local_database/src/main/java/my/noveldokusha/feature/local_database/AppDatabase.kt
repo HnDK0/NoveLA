@@ -10,8 +10,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import my.noveldokusha.feature.local_database.DAOs.ChapterBodyDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterDao
+import my.noveldokusha.feature.local_database.DAOs.ChapterPagesDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
+import my.noveldokusha.feature.local_database.DAOs.DownloadedPageChaptersDao
 import my.noveldokusha.feature.local_database.DAOs.ExtensionDao
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.feature.local_database.DAOs.NovelMigrationDao
@@ -19,8 +21,10 @@ import my.noveldokusha.feature.local_database.DAOs.ReadingHistoryDao
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.feature.local_database.tables.Chapter
 import my.noveldokusha.feature.local_database.tables.ChapterBody
+import my.noveldokusha.feature.local_database.tables.ChapterPages
 import my.noveldokusha.feature.local_database.tables.ChapterTranslation
 import my.noveldokusha.feature.local_database.tables.DownloadTaskEntity
+import my.noveldokusha.feature.local_database.tables.DownloadedPageChapter
 import my.noveldokusha.feature.local_database.tables.Extension
 import my.noveldokusha.feature.local_database.tables.MigrationRecord
 import my.noveldokusha.feature.local_database.tables.ReadingHistory
@@ -31,6 +35,8 @@ interface AppDatabase {
     fun libraryDao(): LibraryDao
     fun chapterDao(): ChapterDao
     fun chapterBodyDao(): ChapterBodyDao
+    fun chapterPagesDao(): ChapterPagesDao
+    fun downloadedPageChaptersDao(): DownloadedPageChaptersDao
     fun chapterTranslationDao(): ChapterTranslationDao
     fun downloadTaskDao(): DownloadTaskDao
     fun extensionDao(): ExtensionDao
@@ -114,19 +120,23 @@ interface AppDatabase {
         Book::class,
         Chapter::class,
         ChapterBody::class,
+        ChapterPages::class,
         ChapterTranslation::class,
         DownloadTaskEntity::class,
+        DownloadedPageChapter::class,
         Extension::class,
         MigrationRecord::class,
         ReadingHistory::class
     ],
-    version = 27,
-    exportSchema = false
+    version = 31,
+    exportSchema = true
 )
 internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {
     abstract override fun libraryDao(): LibraryDao
     abstract override fun chapterDao(): ChapterDao
     abstract override fun chapterBodyDao(): ChapterBodyDao
+    abstract override fun chapterPagesDao(): ChapterPagesDao
+    abstract override fun downloadedPageChaptersDao(): DownloadedPageChaptersDao
     abstract override fun chapterTranslationDao(): ChapterTranslationDao
     abstract override fun downloadTaskDao(): DownloadTaskDao
     abstract override fun extensionDao(): ExtensionDao

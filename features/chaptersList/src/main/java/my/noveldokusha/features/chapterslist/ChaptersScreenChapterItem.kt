@@ -9,7 +9,9 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -43,6 +45,7 @@ import my.noveldokusha.feature.local_database.tables.Chapter
 internal fun ChaptersScreenChapterItem(
     chapterWithContext: ChapterWithContext,
     translatedTitle: String? = null,
+    chapterSize: ChapterSize? = null,
     selected: Boolean,
     isLocalSource: Boolean,
     highlighted: Boolean = false,
@@ -52,6 +55,8 @@ internal fun ChaptersScreenChapterItem(
     onDownload: () -> Unit
 ) {
     val chapter = chapterWithContext.chapter
+
+    val sizeLabel = chapterSize?.sizeBytes?.let { formatBytes(it) }
 
     val targetContainerColor = when {
         selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -127,9 +132,18 @@ internal fun ChaptersScreenChapterItem(
                         color = if (chapter.read) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
                     )
                 },
-                supportingContent = if (badge != null) {
+                supportingContent = if (badge != null || sizeLabel != null) {
                     {
-                        badge()
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            if (badge != null) badge()
+                            if (sizeLabel != null) {
+                                Text(
+                                    text = sizeLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 } else null,
                 trailingContent = if (isLocalSource) null else {

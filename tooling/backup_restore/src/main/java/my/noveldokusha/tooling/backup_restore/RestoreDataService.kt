@@ -30,8 +30,10 @@ import my.noveldokusha.core.isCoverValid
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.BookChaptersRepository
 import my.noveldokusha.data.ChapterBodyRepository
+import my.noveldokusha.data.DownloadedPageChaptersStore
 import my.noveldokusha.data.DownloaderRepository
 import my.noveldokusha.data.LibraryBooksRepository
+import my.noveldokusha.network.NetworkClient
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.tryAsResponse
@@ -71,6 +73,9 @@ class RestoreDataService : Service() {
 
     @Inject
     lateinit var downloaderRepository: DownloaderRepository
+
+    @Inject
+    lateinit var networkClient: NetworkClient
 
     @Inject
     lateinit var appPreferences: AppPreferences
@@ -285,12 +290,19 @@ class RestoreDataService : Service() {
                         throw e
                     }
                     val bookChapters = BookChaptersRepository(chapterDao = newDatabase.chapterDao(), appDatabase = newDatabase)
+                    val pageChaptersStore = DownloadedPageChaptersStore(
+                        context = context,
+                        dao = newDatabase.downloadedPageChaptersDao(),
+                        networkClient = networkClient
+                    )
                     val chapterBody = ChapterBodyRepository(
                         chapterBodyDao = newDatabase.chapterBodyDao(),
+                        chapterPagesDao = newDatabase.chapterPagesDao(),
                         appDatabase = newDatabase,
                         chapterTranslationDao = newDatabase.chapterTranslationDao(),
                         bookChaptersRepository = bookChapters,
-                        downloaderRepository = downloaderRepository
+                        downloaderRepository = downloaderRepository,
+                        downloadedPageChaptersStore = pageChaptersStore
                     )
                     val libraryBooks = LibraryBooksRepository(
                         libraryDao = newDatabase.libraryDao(),
@@ -301,7 +313,8 @@ class RestoreDataService : Service() {
                         context = context,
                         appFileResolver = appFileResolver,
                         appCoroutineScope = appCoroutineScope,
-                        appPreferences = AppPreferences(context)
+                        appPreferences = AppPreferences(context),
+                        downloadedPageChaptersStore = pageChaptersStore
                     )
                     fun close() = newDatabase.closeDatabase()
                     fun delete() {

@@ -77,6 +77,9 @@
     <string name="epub_added_to_library">Epub이 라이브러리에 추가됨</string>
     <string name="invalid_chapter">잘못된 화</string>
     <string name="filter">필터</string>
+    <string name="content_type_manga">만화</string>
+    <string name="content_type_novel">소설</string>
+    <string name="filter_all">전체</string>
     <string name="read">읽음</string>
     <string name="sort">정렬</string>
     <string name="sort_by_name">이름순 정렬</string>

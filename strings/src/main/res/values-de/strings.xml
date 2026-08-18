@@ -77,6 +77,9 @@
     <string name="epub_added_to_library">EPUB zur Bibliothek hinzugefügt</string>
     <string name="invalid_chapter">Ungültiges Kapitel</string>
     <string name="filter">Filter</string>
+    <string name="content_type_manga">Manga</string>
+    <string name="content_type_novel">Roman</string>
+    <string name="filter_all">Alle</string>
     <string name="read">Gelesen</string>
     <string name="sort">Sortieren</string>
     <string name="sort_by_name">Nach Namen sortieren</string>

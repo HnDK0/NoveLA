@@ -39,5 +39,8 @@ data class SourceMetadata(
     val url: String,
     val icon: String,
     val language: String,
-    val charset: String? = null
+    val charset: String? = null,
+    // Тип контента источника: "" = не указано/новелла, "manga", "novel".
+    // Валидация выполняется на границе чтения (LuaSourceAdapter), не в модели.
+    val contentType: String = ""
 )

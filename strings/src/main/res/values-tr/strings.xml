@@ -77,6 +77,9 @@
     <string name="epub_added_to_library">Epub kütüphaneye eklendi</string>
     <string name="invalid_chapter">Geçersiz bölüm</string>
     <string name="filter">Filtrele</string>
+    <string name="content_type_manga">Manga</string>
+    <string name="content_type_novel">Roman</string>
+    <string name="filter_all">Tümü</string>
     <string name="read">Okundu</string>
     <string name="sort">Sırala</string>
     <string name="sort_by_name">İsme göre sırala</string>

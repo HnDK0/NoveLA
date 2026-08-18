@@ -243,7 +243,14 @@ internal class ReaderSession(
                 orderedChapters.also { it.addAll(appRepository.bookChapters.chapters(bookUrl)) }
             }
             val chapterIndex = async(Dispatchers.Default) {
-                chaptersList.await().indexOfFirst { it.url == chapterUrl }
+                val list = chaptersList.await()
+                Timber.d("ReaderLoad: initialChapterUrl=$chapterUrl chapters=${list.size}")
+                val foundIndex = list.indexOfFirst { it.url == chapterUrl }
+                Timber.d("ReaderLoad: initial chapterIndex=$foundIndex")
+                if (foundIndex == -1) {
+                    Timber.w("ReaderLoad: chapterUrl НЕ НАЙДЕН в списке глав, fallback на первую главу! requested=$chapterUrl")
+                }
+                foundIndex
             }
 
             chaptersList.await()

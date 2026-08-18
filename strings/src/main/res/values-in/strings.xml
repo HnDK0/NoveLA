@@ -77,6 +77,9 @@
     <string name="epub_added_to_library">Epub ditambahkan ke perpustakaan</string>
     <string name="invalid_chapter">Bab tidak valid</string>
     <string name="filter">Filter</string>
+    <string name="content_type_manga">Manga</string>
+    <string name="content_type_novel">Novel</string>
+    <string name="filter_all">Semua</string>
     <string name="read">Baca</string>
     <string name="sort">Urutkan</string>
     <string name="sort_by_name">Urutkan berdasarkan nama</string>

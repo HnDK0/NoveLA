@@ -10,6 +10,7 @@ hilt-androidx = "1.2.0"
 ksp = "2.3.10"
 
 kotlinx-coroutines-core = "1.9.0"
+kotlinx-coroutines-test = "1.9.0"
 kotlinx-serialization-json = "1.7.3"
 
 testing-mockito-kotlin = "5.4.0"
@@ -39,6 +40,7 @@ androidx-testing-rules = "1.7.0"
 androidx-testing-orchestrator = "1.6.1"
 androidx-testing-junit = "1.3.0"
 androidx-testing-espresso = "3.6.1"
+robolectric = "4.16.1"
 
 compose-coil = "2.7.0"
 compose-activity = "1.9.3"
@@ -64,6 +66,7 @@ readability4j = "1.0.8"
 timber = "5.0.1"
 kotlin-metadata-jvm = "2.4.0"
 sora-editor = "0.24.4"
+subsampling-scale-image-view = "3.10.0"
 [libraries]
 
 # Compose
@@ -119,10 +122,12 @@ test-androidx-espresso-core = { module = "androidx.test.espresso:espresso-core",
 test-androidx-runner = { module = "androidx.test:runner", version.ref = "androidx-testing-runner" }
 test-androidx-rules = { module = "androidx.test:rules", version.ref = "androidx-testing-rules" }
 test-androidx-core-ktx = { module = "androidx.test:core-ktx", version.ref = "androidx-testing-core" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 
 # Kotlin
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines-core" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines-test" }
 kotlin-metadata-jvm = { module = "org.jetbrains.kotlin:kotlin-metadata-jvm", version.ref = "kotlin-metadata-jvm" }
 
 # Android
@@ -148,6 +153,9 @@ material = { module = "com.google.android.material:material", version.ref = "and
 # Sora Editor
 sora-editor-bom = { module = "io.github.rosemoe:editor-bom", version.ref = "sora-editor" }
 sora-editor-core = { module = "io.github.rosemoe:editor" }
+
+# Subsampling Scale Image View (manga viewer)
+subsampling-scale-image-view = { module = "com.davemorrissey.labs:subsampling-scale-image-view", version.ref = "subsampling-scale-image-view" }
 
 # Logging
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }

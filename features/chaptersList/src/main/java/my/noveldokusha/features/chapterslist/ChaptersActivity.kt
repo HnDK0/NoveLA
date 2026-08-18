@@ -107,9 +107,8 @@ class ChaptersActivity : BaseActivity() {
 
     private fun onOpenLastActiveChapter() {
         lifecycleScope.launch {
-            val lastReadChapter = viewModel.getLastReadChapter()
-                ?: viewModel.state.chapters.minByOrNull { it.chapter.position }?.chapter?.url
-                ?: return@launch
+            // Bug1c: без lastRead не открываем главу 1 молча — остаёмся на списке глав.
+            val lastReadChapter = viewModel.getLastReadChapter() ?: return@launch
 
             openBookAtChapter(chapterUrl = lastReadChapter)
         }

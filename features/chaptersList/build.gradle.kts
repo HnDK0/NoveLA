@@ -33,4 +33,5 @@ dependencies {
 
     implementation(libs.timber)
 
+    testImplementation(libs.test.junit)
 }

@@ -77,6 +77,9 @@
     <string name="epub_added_to_library">Epub ditambah ke perpustakaan</string>
     <string name="invalid_chapter">Bab tidak sah</string>
     <string name="filter">Tapis</string>
+    <string name="content_type_manga">Manga</string>
+    <string name="content_type_novel">Novel</string>
+    <string name="filter_all">Semua</string>
     <string name="read">Baca</string>
     <string name="sort">Susun</string>
     <string name="sort_by_name">Susun mengikut nama</string>
