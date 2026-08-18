@@ -88,8 +88,6 @@
     <string name="type">Type</string>
     <string name="sort">Sort</string>
     <string name="sort_by_name">Sort by name</string>
-    <string name="sort_ascending">Ascending</string>
-    <string name="sort_descending">Descending</string>
     <string name="options_panel">Options panel</string>
     <string name="search_with_filters">Search with filters</string>
     <string name="none_found">None found</string>
@@ -186,8 +184,6 @@
     <string name="unread_chapters">Unread chapters</string>
     <string name="last_update">Last update</string>
     <string name="date_added">Date added</string>
-    <string name="ascending">Ascending</string>
-    <string name="descending">Descending</string>
     <string name="voices">Voices</string>
     <string name="search_voice_by_language">Search voice by language</string>
     <string name="needs_internet">Needs Internet</string>
@@ -214,8 +210,6 @@
     <string name="book_fix">Fix book</string>
     <string name="tts_estimated_time_left">Estimated Time Left</string>
     <string name="tts_total_chapter">Total Chapter</string>
-    <string name="tts_wpm">WPM</string>
-    <string name="tts_remaining">left</string>
     <string name="tts_hours_abbr">h</string>
     <string name="tts_minutes_abbr">m</string>
     <string name="tts_seconds_abbr">s</string>
@@ -253,10 +247,6 @@
     <string name="resume_reading">Resume reading</string>
     <string name="find_in_database">Find in database</string>
     <string name="by_chapter_name">By chapter name</string>
-    <string name="theme_name_light">Light</string>
-    <string name="theme_name_dark">Dark</string>
-    <string name="theme_name_grey">Grey</string>
-    <string name="theme_name_black">Black</string>
 
     <!-- Theme names for color schemes -->
     <string name="theme_name_default">Default</string>
@@ -285,7 +275,6 @@
     <string name="dark_mode_light">Light</string>
     <string name="dark_mode_dark">Dark</string>
     <string name="dark_mode_black">Black</string>
-    <string name="dark_mode"></string>
     <string name="color_scheme">Color Scheme</string>
     <string name="translation_services">Translation Services</string>
     <string name="gemini_api_key">Gemini API Key</string>
@@ -718,14 +707,11 @@
     <string name="manga_zoom_start_left">Left</string>
     <string name="manga_zoom_start_center">Center</string>
     <string name="manga_zoom_start_right">Right</string>
-    <string name="manga_manhwa_settings">Manga / Manhwa</string>
     <string name="manga_reader_settings">Reader settings</string>
     <string name="manga_reader_general">General</string>
     <string name="manga_reader_controls">Controls</string>
-    <string name="manga_reader_webtoon">Webtoon</string>
     <string name="manga_reader_auto_scroll">Auto-scroll</string>
     <string name="manga_reader_reading_mode">Reading mode</string>
-    <string name="manga_reader_orientation">Orientation</string>
     <string name="manga_reader_transitions_pager">Page transitions (pager)</string>
     <string name="manga_reader_transitions_webtoon">Page transitions (webtoon)</string>
     <string name="manga_reader_show_page_number">Show page number</string>
@@ -735,18 +721,11 @@
     <string name="manga_reader_next_chapter">Next chapter</string>
     <string name="manga_reader_chapter_loading">Loading chapter…</string>
     <string name="manga_reader_page_of">%1$d / %2$d</string>
-    <string name="manga_reader_open">Manga reader</string>
     <string name="manga_reader_end_of_book">You have reached the end of the book</string>
     <string name="manga_reader_invalid_chapter">This chapter can\'t be opened in the manga reader.</string>
-    <string name="manga_tapping_inverted">Invert tapping zones</string>
-    <string name="manga_tapping_inverted_none">None</string>
-    <string name="manga_tapping_inverted_horizontal">Horizontal</string>
-    <string name="manga_tapping_inverted_vertical">Vertical</string>
-    <string name="manga_tapping_inverted_both">Both</string>
     <string name="manga_long_tap">Long tap opens menu</string>
     <string name="manga_reader_download_on_open">Download chapter when opening</string>
     <string name="manga_webtoon_side_padding">Side padding</string>
-    <string name="manga_zoom_start">Zoom start position</string>
     <string name="manga_custom_color_filter">Custom color filter</string>
     <string name="manga_color_filter_mode">Filter mode</string>
     <string name="manga_color_filter_mode_normal">Normal</string>
@@ -761,12 +740,10 @@
     <string name="manga_color_filter_blue">Blue</string>
     <string name="manga_color_filter_custom">Custom filter</string>
     <string name="manga_custom_brightness">Custom brightness</string>
-    <string name="manga_expand_autoscroll">Auto-scroll</string>
     <string name="manga_reader_chapter_list">Chapter list</string>
     <string name="manga_reader_chapter_list_current">Current</string>
     <string name="manga_reader_chapter_list_empty">No chapters</string>
     <string name="manga_reader_open_in_browser">Open in browser</string>
-    <string name="manga_autoscroll_speed">Speed</string>
     <string name="manga_autoscroll_speed_value">%1$d dp/s</string>
     <string name="manga_grayscale">Grayscale</string>
     <string name="manga_inverted_colors">Inverted colors</string>

@@ -308,9 +308,7 @@
 
     <string name="date_added">Дата добавления</string>
 
-    <string name="ascending">По возрастанию</string>
 
-    <string name="descending">По убыванию</string>
 
     <string name="voices">Голоса</string>
 
@@ -355,9 +353,7 @@
 
     <string name="tts_total_chapter">Всего глава</string>
 
-    <string name="tts_wpm">слов/мин</string>
 
-    <string name="tts_remaining">осталось</string>
 
     <string name="tts_hours_abbr">ч</string>
 
@@ -408,13 +404,9 @@
 
     <string name="by_chapter_name">По названию главы</string>
 
-    <string name="theme_name_light">Светлая</string>
 
-    <string name="theme_name_dark">Темная</string>
 
-    <string name="theme_name_grey">Серая</string>
 
-    <string name="theme_name_black">Черная</string>
 
     <string name="translation_services">Сервисы перевода</string>
 
@@ -849,7 +841,6 @@
 
     <string name="llm_tokens_auto">Авто</string>
 
-    <string name="dark_mode">Тёмный режим</string>
 
     <string name="color_scheme">Цветовая схема</string>
 
@@ -1151,9 +1142,7 @@
     <string name="letter_spacing">Межбуквенный интервал</string>
     <string name="rename_category">Переименовать</string>
     <string name="seconds_format">%d с</string>
-    <string name="sort_ascending">По возрастанию</string>
     <string name="sort_by_name">По названию</string>
-    <string name="sort_descending">По убыванию</string>
     <string name="cloudflare_challenge_timeout">Тайм-аут проверки Cloudflare</string>
     <string name="timeout_seconds">Тайм-аут (сек.)</string>
 
@@ -1192,14 +1181,11 @@
     <string name="manga_zoom_start_left">Слева</string>
     <string name="manga_zoom_start_center">По центру</string>
     <string name="manga_zoom_start_right">Справа</string>
-    <string name="manga_manhwa_settings">Манга / Манхва</string>
     <string name="manga_reader_settings">Настройки читалки</string>
     <string name="manga_reader_general">Общие</string>
     <string name="manga_reader_controls">Управление</string>
-    <string name="manga_reader_webtoon">Webtoon</string>
     <string name="manga_reader_auto_scroll">Автопрокрутка</string>
     <string name="manga_reader_reading_mode">Режим чтения</string>
-    <string name="manga_reader_orientation">Ориентация</string>
     <string name="manga_reader_transitions_pager">Перелистывание (пейджер)</string>
     <string name="manga_reader_transitions_webtoon">Переходы страниц (webtoon)</string>
     <string name="manga_reader_show_page_number">Показывать номер страницы</string>
@@ -1209,18 +1195,11 @@
     <string name="manga_reader_next_chapter">Следующая глава</string>
     <string name="manga_reader_chapter_loading">Загрузка главы…</string>
     <string name="manga_reader_page_of">%1$d / %2$d</string>
-    <string name="manga_reader_open">Манга-читалка</string>
     <string name="manga_reader_end_of_book">Вы дочитали книгу до конца</string>
     <string name="manga_reader_invalid_chapter">Эту главу нельзя открыть в манга-ридере.</string>
-    <string name="manga_tapping_inverted">Инвертировать зоны тапа</string>
-    <string name="manga_tapping_inverted_none">Нет</string>
-    <string name="manga_tapping_inverted_horizontal">По горизонтали</string>
-    <string name="manga_tapping_inverted_vertical">По вертикали</string>
-    <string name="manga_tapping_inverted_both">Обе оси</string>
     <string name="manga_long_tap">Долгий тап открывает меню</string>
     <string name="manga_reader_download_on_open">Скачивать главу при открытии</string>
     <string name="manga_webtoon_side_padding">Боковой отступ</string>
-    <string name="manga_zoom_start">Начальная позиция зума</string>
     <string name="manga_custom_color_filter">Пользовательский цветовой фильтр</string>
     <string name="manga_color_filter_mode">Режим фильтра</string>
     <string name="manga_color_filter_mode_normal">Обычный</string>
@@ -1235,15 +1214,23 @@
     <string name="manga_color_filter_blue">Синий</string>
     <string name="manga_color_filter_custom">Свой фильтр</string>
     <string name="manga_custom_brightness">Пользовательская яркость</string>
-    <string name="manga_expand_autoscroll">Автопрокрутка</string>
     <string name="manga_reader_chapter_list">Список глав</string>
     <string name="manga_reader_chapter_list_current">Текущая</string>
     <string name="manga_reader_chapter_list_empty">Нет глав</string>
     <string name="manga_reader_open_in_browser">Открыть в браузере</string>
-    <string name="manga_autoscroll_speed">Скорость</string>
     <string name="manga_autoscroll_speed_value">%1$d dp/с</string>
     <string name="manga_grayscale">Оттенки серого</string>
     <string name="manga_inverted_colors">Инвертированные цвета</string>
 
+    <!-- machine-translated, manual review required -->
+    <string name="type">Тип</string>
+    <string name="tts_highlight">Подсветка TTS</string>
+    <string name="tts_floating_glow">Свечение</string>
+    <string name="tts_glow_auto">Авто</string>
+    <string name="tts_glow_on">Вкл</string>
+    <string name="tts_glow_off">Выкл</string>
+    <string name="wtr_lab_lang_id">Индонезийский</string>
+    <string name="wtr_lab_lang_tr">Турецкий</string>
+    <string name="wtr_lab_lang_none">Нет</string>
 </resources>
 
