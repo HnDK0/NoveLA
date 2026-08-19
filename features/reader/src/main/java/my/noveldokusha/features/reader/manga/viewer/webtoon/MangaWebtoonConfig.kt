@@ -55,10 +55,6 @@ internal class MangaWebtoonConfig(
             }
             .launchIn(scope)
 
-        appPreferences.MANGA_READER_LONG_TAP.flow()
-            .onEach { longTapEnabled = it }
-            .launchIn(scope)
-
         appPreferences.READER_SINGLE_TAP_TO_OPEN_SETTINGS.flow()
             .onEach { singleTapToOpenSettings = it }
             .launchIn(scope)

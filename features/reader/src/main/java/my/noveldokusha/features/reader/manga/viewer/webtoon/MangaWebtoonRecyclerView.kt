@@ -3,7 +3,6 @@ package my.noveldokusha.features.reader.manga.viewer.webtoon
 import android.content.Context
 import android.util.AttributeSet
 import android.view.GestureDetector
-import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.animation.DecelerateInterpolator
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -17,8 +16,8 @@ import androidx.recyclerview.widget.RecyclerView
  * поэтому не зумит ленту. Перехват флинга с перескоком на соседнюю
  * страницу тоже убран: при резком свайпе он «дёргал» ленту на следующую
  * картинку вместо инерции — скролл теперь штатный momentum RecyclerView.
- * Оставлено: single tap -> [tapListener], long press -> [longTapListener]
- * (+haptic). try/catch в onTouchEvent/onInterceptTouchEvent — защита от
+ * Оставлено: single tap -> [tapListener], double tap -> [doubleTapListener].
+ * try/catch в onTouchEvent/onInterceptTouchEvent — защита от
  * крашей, когда дочерние вью дёргают requestDisallowInterceptTouchEvent
  * (паттерн tachiyomisy Pager.kt).
  */
@@ -31,8 +30,8 @@ internal class MangaWebtoonRecyclerView @JvmOverloads constructor(
     /** Одиночный тап: координаты локальные (обрабатывает viewer). */
     var tapListener: ((MotionEvent) -> Unit)? = null
 
-    /** Долгий тап: вернуть true, если обработан (для haptic). */
-    var longTapListener: ((MotionEvent) -> Boolean)? = null
+    /** Двойной тап: вернуть true, если обработан. Меню по двойному тапу. */
+    var doubleTapListener: ((MotionEvent) -> Boolean)? = null
 
     private val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
         override fun onDown(e: MotionEvent): Boolean = true
@@ -42,11 +41,8 @@ internal class MangaWebtoonRecyclerView @JvmOverloads constructor(
             return false
         }
 
-        override fun onLongPress(e: MotionEvent) {
-            val listener = longTapListener
-            if (listener != null && listener.invoke(e)) {
-                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-            }
+        override fun onDoubleTap(e: MotionEvent): Boolean {
+            return doubleTapListener?.invoke(e) ?: false
         }
     })
 

@@ -99,7 +99,7 @@ class MangaReaderViewModelTest {
         val webtoonSidePadding = pref(0)
         val navModePager = pref(0)
         val navModeWebtoon = pref(0)
-        val longTap = pref(true)
+        val singleTapToOpenSettings = pref(false)
         val downloadOnOpenPref = pref(downloadOnOpen)
         val autoscrollEnabled = pref(false)
         val autoscrollSpeed = pref(5)
@@ -121,7 +121,7 @@ class MangaReaderViewModelTest {
         whenever(prefs.MANGA_READER_WEBTOON_SIDE_PADDING).thenReturn(webtoonSidePadding)
         whenever(prefs.MANGA_READER_NAV_MODE_PAGER).thenReturn(navModePager)
         whenever(prefs.MANGA_READER_NAV_MODE_WEBTOON).thenReturn(navModeWebtoon)
-        whenever(prefs.MANGA_READER_LONG_TAP).thenReturn(longTap)
+        whenever(prefs.READER_SINGLE_TAP_TO_OPEN_SETTINGS).thenReturn(singleTapToOpenSettings)
         whenever(prefs.MANGA_READER_DOWNLOAD_ON_OPEN).thenReturn(downloadOnOpenPref)
         whenever(prefs.MANGA_READER_AUTOSCROLL_ENABLED).thenReturn(autoscrollEnabled)
         whenever(prefs.MANGA_READER_AUTOSCROLL_SPEED).thenReturn(autoscrollSpeed)
@@ -442,6 +442,7 @@ class MangaReaderViewModelTest {
     fun settingsDefaultsMatchPrefs() {
         val vm = vm()
         assertEquals(MangaReadingMode.WEBTOON, vm.settings.value.readingMode)
+        assertEquals(false, vm.settings.value.singleTapToOpenSettings)
     }
 
     @Test

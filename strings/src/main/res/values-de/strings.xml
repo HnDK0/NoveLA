@@ -726,7 +726,6 @@
     <string name="manga_custom_color_filter">Benutzerdefinierter Farbfilter</string>
     <string name="manga_grayscale">Graustufen</string>
     <string name="manga_inverted_colors">Invertierte Farben</string>
-    <string name="manga_long_tap">Langes Tippen öffnet Menü</string>
     <string name="manga_mode_paged">Seitenweise</string>
     <string name="manga_mode_webtoon">Langer Streifen (Webtoon)</string>
     <string name="manga_nav_both">Wischen und Tippen</string>

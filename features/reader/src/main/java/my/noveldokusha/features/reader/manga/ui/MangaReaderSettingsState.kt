@@ -22,7 +22,7 @@ internal data class MangaReaderSettingsState(
     val navModePager: MangaNavigationMode = MangaNavigationMode.BOTH,
     val navModeWebtoon: MangaNavigationMode = MangaNavigationMode.BOTH,
     val tappingInverted: Boolean = false,
-    val longTap: Boolean = true,
+    val singleTapToOpenSettings: Boolean = false,
     val downloadOnOpen: Boolean = false,
     val colorFilterEnabled: Boolean = false,
     val colorFilterValue: Int = 0,
@@ -45,7 +45,7 @@ internal interface MangaReaderSettingsActions {
     fun setNavModePager(mode: MangaNavigationMode)
     fun setNavModeWebtoon(mode: MangaNavigationMode)
     fun setTappingInverted(enabled: Boolean)
-    fun setLongTap(enabled: Boolean)
+    fun setSingleTapToOpenSettings(enabled: Boolean)
     fun setDownloadOnOpen(enabled: Boolean)
     fun setColorFilterEnabled(enabled: Boolean)
     fun setColorFilterValue(value: Int)

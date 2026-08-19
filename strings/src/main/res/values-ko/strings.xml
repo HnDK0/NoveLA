@@ -738,7 +738,6 @@
 <string name="manga_reader_page_of">%1$d / %2$d</string>
 <string name="manga_reader_end_of_book">책의 끝에 도달했습니다</string>
 <string name="manga_reader_invalid_chapter">이 회차는 만화 리더에서 열 수 없습니다.</string>
-<string name="manga_long_tap">길게 탭하면 메뉴가 열립니다</string>
 <string name="manga_reader_download_on_open">열 때 회차 다운로드</string>
 <string name="manga_webtoon_side_padding">측면 여백</string>
 <string name="manga_custom_color_filter">사용자 지정 색상 필터</string>

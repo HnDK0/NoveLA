@@ -152,7 +152,7 @@ internal class MangaWebtoonViewer(
             },
         )
         recycler.tapListener = { event -> handleTap(event) }
-        recycler.longTapListener = { event -> handleLongTap(event) }
+        recycler.doubleTapListener = { event -> onDoubleTap(event) }
 
         // Отступы/переходы изменились — перепривязать видимые холдеры.
         config.imagePropertyChangedListener = {
@@ -633,12 +633,22 @@ internal class MangaWebtoonViewer(
         }
     }
 
-    /** Долгий тап: открыть меню (gated config.longTapEnabled). */
-    private fun handleLongTap(event: MotionEvent): Boolean {
-        if (!config.longTapEnabled) return false
-        val child = recycler.findChildViewUnder(event.x, event.y) ?: return false
-        if (recycler.getChildAdapterPosition(child) == RecyclerView.NO_POSITION) return false
-        pageClickListener?.invoke()
+    /** Двойной тап: открыть меню в зоне MENU (иначе — жест не наш). */
+    private fun onDoubleTap(event: MotionEvent): Boolean {
+        val width = recycler.width
+        val height = recycler.height
+        if (width <= 0 || height <= 0) {
+            pageClickListener?.invoke()
+            return true
+        }
+        val pos = PointF(event.x / width, event.y / height)
+        if (config.navigator.getAction(pos) == NavigationRegion.MENU) {
+            pageClickListener?.invoke()
+        } else {
+            // Быстрая пара тапов: первый single tap отменён GestureDetector'ом,
+            // пробрасываем действие второго (см. MangaPageImageView.onTouchEvent).
+            handleTap(event)
+        }
         return true
     }
 

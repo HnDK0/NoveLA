@@ -727,7 +727,6 @@
 <string name="manga_reader_page_of">%1$d / %2$d</string>
 <string name="manga_reader_end_of_book">Anda telah sampai ke penghujung buku</string>
 <string name="manga_reader_invalid_chapter">Bab ini tidak boleh dibuka dalam pembaca manga.</string>
-<string name="manga_long_tap">Ketik lama membuka menu</string>
 <string name="manga_reader_download_on_open">Muat turun bab semasa membuka</string>
 <string name="manga_webtoon_side_padding">Ruang tepi</string>
 <string name="manga_custom_color_filter">Penapis warna tersuai</string>

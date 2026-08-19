@@ -3,7 +3,6 @@ package my.noveldokusha.features.reader.manga.viewer.pager
 import android.content.Context
 import android.util.AttributeSet
 import android.view.GestureDetector
-import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
@@ -39,8 +38,8 @@ internal class MangaPager @JvmOverloads constructor(
      */
     var dragEnabled: Boolean = true
 
-    /** Долгий тап; true = жест обработан (даёт haptic-фидбек). */
-    var longTapListener: ((MotionEvent) -> Boolean)? = null
+    /** Двойной тап; true = жест обработан. Меню по двойному тапу (зона MENU). */
+    var doubleTapListener: ((MotionEvent) -> Boolean)? = null
 
     /**
      * Движение пальца во время драга: (dx, dy) в экранных координатах.
@@ -61,16 +60,15 @@ internal class MangaPager @JvmOverloads constructor(
     private val gestureDetector = GestureDetector(
         context,
         object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean = true
+
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
                 tapListener?.invoke(e)
                 return true
             }
 
-            override fun onLongPress(e: MotionEvent) {
-                val listener = longTapListener
-                if (listener != null && listener.invoke(e)) {
-                    performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                }
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                return doubleTapListener?.invoke(e) ?: false
             }
         },
     )

@@ -387,11 +387,6 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_Boolean(name, preferences, false)
     }
 
-    /** Долгое нажатие по странице открывает меню. */
-    val MANGA_READER_LONG_TAP = object : Preference<Boolean>("MANGA_READER_LONG_TAP") {
-        override var value by SharedPreference_Boolean(name, preferences, true)
-    }
-
     /** Скачивать главу при открытии (автосохранение страниц в офлайн-хранилище). */
     val MANGA_READER_DOWNLOAD_ON_OPEN = object : Preference<Boolean>("MANGA_READER_DOWNLOAD_ON_OPEN") {
         override var value by SharedPreference_Boolean(name, preferences, false)

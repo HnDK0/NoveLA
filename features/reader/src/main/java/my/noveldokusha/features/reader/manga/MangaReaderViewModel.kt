@@ -373,7 +373,7 @@ internal class MangaReaderViewModel @Inject constructor(
         navModePager = MangaNavigationMode.fromPreference(appPreferences.MANGA_READER_NAV_MODE_PAGER.value),
         navModeWebtoon = MangaNavigationMode.fromPreference(appPreferences.MANGA_READER_NAV_MODE_WEBTOON.value),
         tappingInverted = appPreferences.MANGA_READER_TAPPING_INVERTED.value,
-        longTap = appPreferences.MANGA_READER_LONG_TAP.value,
+        singleTapToOpenSettings = appPreferences.READER_SINGLE_TAP_TO_OPEN_SETTINGS.value,
         downloadOnOpen = appPreferences.MANGA_READER_DOWNLOAD_ON_OPEN.value,
         colorFilterEnabled = appPreferences.MANGA_READER_COLOR_FILTER.value,
         colorFilterValue = appPreferences.MANGA_READER_COLOR_FILTER_VALUE.value,
@@ -421,8 +421,8 @@ internal class MangaReaderViewModel @Inject constructor(
         override fun setTappingInverted(enabled: Boolean) =
             set(appPreferences.MANGA_READER_TAPPING_INVERTED, enabled)
 
-        override fun setLongTap(enabled: Boolean) =
-            set(appPreferences.MANGA_READER_LONG_TAP, enabled)
+        override fun setSingleTapToOpenSettings(enabled: Boolean) =
+            set(appPreferences.READER_SINGLE_TAP_TO_OPEN_SETTINGS, enabled)
 
         override fun setDownloadOnOpen(enabled: Boolean) =
             set(appPreferences.MANGA_READER_DOWNLOAD_ON_OPEN, enabled)

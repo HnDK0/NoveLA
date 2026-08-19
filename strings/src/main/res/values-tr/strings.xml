@@ -716,7 +716,6 @@
     <string name="manga_custom_color_filter">Özel renk filtresi</string>
     <string name="manga_grayscale">Gri tonlama</string>
     <string name="manga_inverted_colors">Ters çevrilmiş renkler</string>
-    <string name="manga_long_tap">Uzun dokunuş menüyü açar</string>
     <string name="manga_mode_paged">Sayfalı</string>
     <string name="manga_mode_webtoon">Uzun şerit (webtoon)</string>
     <string name="manga_nav_both">Kaydırma ve dokunma</string>

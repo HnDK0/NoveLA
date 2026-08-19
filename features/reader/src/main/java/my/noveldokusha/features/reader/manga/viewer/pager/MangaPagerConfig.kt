@@ -74,10 +74,6 @@ internal class MangaPagerConfig(
             }
             .launchIn(scope)
 
-        appPreferences.MANGA_READER_LONG_TAP.flow()
-            .onEach { longTapEnabled = it }
-            .launchIn(scope)
-
         appPreferences.READER_SINGLE_TAP_TO_OPEN_SETTINGS.flow()
             .onEach { singleTapToOpenSettings = it }
             .launchIn(scope)
@@ -109,9 +105,14 @@ internal class MangaPagerConfig(
         }
     }
 
-    /** SSIV-конфиг страницы пейджера (zoom-start + длительность double-tap). */
+    /**
+     * SSIV-конфиг страницы пейджера. Двойной тап занят открытием меню
+     * (onDoubleTap вьюера), поэтому double-tap-зум SSIV отключён — масштаб
+     * по-прежнему доступен пинчем.
+     */
     fun imageConfig(): MangaPageImageView.Config = MangaPageImageView.Config(
         zoomStart = imageZoomStart,
         zoomAnimationDuration = doubleTapAnimDuration,
+        doubleTapZoomEnabled = false,
     )
 }

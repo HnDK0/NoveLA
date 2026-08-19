@@ -726,7 +726,6 @@
     <string name="manga_custom_color_filter">Niestandardowy filtr kolorów</string>
     <string name="manga_grayscale">Skala szarości</string>
     <string name="manga_inverted_colors">Odwrócone kolory</string>
-    <string name="manga_long_tap">Długie dotknięcie otwiera menu</string>
     <string name="manga_mode_paged">Stronicowany</string>
     <string name="manga_mode_webtoon">Długi pasek (webtoon)</string>
     <string name="manga_nav_both">Przesuwanie i dotknięcia</string>

@@ -738,7 +738,6 @@
 <string name="manga_reader_page_of">%1$d / %2$d</string>
 <string name="manga_reader_end_of_book">本の最後に到達しました</string>
 <string name="manga_reader_invalid_chapter">この章はマンガリーダーで開くことができません。</string>
-<string name="manga_long_tap">長押しでメニューを開く</string>
 <string name="manga_reader_download_on_open">開いたときに章をダウンロード</string>
 <string name="manga_webtoon_side_padding">左右の余白</string>
 <string name="manga_custom_color_filter">カスタムカラーフィルター</string>

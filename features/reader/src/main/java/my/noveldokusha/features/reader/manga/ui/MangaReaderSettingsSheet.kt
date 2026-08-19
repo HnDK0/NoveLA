@@ -245,9 +245,9 @@ private fun GeneralPage(
             onCheckedChange = actions::setFullscreen,
         )
         SwitchSettingItem(
-            titleRes = R.string.manga_long_tap,
-            checked = settings.longTap,
-            onCheckedChange = actions::setLongTap,
+            titleRes = R.string.single_tap_to_open_settings,
+            checked = settings.singleTapToOpenSettings,
+            onCheckedChange = actions::setSingleTapToOpenSettings,
         )
         SwitchSettingItem(
             titleRes = R.string.manga_reader_download_on_open,

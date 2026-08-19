@@ -23,7 +23,7 @@ import my.noveldokusha.reader.R
 /**
  * Пейджер-вьюер на RecyclerView — порт tachiyomisy PagerViewer для одной
  * главы. Направления: L2R/R2L — горизонталь (R2L через reverseLayout),
- * VERTICAL — вертикаль. Тап по зонам навигации, long-press → меню,
+ * VERTICAL — вертикаль. Тап по зонам навигации, одиночный/двойной тап → меню,
  * клавиши громкости (с инверсией) и колесо мыши.
  */
 internal abstract class MangaPagerViewer(
@@ -158,7 +158,7 @@ internal abstract class MangaPagerViewer(
         pager.adapter = adapter
         pager.addOnScrollListener(pagerListener)
         pager.tapListener = { event -> onTap(event) }
-        pager.longTapListener = { event -> onLongTap(event) }
+        pager.doubleTapListener = { event -> onDoubleTap(event) }
         pager.dragDeltaListener = { dx, dy ->
             // Накопление направления жеста для edge-детекции (checkEdgeReached):
             // знак зависит только от оси (горизонталь/вертикаль), не от R2L.
@@ -289,13 +289,21 @@ internal abstract class MangaPagerViewer(
         }
     }
 
-    private fun onLongTap(event: MotionEvent): Boolean {
-        return if (config.longTapEnabled) {
+    private fun onDoubleTap(event: MotionEvent): Boolean {
+        val pos = PointF(
+            if (pager.width > 0) event.x / pager.width else 0f,
+            if (pager.height > 0) event.y / pager.height else 0f,
+        )
+        if (config.navigator.getAction(pos) == NavigationRegion.MENU) {
             pageClickListener?.invoke()
-            true
         } else {
-            false
+            // Быстрая пара тапов: первый single tap отменён GestureDetector'ом
+            // (штатный double-tap арбитраж), а второй уже подавлен для SSIV
+            // в MangaPageImageView — пробрасываем его действие, иначе пара
+            // тапов в зоне листания не даёт ни одного переворота.
+            onTap(event)
         }
+        return true
     }
 
     // ── Навигация (семантика направлений tachiyomisy) ──

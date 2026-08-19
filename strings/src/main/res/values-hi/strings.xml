@@ -727,7 +727,6 @@
 <string name="manga_reader_page_of">%1$d / %2$d</string>
 <string name="manga_reader_end_of_book">आप पुस्तक के अंत तक पहुंच गए हैं</string>
 <string name="manga_reader_invalid_chapter">यह अध्याय मंगा रीडर में नहीं खोला जा सकता।</string>
-<string name="manga_long_tap">लंबा टैप मेनू खोलता है</string>
 <string name="manga_reader_download_on_open">खोलते समय अध्याय डाउनलोड करें</string>
 <string name="manga_webtoon_side_padding">साइड पैडिंग</string>
 <string name="manga_custom_color_filter">कस्टम रंग फ़िल्टर</string>

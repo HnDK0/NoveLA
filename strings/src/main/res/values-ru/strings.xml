@@ -1200,7 +1200,6 @@
     <string name="manga_reader_page_of">%1$d / %2$d</string>
     <string name="manga_reader_end_of_book">Вы дочитали книгу до конца</string>
     <string name="manga_reader_invalid_chapter">Эту главу нельзя открыть в манга-ридере.</string>
-    <string name="manga_long_tap">Долгий тап открывает меню</string>
     <string name="manga_reader_download_on_open">Скачивать главу при открытии</string>
     <string name="manga_webtoon_side_padding">Боковой отступ</string>
     <string name="manga_custom_color_filter">Пользовательский цветовой фильтр</string>

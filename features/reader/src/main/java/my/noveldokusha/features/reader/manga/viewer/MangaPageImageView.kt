@@ -6,6 +6,7 @@ import android.graphics.PointF
 import android.net.Uri
 import android.util.AttributeSet
 import android.view.MotionEvent
+import android.view.ViewConfiguration
 import com.davemorrissey.labs.subscaleview.ImageSource
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView.DefaultOnImageEventListener
@@ -55,6 +56,12 @@ internal class MangaPageImageView @JvmOverloads constructor(
 
     private var imageLoadedListener: (() -> Unit)? = null
 
+    /** eventTime последнего одиночного UP — для детекта второго тапа двойного. */
+    private var lastTapUpTime = 0L
+
+    /** Идёт подавление жеста: второй DOWN двойного тапа уже съеден, до UP/CANCEL. */
+    private var suppressGesture = false
+
     fun setOnImageLoadedListener(listener: () -> Unit) {
         imageLoadedListener = listener
         if (isReady) listener()
@@ -89,9 +96,10 @@ internal class MangaPageImageView @JvmOverloads constructor(
     }
 
     /**
-     * Жесты 1-в-1 с tachiyomisy ReaderPageImageView:
-     * пан ограничен внутри изображения, дабл-тап зумит в 2x «по месту» (центр
-     * тапа) с максимумом 5x, тайлы декодируются в высоком dpi.
+     * Жесты: пан ограничен внутри изображения, пинч-зум до 5x, тайлы
+     * декодируются в высоком dpi. Двойной тап зуму НЕ управляет: его
+     * перехватывает GestureDetector пейджера (onDoubleTap → меню), поэтому
+     * второй DOWN двойного тапа не доходит до SSIV — см. [onTouchEvent].
      */
     private fun applyConfig() {
         // Пул декодеров + формат битмапов в одном конструкторе фабрики.
@@ -117,11 +125,12 @@ internal class MangaPageImageView @JvmOverloads constructor(
 
     override fun onImageLoaded() {
         super.onImageLoaded()
-        if (config.doubleTapZoomEnabled) {
-            // «дабл-тап = идеально вписать в экран» как в tachiyomisy: 2x от fit-масштаба.
-            setDoubleTapZoomScale(scale * 2f)
-            setMaxScale(scale * 5f) // MAX_ZOOM_SCALE = 5F
-        }
+        // Лимиты зума выставляем всегда: пинч-зум до 5x должен работать
+        // независимо от жеста двойного тапа (он занят меню и подавлен в
+        // onTouchEvent). doubleTapZoomScale неактивен — onDoubleTap SSIV
+        // больше не получает второй DOWN.
+        setDoubleTapZoomScale(scale * 2f)
+        setMaxScale(scale * 5f) // MAX_ZOOM_SCALE = 5F
         applyZoomStart()
         imageLoadedListener?.invoke()
     }
@@ -149,8 +158,46 @@ internal class MangaPageImageView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Подавление зума SSIV по двойному тапу.
+     *
+     * SSIV 3.10.0 не умеет отключать зум двойного тапа: setQuickScaleEnabled(false)
+     * лишь убирает быстрый-зум-жест, но onDoubleTap в таком случае вызывает
+     * doubleTapZoom() сразу (мгновенный зум в 2x). Поэтому второй DOWN одиночного
+     * тапа (в пределах окна двойного тапа) не отдаём SSIV — меню откроет
+     * GestureDetector пейджера (onDoubleTap → doubleTapListener), а SSIV не увидит
+     * второе касание и не запустит зум. Последующие события жеста до UP/CANCEL
+     * тоже глотаем, чтобы не ломать стейт-машину жестов SSIV.
+     */
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        return config.touchEnabled && super.onTouchEvent(event)
+        if (!config.touchEnabled) return false
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                val isSecondTap = event.pointerCount == 1 &&
+                    lastTapUpTime > 0 &&
+                    event.eventTime - lastTapUpTime < ViewConfiguration.getDoubleTapTimeout()
+                if (isSecondTap) {
+                    lastTapUpTime = 0
+                    suppressGesture = true
+                    return true
+                }
+            }
+            MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_POINTER_UP -> {
+                // Пальцы добавились/убрались — это не двойной тап: снимаем
+                // подавление и отдаём событие SSIV (пинч не должен ломаться).
+                suppressGesture = false
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (suppressGesture) {
+                    suppressGesture = false
+                    lastTapUpTime = 0
+                    return true
+                }
+                if (event.pointerCount == 1) lastTapUpTime = event.eventTime
+            }
+            else -> if (suppressGesture) return true
+        }
+        return super.onTouchEvent(event)
     }
 
     init {

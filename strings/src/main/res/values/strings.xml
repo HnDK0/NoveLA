@@ -726,7 +726,6 @@
     <string name="manga_reader_page_of">%1$d / %2$d</string>
     <string name="manga_reader_end_of_book">You have reached the end of the book</string>
     <string name="manga_reader_invalid_chapter">This chapter can\'t be opened in the manga reader.</string>
-    <string name="manga_long_tap">Long tap opens menu</string>
     <string name="manga_reader_download_on_open">Download chapter when opening</string>
     <string name="manga_webtoon_side_padding">Side padding</string>
     <string name="manga_custom_color_filter">Custom color filter</string>

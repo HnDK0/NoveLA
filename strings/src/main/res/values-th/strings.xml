@@ -716,7 +716,6 @@
     <string name="manga_custom_color_filter">ฟิลเตอร์สีแบบกำหนดเอง</string>
     <string name="manga_grayscale">ระดับสีเทา</string>
     <string name="manga_inverted_colors">สีย้อนกลับ</string>
-    <string name="manga_long_tap">แตะค้างเพื่อเปิดเมนู</string>
     <string name="manga_mode_paged">แบ่งหน้า</string>
     <string name="manga_mode_webtoon">แถวยาว (เว็บตูน)</string>
     <string name="manga_nav_both">ปัดและแตะ</string>
