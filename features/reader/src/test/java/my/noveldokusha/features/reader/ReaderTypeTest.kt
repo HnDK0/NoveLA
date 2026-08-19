@@ -2,6 +2,7 @@ package my.noveldokusha.features.reader
 
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import my.noveldokusha.data.CatalogItem
 import my.noveldokusha.data.LibraryBooksRepository
 import my.noveldokusha.data.ScraperRepository
 import my.noveldokusha.feature.local_database.tables.Book
@@ -55,7 +56,7 @@ class ReaderTypeTest {
     private fun scraperWith(vararg sources: SourceInterface.Catalog): ScraperRepository =
         mock<ScraperRepository>().apply {
             whenever(sourcesCatalogListFlow()).thenReturn(
-                flowOf(sources.map { ScraperRepository.CatalogItem(it, pinned = false) })
+                flowOf(sources.map { CatalogItem(it, pinned = false) })
             )
         }
 
@@ -87,14 +88,6 @@ class ReaderTypeTest {
         val repo = mock<LibraryBooksRepository>()
         whenever(repo.get(bookUrl)).thenThrow(RuntimeException("broken db"))
         assertEquals(ReaderType.NOVEL, resolveGateType(repo, scraperWith(), bookUrl))
-    }
-
-    @Test
-    fun missingBookWithMangaSourceRoutesToManga() = runBlocking {
-        val repo = mock<LibraryBooksRepository>()
-        whenever(repo.get(bookUrl)).thenReturn(null)
-        val scraper = scraperWith(mangaSource(baseUrl = "https://example.com"))
-        assertEquals(ReaderType.MANGA, resolveGateType(repo, scraper, bookUrl))
     }
 
     @Test

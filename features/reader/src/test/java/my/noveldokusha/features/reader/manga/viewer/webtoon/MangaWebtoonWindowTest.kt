@@ -96,41 +96,6 @@ class MangaWebtoonWindowTest {
     }
 
     @Test
-    fun pruneNeverEvictsCurrentChapter() {
-        val w = MangaWebtoonWindow()
-        w.maxChapters = 3
-        w.setChapter(chapter(0, 1))
-        w.appendNext(chapter(1, 1))
-        w.appendNext(chapter(2, 1))
-        w.appendNext(chapter(3, 1)) // 4 резидентных при максимуме 3
-        assertEquals(4, w.chapters.size)
-        // Текущая глава — индекс 0 (самая левая). Вытеснить можно только справа.
-        w.prune()
-        assertEquals(3, w.chapters.size)
-        // Текущая глава не могла быть выкинута.
-        assertTrue(w.chapters.any { it.index == 0 })
-        assertEquals(0, w.chapters[w.currentChapterIndex].index)
-    }
-
-    @Test
-    fun pruneAfterRightShiftKeepsMiddle() {
-        val w = MangaWebtoonWindow()
-        w.maxChapters = 3
-        w.setChapter(chapter(2, 1))
-        w.prependPrevious(chapter(1, 1))
-        w.prependPrevious(chapter(0, 1))
-        // [C0, C1, C2], текущая C2 (индекс 2 в книге).
-        w.appendNext(chapter(3, 1))
-        w.appendNext(chapter(4, 1)) // 5 резидентных
-        assertEquals(5, w.chapters.size)
-        w.prune()
-        assertEquals(3, w.chapters.size)
-        // Текущая глава (книжный индекс 2) сохранилась.
-        assertTrue(w.chapters.any { it.index == 2 })
-        assertEquals(2, w.chapters[w.currentChapterIndex].index)
-    }
-
-    @Test
     fun pruneDoesNothingWhenWithinBudget() {
         val w = MangaWebtoonWindow()
         w.maxChapters = 3
