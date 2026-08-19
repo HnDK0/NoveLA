@@ -71,14 +71,6 @@ internal fun ReaderScreenBottomBarDialogs(
                         )
                     }
                     ReaderScreenState.Settings.Type.More -> MoreSettingDialog(
-                        allowTextSelection = settings.isTextSelectable.value,
-                        onAllowTextSelectionChange = onSelectableTextChange,
-                        keepScreenOn = settings.keepScreenOn.value,
-                        onKeepScreenOn = onKeepScreenOn,
-                        fullScreen = settings.fullScreen.value,
-                        onFullScreen = onFullScreen,
-                        singleTapToOpenSettings = settings.isSingleTapToOpenSettings.value,
-                        onSingleTapToOpenSettingsChange = onSingleTapToOpenSettingsChange,
                         ttsHighlightEnabled = settings.ttsHighlight.isEnabled.value,
                         onTtsHighlightEnabledChange = onTtsHighlightEnabledChange,
                         ttsHighlightColor = settings.ttsHighlight.highlightColor.value,

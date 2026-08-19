@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import timber.log.Timber
+import android.view.MotionEvent
 import android.view.WindowManager
 import android.widget.AbsListView
 import androidx.activity.compose.setContent
@@ -36,8 +37,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.debounce
@@ -66,7 +70,9 @@ import my.noveldokusha.features.reader.domain.ReaderItem
 import my.noveldokusha.features.reader.domain.ReaderItemAdapter
 import my.noveldokusha.features.reader.domain.ReaderState
 import my.noveldokusha.features.reader.domain.indexOfReaderItem
+import my.noveldokusha.features.reader.features.ReaderTextToSpeech
 import my.noveldokusha.features.reader.manga.MangaReaderActivity
+import my.noveldokusha.features.reader.manga.viewer.webtoon.accumulatedPixels
 import my.noveldokusha.features.reader.manager.ReaderManager
 import my.noveldokusha.features.reader.services.NarratorMediaControlsService
 import my.noveldokusha.features.reader.tools.FontsLoader
@@ -147,6 +153,12 @@ class ReaderActivity : BaseActivity() {
     // запускает ReaderSession). Для MANGA-пути VM не создаётся вовсе — флаг защищает
     // onDestroy от обращения к viewModel после finish() манга-маршрута.
     private var novelReaderInitialized = false
+
+    // ── Автопрокрутка (порт webtoon-движка на ListView) ──
+    // Job активного цикла автопрокрутки; null = движок остановлен.
+    private var autoScrollJob: Job? = null
+    // Пауза по касанию/жизненному циклу: любой тач по списку останавливает скролл.
+    private var autoScrollPaused = false
 
     // Double-tap detection for showing/hiding reader info
     private var lastTapTime = 0L
@@ -497,6 +509,7 @@ class ReaderActivity : BaseActivity() {
                     // Reader info
                     ReaderScreen(
                     state = viewModel.state,
+                    appPreferences = appPreferences,
                     onTextFontChanged = { appPreferences.READER_FONT_FAMILY.value = it },
                     onTextColorChanged = { appPreferences.READER_TEXT_COLOR.value = it },
                     onTextSizeChanged = { appPreferences.READER_FONT_SIZE.value = it },
@@ -612,6 +625,35 @@ class ReaderActivity : BaseActivity() {
                     }
                 }
             })
+
+        // Тач по списку — пауза автопрокрутки (пользователь читает/листает сам).
+        // actionMasked отделяет ACTION_POINTER_UP: пока второй палец ещё держится,
+        // скролл остаётся на паузе. false — событие не перехватываем.
+        viewBind.listView.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> autoScrollPaused = true
+                MotionEvent.ACTION_UP,
+                MotionEvent.ACTION_CANCEL,
+                -> autoScrollPaused = false
+            }
+            false
+        }
+
+        // Движок автопрокрутки: старт/стоп по префу. Guard autoScrollJob == null
+        // защищает от двойного запуска (например, после recreate Activity).
+        lifecycleScope.launch {
+            appPreferences.READER_AUTOSCROLL_ENABLED.flow().collect { enabled ->
+                if (enabled) {
+                    autoScrollPaused = false
+                    if (autoScrollJob == null) {
+                        autoScrollJob = lifecycleScope.launch { runAutoScroll() }
+                    }
+                } else {
+                    autoScrollJob?.cancel()
+                    autoScrollJob = null
+                }
+            }
+        }
 
         snapshotFlow { viewModel.state.settings.fullScreen.value }
             .asLiveData()
@@ -906,7 +948,39 @@ class ReaderActivity : BaseActivity() {
         viewModel.updateInfoViewTo(itemIndex, userHasScrolled = userHasScrolled)
     }
 
+    /** Цикл автопрокрутки: тик каждые 16 мс, мгновенный скролл на накопленные пиксели. */
+    private suspend fun CoroutineScope.runAutoScroll() {
+        val density = resources.displayMetrics.density
+        var totalPixels = 0f
+        while (isActive) {
+            // Пауза при озвучке: TTS говорит (isSpeaking) или пользователь поставил
+            // TTS на паузу (userPaused). Возобновление — только после полной остановки
+            // TTS (floating player → requestTtsStop → stop(), userPaused=false).
+            // Движок никогда не ставит userHasScrolled=true, поэтому авто-стоп TTS в
+            // updateInfoViewTo (userHasScrolled && isActive && !isSpeaking &&
+            // chapterIndex >= ttsCurrent+1 → stop()) не срабатывает на границе глав —
+            // приостановленная сессия TTS переживает автопрокрутку.
+            val ttsPaused = viewModel.readerSpeaker.isSpeaking.value || ReaderTextToSpeech.userPaused
+            if (!autoScrollPaused && !ttsPaused && viewBind.listView.height > 0) {
+                // Читаем скорость каждый тик — смена в настройках применяется на лету.
+                val speedPx = appPreferences.READER_AUTOSCROLL_SPEED.value * density
+                val (pixels, newTotal) = accumulatedPixels(speedPx, FRAME_DELTA_MS, totalPixels)
+                totalPixels = newTotal
+                if (pixels != 0) viewBind.listView.scrollListBy(pixels)
+                // Граница главы: скроллить дальше некуда — догружаем следующую главу,
+                // чтобы автопрокрутка могла продолжиться. tryLoadNext @Synchronized
+                // с внутренним queue-guard — безопасен при вызове на каждый тик.
+                if (!viewBind.listView.canScrollVertically(1)) {
+                    viewModel.chaptersLoader.tryLoadNext()
+                }
+            }
+            delay(FRAME_DELTA_MS)
+        }
+    }
+
     override fun onPause() {
+        // Автопрокрутка не должна двигать список, пока Activity не на экране.
+        autoScrollPaused = true
         updateCurrentReadingPosSavingState(
             firstVisibleItemIndex = viewAdapter.listView.fromPositionToIndex(
                 viewBind.listView.firstVisiblePosition
@@ -919,6 +993,11 @@ class ReaderActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
+
+        // Возобновляем автопрокрутку после возврата на экран, если она включена.
+        if (appPreferences.READER_AUTOSCROLL_ENABLED.value) {
+            autoScrollPaused = false
+        }
 
         NarratorMediaControlsService.maybeAutoResume()
 
@@ -954,3 +1033,6 @@ class ReaderActivity : BaseActivity() {
         )
     }
 }
+
+// Период тика автопрокрутки (мс): 16 мс ≈ 60 fps.
+private const val FRAME_DELTA_MS = 16L

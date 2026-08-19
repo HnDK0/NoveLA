@@ -410,6 +410,16 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_Int(name, preferences, 40)
     }
 
+    /** Плавный непрерывный автопрокрутки текстовой читалки (новелл) со скоростью READER_AUTOSCROLL_SPEED. */
+    val READER_AUTOSCROLL_ENABLED = object : Preference<Boolean>("READER_AUTOSCROLL_ENABLED") {
+        override var value by SharedPreference_Boolean(name, preferences, false)
+    }
+
+    /** Скорость автопрокрутки текстовой читалки в dp/с (10..200, шаг 10). */
+    val READER_AUTOSCROLL_SPEED = object : Preference<Int>("READER_AUTOSCROLL_SPEED") {
+        override var value by SharedPreference_Int(name, preferences, 40)
+    }
+
     val MANGA_READER_COLOR_FILTER = object : Preference<Boolean>("MANGA_READER_COLOR_FILTER") {
         override var value by SharedPreference_Boolean(name, preferences, false)
     }
