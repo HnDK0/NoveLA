@@ -135,6 +135,8 @@
     <string name="adding_images">Ajout d\'images</string>
     <string name="data_restored">Données restaurées</string>
     <string name="completed">Terminé</string>
+    <string name="book_status_format">Statut : %s</string>
+    <string name="book_last_update_format">Dernière mise à jour: %s</string>
     <string name="loading_data">Chargement des données</string>
     <string name="pin_or_unpin_source">Épingler ou désépingler la source</string>
     <string name="allow_text_selection">Sélection de texte</string>

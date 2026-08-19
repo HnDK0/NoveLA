@@ -402,6 +402,13 @@ internal fun databaseMigrations() = arrayOf(
         // в библиотеку или обновлении метаданных из Lua-источника.
         it.addColumnIfNotExists("Book", "contentType", "TEXT NOT NULL DEFAULT ''")
     },
+    migration(31) {
+        // Статус книги (Ongoing/Completed/...) и дата последнего обновления,
+        // парсятся с сайта источником. Существующие книги получают пустые
+        // строки; значения заполнятся при обновлении метаданных.
+        it.addColumnIfNotExists("Book", "status", "TEXT NOT NULL DEFAULT ''")
+        it.addColumnIfNotExists("Book", "lastUpdateDate", "TEXT NOT NULL DEFAULT ''")
+    },
 )
 
 internal fun migration(vi: Int, migrate: (SupportSQLiteDatabase) -> Unit) =

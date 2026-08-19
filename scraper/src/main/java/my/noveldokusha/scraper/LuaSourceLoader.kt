@@ -64,6 +64,35 @@ class LuaEngine @Inject constructor(
     private val luaPrefs by lazy { context.getSharedPreferences("lua_preferences", Context.MODE_PRIVATE) }
     val currentSourceId = ThreadLocal<String?>()
 
+    // TTL-кэш ответов http_get: геттеры метаданных одной страницы книги делят один сетевой запрос.
+    // Ключ = url|charset|sourceId. Кэшируется любой ответ без исключения (включая 4xx/5xx);
+    // на hit responseTable пересоздаётся из примитивов — общая LuaTable наружу не отдаётся.
+    private val httpGetCache = ConcurrentHashMap<String, HttpGetCacheEntry>()
+
+    // Тестовый seam: 2 секунд покрывают все геттеры одной страницы, не задерживая повторные заходы.
+    internal var httpGetCacheTtlMs: Long = 2_000
+
+    private data class HttpGetCacheEntry(
+        val body: String,
+        val success: Boolean,
+        val code: Int,
+        val headers: Map<String, List<String>>,
+        val storedAt: Long
+    )
+
+    /**
+     * Ленивая эвикция без фоновых потоков: на каждом put чистим просроченные записи,
+     * затем сбрасываем весь кэш при превышении лимита записей или суммарной длины тел.
+     */
+    private fun putHttpGetCache(key: String, entry: HttpGetCacheEntry) {
+        val now = System.currentTimeMillis()
+        httpGetCache.entries.removeAll { now - it.value.storedAt >= httpGetCacheTtlMs }
+        httpGetCache[key] = entry
+        if (httpGetCache.size > 100 || httpGetCache.values.sumOf { it.body.length } > 4_000_000) {
+            httpGetCache.clear()
+        }
+    }
+
     /**
      * Каталог кэша скомпилированного байткода. Загрузка .lbc вместо текстовой
      * компиляции — главный выигрыш холодного старта: ~1.5-2с на все плагины
@@ -247,12 +276,21 @@ class LuaEngine @Inject constructor(
     private inner class HttpGetFunction : TwoArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue): LuaValue = runBlocking {
             val url           = a1.checkjstring()
-            if (!isSsrfSafe(url)) return@runBlocking ssrfErrorTable(url)
             val config        = if (a2.istable()) a2.checktable() else LuaTable()
             val pluginHeaders = convertHeaders(config.get("headers").opttable(LuaTable()))
             val charset       = config.get("charset").optjstring("UTF-8")
             val headers       = defaultHeaders(url) + pluginHeaders
+            // sourceId читается на вызывающем потоке: ThreadLocal не переживает переключение диспетчера.
             val sourceId      = currentSourceId.get()
+            val cacheKey      = "$url|$charset|${sourceId ?: "default"}|${headers.toString().hashCode()}"
+            // Кэш проверяется до SSRF: в него попадают только ответы, уже прошедшие проверку при первой загрузке.
+            httpGetCache[cacheKey]?.let { entry ->
+                if (System.currentTimeMillis() - entry.storedAt < httpGetCacheTtlMs) {
+                    Timber.d("http_get cache hit: $url")
+                    return@runBlocking responseTable(entry.success, entry.body, entry.code, entry.headers)
+                }
+            }
+            if (!isSsrfSafe(url)) return@runBlocking ssrfErrorTable(url)
             try {
                 withContext(Dispatchers.IO) {
                     val builder = getRequest(url)
@@ -261,6 +299,7 @@ class LuaEngine @Inject constructor(
                     networkClient.call(builder).use { r ->
                         val bytes = r.body.bytes()
                         val body  = String(bytes, java.nio.charset.Charset.forName(charset))
+                        putHttpGetCache(cacheKey, HttpGetCacheEntry(body, r.isSuccessful, r.code, r.headers.toMultimap(), System.currentTimeMillis()))
                         responseTable(r.isSuccessful, body, r.code, r.headers.toMultimap())
                     }
                 }

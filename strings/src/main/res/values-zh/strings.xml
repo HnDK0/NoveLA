@@ -135,6 +135,8 @@
     <string name="adding_images">正在添加图片</string>
     <string name="data_restored">数据已恢复</string>
     <string name="completed">已完成</string>
+    <string name="book_status_format">状态：%s</string>
+    <string name="book_last_update_format">上次更新: %s</string>
     <string name="loading_data">正在加载数据</string>
     <string name="pin_or_unpin_source">固定或取消固定来源</string>
     <string name="allow_text_selection">文本选择</string>

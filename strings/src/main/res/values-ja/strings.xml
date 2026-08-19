@@ -135,6 +135,8 @@
     <string name="adding_images">画像を追加中</string>
     <string name="data_restored">データを復元しました</string>
     <string name="completed">完了</string>
+    <string name="book_status_format">ステータス: %s</string>
+    <string name="book_last_update_format">最終更新: %s</string>
     <string name="loading_data">データを読み込み中</string>
     <string name="pin_or_unpin_source">ソースをピン留め/ピン解除</string>
     <string name="allow_text_selection">テキスト選択</string>

@@ -135,6 +135,8 @@
     <string name="adding_images">이미지 추가 중</string>
     <string name="data_restored">데이터 복원됨</string>
     <string name="completed">완료</string>
+    <string name="book_status_format">상태: %s</string>
+    <string name="book_last_update_format">마지막 업데이트: %s</string>
     <string name="loading_data">데이터 로딩 중</string>
     <string name="pin_or_unpin_source">소스 고정 또는 고정 해제</string>
     <string name="allow_text_selection">텍스트 선택</string>

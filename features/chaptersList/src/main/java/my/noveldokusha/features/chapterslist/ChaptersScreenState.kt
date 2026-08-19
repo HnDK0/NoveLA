@@ -22,6 +22,8 @@ internal data class ChaptersScreenState(
     val isRefreshable: State<Boolean>,
     val genres: MutableState<List<String>>,
     val rating: MutableState<String>,
+    val status: MutableState<String>,
+    val lastUpdateDate: MutableState<String>,
     val translatedChapterTitles: MutableState<Map<String, String>>,
     val chapterSizes: MutableState<Map<String, ChapterSize>>,
     val downloadTask: MutableState<DownloadTaskState?>,

@@ -135,6 +135,8 @@
     <string name="adding_images">Resimler ekleniyor</string>
     <string name="data_restored">Veri geri yüklendi</string>
     <string name="completed">Tamamlandı</string>
+    <string name="book_status_format">Durum: %s</string>
+    <string name="book_last_update_format">Son güncelleme: %s</string>
     <string name="loading_data">Veri yükleniyor</string>
     <string name="pin_or_unpin_source">Kaynağı sabitle veya sabitlemeyi kaldır</string>
     <string name="allow_text_selection">Metin seçimi</string>

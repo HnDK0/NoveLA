@@ -135,6 +135,8 @@
     <string name="adding_images">Menambah imej</string>
     <string name="data_restored">Data dipulihkan</string>
     <string name="completed">Selesai</string>
+    <string name="book_status_format">Status: %s</string>
+    <string name="book_last_update_format">Kemas kini terakhir: %s</string>
     <string name="loading_data">Memuat data</string>
     <string name="pin_or_unpin_source">Semat atau nyah-semat sumber</string>
     <string name="allow_text_selection">Pemilihan teks</string>

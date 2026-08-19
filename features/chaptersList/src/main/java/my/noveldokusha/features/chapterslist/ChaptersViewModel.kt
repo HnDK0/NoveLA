@@ -122,6 +122,8 @@ internal class ChaptersViewModel @Inject constructor(
         isRefreshable = mutableStateOf(rawBookUrl.isContentUri || !bookUrl.isLocalUri),
         genres = mutableStateOf(emptyList()),
         rating = mutableStateOf(""),
+        status = mutableStateOf(""),
+        lastUpdateDate = mutableStateOf(""),
         translatedChapterTitles = mutableStateOf(emptyMap()),
         chapterSizes = mutableStateOf(emptyMap()),
         downloadTask = mutableStateOf(null),
@@ -224,6 +226,28 @@ internal class ChaptersViewModel @Inject constructor(
             updateRating()
         }
 
+        // Берём статус из БД. Если его нет — загружаем с сети.
+        viewModelScope.launch {
+            if (state.isLocalSource.value) return@launch
+            val cachedBook = libraryDao.get(bookUrl)
+            if (cachedBook?.status?.isNotBlank() == true) {
+                state.status.value = cachedBook.status
+                return@launch
+            }
+            updateStatus()
+        }
+
+        // Берём дату последнего обновления из БД. Если её нет — загружаем с сети.
+        viewModelScope.launch {
+            if (state.isLocalSource.value) return@launch
+            val cachedBook = libraryDao.get(bookUrl)
+            if (cachedBook?.lastUpdateDate?.isNotBlank() == true) {
+                state.lastUpdateDate.value = cachedBook.lastUpdateDate
+                return@launch
+            }
+            updateLastUpdateDate()
+        }
+
         // Дозаполняем метку контента из источника, если книга в библиотеке
         // была добавлена до поддержки content_type (иначе манга откроется
         // NOVEL-ридером и покажет бейдж N).
@@ -304,6 +328,16 @@ internal class ChaptersViewModel @Inject constructor(
                     rating = state.rating.value,
                     contentType = source?.contentType ?: ""
                 )
+            if (isBookmarked) {
+                // Дозаполняем статус и дату обновления при добавлении в библиотеку
+                // (аналогично rating/contentType в LibraryBooksRepository.toggleBookmark).
+                if (state.status.value.isNotBlank()) {
+                    libraryDao.updateStatus(bookUrl, state.status.value)
+                }
+                if (state.lastUpdateDate.value.isNotBlank()) {
+                    libraryDao.updateLastUpdateDate(bookUrl, state.lastUpdateDate.value)
+                }
+            }
             val msg = if (isBookmarked) R.string.added_to_library else R.string.removed_from_library
             toasty.show(msg)
         }
@@ -347,6 +381,9 @@ internal class ChaptersViewModel @Inject constructor(
             updateTitle()
             updateDescription()
             updateChaptersList()
+            viewModelScope.launch { updateRating() }
+            viewModelScope.launch { updateStatus() }
+            viewModelScope.launch { updateLastUpdateDate() }
         }
     }
 
@@ -364,6 +401,22 @@ internal class ChaptersViewModel @Inject constructor(
             if (rating.isNullOrBlank()) return@onSuccess
             libraryDao.updateRating(bookUrl, rating)
             state.rating.value = rating
+        }
+    }
+
+    private suspend fun updateStatus() {
+        downloaderRepository.bookStatus(bookUrl = bookUrl).onSuccess { status ->
+            if (status.isNullOrBlank()) return@onSuccess
+            libraryDao.updateStatus(bookUrl, status)
+            state.status.value = status
+        }
+    }
+
+    private suspend fun updateLastUpdateDate() {
+        downloaderRepository.bookLastUpdate(bookUrl = bookUrl).onSuccess { lastUpdateDate ->
+            if (lastUpdateDate.isNullOrBlank()) return@onSuccess
+            libraryDao.updateLastUpdateDate(bookUrl, lastUpdateDate)
+            state.lastUpdateDate.value = lastUpdateDate
         }
     }
 

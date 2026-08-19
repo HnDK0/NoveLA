@@ -184,12 +184,27 @@ class LibraryUpdatesInteractions @Inject constructor(
             }
         }
 
-        // Загружаем и сохраняем рейтинг книги только если он ещё не заполнен
-        if (activeBook.rating.isBlank()) {
-            downloaderRepository.bookRating(bookUrl = activeBook.url).onSuccess { rating ->
-                if (!rating.isNullOrBlank()) {
-                    libraryDao.updateRating(activeBook.url, rating)
-                }
+        // Рейтинг запрашиваем при каждом обновлении: источник мог пересчитать оценку,
+        // а у книги с низким рейтингом строчная проверка на «пусто» не дала бы освежить её.
+        downloaderRepository.bookRating(bookUrl = activeBook.url).onSuccess { rating ->
+            if (!rating.isNullOrBlank()) {
+                libraryDao.updateRating(activeBook.url, rating)
+            }
+        }
+
+        // Статус запрашиваем при каждом обновлении: «продолжается»/«завершена» может измениться
+        // в любой момент, и хранить устаревшее значение до переустановки приложения нельзя.
+        downloaderRepository.bookStatus(activeBook.url).onSuccess { s ->
+            if (!s.isNullOrBlank()) {
+                libraryDao.updateStatus(activeBook.url, s)
+            }
+        }
+
+        // Дату обновления запрашиваем при каждом обновлении: она смещается вместе с новыми главами,
+        // поэтому единожды записанное значение быстро теряет смысл.
+        downloaderRepository.bookLastUpdate(activeBook.url).onSuccess { s ->
+            if (!s.isNullOrBlank()) {
+                libraryDao.updateLastUpdateDate(activeBook.url, s)
             }
         }
 
@@ -463,6 +478,20 @@ class LibraryUpdatesInteractions @Inject constructor(
                         downloaderRepository.bookRating(bookUrl = canonical).toSuccessOrNull()?.data?.let { rating ->
                             if (!rating.isNullOrBlank()) {
                                 libraryDao.updateRating(canonical, rating)
+                            }
+                        }
+                    }
+                    if (book.status.isBlank()) {
+                        downloaderRepository.bookStatus(bookUrl = canonical).toSuccessOrNull()?.data?.let { s ->
+                            if (!s.isNullOrBlank()) {
+                                libraryDao.updateStatus(canonical, s)
+                            }
+                        }
+                    }
+                    if (book.lastUpdateDate.isBlank()) {
+                        downloaderRepository.bookLastUpdate(bookUrl = canonical).toSuccessOrNull()?.data?.let { s ->
+                            if (!s.isNullOrBlank()) {
+                                libraryDao.updateLastUpdateDate(canonical, s)
                             }
                         }
                     }

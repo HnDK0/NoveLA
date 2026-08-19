@@ -281,6 +281,8 @@
     <string name="data_restored">Данные восстановлены</string>
 
     <string name="completed">Завершено</string>
+    <string name="book_last_update_format">Обновлено: %s</string>
+    <string name="book_status_format">Статус: %s</string>
 
     <string name="loading_data">Загрузка данных</string>
 

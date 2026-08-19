@@ -117,6 +117,36 @@ class DownloaderRepository @Inject constructor(
         }
     }
 
+    /**
+     * Статус книги (например, Ongoing/Completed), парсится с сайта источника.
+     * Возвращает null, если источник не поддерживает статус.
+     */
+    suspend fun bookStatus(
+        bookUrl: String,
+    ): Response<String?> = withContext(Dispatchers.IO) {
+        val scrap = scraper.getCompatibleSourceCatalog(bookUrl)
+            ?: return@withContext Response.Success(null)
+
+        my.noveldokusha.network.tryFlatConnect {
+            scrap.getBookStatus(bookUrl)
+        }
+    }
+
+    /**
+     * Дата последнего обновления книги, парсится с сайта источника.
+     * Возвращает null, если источник не поддерживает дату.
+     */
+    suspend fun bookLastUpdate(
+        bookUrl: String,
+    ): Response<String?> = withContext(Dispatchers.IO) {
+        val scrap = scraper.getCompatibleSourceCatalog(bookUrl)
+            ?: return@withContext Response.Success(null)
+
+        my.noveldokusha.network.tryFlatConnect {
+            scrap.getBookLastUpdate(bookUrl)
+        }
+    }
+
     suspend fun bookDescription(
         bookUrl: String,
     ): Response<String?> = withContext(Dispatchers.IO) {

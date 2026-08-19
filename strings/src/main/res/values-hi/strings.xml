@@ -135,6 +135,8 @@
     <string name="adding_images">छवियाँ जोड़ी जा रही हैं</string>
     <string name="data_restored">डेटा पुनर्स्थापित किया गया</string>
     <string name="completed">पूर्ण</string>
+    <string name="book_status_format">स्थिति: %s</string>
+    <string name="book_last_update_format">अंतिम अपडेट: %s</string>
     <string name="loading_data">डेटा लोड हो रहा है</string>
     <string name="pin_or_unpin_source">स्रोत को पिन या अनपिन करें</string>
     <string name="allow_text_selection">पाठ चयन</string>

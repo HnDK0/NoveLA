@@ -135,6 +135,8 @@
     <string name="adding_images">กำลังเพิ่มรูปภาพ</string>
     <string name="data_restored">กู้คืนข้อมูลแล้ว</string>
     <string name="completed">เสร็จสมบูรณ์</string>
+    <string name="book_status_format">สถานะ: %s</string>
+    <string name="book_last_update_format">อัปเดตล่าสุด: %s</string>
     <string name="loading_data">กำลังโหลดข้อมูล</string>
     <string name="pin_or_unpin_source">ปักหมุดหรือเลิกปักหมุดแหล่งที่มา</string>
     <string name="allow_text_selection">เลือกข้อความ</string>

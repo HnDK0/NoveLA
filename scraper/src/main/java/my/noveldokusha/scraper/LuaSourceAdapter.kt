@@ -334,6 +334,50 @@ open class LuaSourceAdapter(
             }
         }
 
+    override suspend fun getBookStatus(bookUrl: String): Response<String?> =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                withSourceContext {
+                    try {
+                        val fn = luaScript.get("getBookStatus")
+                        if (fn.isnil()) return@withSourceContext Response.Success(null)
+                        val result = fn.call(LuaValue.valueOf(bookUrl))
+                        val status = when {
+                            result.isnil() -> null
+                            result.isstring() || result.isnumber() -> result.tojstring().takeIf { it.isNotBlank() }
+                            else -> null
+                        }
+                        Response.Success(status)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getBookStatus [${metadata.id}]")
+                        Response.Error(e.message ?: "Unknown error", e)
+                    }
+                }
+            }
+        }
+
+    override suspend fun getBookLastUpdate(bookUrl: String): Response<String?> =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                withSourceContext {
+                    try {
+                        val fn = luaScript.get("getBookLastUpdate")
+                        if (fn.isnil()) return@withSourceContext Response.Success(null)
+                        val result = fn.call(LuaValue.valueOf(bookUrl))
+                        val lastUpdate = when {
+                            result.isnil() -> null
+                            result.isstring() || result.isnumber() -> result.tojstring().takeIf { it.isNotBlank() }
+                            else -> null
+                        }
+                        Response.Success(lastUpdate)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Lua getBookLastUpdate [${metadata.id}]")
+                        Response.Error(e.message ?: "Unknown error", e)
+                    }
+                }
+            }
+        }
+
     override suspend fun getChapterList(bookUrl: String): Response<List<ChapterResult>> =
         withContext(Dispatchers.IO) {
             mutex.withLock {

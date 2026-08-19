@@ -170,6 +170,8 @@
     <string name="adding_images">Adding images</string>
     <string name="data_restored">Data restored</string>
     <string name="completed">Completed</string>
+    <string name="book_last_update_format">Last updated: %s</string>
+    <string name="book_status_format">Status: %s</string>
     <string name="loading_data">Loading data</string>
     <string name="pin_or_unpin_source">Pin or unpin source</string>
     <string name="allow_text_selection">Text selection</string>

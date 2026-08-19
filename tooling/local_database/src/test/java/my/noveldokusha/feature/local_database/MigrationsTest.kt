@@ -124,4 +124,42 @@ class MigrationsTest {
             }
         }
     }
+
+    @Test
+    fun `v31 to v32 adds status and lastUpdateDate columns with empty default`() {
+        dbFile.parentFile?.mkdirs()
+        dbFile.delete()
+
+        helper.createDatabase(31).use { connection ->
+            val db = (connection as SupportSQLiteConnection).db
+            // Данные, обязанные пережить миграцию
+            db.execSQL(
+                "INSERT INTO Book (url, title, completed, inLibrary, coverImageUrl, description, " +
+                    "lastReadEpochTimeMilli, addedToLibraryEpochTimeMilli, lastUpdateEpochTimeMilli, " +
+                    "category, genres, rating, contentType) " +
+                    "VALUES ('https://book/1', 'Title', 0, 0, '', 'Desc', 0, 0, 0, '', '', '', 'NOVEL')"
+            )
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            32,
+            databaseMigrations().toList()
+        )
+        migrated.use { connection ->
+            val db = (connection as SupportSQLiteConnection).db
+            // Старые данные на месте
+            db.query("SELECT COUNT(*) FROM Book").use { c ->
+                c.moveToFirst()
+                assertTrue("book row lost", c.getInt(0) == 1)
+            }
+            // Новые колонки существуют и для старых записей равны ''
+            db.query("SELECT status, lastUpdateDate FROM Book LIMIT 1").use { c ->
+                c.moveToFirst()
+                assertTrue("status column missing", !c.isNull(0))
+                assertTrue("status default is not empty", c.getString(0) == "")
+                assertTrue("lastUpdateDate column missing", !c.isNull(1))
+                assertTrue("lastUpdateDate default is not empty", c.getString(1) == "")
+            }
+        }
+    }
 }

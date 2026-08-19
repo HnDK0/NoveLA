@@ -135,6 +135,8 @@
     <string name="adding_images">جاري إضافة الصور</string>
     <string name="data_restored">تم استعادة البيانات</string>
     <string name="completed">مكتمل</string>
+    <string name="book_status_format">الحالة: %s</string>
+    <string name="book_last_update_format">آخر تحديث: %s</string>
     <string name="loading_data">جاري تحميل البيانات</string>
     <string name="pin_or_unpin_source">تثبيت أو إلغاء تثبيت المصدر</string>
     <string name="allow_text_selection">تحديد النص</string>

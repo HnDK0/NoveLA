@@ -74,6 +74,20 @@ sealed interface SourceInterface {
          */
         suspend fun getBookRating(bookUrl: String): Response<String?> = Response.Success(null)
 
+        /**
+         * Возвращает статус книги (например "Ongoing"/"Completed") как строку с сайта источника.
+         * Реализуется в Lua через getBookStatus().
+         * null → статус неизвестен.
+         */
+        suspend fun getBookStatus(bookUrl: String): Response<String?> = Response.Success(null)
+
+        /**
+         * Возвращает дату последнего обновления книги как строку с сайта источника.
+         * Реализуется в Lua через getBookLastUpdate().
+         * null → дата неизвестна.
+         */
+        suspend fun getBookLastUpdate(bookUrl: String): Response<String?> = Response.Success(null)
+
         suspend fun getChapterList(bookUrl: String): Response<List<ChapterResult>>
         suspend fun getCatalogList(index: Int): Response<PagedList<BookResult>>
         suspend fun getCatalogSearch(index: Int, input: String): Response<PagedList<BookResult>>

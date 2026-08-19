@@ -135,6 +135,8 @@
     <string name="adding_images">Đang thêm hình ảnh</string>
     <string name="data_restored">Đã khôi phục dữ liệu</string>
     <string name="completed">Hoàn thành</string>
+    <string name="book_status_format">Trạng thái: %s</string>
+    <string name="book_last_update_format">Cập nhật lần cuối: %s</string>
     <string name="loading_data">Đang tải dữ liệu</string>
     <string name="pin_or_unpin_source">Ghim hoặc bỏ ghim nguồn</string>
     <string name="allow_text_selection">Chọn văn bản</string>

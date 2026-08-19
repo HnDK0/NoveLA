@@ -135,6 +135,8 @@
     <string name="adding_images">ছবি যোগ করা হচ্ছে</string>
     <string name="data_restored">ডাটা পুনরুদ্ধার করা হয়েছে</string>
     <string name="completed">সম্পন্ন</string>
+    <string name="book_status_format">স্থিতি: %s</string>
+    <string name="book_last_update_format">সর্বশেষ আপডেট: %s</string>
     <string name="loading_data">ডাটা লোড করা হচ্ছে</string>
     <string name="pin_or_unpin_source">উৎস পিন বা আনপিন করুন</string>
     <string name="allow_text_selection">টেক্সট নির্বাচন</string>

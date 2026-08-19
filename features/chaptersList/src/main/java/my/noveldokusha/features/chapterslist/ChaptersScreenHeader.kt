@@ -28,7 +28,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkAdded
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.GTranslate
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.Public
@@ -78,6 +80,8 @@ internal fun ChaptersScreenHeader(
     bookState: ChaptersScreenState.BookState,
     genres: List<String>,
     rating: String,
+    status: String,
+    lastUpdateDate: String,
     sourceCatalogName: String,
     numberOfChapters: Int,
     readChapters: Int,
@@ -223,6 +227,46 @@ internal fun ChaptersScreenHeader(
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                    // Статус и дата последнего обновления, парсятся с сайта источника.
+                    // Две отдельные строки: в одну они не помещаются.
+                    if (status.isNotBlank() || lastUpdateDate.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Column {
+                            if (status.isNotBlank()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Flag,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = stringResource(R.string.book_status_format, status),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            if (lastUpdateDate.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Update,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = stringResource(R.string.book_last_update_format, lastUpdateDate),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
                     }
                     // Rating
                     if (rating.isNotBlank()) {

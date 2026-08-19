@@ -150,4 +150,12 @@ interface LibraryDao {
     @Query("UPDATE Book SET contentType = :type WHERE url == :bookUrl")
     suspend fun updateContentType(bookUrl: String, type: String)
 
+    /** Обновить статус книги (Ongoing/Completed/...), парсится с сайта источником */
+    @Query("UPDATE Book SET status = :status WHERE url == :bookUrl")
+    suspend fun updateStatus(bookUrl: String, status: String)
+
+    /** Обновить дату последнего обновления книги, парсится с сайта источником */
+    @Query("UPDATE Book SET lastUpdateDate = :lastUpdateDate WHERE url == :bookUrl")
+    suspend fun updateLastUpdateDate(bookUrl: String, lastUpdateDate: String)
+
 }

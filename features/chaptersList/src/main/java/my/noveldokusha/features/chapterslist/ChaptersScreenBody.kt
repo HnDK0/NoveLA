@@ -138,6 +138,8 @@ internal fun ChaptersScreenBody(
                     bookState = state.book.value,
                     genres = state.genres.value,
                     rating = state.rating.value,
+                    status = state.status.value,
+                    lastUpdateDate = state.lastUpdateDate.value,
                     sourceCatalogName = if (state.sourceCatalogNameStrRes.value == 0) {
                         val source = scraper.getCompatibleSource(state.book.value.url)
                         source?.name ?: stringResource(R.string.invalid_source)

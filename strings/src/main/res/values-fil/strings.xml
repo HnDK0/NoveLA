@@ -135,6 +135,8 @@
     <string name="adding_images">Nagdaragdag ng mga larawan</string>
     <string name="data_restored">Na-restore ang data</string>
     <string name="completed">Nakumpleto</string>
+    <string name="book_status_format">Status: %s</string>
+    <string name="book_last_update_format">Huling update: %s</string>
     <string name="loading_data">Ni-load ang data</string>
     <string name="pin_or_unpin_source">I-pin o i-unpin ang pinagmulan</string>
     <string name="allow_text_selection">Pagpili ng teksto</string>
