@@ -43,11 +43,7 @@ class App : Application(), ImageLoaderFactory, WorkConfiguration.Provider {
 
     override fun attachBaseContext(newBase: Context?) {
         val base = newBase ?: return super.attachBaseContext(null)
-        val prefs = base.getSharedPreferences(base.packageName + "_preferences", Context.MODE_PRIVATE)
-        val code = prefs.getString("APP_LANGUAGE_CODE", "en") ?: "en"
-        val language = AppLanguageProvider.fromCode(code)
-            ?: AppLanguageProvider.supportedLanguages.first()
-        super.attachBaseContext(LocaleManager.createLocaleContext(base, language))
+        super.attachBaseContext(LocaleManager.createAppLocaleContext(base))
     }
 
     override fun onCreate() {

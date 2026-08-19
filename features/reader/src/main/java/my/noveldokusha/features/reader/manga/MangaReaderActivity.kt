@@ -93,6 +93,7 @@ import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import my.noveldokusha.core.LocaleManager
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.AppThemeProvider
 import my.noveldokusha.coreui.theme.LocalIsDark
@@ -120,6 +121,11 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 internal class MangaReaderActivity : ComponentActivity() {
+
+    override fun attachBaseContext(newBase: Context?) {
+        val base = newBase ?: return super.attachBaseContext(null)
+        super.attachBaseContext(LocaleManager.createAppLocaleContext(base))
+    }
 
     companion object {
         private const val EXTRA_BOOK_URL = "bookUrl"

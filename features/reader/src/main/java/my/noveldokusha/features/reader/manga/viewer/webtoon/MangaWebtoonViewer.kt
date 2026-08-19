@@ -26,6 +26,7 @@ import my.noveldokusha.features.reader.manga.MangaPage
 import my.noveldokusha.features.reader.manga.viewer.Viewer
 import my.noveldokusha.features.reader.manga.viewer.ViewerNavigation.NavigationRegion
 import my.noveldokusha.features.reader.tools.PageImageLoader
+import my.noveldokusha.reader.R
 import timber.log.Timber
 
 /**
@@ -79,7 +80,7 @@ internal class MangaWebtoonViewer(
      * глав через onLastPageReached/onFirstPageReached.
      */
     private val emptyView = TextView(context).apply {
-        text = "В главе нет страниц"
+        text = context.getString(R.string.manga_reader_no_pages)
         gravity = Gravity.CENTER
         textSize = 16f
         visibility = View.GONE

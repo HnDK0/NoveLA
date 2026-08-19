@@ -8,7 +8,6 @@ import androidx.appcompat.app.AppCompatActivity
 import dagger.hilt.android.AndroidEntryPoint
 import my.noveldokusha.core.LocaleManager
 import my.noveldokusha.core.Toasty
-import my.noveldokusha.core.appPreferences.AppLanguageProvider
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.AppThemeProvider
 import javax.inject.Inject
@@ -59,11 +58,7 @@ open class BaseActivity : AppCompatActivity() {
 
     override fun attachBaseContext(newBase: Context?) {
         val base = newBase ?: return super.attachBaseContext(null)
-        val prefs = base.getSharedPreferences(base.packageName + "_preferences", Context.MODE_PRIVATE)
-        val code = prefs.getString("APP_LANGUAGE_CODE", "en") ?: "en"
-        val language = AppLanguageProvider.fromCode(code)
-            ?: AppLanguageProvider.supportedLanguages.first()
-        super.attachBaseContext(LocaleManager.createLocaleContext(base, language))
+        super.attachBaseContext(LocaleManager.createAppLocaleContext(base))
     }
 
     // This will remain until Reader Screen has no View XML usages

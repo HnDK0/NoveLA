@@ -18,6 +18,7 @@ import my.noveldokusha.features.reader.manga.MangaPage
 import my.noveldokusha.features.reader.manga.viewer.Viewer
 import my.noveldokusha.features.reader.manga.viewer.ViewerNavigation.NavigationRegion
 import my.noveldokusha.features.reader.tools.PageImageLoader
+import my.noveldokusha.reader.R
 
 /**
  * Пейджер-вьюер на RecyclerView — порт tachiyomisy PagerViewer для одной
@@ -48,7 +49,7 @@ internal abstract class MangaPagerViewer(
 
     /** Оверлей для пустой главы: адаптер не создаёт холдеры на 0 страниц. */
     private val emptyView: TextView = TextView(context).apply {
-        text = "Нет страниц"
+        text = context.getString(R.string.manga_reader_no_pages)
         gravity = Gravity.CENTER
         visibility = View.GONE
     }

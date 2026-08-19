@@ -698,6 +698,7 @@
     <string name="time_years_ago">%dy ago</string>
 
     <string name="manga_reader_chapter_failed">Failed to load chapter. Check connection and try again.</string>
+    <string name="manga_reader_no_pages">No pages in this chapter</string>
     <string name="manga_reader_retry">Retry</string>
     <string name="manga_mode_paged">Paged</string>
     <string name="manga_mode_webtoon">Long strip (webtoon)</string>

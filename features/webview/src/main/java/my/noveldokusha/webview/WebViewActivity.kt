@@ -14,6 +14,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
+import my.noveldokusha.core.LocaleManager
 import my.noveldokusha.coreui.theme.Theme
 import my.noveldokusha.coreui.AppThemeProvider
 import my.noveldokusha.core.Toasty
@@ -28,6 +29,11 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class WebViewActivity : ComponentActivity() {
+
+    override fun attachBaseContext(newBase: Context?) {
+        val base = newBase ?: return super.attachBaseContext(null)
+        super.attachBaseContext(LocaleManager.createAppLocaleContext(base))
+    }
 
     @Inject lateinit var toasty: Toasty
     @Inject lateinit var themeProvider: AppThemeProvider
