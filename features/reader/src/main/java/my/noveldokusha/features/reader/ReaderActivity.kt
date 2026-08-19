@@ -199,6 +199,7 @@ class ReaderActivity : BaseActivity() {
                 },
                 currentTtsHighlightEnabled = { appPreferences.TTS_HIGHLIGHT_ENABLED.value },
                 currentTtsHighlightColor = { appPreferences.TTS_HIGHLIGHT_COLOR.value },
+                currentTextColor = { appPreferences.READER_TEXT_COLOR.value },
                 currentSpokenWordRange = { viewModel.readerSpeaker.state.spokenWordRange.value },
                 currentManualHighlight = { viewModel.state.settings.manualHighlight.highlightedItem.value },
             )
@@ -393,6 +394,11 @@ class ReaderActivity : BaseActivity() {
             .asLiveData()
             .observe(this) { viewAdapter.listView.notifyDataSetChanged() }
 
+        // Notify manually text color changed for list view
+        snapshotFlow { viewModel.state.settings.style.textColor.value }.drop(1)
+            .asLiveData()
+            .observe(this) { viewAdapter.listView.notifyDataSetChanged() }
+
         // Notify manually text size changed for list view
         snapshotFlow { viewModel.state.settings.style.textSize.value }.drop(1)
             .asLiveData()
@@ -492,6 +498,7 @@ class ReaderActivity : BaseActivity() {
                     ReaderScreen(
                     state = viewModel.state,
                     onTextFontChanged = { appPreferences.READER_FONT_FAMILY.value = it },
+                    onTextColorChanged = { appPreferences.READER_TEXT_COLOR.value = it },
                     onTextSizeChanged = { appPreferences.READER_FONT_SIZE.value = it },
                     onLineHeightChanged = { appPreferences.READER_LINE_HEIGHT.value = it },
                     onParagraphSpacingChanged = { appPreferences.READER_PARAGRAPH_SPACING.value = it },

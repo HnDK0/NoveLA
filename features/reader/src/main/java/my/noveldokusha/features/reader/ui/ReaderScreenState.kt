@@ -45,6 +45,8 @@ internal data class ReaderScreenState(
         data class StyleSettingsData(
             val currentDarkMode: State<DarkMode>,
             val currentAppTheme: State<AppTheme>,
+            // Пользовательский цвет текста читалки; пустая строка = «Авто» (цвет темы)
+            val textColor: State<String>,
             val textFont: State<String>,
             val textSize: State<Float>,
             val lineHeight: State<Float>,

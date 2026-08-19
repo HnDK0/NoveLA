@@ -2,6 +2,7 @@ package my.noveldokusha.features.reader.domain
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.Canvas
@@ -59,6 +60,7 @@ internal class ReaderItemAdapter(
     private val onClick: () -> Unit,
     private val currentTtsHighlightEnabled: () -> Boolean = { false },
     private val currentTtsHighlightColor: () -> String = { "FFFF6D00" },
+    private val currentTextColor: () -> String = { "" },
     private val currentSpokenWordRange: () -> IntRange? = { null },
     private val currentManualHighlight: () -> HighlightPosition? = { null },
 ) : ArrayAdapter<ReaderItem>(ctx, 0, list) {
@@ -178,6 +180,7 @@ internal class ReaderItemAdapter(
             bind.bodyTranslated.updateTextSelectability()
             bind.bodyTranslated.setLineSpacing(0f, currentLineHeight())
             bind.bodyTranslated.letterSpacing = currentLetterSpacing()
+            applyTextColor(bind.bodyTranslated, currentTextColor())
 
             bind.bodyOriginal.text = secondaryText
             bind.bodyOriginal.textSize = currentFontSize() * 0.85f
@@ -185,6 +188,7 @@ internal class ReaderItemAdapter(
             bind.bodyOriginal.updateTextSelectability()
             bind.bodyOriginal.setLineSpacing(0f, currentLineHeight())
             bind.bodyOriginal.letterSpacing = currentLetterSpacing()
+            applyTextColor(bind.bodyOriginal, currentTextColor())
             bind.bodyOriginal.visibility = View.VISIBLE
         } else {
             val displayText = if (isTtsActiveItem && currentTtsHighlightEnabled()) {
@@ -199,6 +203,7 @@ internal class ReaderItemAdapter(
             bind.bodyTranslated.updateTextSelectability()
             bind.bodyTranslated.setLineSpacing(0f, currentLineHeight())
             bind.bodyTranslated.letterSpacing = currentLetterSpacing()
+            applyTextColor(bind.bodyTranslated, currentTextColor())
 
             bind.bodyOriginal.visibility = View.GONE
         }
@@ -271,6 +276,7 @@ internal class ReaderItemAdapter(
         bind.specialTitle.updateTextSelectability()
         bind.specialTitle.text = ctx.getString(R.string.reader_no_more_chapters)
         bind.specialTitle.typeface = currentTypefaceBold()
+        applyTextColor(bind.specialTitle, currentTextColor())
         return bind.root
     }
 
@@ -282,6 +288,7 @@ internal class ReaderItemAdapter(
         bind.specialTitle.updateTextSelectability()
         bind.specialTitle.text = ctx.getString(R.string.reader_first_chapter)
         bind.specialTitle.typeface = currentTypefaceBold()
+        applyTextColor(bind.specialTitle, currentTextColor())
         return bind.root
     }
 
@@ -317,6 +324,7 @@ internal class ReaderItemAdapter(
         }
         bind.error.updateTextSelectability()
         bind.error.text = item.text
+        applyTextColor(bind.error, currentTextColor())
         bind.reloadButton.setOnClickListener { onRetryChapter(item.chapterIndex) }
         if (item.chapterUrl.isNotBlank()) {
             bind.openInBrowserButton.visibility = View.VISIBLE
@@ -344,6 +352,7 @@ internal class ReaderItemAdapter(
         bind.root.background = getItemReadingStateBackground(item)
         bind.titleTranslated.text = item.textToDisplay
         bind.titleTranslated.typeface = currentTypefaceBold()
+        applyTextColor(bind.titleTranslated, currentTextColor())
         bind.titleOriginal.visibility = View.GONE
         return bind.root
     }
@@ -393,6 +402,21 @@ internal class ReaderItemAdapter(
             customSelectionActionModeCallback = null
             setOnClickListener { onClick() }
             setOnTouchListener(null)
+        }
+    }
+
+    private fun parseTextColor(hex: String): Int? =
+        runCatching { android.graphics.Color.parseColor("#$hex") }.getOrNull()
+
+    private fun applyTextColor(tv: TextView, colorHex: String) {
+        if (tv.getTag(R.id.reader_orig_color) == null) {
+            tv.setTag(R.id.reader_orig_color, tv.textColors)
+        }
+        val custom = if (colorHex.isNotEmpty()) parseTextColor(colorHex) else null
+        if (custom != null) {
+            tv.setTextColor(custom)
+        } else {
+            (tv.getTag(R.id.reader_orig_color) as? ColorStateList)?.let { tv.setTextColor(it) }
         }
     }
 

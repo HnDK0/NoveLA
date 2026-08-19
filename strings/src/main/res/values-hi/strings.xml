@@ -232,6 +232,7 @@
     <string name="dark_mode_dark">डार्क</string>
     <string name="dark_mode_black">ब्लैक</string>
     <string name="color_scheme">रंग योजना</string>
+    <string name="reader_text_color">पाठ का रंग</string>
     <string name="translation_services">अनुवाद सेवाएँ</string>
     <string name="gemini_api_key">Gemini API कुंजी</string>
     <string name="active_google_gemini_api">सक्रिय: Google Gemini API</string>

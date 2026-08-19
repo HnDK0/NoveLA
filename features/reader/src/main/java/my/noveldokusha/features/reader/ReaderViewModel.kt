@@ -105,6 +105,7 @@ internal class ReaderViewModel @Inject constructor(
                             .collect { withContext(Dispatchers.Main) { state.value = it } }
                     }
                 },
+                textColor = appPreferences.READER_TEXT_COLOR.state(viewModelScope),
                 textFont = appPreferences.READER_FONT_FAMILY.state(viewModelScope),
                 textSize = appPreferences.READER_FONT_SIZE.state(viewModelScope),
                 lineHeight = appPreferences.READER_LINE_HEIGHT.state(viewModelScope),

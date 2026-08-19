@@ -278,6 +278,7 @@
     <string name="dark_mode_dark">Dark</string>
     <string name="dark_mode_black">Black</string>
     <string name="color_scheme">Color Scheme</string>
+    <string name="reader_text_color">Text Color</string>
     <string name="translation_services">Translation Services</string>
     <string name="gemini_api_key">Gemini API Key</string>
     <string name="active_google_gemini_api">Active: Google Gemini API</string>

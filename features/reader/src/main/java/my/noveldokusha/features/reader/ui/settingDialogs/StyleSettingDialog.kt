@@ -7,8 +7,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,8 +26,10 @@ import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.outlined.BrightnessMedium
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.FormatColorFill
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Nightlight
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -69,7 +69,6 @@ import my.noveldokusha.features.reader.tools.FontsLoader
 import my.noveldokusha.features.reader.ui.ReaderScreenState
 import my.noveldokusha.reader.R
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun StyleSettingDialog(
     state: ReaderScreenState.Settings.StyleSettingsData,
@@ -78,6 +77,7 @@ internal fun StyleSettingDialog(
     onParagraphSpacingChange: (Float) -> Unit,
     onLetterSpacingChange: (Float) -> Unit,
     onTextFontChange: (String) -> Unit,
+    onTextColorChanged: (String) -> Unit,
     onDarkModeChange: (DarkMode) -> Unit,
     onAppThemeChange: (AppTheme) -> Unit,
 ) {
@@ -203,6 +203,103 @@ internal fun StyleSettingDialog(
             }
         }
 
+        // Text color
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
+        ) {
+            Icon(
+                Icons.Outlined.FormatColorFill,
+                null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = stringResource(R.string.reader_text_color),
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(listOf("") + TextColorPalette) { hex ->
+                if (hex.isEmpty()) {
+                    val autoSelected = state.textColor.value.isEmpty()
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .border(
+                                width = if (autoSelected) 3.dp else 0.dp,
+                                color = if (autoSelected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                shape = CircleShape
+                            )
+                            .clickable { onTextColorChanged("") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "A",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (autoSelected) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    val selected = state.textColor.value.uppercase() == hex
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(safeParseColor(hex)))
+                            .border(
+                                width = if (selected) 3.dp else 0.dp,
+                                color = if (selected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                shape = CircleShape
+                            )
+                            .clickable { onTextColorChanged(hex) }
+                    )
+                }
+            }
+        }
+        val parsedColor = safeParseColor(state.textColor.value)
+        val red = ((parsedColor shr 16) and 0xFF).toFloat()
+        val green = ((parsedColor shr 8) and 0xFF).toFloat()
+        val blue = (parsedColor and 0xFF).toFloat()
+        MySlider(
+            value = red,
+            valueRange = 0f..255f,
+            onValueChange = { r ->
+                val argb = 0xFF000000.toInt() or (r.toInt() shl 16) or (green.toInt() shl 8) or blue.toInt()
+                onTextColorChanged("%08X".format(argb))
+            },
+            text = stringResource(R.string.manga_color_filter_red) + ": %.0f".format(red),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+        )
+        MySlider(
+            value = green,
+            valueRange = 0f..255f,
+            onValueChange = { g ->
+                val argb = 0xFF000000.toInt() or (red.toInt() shl 16) or (g.toInt() shl 8) or blue.toInt()
+                onTextColorChanged("%08X".format(argb))
+            },
+            text = stringResource(R.string.manga_color_filter_green) + ": %.0f".format(green),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+        )
+        MySlider(
+            value = blue,
+            valueRange = 0f..255f,
+            onValueChange = { b ->
+                val argb = 0xFF000000.toInt() or (red.toInt() shl 16) or (green.toInt() shl 8) or b.toInt()
+                onTextColorChanged("%08X".format(argb))
+            },
+            text = stringResource(R.string.manga_color_filter_blue) + ": %.0f".format(blue),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+        )
+
         // Dark mode chips (compact)
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -220,13 +317,12 @@ internal fun StyleSettingDialog(
                 style = MaterialTheme.typography.labelMedium,
             )
         }
-        FlowRow(
-            modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 2.dp)
-                .fillMaxWidth(),
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            DarkMode.entries.forEach { mode ->
+            items(DarkMode.entries) { mode ->
                 FilterChip(
                     selected = mode == state.currentDarkMode.value,
                     onClick = { onDarkModeChange(mode) },
@@ -251,12 +347,22 @@ internal fun StyleSettingDialog(
 
         // Color scheme chips (compact LazyRow)
         Spacer(Modifier.padding(top = 4.dp))
-        Text(
-            text = "Цветовая схема",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
-        )
+        ) {
+            Icon(
+                Icons.Outlined.Palette,
+                null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = stringResource(R.string.color_scheme),
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 12.dp),
@@ -338,3 +444,12 @@ private fun getThemeAccentColor(theme: AppTheme): Long = when (theme) {
     AppTheme.MOCHA -> 0xFFBF9270
     AppTheme.SAPPHIRE -> 0xFF1E88E5
 }
+
+private val TextColorPalette = listOf(
+    "FF000000", "FF212121", "FF616161", "FFFFFFFF",
+    "FF3B2F1E", "FF1A237E", "FF0D47A1", "FF1B5E20",
+    "FFB71C1C", "FF4A148C", "FF004D40", "FFBF360C",
+)
+
+private fun safeParseColor(hex: String): Int =
+    runCatching { android.graphics.Color.parseColor("#$hex") }.getOrElse { 0xFF333333.toInt() }

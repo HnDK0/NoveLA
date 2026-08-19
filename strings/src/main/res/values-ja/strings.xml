@@ -232,6 +232,7 @@
     <string name="dark_mode_dark">ダーク</string>
     <string name="dark_mode_black">ブラック</string>
     <string name="color_scheme">カラースキーム</string>
+    <string name="reader_text_color">文字色</string>
     <string name="translation_services">翻訳サービス</string>
     <string name="gemini_api_key">Gemini APIキー</string>
     <string name="active_google_gemini_api">アクティブ：Google Gemini API</string>
