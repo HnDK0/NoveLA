@@ -228,6 +228,10 @@ class PageImageLoader @Inject constructor(
                         file.writeBytes(bytes)
                     }
                 }
+                // Кэш не должен расти бесконечно: после записи новой страницы
+                // ужимаем до лимита (LRU по lastModified). Вызов вне мутекса —
+                // evictAndTrim сам берёт mutex.
+                evictAndTrim()
                 decodeBounds(file)?.let { PageImage(file, it.first, it.second) }
             }
         } catch (e: CancellationException) {
