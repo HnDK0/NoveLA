@@ -160,6 +160,12 @@ class ReaderActivity : BaseActivity() {
     // Пауза по касанию/жизненному циклу: любой тач по списку останавливает скролл.
     private var autoScrollPaused = false
 
+    // Приостановка TTS follow-along при ручном скролле: если пользователь
+    // прокрутил текущий абзац TTS за пределы экрана, scrollToReadingPositionOptional
+    // не должен дёргать список обратно. Сбрасывается при Focus / Next / Previous
+    // или когда текущий абзац снова становится видимым на экране.
+    private var ttsFollowSuspended = false
+
     // Double-tap detection for showing/hiding reader info
     private var lastTapTime = 0L
     private val doubleTapThresholdMs = 350L
@@ -374,6 +380,8 @@ class ReaderActivity : BaseActivity() {
 
         viewModel.readerSpeaker.scrollToReaderItem.asLiveData().observe(this) {
             if (it !is ReaderItem.Position) return@observe
+            // Focus / Next / Previous: возобновляем follow-along.
+            ttsFollowSuspended = false
             scrollToReadingPositionForced(
                 chapterIndex = it.chapterIndex,
                 chapterItemPosition = it.chapterItemPosition,
@@ -610,17 +618,14 @@ class ReaderActivity : BaseActivity() {
                     // When the user lifts their finger, check if we need to load more chapters
                     if (!listIsScrolling) {
                         updateReadingState()
-                        // TTS catch-up: после окончания жеста сразу возвращаем подсветку
-                        // на экран, не дожидаясь следующей эмиссии абзаца (может быть
-                        // через секунды). Само-скролл не дёргает: optional-путь ничего
-                        // не делает, если текущий абзац уже видим.
+                        // После окончания жеста определяем, виден ли текущий абзац TTS.
+                        // Если абзац за пределами экрана — приостанавливаем follow-along,
+                        // чтобы не дёргать список обратно. Возобновление — через
+                        // Focus / Next / Prev или когда абзац снова станет видим.
                         if (viewModel.readerSpeaker.isSpeaking.value) {
-                            val playing = viewModel.readerSpeaker.currentTextPlaying.value
-                            scrollToReadingPositionOptional(
-                                chapterIndex = playing.itemPos.chapterIndex,
-                                chapterItemPosition = playing.itemPos.chapterItemPosition,
-                                playState = playing.playState,
-                            )
+                            if (!isCurrentTtsParagraphVisible()) {
+                                ttsFollowSuspended = true
+                            }
                         }
                     }
                 }
@@ -764,6 +769,17 @@ class ReaderActivity : BaseActivity() {
             viewAdapter.listView.notifyDataSetChanged()
         }
 
+        // Приостановка follow-along при ручном скролле: если пользователь прокрутил
+        // текущий абзац TTS за пределы экрана, не дёргаем список обратно.
+        // Возобновляем, когда абзац снова виден на экране.
+        if (ttsFollowSuspended) {
+            if (isCurrentTtsParagraphVisible()) {
+                ttsFollowSuspended = false
+            } else {
+                return
+            }
+        }
+
         // If user is scrolling, don't auto-scroll
         if (listIsScrolling) {
             // Fling мог быть прерван (шторм notifyDataSetChanged/подгрузка главы) без
@@ -862,6 +878,29 @@ class ReaderActivity : BaseActivity() {
         viewAdapter.listView.notifyDataSetChanged()
         viewBind.listView.setSelectionFromTop(itemPosition, newOffsetPx)
         viewAdapter.listView.notifyDataSetChanged()
+    }
+
+    /**
+     * Проверяет, виден ли текущий абзац TTS на экране.
+     * Используется для определения необходимости приостановки/возобновления
+     * follow-along при ручном скролле.
+     */
+    private fun isCurrentTtsParagraphVisible(): Boolean {
+        if (!viewModel.readerSpeaker.isSpeaking.value) return false
+        val playing = viewModel.readerSpeaker.currentTextPlaying.value
+        val firstIndex = viewBind.listView.firstVisiblePosition
+        val lastIndex = viewBind.listView.lastVisiblePosition
+        for (index in firstIndex..lastIndex) {
+            val item = viewAdapter.listView.getItem(index)
+            if (
+                item.chapterIndex == playing.itemPos.chapterIndex &&
+                item is ReaderItem.Position &&
+                item.chapterItemPosition == playing.itemPos.chapterItemPosition
+            ) {
+                return true
+            }
+        }
+        return false
     }
 
     /**
