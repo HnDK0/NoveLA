@@ -91,7 +91,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.withContext
 import my.noveldokusha.coreui.components.MyOutlinedTextField
-import my.noveldokusha.coreui.components.MySlider
+import my.noveldokusha.coreui.components.PillSlider
 import my.noveldokusha.coreui.components.SlimListItem
 import my.noveldokusha.coreui.composableActions.debouncedAction
 import my.noveldokusha.coreui.theme.InternalTheme
@@ -140,19 +140,21 @@ internal fun VoiceReaderSettingDialog(
                 LaunchedEffect(state.voicePitch.value) { localPitch = state.voicePitch.value }
                 LaunchedEffect(state.voiceSpeed.value) { localSpeed = state.voiceSpeed.value }
 
-                MySlider(
+                PillSlider(
+                    label = stringResource(R.string.voice_pitch),
                     value = localPitch,
                     valueRange = 0.1f..5f,
                     onValueChange = { localPitch = it },
-                    text = stringResource(R.string.voice_pitch) + ": %.2f".format(localPitch),
+                    valueText = "%.2f".format(localPitch),
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     onValueChangeFinished = { state.setVoicePitch(localPitch) },
                 )
-                MySlider(
+                PillSlider(
+                    label = stringResource(R.string.voice_speed),
                     value = localSpeed,
                     valueRange = 0.1f..5f,
                     onValueChange = { localSpeed = it },
-                    text = stringResource(R.string.voice_speed) + ": %.2f".format(localSpeed),
+                    valueText = "%.2f".format(localSpeed),
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     onValueChangeFinished = { state.setVoiceSpeed(localSpeed) },
                 )

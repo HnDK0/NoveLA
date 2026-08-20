@@ -62,7 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
-import my.noveldokusha.coreui.components.MySlider
+import my.noveldokusha.coreui.components.PillSlider
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.features.reader.tools.FontsLoader
@@ -87,53 +87,57 @@ internal fun StyleSettingDialog(
     ) {
         // Text size
         var currentTextSize by remember { mutableFloatStateOf(state.textSize.value) }
-        MySlider(
+        PillSlider(
+            label = stringResource(R.string.text_size),
             value = currentTextSize,
             valueRange = 8f..32f,
             onValueChange = {
                 currentTextSize = it
                 onTextSizeChange(currentTextSize)
             },
-            text = stringResource(R.string.text_size) + ": %.2f".format(currentTextSize),
+            valueText = "%.2f".format(currentTextSize),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
         )
 
         // Line height
         var currentLineHeight by remember { mutableFloatStateOf(state.lineHeight.value) }
-        MySlider(
+        PillSlider(
+            label = stringResource(R.string.line_height),
             value = currentLineHeight,
             valueRange = 1.0f..2.5f,
             onValueChange = {
                 currentLineHeight = it
                 onLineHeightChange(currentLineHeight)
             },
-            text = stringResource(R.string.line_height) + ": %.2f".format(currentLineHeight),
+            valueText = "%.2f".format(currentLineHeight),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
         )
 
         // Paragraph spacing
         var currentParagraphSpacing by remember { mutableFloatStateOf(state.paragraphSpacing.value) }
-        MySlider(
+        PillSlider(
+            label = stringResource(R.string.paragraph_spacing),
             value = currentParagraphSpacing,
             valueRange = 0f..40f,
             onValueChange = {
                 currentParagraphSpacing = it
                 onParagraphSpacingChange(currentParagraphSpacing)
             },
-            text = stringResource(R.string.paragraph_spacing) + ": %.0f dp".format(currentParagraphSpacing),
+            valueText = "%.0f dp".format(currentParagraphSpacing),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
         )
 
         // Letter spacing
         var currentLetterSpacing by remember { mutableFloatStateOf(state.letterSpacing.value) }
-        MySlider(
+        PillSlider(
+            label = stringResource(R.string.letter_spacing),
             value = currentLetterSpacing,
             valueRange = 0f..0.3f,
             onValueChange = {
                 currentLetterSpacing = it
                 onLetterSpacingChange(currentLetterSpacing)
             },
-            text = stringResource(R.string.letter_spacing) + ": %.2f em".format(currentLetterSpacing),
+            valueText = "%.2f em".format(currentLetterSpacing),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
         )
 
@@ -269,34 +273,37 @@ internal fun StyleSettingDialog(
         val red = ((parsedColor shr 16) and 0xFF).toFloat()
         val green = ((parsedColor shr 8) and 0xFF).toFloat()
         val blue = (parsedColor and 0xFF).toFloat()
-        MySlider(
+        PillSlider(
+            label = stringResource(R.string.manga_color_filter_red),
             value = red,
             valueRange = 0f..255f,
             onValueChange = { r ->
                 val argb = 0xFF000000.toInt() or (r.toInt() shl 16) or (green.toInt() shl 8) or blue.toInt()
                 onTextColorChanged("%08X".format(argb))
             },
-            text = stringResource(R.string.manga_color_filter_red) + ": %.0f".format(red),
+            valueText = "%.0f".format(red),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
         )
-        MySlider(
+        PillSlider(
+            label = stringResource(R.string.manga_color_filter_green),
             value = green,
             valueRange = 0f..255f,
             onValueChange = { g ->
                 val argb = 0xFF000000.toInt() or (red.toInt() shl 16) or (g.toInt() shl 8) or blue.toInt()
                 onTextColorChanged("%08X".format(argb))
             },
-            text = stringResource(R.string.manga_color_filter_green) + ": %.0f".format(green),
+            valueText = "%.0f".format(green),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
         )
-        MySlider(
+        PillSlider(
+            label = stringResource(R.string.manga_color_filter_blue),
             value = blue,
             valueRange = 0f..255f,
             onValueChange = { b ->
                 val argb = 0xFF000000.toInt() or (red.toInt() shl 16) or (green.toInt() shl 8) or b.toInt()
                 onTextColorChanged("%08X".format(argb))
             },
-            text = stringResource(R.string.manga_color_filter_blue) + ": %.0f".format(blue),
+            valueText = "%.0f".format(blue),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
         )
 
