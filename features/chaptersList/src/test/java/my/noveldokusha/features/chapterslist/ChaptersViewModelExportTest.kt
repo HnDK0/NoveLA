@@ -139,6 +139,7 @@ class ChaptersViewModelExportTest {
             // которую ViewModel запрашивает на export-путях.
             whenever(it.getString(StringsR.string.export_no_chapters)).thenReturn("Нет скачанных глав")
             whenever(it.getString(StringsR.string.export_no_translated_chapters)).thenReturn("Нет переведённых глав")
+            whenever(it.getString(StringsR.string.export_started)).thenReturn("Export started")
         }
 
         val exportDirectory = mock<AppPreferences.Preference<String>>().also {
@@ -227,10 +228,10 @@ class ChaptersViewModelExportTest {
         assertTrue(enqueueCalls.isEmpty())
     }
 
-    // ── Сценарий 2: скачано меньше, чем всего глав ───────────────────────────
+    // ── Сценарий 2: скачано меньше, чем всего глав → экспорт сразу ───────────────
 
     @Test
-    fun `partial download leads to Warning state`() = runTest {
+    fun `partial download enqueues export immediately without Warning`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val (model, _) = createViewModel(
             chapters = listOf(chapter("$bookUrl/ch1"), chapter("$bookUrl/ch2"), chapter("$bookUrl/ch3")),
@@ -238,6 +239,10 @@ class ChaptersViewModelExportTest {
             translations = emptyList(),
             exportDirectoryUri = "content://tree/export",
         )
+        val enqueueCalls = mutableListOf<List<Any>>()
+        model.enqueue = { _, bUrl, bTitle, mode, source, target, count, dir ->
+            enqueueCalls.add(listOf(bUrl, bTitle, mode, source, target, count, dir))
+        }
 
         model.onExportClicked(bookUrl, bookTitle)
         advanceUntilIdle()
@@ -248,10 +253,14 @@ class ChaptersViewModelExportTest {
 
         model.onExportContentChosen("original", "en", "")
 
-        val warning = model.exportDialogState.value as ExportDialogState.Warning
-        assertEquals(3, warning.totalChapters)
-        assertEquals(1, warning.downloadedChapters)
-        assertEquals("original", warning.mode)
+        // Частичная загрузка → экспорт запускается сразу без промежуточного диалога
+        assertEquals(ExportDialogState.Hidden, model.exportDialogState.value)
+        assertEquals(1, enqueueCalls.size)
+        assertEquals(
+            listOf(bookUrl, bookTitle, ExportMode.ORIGINAL, "en", "", 1, "content://tree/export"),
+            enqueueCalls.single(),
+        )
+        assertEquals("Export started", model.exportMessage.value)
     }
 
     // ── Сценарий 3: всё скачано → подтверждение → enqueue + Hidden ──────────
@@ -289,6 +298,7 @@ class ChaptersViewModelExportTest {
             listOf(bookUrl, bookTitle, ExportMode.ORIGINAL, "en", "", 2, "content://tree/export"),
             enqueueCalls.single(),
         )
+        assertEquals("Export started", model.exportMessage.value)
     }
 
     // ── Сценарий 4: папка не выбрана → NeedDirectory → сохранение → enqueue ──
@@ -326,44 +336,11 @@ class ChaptersViewModelExportTest {
             listOf(bookUrl, bookTitle, ExportMode.TRANSLATION, "en", "ru", 2, "content://tree/export"),
             enqueueCalls.single(),
         )
+        assertEquals("Export started", model.exportMessage.value)
         verify(exportDirectoryPref).value = "content://tree/export"
     }
 
-    // ── Сценарий 5: Warning → подтверждение → enqueue + Hidden ───────────────
-
-    @Test
-    fun `warning confirm enqueues export and hides dialog`() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-        val (model, _) = createViewModel(
-            chapters = listOf(chapter("$bookUrl/ch1"), chapter("$bookUrl/ch2"), chapter("$bookUrl/ch3")),
-            bodies = listOf(body("$bookUrl/ch1")),
-            translations = listOf(translation("$bookUrl/ch1", "en", "ru")),
-            exportDirectoryUri = "content://tree/export",
-        )
-        val enqueueCalls = mutableListOf<List<Any>>()
-        model.enqueue = { _, bUrl, bTitle, mode, source, target, count, dir ->
-            enqueueCalls.add(listOf(bUrl, bTitle, mode, source, target, count, dir))
-        }
-
-        model.onExportClicked(bookUrl, bookTitle)
-        advanceUntilIdle()
-
-        model.onExportContentChosen("translation", "en", "ru")
-
-        // Частичная загрузка → диалог подтверждения, а не прямой экспорт
-        assertTrue(model.exportDialogState.value is ExportDialogState.Warning)
-
-        model.onExportConfirmed("translation", "en", "ru")
-
-        assertEquals(ExportDialogState.Hidden, model.exportDialogState.value)
-        assertEquals(1, enqueueCalls.size)
-        assertEquals(
-            listOf(bookUrl, bookTitle, ExportMode.TRANSLATION, "en", "ru", 1, "content://tree/export"),
-            enqueueCalls.single(),
-        )
-    }
-
-    // ── Сценарий 6: dismiss в NeedDirectory сбрасывает отложенный экспорт ────
+    // ── Сценарий 5: dismiss в NeedDirectory сбрасывает отложенный экспорт ────
 
     @Test
     fun `dismiss after NeedDirectory clears pending export`() = runTest {

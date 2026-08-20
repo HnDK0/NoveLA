@@ -1245,6 +1245,7 @@
     <string name="export_not_fully_downloaded">Книга скачана не полностью (%1$d из %2$d). Экспортировать доступные главы?</string>
     <string name="export_no_chapters">Нет скачанных глав</string>
     <string name="export_no_translated_chapters">Нет переведённых глав</string>
+    <string name="export_started">Экспорт запущен</string>
     <string name="book_export_channel_name">Экспорт книги</string>
     <string name="book_export_progress">Экспорт: %1$d/%2$d глав</string>
     <string name="book_export_complete">Экспортировано: %1$s</string>

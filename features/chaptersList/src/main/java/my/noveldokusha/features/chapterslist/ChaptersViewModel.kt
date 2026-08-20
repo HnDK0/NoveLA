@@ -200,29 +200,13 @@ internal class ChaptersViewModel @Inject constructor(
             )
             return
         }
-        if (availableCount < choice.totalChapters) {
-            exportDialogState.value = ExportDialogState.Warning(
-                bookUrl = choice.bookUrl,
-                bookTitle = choice.bookTitle,
-                totalChapters = choice.totalChapters,
-                downloadedChapters = availableCount,
-                mode = mode,
-                sourceLang = sourceLang,
-                targetLang = targetLang,
-                exportDirectoryName = choice.exportDirectoryName,
-            )
-        } else {
-            onExportConfirmed(mode, sourceLang, targetLang)
-        }
+        onExportConfirmed(mode, sourceLang, targetLang)
     }
 
     fun onExportConfirmed(mode: String, sourceLang: String, targetLang: String) {
-        // Подтверждение приходит из ContentChoice (полный экспорт) или из Warning
-        // (частичный экспорт) — у обоих состояний есть bookUrl/bookTitle.
         val dialog = exportDialogState.value
         val (bookUrl, bookTitle) = when (dialog) {
             is ExportDialogState.ContentChoice -> dialog.bookUrl to dialog.bookTitle
-            is ExportDialogState.Warning -> dialog.bookUrl to dialog.bookTitle
             else -> return
         }
         val availableCount = availableCountFor(dialog, mode, sourceLang, targetLang)
@@ -244,6 +228,7 @@ internal class ChaptersViewModel @Inject constructor(
                 else ExportMode.TRANSLATION,
                 sourceLang, targetLang, availableCount, directoryUri
             )
+            exportMessage.value = context.getString(StringsR.string.export_started)
             exportDialogState.value = ExportDialogState.Hidden
         }
     }
@@ -259,6 +244,7 @@ internal class ChaptersViewModel @Inject constructor(
                 else ExportMode.TRANSLATION,
                 pending.sourceLang, pending.targetLang, pending.availableCount, uri
             )
+            exportMessage.value = context.getString(StringsR.string.export_started)
             exportDialogState.value = ExportDialogState.Hidden
         } else {
             // Случай «Change» в ContentChoice: диалог остаётся открытым, но строку
@@ -1011,8 +997,7 @@ private data class PendingExport(
 
 /**
  * Число глав, доступных для экспорта: скачанные тела для оригинала,
- * переведённые главы выбранной пары для перевода. Warning хранит это
- * число в downloadedChapters (см. onExportContentChosen).
+ * переведённые главы выбранной пары для перевода.
  */
 private fun availableCountFor(
     dialog: ExportDialogState,
@@ -1027,6 +1012,5 @@ private fun availableCountFor(
     } else {
         dialog.downloadedChapters
     }
-    is ExportDialogState.Warning -> dialog.downloadedChapters
     else -> 0
 }

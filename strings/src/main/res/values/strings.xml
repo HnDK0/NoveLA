@@ -760,6 +760,7 @@
     <string name="export_not_fully_downloaded">Book is not fully downloaded (%1$d of %2$d). Export available chapters?</string>
     <string name="export_no_chapters">No downloaded chapters</string>
     <string name="export_no_translated_chapters">No translated chapters</string>
+    <string name="export_started">Export started</string>
     <string name="book_export_channel_name">Book export</string>
     <string name="book_export_progress">Exporting: %1$d/%2$d chapters</string>
     <string name="book_export_complete">Exported: %1$s</string>

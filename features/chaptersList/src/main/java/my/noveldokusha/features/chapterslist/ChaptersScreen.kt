@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.DoneOutline
@@ -73,8 +74,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Context
@@ -123,7 +126,6 @@ internal fun ChaptersScreen(
     onDownloadAllChapters: () -> Unit,
     onExport: (bookUrl: String, bookTitle: String) -> Unit,
     onExportContentChosen: (mode: String, sourceLang: String, targetLang: String) -> Unit,
-    onExportConfirmed: (mode: String, sourceLang: String, targetLang: String) -> Unit,
     onExportDirectorySaved: (uri: String) -> Unit,
     onExportDialogDismiss: () -> Unit,
     exportDialogState: ExportDialogState,
@@ -543,55 +545,33 @@ internal fun ChaptersScreen(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         // Original option
-                        FilledTonalButton(
+                        ExportContentOption(
+                            text = stringResource(StringsR.string.export_original),
+                            selected = selectedMode == "original",
                             onClick = {
                                 selectedMode = "original"
                                 selectedSourceLang = ""
                                 selectedTargetLang = ""
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = if (selectedMode == "original")
-                                    MaterialTheme.colorScheme.secondaryContainer
-                                else MaterialTheme.colorScheme.surface,
-                                contentColor = if (selectedMode == "original")
-                                    MaterialTheme.colorScheme.onSecondaryContainer
-                                else MaterialTheme.colorScheme.onSurface
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(text = stringResource(StringsR.string.export_original))
-                        }
+                            }
+                        )
 
                         // Translation options
                         ds.availableTranslations.forEach { pair ->
                             val modeKey = "translation_${pair.sourceLang}_${pair.targetLang}"
                             val isSelected = selectedMode == modeKey
-                            FilledTonalButton(
+                            ExportContentOption(
+                                text = stringResource(
+                                    StringsR.string.export_translation,
+                                    pair.sourceLang,
+                                    pair.targetLang
+                                ),
+                                selected = isSelected,
                                 onClick = {
                                     selectedMode = modeKey
                                     selectedSourceLang = pair.sourceLang
                                     selectedTargetLang = pair.targetLang
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = if (isSelected)
-                                        MaterialTheme.colorScheme.secondaryContainer
-                                    else MaterialTheme.colorScheme.surface,
-                                    contentColor = if (isSelected)
-                                        MaterialTheme.colorScheme.onSecondaryContainer
-                                    else MaterialTheme.colorScheme.onSurface
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = stringResource(
-                                        StringsR.string.export_translation,
-                                        pair.sourceLang,
-                                        pair.targetLang
-                                    )
-                                )
-                            }
+                                }
+                            )
                         }
 
                         // Folder line
@@ -640,55 +620,48 @@ internal fun ChaptersScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val mode = if (selectedMode == "original") "original" else "translation"
-                            val source = if (selectedMode == "original") "" else selectedSourceLang
-                            val target = if (selectedMode == "original") "" else selectedTargetLang
-                            onExportContentChosen(mode, source, target)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilledTonalButton(
+                            onClick = onExportDialogDismiss,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = stringResource(android.R.string.cancel),
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center
+                            )
                         }
-                    ) {
-                        Text(text = stringResource(StringsR.string.export))
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = onExportDialogDismiss
-                    ) {
-                        Text(text = stringResource(android.R.string.cancel))
-                    }
-                }
-            )
-        }
-        is ExportDialogState.Warning -> {
-            AlertDialog(
-                onDismissRequest = onExportDialogDismiss,
-                title = {
-                    Text(text = stringResource(StringsR.string.export))
-                },
-                text = {
-                    Text(
-                        text = stringResource(
-                            StringsR.string.export_not_fully_downloaded,
-                            ds.downloadedChapters,
-                            ds.totalChapters
-                        )
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            onExportConfirmed(ds.mode, ds.sourceLang, ds.targetLang)
+                        FilledTonalButton(
+                            onClick = {
+                                val mode = if (selectedMode == "original") "original" else "translation"
+                                val source = if (selectedMode == "original") "" else selectedSourceLang
+                                val target = if (selectedMode == "original") "" else selectedTargetLang
+                                onExportContentChosen(mode, source, target)
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = stringResource(StringsR.string.export),
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center
+                            )
                         }
-                    ) {
-                        Text(text = stringResource(StringsR.string.export))
                     }
                 },
-                dismissButton = {
-                    TextButton(onClick = onExportDialogDismiss) {
-                        Text(text = stringResource(android.R.string.cancel))
-                    }
-                }
+                dismissButton = {}
             )
         }
         ExportDialogState.NeedDirectory -> {
@@ -709,5 +682,35 @@ private class OpenDocumentTreeReadPersistent : ActivityResultContracts.OpenDocum
                         Intent.FLAG_GRANT_READ_URI_PERMISSION or
                         Intent.FLAG_GRANT_PREFIX_URI_PERMISSION
             )
+    }
+}
+
+@Composable
+private fun ExportContentOption(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    if (selected) {
+        FilledTonalButton(
+            onClick = onClick,
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = text, modifier = Modifier.weight(1f))
+            Icon(Icons.Filled.Check, contentDescription = null)
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = text)
+        }
     }
 }

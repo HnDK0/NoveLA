@@ -85,7 +85,6 @@ class ChaptersActivity : BaseActivity() {
                     onDownloadAllChapters = viewModel::downloadAllChapters,
                     onExport = viewModel::onExportClicked,
                     onExportContentChosen = viewModel::onExportContentChosen,
-                    onExportConfirmed = viewModel::onExportConfirmed,
                     onExportDirectorySaved = viewModel::onExportDirectorySaved,
                     onExportDialogDismiss = viewModel::onExportDialogDismiss,
                     exportDialogState = viewModel.exportDialogState.value,
