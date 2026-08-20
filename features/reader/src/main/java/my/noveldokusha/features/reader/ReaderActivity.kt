@@ -160,6 +160,11 @@ class ReaderActivity : BaseActivity() {
     // Пауза по касанию/жизненному циклу: любой тач по списку останавливает скролл.
     private var autoScrollPaused = false
 
+    // When true, TTS follow-along skips snap-back to off-screen paragraphs.
+    // Set when user manually scrolls away from the current paragraph.
+    // Reset on: Focus, Next/Prev paragraph, paragraph becomes visible, onResume.
+    private var userManualScrollActive = false
+
     // Double-tap detection for showing/hiding reader info
     private var lastTapTime = 0L
     private val doubleTapThresholdMs = 350L
@@ -616,6 +621,18 @@ class ReaderActivity : BaseActivity() {
                         // не делает, если текущий абзац уже видим.
                         if (viewModel.readerSpeaker.isSpeaking.value) {
                             val playing = viewModel.readerSpeaker.currentTextPlaying.value
+                            // If user manually scrolled away from current paragraph,
+                            // activate the flag to prevent snap-back on subsequent
+                            // paragraph changes (currentReaderItem observer).
+                            if (!userManualScrollActive) {
+                                if (!isTtsParagraphVisible(
+                                        playing.itemPos.chapterIndex,
+                                        playing.itemPos.chapterItemPosition
+                                    )
+                                ) {
+                                    userManualScrollActive = true
+                                }
+                            }
                             scrollToReadingPositionOptional(
                                 chapterIndex = playing.itemPos.chapterIndex,
                                 chapterItemPosition = playing.itemPos.chapterItemPosition,
@@ -779,6 +796,16 @@ class ReaderActivity : BaseActivity() {
             }
         }
 
+        // User manually scrolled away from current paragraph — don't snap back.
+        // Resume when: paragraph becomes visible again, Focus, or Next/Prev paragraph.
+        if (userManualScrollActive) {
+            if (isTtsParagraphVisible(chapterIndex, chapterItemPosition)) {
+                userManualScrollActive = false
+            } else {
+                return
+            }
+        }
+
         // Check if the TTS item is already visible on screen
         val firstIndex = viewBind.listView.firstVisiblePosition
         val lastIndex = viewBind.listView.lastVisiblePosition
@@ -836,6 +863,8 @@ class ReaderActivity : BaseActivity() {
     }
 
     private fun scrollToReadingPositionForced(chapterIndex: Int, chapterItemPosition: Int) {
+        // Explicit user action (Focus / Next / Prev) — resume follow-along
+        userManualScrollActive = false
         // Search for the item being read otherwise do nothing
         val itemIndex = indexOfReaderItem(
             list = viewModel.items,
@@ -850,6 +879,8 @@ class ReaderActivity : BaseActivity() {
     }
 
     private fun scrollToReadingPositionImmediately(chapterIndex: Int, chapterItemPosition: Int) {
+        // Explicit focus action — resume follow-along
+        userManualScrollActive = false
         // Search for the item being read otherwise do nothing
         val itemIndex = indexOfReaderItem(
             list = viewModel.items,
@@ -892,6 +923,25 @@ class ReaderActivity : BaseActivity() {
             (listView.firstVisiblePosition + listView.childCount - 1)
                 .coerceAtMost(viewAdapter.listView.count - 1)
         )
+    }
+
+    /**
+     * Checks if the given TTS paragraph is currently visible in the viewport.
+     * Used by userManualScrollActive logic to decide whether to snap back or resume.
+     */
+    private fun isTtsParagraphVisible(chapterIndex: Int, chapterItemPosition: Int): Boolean {
+        val firstIndex = viewBind.listView.firstVisiblePosition
+        val lastIndex = viewBind.listView.lastVisiblePosition
+        for (index in firstIndex..lastIndex) {
+            val item = viewAdapter.listView.getItem(index)
+            if (item.chapterIndex == chapterIndex &&
+                item is ReaderItem.Position &&
+                item.chapterItemPosition == chapterItemPosition
+            ) {
+                return true
+            }
+        }
+        return false
     }
 
     private fun updateReadingState() {
@@ -993,6 +1043,9 @@ class ReaderActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
+
+        // Resume follow-along: user returned to the app, existing code scrolls to TTS position.
+        userManualScrollActive = false
 
         // Возобновляем автопрокрутку после возврата на экран, если она включена.
         if (appPreferences.READER_AUTOSCROLL_ENABLED.value) {
