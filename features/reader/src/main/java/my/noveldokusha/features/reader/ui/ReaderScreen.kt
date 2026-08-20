@@ -15,22 +15,34 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.outlined.ColorLens
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Rule
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.AlertDialog
@@ -51,6 +63,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -65,17 +78,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.delay
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
 import my.noveldokusha.coreui.theme.InternalTheme
@@ -99,6 +115,7 @@ import androidx.lifecycle.LifecycleEventObserver
 @Composable
 internal fun ReaderScreen(
     state: ReaderScreenState,
+    appPreferences: AppPreferences,
     onSelectableTextChange: (Boolean) -> Unit,
     onKeepScreenOn: (Boolean) -> Unit,
     onDarkModeSelected: (DarkMode) -> Unit,
@@ -177,6 +194,13 @@ internal fun ReaderScreen(
                     ) {
                         val chapterTitle by state.readerInfo.chapterTitle
 
+                        // Состояние автопрокрутки для кнопки тулбара: filled/outlined иконка
+                        // и видимость панели скорости живут на одном префе.
+                        val autoscrollOn by appPreferences.READER_AUTOSCROLL_ENABLED.flow()
+                            .collectAsState(initial = appPreferences.READER_AUTOSCROLL_ENABLED.value)
+                        val speed by appPreferences.READER_AUTOSCROLL_SPEED.flow()
+                            .collectAsState(initial = appPreferences.READER_AUTOSCROLL_SPEED.value)
+
                         val toggleOrSet = { type: Type ->
                             state.settings.selectedSetting.value = if (selectedSetting == type) Type.None else type
                         }
@@ -221,9 +245,60 @@ internal fun ReaderScreen(
                                 IconButton(onClick = onOpenChapterInWeb, modifier = Modifier.size(36.dp)) {
                                     Icon(Icons.Filled.Public, stringResource(R.string.open_in_browser), modifier = Modifier.size(20.dp))
                                 }
+                                // Автопрокрутка: включена = заполненная иконка (Pause),
+                                // выключена = контурная (PlayArrow). Тогл префа — панель
+                                // скорости под тулбаром появляется/исчезает сама.
+                                IconButton(
+                                    onClick = {
+                                        appPreferences.READER_AUTOSCROLL_ENABLED.value = !autoscrollOn
+                                    },
+                                    modifier = Modifier.size(36.dp),
+                                ) {
+                                    Icon(
+                                        if (autoscrollOn) Icons.Filled.Pause else Icons.Outlined.PlayArrow,
+                                        contentDescription = stringResource(R.string.manga_reader_auto_scroll),
+                                        modifier = Modifier.size(20.dp),
+                                        tint = if (autoscrollOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
                             }
                         )
                         HorizontalDivider()
+                        // Панель скорости автопрокрутки: видна ТОЛЬКО при включённой
+                        // автопрокрутке — вкл/выкл кнопкой тулбара (filled/outlined).
+                        if (autoscrollOn) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.90f))
+                                    .padding(start = 4.dp, end = 4.dp, bottom = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        appPreferences.READER_AUTOSCROLL_SPEED.value =
+                                            (speed - 10).coerceAtLeast(10)
+                                    },
+                                ) {
+                                    Icon(Icons.Filled.Remove, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                                }
+                                Text(
+                                    text = stringResource(R.string.manga_autoscroll_speed_value, speed),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                IconButton(
+                                    onClick = {
+                                        appPreferences.READER_AUTOSCROLL_SPEED.value =
+                                            (speed + 10).coerceAtMost(200)
+                                    },
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -256,37 +331,133 @@ internal fun ReaderScreen(
                         onManualHighlightEnabledChange = onManualHighlightEnabledChange,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    BottomAppBar(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                            .animateContentSize(),
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.90f),
-                    ) {
-                        val chapterCurrentNumber by state.readerInfo.chapterCurrentNumber
-                        val chaptersCount by state.readerInfo.chaptersCount
-                        val chapterPercentageProgress by state.readerInfo.chapterPercentageProgress
-                        
-                        Column(
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        // Короткое уведомление о переключении (исчезает быстрее Toast)
+                        var quickToggleNotice by remember { mutableStateOf<String?>(null) }
+                        LaunchedEffect(quickToggleNotice) {
+                            if (quickToggleNotice != null) {
+                                delay(1200)
+                                quickToggleNotice = null
+                            }
+                        }
+
+                        BottomAppBar(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                                .animateContentSize(),
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.90f),
                         ) {
-                            Text(
-                                text = stringResource(
-                                    id = R.string.chapter_x_over_n,
-                                    chapterCurrentNumber,
-                                    chaptersCount,
-                                ),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                            Text(
-                                text = stringResource(
-                                    id = R.string.progress_x_percentage,
-                                    chapterPercentageProgress
-                                ),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
+                            val chapterCurrentNumber by state.readerInfo.chapterCurrentNumber
+                            val chaptersCount by state.readerInfo.chaptersCount
+                            val chapterPercentageProgress by state.readerInfo.chapterPercentageProgress
+                            val keepScreenOn by state.settings.keepScreenOn
+                            val fullScreen by state.settings.fullScreen
+                            val isTextSelectable by state.settings.isTextSelectable
+                            val isSingleTapToOpenSettings by state.settings.isSingleTapToOpenSettings
+
+                            // Подписи кнопок быстрых переключателей (нельзя резолвить строки внутри onClick)
+                            val keepScreenOnLabel = stringResource(R.string.keep_screen_on)
+                            val fullScreenLabel = stringResource(R.string.features_reader_full_screen)
+                            val selectableTextLabel = stringResource(R.string.allow_text_selection)
+                            val singleTapLabel = stringResource(R.string.single_tap_to_open_settings)
+
+                            // Слова состояния для уведомления о переключении
+                            val enabledLabel = stringResource(R.string.rule_enabled)
+                            val disabledLabel = stringResource(R.string.rule_disabled)
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    IconButton(onClick = {
+                                        onKeepScreenOn(!keepScreenOn)
+                                        quickToggleNotice = "$keepScreenOnLabel: ${if (!keepScreenOn) enabledLabel else disabledLabel}"
+                                    }, modifier = Modifier.size(36.dp)) {
+                                        Icon(
+                                            Icons.Filled.WbSunny,
+                                            stringResource(R.string.keep_screen_on),
+                                            modifier = Modifier.size(20.dp),
+                                            tint = if (keepScreenOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    IconButton(onClick = {
+                                        onFullScreen(!fullScreen)
+                                        quickToggleNotice = "$fullScreenLabel: ${if (!fullScreen) enabledLabel else disabledLabel}"
+                                    }, modifier = Modifier.size(36.dp)) {
+                                        Icon(
+                                            Icons.Filled.Fullscreen,
+                                            stringResource(R.string.features_reader_full_screen),
+                                            modifier = Modifier.size(20.dp),
+                                            tint = if (fullScreen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    IconButton(onClick = {
+                                        onSelectableTextChange(!isTextSelectable)
+                                        quickToggleNotice = "$selectableTextLabel: ${if (!isTextSelectable) enabledLabel else disabledLabel}"
+                                    }, modifier = Modifier.size(36.dp)) {
+                                        Icon(
+                                            Icons.Filled.TextFields,
+                                            stringResource(R.string.allow_text_selection),
+                                            modifier = Modifier.size(20.dp),
+                                            tint = if (isTextSelectable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    IconButton(onClick = {
+                                        onSingleTapToOpenSettingsChange(!isSingleTapToOpenSettings)
+                                        quickToggleNotice = "$singleTapLabel: ${if (!isSingleTapToOpenSettings) enabledLabel else disabledLabel}"
+                                    }, modifier = Modifier.size(36.dp)) {
+                                        Icon(
+                                            Icons.Filled.TouchApp,
+                                            stringResource(R.string.single_tap_to_open_settings),
+                                            modifier = Modifier.size(20.dp),
+                                            tint = if (isSingleTapToOpenSettings) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = stringResource(
+                                        id = R.string.chapter_x_over_n,
+                                        chapterCurrentNumber,
+                                        chaptersCount,
+                                    ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                                Text(
+                                    text = stringResource(
+                                        id = R.string.progress_x_percentage,
+                                        chapterPercentageProgress
+                                    ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
+                        }
+
+                        // Уведомление-пилюля висит НАД тулбаром (не перекрывает кнопки); Box не клипает детей, поэтому сдвиг вверх виден
+                        // Полное имя обязательно: внутри Column неявный ColumnScope.AnimatedVisibility перекрывает top-level функцию
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = quickToggleNotice != null,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-40).dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.inverseSurface,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = quickToggleNotice ?: "",
+                                    color = MaterialTheme.colorScheme.inverseOnSurface,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -585,6 +756,7 @@ private fun ViewsPreview(
     InternalTheme {
         Surface(color = Color.Black) {
             ReaderScreen(
+                appPreferences = AppPreferences(LocalContext.current),
                 state = ReaderScreenState(
                     showReaderInfo = remember { mutableStateOf(true) },
                     readerInfo = ReaderScreenState.CurrentInfo(
