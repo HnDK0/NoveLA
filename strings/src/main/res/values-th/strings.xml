@@ -751,4 +751,18 @@
     <string name="manga_zoom_start_center">กลาง</string>
     <string name="manga_zoom_start_left">ซ้าย</string>
     <string name="manga_zoom_start_right">ขวา</string>
+<string name="export">ส่งออก</string>
+    <string name="export_original">ต้นฉบับ</string>
+    <string name="export_translation">คำแปล (%1$s → %2$s)</string>
+    <string name="export_folder">โฟลเดอร์: %s</string>
+    <string name="export_change_folder">เปลี่ยน</string>
+    <string name="export_not_fully_downloaded">หนังสือยังดาวน์โหลดไม่ครบ (%1$d จาก %2$d) ส่งออกบทที่มีอยู่หรือไม่?</string>
+    <string name="export_no_chapters">ไม่มีบทที่ดาวน์โหลดแล้ว</string>
+    <string name="export_no_translated_chapters">ไม่มีบทที่แปลแล้ว</string>
+    <string name="book_export_channel_name">การส่งออกหนังสือ</string>
+    <string name="book_export_progress">กำลังส่งออก: %1$d/%2$d บท</string>
+    <string name="book_export_complete">ส่งออกแล้ว: %1$s</string>
+    <string name="book_export_cancel">ยกเลิก</string>
+    <string name="book_export_no_chapters">ไม่มีบทให้ส่งออก</string>
+    <string name="book_export_failed">ส่งออกล้มเหลว</string>
 </resources>

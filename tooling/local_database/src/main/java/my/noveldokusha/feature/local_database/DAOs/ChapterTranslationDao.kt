@@ -12,6 +12,13 @@ data class ChapterTitleTranslation(
     val translatedText: String
 )
 
+/** Пара языков перевода и число глав с непустым переводом (для диалога экспорта). */
+data class TranslationGroup(
+    val sourceLang: String,
+    val targetLang: String,
+    val count: Int
+)
+
 @Dao
 interface ChapterTranslationDao {
 
@@ -87,6 +94,32 @@ interface ChapterTranslationDao {
     @Query("SELECT * FROM ChapterTranslation LIMIT :limit OFFSET :offset")
     suspend fun getChunk(limit: Int, offset: Int): List<ChapterTranslation>
 
-    @Query("SELECT * FROM ChapterTranslation WHERE chapterUrl IN (:chapterUrls)")
-    suspend fun getTranslationsByChapterUrls(chapterUrls: List<String>): List<ChapterTranslation>
+    /**
+     * Возвращает переводы глав по URL-ам. Фильтрация по паре языков выполняется
+     * в SQL, а не в памяти. Пустые sourceLang/targetLang означают «все языки»
+     * (используется миграцией, которая переносит переводы всех пар).
+     */
+    @Query("""
+        SELECT * FROM ChapterTranslation 
+        WHERE chapterUrl IN (:chapterUrls)
+        AND (:sourceLang = '' OR sourceLang = :sourceLang)
+        AND (:targetLang = '' OR targetLang = :targetLang)
+    """)
+    suspend fun getTranslationsByChapterUrls(
+        chapterUrls: List<String>,
+        sourceLang: String = "",
+        targetLang: String = "",
+    ): List<ChapterTranslation>
+
+    @Query("""
+        SELECT ChapterTranslation.sourceLang AS sourceLang,
+               ChapterTranslation.targetLang AS targetLang,
+               COUNT(*) AS count
+        FROM ChapterTranslation
+        INNER JOIN Chapter ON Chapter.url = ChapterTranslation.chapterUrl
+        WHERE Chapter.bookUrl = :bookUrl
+        AND ChapterTranslation.translatedParagraphs != ''
+        GROUP BY ChapterTranslation.sourceLang, ChapterTranslation.targetLang
+    """)
+    suspend fun getTranslationGroups(bookUrl: String): List<TranslationGroup>
 }

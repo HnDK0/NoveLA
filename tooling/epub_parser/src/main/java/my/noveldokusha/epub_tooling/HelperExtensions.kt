@@ -1,53 +1,117 @@
 package my.noveldokusha.epub_tooling
 
-import org.w3c.dom.Document
-import org.w3c.dom.Element
-import org.w3c.dom.Node
-import org.w3c.dom.NodeList
-import org.xml.sax.InputSource
+import android.util.Xml
+import org.xmlpull.v1.XmlPullParser
+import java.io.File
 import java.io.InputStream
-import java.io.StringReader
 import java.net.URLDecoder
-import java.util.zip.ZipInputStream
-import javax.xml.parsers.DocumentBuilder
-import javax.xml.parsers.DocumentBuilderFactory
+import kotlin.io.path.invariantSeparatorsPathString
 
+// Лимит глубины вложенности XML: реальные документы укладываются в десятки
+// уровней, глубже — крафтовый файл (см. readElement).
+private const val MAX_XML_DEPTH = 512
 
-internal val NodeList.elements get() = (0..length).asSequence().mapNotNull { item(it) as? Element }
-internal val Node.childElements get() = childNodes.elements
-internal fun Document.selectFirstTag(tag: String): Node? = getElementsByTagName(tag).item(0)
-internal fun Node.selectFirstChildTag(tag: String) = childElements.find { it.tagName == tag }
-internal fun Node.selectChildTag(tag: String) = childElements.filter { it.tagName == tag }
-internal fun Node.getAttributeValue(attribute: String): String? =
-    attributes?.getNamedItem(attribute)?.textContent
+// Лёгкое дерево XML-элемента для маленьких файлов-метаданных EPUB
+// (container.xml, content.opf, toc.ncx). Файлы эти килобайтные — в отличие от
+// глав/FB2 — поэтому построение дерева безопасно по памяти.
+internal class XmlElement(
+    val name: String,
+    val attrs: Map<String, String>,
+    val text: String,
+    val children: List<XmlElement>
+) {
+    fun attr(name: String): String? = attrs[name]
 
-internal fun newSecureDocumentBuilder(): DocumentBuilder {
-    val dbf = DocumentBuilderFactory.newInstance()
-    // best-effort: на части Android-реализаций (org.apache.harmony...) эти вызовы
-    // кидают ParserConfigurationException — изолируем каждый, чтобы один
-    // неподдерживаемый флаг не ронял парсер целиком. Реальная защита — EntityResolver ниже.
-    runCatching { dbf.setFeature("http://xml.org/sax/features/external-general-entities", false) }
-    runCatching { dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false) }
-    runCatching { dbf.isXIncludeAware = false }
+    // Поиск по всему поддереву (аналог DOM getElementsByTagName().item(0)).
+    fun selectFirstTag(tag: String): XmlElement? =
+        if (name == tag) this else children.firstNotNullOfOrNull { it.selectFirstTag(tag) }
 
-    val builder = dbf.newDocumentBuilder()
-    // Гарантированный кросс-платформенный барьер: любой запрос на резолв внешней
-    // entity/DTD (файл, http://, ...) получает пустой источник вместо реального контента.
-    // Не зависит от того, поддержал ли парсер флаги выше.
-    builder.setEntityResolver { _, _ -> InputSource(StringReader("")) }
-    return builder
+    // Все вхождения по всему поддереву, порядок обхода — документный (preorder).
+    fun selectTag(tag: String): List<XmlElement> =
+        (if (name == tag) listOf(this) else emptyList()) + children.flatMap { it.selectTag(tag) }
+
+    fun selectFirstChildTag(tag: String): XmlElement? = children.firstOrNull { it.name == tag }
+
+    fun selectChildTag(tag: String): List<XmlElement> = children.filter { it.name == tag }
+
+    val textContent: String
+        get() = buildString {
+            append(text)
+            children.forEach { append(it.textContent) }
+        }
 }
 
-internal fun parseXMLFile(inputSteam: InputStream): Document? =
-    newSecureDocumentBuilder().parse(inputSteam)
+// Парсит маленький XML-документ (container/opf/ncx) в лёгкое дерево.
+// XmlPullParser (kxml в Android) по умолчанию не обрабатывает DTD и внешние
+// entity — XXE-атаки исключены, дополнительных флагов безопасности не нужно.
+internal fun parseXmlDocument(input: InputStream): XmlElement? {
+    val parser = Xml.newPullParser()
+    // Namespace-обработка выключена: имена и атрибуты ("dc:title", "l:href")
+    // приходят в исходной (qualified) форме.
+    parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
+    parser.setInput(input, "UTF-8")
 
-internal fun parseXMLFile(byteArray: ByteArray): Document? = parseXMLFile(byteArray.inputStream())
-@Suppress("unused")
-internal fun parseXMLText(text: String): Document? = text.reader().runCatching {
-    newSecureDocumentBuilder().parse(InputSource(this))
-}.getOrNull()
+    // Между "?>" и корневым элементом может быть whitespace: kxml отдаёт его
+    // как TEXT-событие, и валидный документ с отступом не должен теряться.
+    var event = parser.next()
+    while (event == XmlPullParser.TEXT || event == XmlPullParser.CDSECT) {
+        event = parser.next()
+    }
+    if (event != XmlPullParser.START_TAG) return null
+
+    fun readAttrs(): Map<String, String> =
+        (0 until parser.attributeCount).associate { i ->
+            parser.getAttributeName(i) to parser.getAttributeValue(i)
+        }
+
+    // Глубина вложенности ограничена: рекурсивный спуск крафтового документа
+    // с сотнями тысяч вложенных тегов переполнил бы стек (StackOverflowError —
+    // это Error, его нельзя перехватить как Exception).
+    fun readElement(depth: Int): XmlElement {
+        if (depth > MAX_XML_DEPTH) throw RuntimeException("XML nesting too deep")
+        val name = parser.name
+        val attrs = readAttrs()
+        val text = StringBuilder()
+        val children = mutableListOf<XmlElement>()
+        var event = parser.next()
+        while (event != XmlPullParser.END_TAG) {
+            when (event) {
+                XmlPullParser.START_TAG -> children.add(readElement(depth + 1))
+                XmlPullParser.TEXT, XmlPullParser.CDSECT -> text.append(parser.text)
+            }
+            event = parser.next()
+        }
+        return XmlElement(name, attrs, text.toString(), children)
+    }
+
+    val root = readElement(depth = 0)
+    parser.next() // END_DOCUMENT
+    return root
+}
 
 internal val String.decodedURL: String get() = URLDecoder.decode(this, "UTF-8")
 internal fun String.asFileName(): String = this.replace("/", "_")
 
-internal fun ZipInputStream.entries() = generateSequence { nextEntry }
+// Безопасный путь записи внутри книги: относительный, без обхода каталогов,
+// абсолютных префиксов и служебных символов. Крафтовые пути отклоняются на
+// этапе парсинга, чтобы не доводить до сбоя импорта позже (zip-slip / DoS).
+internal fun String.isSafeBookPath(): Boolean =
+    isNotEmpty() &&
+        !startsWith("/") &&
+        !startsWith("\\") &&
+        !contains("..") &&
+        !contains(":") &&
+        none { it.code < 0x20 }
+
+// Абсолютный путь записи внутри EPUB относительно каталога OPF-файла.
+// Canonical-нормализация нейтрализует "a/../b" — результат остаётся внутри книги.
+// Пути используются только для чтения из архива (zip.readEntry), на диск ничего
+// не пишется, поэтому zip-slip невозможен; строгая проверка isSafeBookPath()
+// здесь лишь ломала импорт валидных книг с href вида "../cover.jpg".
+internal fun String.hrefAbsolutePath(rootPath: File): String {
+    return File(rootPath, this)
+        .canonicalFile
+        .toPath()
+        .invariantSeparatorsPathString
+        .removePrefix("/")
+}

@@ -2,8 +2,11 @@
 
 package my.noveldokusha.core.appPreferences
 
+import android.content.ContentResolver
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.preference.PreferenceManager
@@ -985,6 +988,11 @@ class AppPreferences @Inject constructor(
         override var value by SharedPreference_String(name, preferences, "")
     }
 
+    // URI папки (tree URI) для экспорта книг, выбранный через SAF
+    val EXPORT_DIRECTORY_URI = object : Preference<String>("EXPORT_DIRECTORY_URI") {
+        override var value by SharedPreference_String(name, preferences, "")
+    }
+
     // Максимальное количество хранимых файлов автобекапа
     val BACKUP_AUTO_MAX_COUNT = object : Preference<Int>("BACKUP_AUTO_MAX_COUNT") {
         override var value by SharedPreference_Int(name, preferences, 5)
@@ -1082,5 +1090,31 @@ class AppPreferences @Inject constructor(
 
         override fun component1(): T = value
         override fun component2() = ::value::set
+    }
+}
+
+// Разрешение отображаемого имени директории экспорта по tree URI.
+// Возвращает null, если URI недоступен (нет прав SAF) или запрос не удался.
+suspend fun resolveExportDirectoryDisplayName(
+    contentResolver: ContentResolver,
+    treeUri: String
+): String? = withContext(Dispatchers.IO) {
+    try {
+        val uri = Uri.parse(treeUri)
+        val docUri = DocumentsContract.buildDocumentUriUsingTree(
+            uri,
+            DocumentsContract.getTreeDocumentId(uri)
+        )
+        contentResolver.query(
+            docUri,
+            arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+    } catch (e: Exception) {
+        null
     }
 }

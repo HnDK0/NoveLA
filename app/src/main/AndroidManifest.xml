@@ -67,6 +67,15 @@
 			android:foregroundServiceType="dataSync">
 		</service>
 
+		<!-- WorkManager запускает SystemForegroundService для setForeground().
+		     Без явного foregroundServiceType на Android 14+ краш:
+		     "foregroundServiceType ... is not a subset ... in service element". -->
+		<service
+			android:name="androidx.work.impl.foreground.SystemForegroundService"
+			android:foregroundServiceType="dataSync"
+			tools:node="merge">
+		</service>
+
 		<receiver
 			android:name="my.noveldokusha.data.DownloadNotificationReceiver"
 			android:exported="false">
@@ -74,6 +83,14 @@
 				<action android:name="my.noveldokusha.action.DOWNLOAD_PAUSE" />
 				<action android:name="my.noveldokusha.action.DOWNLOAD_RESUME" />
 				<action android:name="my.noveldokusha.action.DOWNLOAD_CANCEL" />
+			</intent-filter>
+		</receiver>
+
+		<receiver
+			android:name="my.noveldokusha.tooling.application_workers.BookExportNotificationReceiver"
+			android:exported="false">
+			<intent-filter>
+				<action android:name="my.noveldokusha.action.CANCEL_BOOK_EXPORT" />
 			</intent-filter>
 		</receiver>
 

@@ -3,12 +3,6 @@
 package my.noveldokusha.epub_tooling
 
 @Suppress("ArrayInDataClass")
-data class EpubFile(
-    val absPath: String,
-    val data: ByteArray,
-)
-
-@Suppress("ArrayInDataClass")
 data class EpubBook(
     val fileName: String,
     val title: String,

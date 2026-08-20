@@ -3,6 +3,7 @@ package my.noveldokusha.features.chapterslist
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.AltRoute
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Public
@@ -20,12 +21,15 @@ import my.noveldokusha.strings.R as StringsR
 @Composable
 internal fun ChaptersDropDown(
     isLocalSource: Boolean,
+    bookUrl: String,
+    bookTitle: String,
     openInBrowser: () -> Unit,
     onSearchBookInDatabase: () -> Unit,
     onResumeReading: () -> Unit,
     onChangeCover: () -> Unit,
     onDownloadNext100Chapters: () -> Unit,
     onDownloadAllChapters: () -> Unit,
+    onExport: (bookUrl: String, bookTitle: String) -> Unit,
     onMigrateBook: () -> Unit = {},
     onDeleteTranslations: () -> Unit = {},
     onFixBook: () -> Unit = {},
@@ -96,6 +100,18 @@ internal fun ChaptersDropDown(
             Icon(
                 Icons.Filled.CloudDownload,
                 stringResource(R.string.download_all_chapters),
+            )
+        }
+    )
+    if (!isLocalSource) DropdownMenuItem(
+        onClick = { onExport(bookUrl, bookTitle) },
+        text = {
+            Text(text = stringResource(StringsR.string.export))
+        },
+        leadingIcon = {
+            Icon(
+                Icons.Filled.IosShare,
+                stringResource(StringsR.string.export),
             )
         }
     )

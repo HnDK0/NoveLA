@@ -751,4 +751,18 @@
 <string name="manga_autoscroll_speed_value">%1$d dp/s</string>
 <string name="manga_grayscale">Skala abu-abu</string>
 <string name="manga_inverted_colors">Warna terbalik</string>
+<string name="export">Ekspor</string>
+    <string name="export_original">Asli</string>
+    <string name="export_translation">Terjemahan (%1$s → %2$s)</string>
+    <string name="export_folder">Folder: %s</string>
+    <string name="export_change_folder">Ubah</string>
+    <string name="export_not_fully_downloaded">Buku belum sepenuhnya diunduh (%1$d dari %2$d). Ekspor bab yang tersedia?</string>
+    <string name="export_no_chapters">Tidak ada bab yang diunduh</string>
+    <string name="export_no_translated_chapters">Tidak ada bab yang diterjemahkan</string>
+    <string name="book_export_channel_name">Ekspor buku</string>
+    <string name="book_export_progress">Mengekspor: %1$d/%2$d bab</string>
+    <string name="book_export_complete">Diekspor: %1$s</string>
+    <string name="book_export_cancel">Batal</string>
+    <string name="book_export_no_chapters">Tidak ada bab untuk diekspor</string>
+    <string name="book_export_failed">Ekspor gagal</string>
 </resources>

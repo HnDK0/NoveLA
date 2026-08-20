@@ -1,5 +1,7 @@
 package my.noveldokusha.features.chapterslist
 
+import android.content.ContentResolver
+import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -7,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -26,10 +29,12 @@ import my.noveldokusha.data.EnqueueResult
 import my.noveldokusha.data.DownloaderRepository
 import my.noveldokusha.data.LocalBookImporterRepository
 import my.noveldokusha.chapterslist.R
+import my.noveldokusha.strings.R as StringsR
 import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppPreferences
+import my.noveldokusha.core.appPreferences.resolveExportDirectoryDisplayName
 import my.noveldokusha.core.appPreferences.resolveTranslationEnabled
 import my.noveldokusha.core.domain.ChapterPagination
 import my.noveldokusha.core.isContentUri
@@ -38,6 +43,8 @@ import my.noveldokusha.core.utils.GenreUtils
 import my.noveldokusha.core.utils.StateExtra_String
 import my.noveldokusha.core.utils.toState
 import my.noveldokusha.feature.local_database.ChapterWithContext
+import my.noveldokusha.feature.local_database.DAOs.ChapterBodyDao
+import my.noveldokusha.feature.local_database.DAOs.ChapterDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.feature.local_database.DAOs.ReadingHistoryDao
@@ -48,6 +55,8 @@ import my.noveldokusha.core.utils.normalizeBookUrl
 import my.noveldokusha.chapterslist.BuildConfig
 import my.noveldokusha.debug.MemoryDiagnostics
 import my.noveldokusha.text_translator.domain.TranslationManager
+import my.noveldokusha.tooling.application_workers.BookExportWorker
+import my.noveldokusha.tooling.application_workers.ExportMode
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -60,6 +69,7 @@ interface ChapterStateBundle {
 @HiltViewModel
 internal class ChaptersViewModel @Inject constructor(
     private val appRepository: AppRepository,
+    @ApplicationContext private val context: Context,
     private val appScope: AppCoroutineScope,
     scraper: Scraper,
     private val toasty: Toasty,
@@ -70,6 +80,8 @@ internal class ChaptersViewModel @Inject constructor(
     private val chaptersRepository: ChaptersRepository,
     private val localBookImporterRepository: LocalBookImporterRepository,
     private val libraryDao: LibraryDao,
+    private val chapterDao: ChapterDao,
+    private val chapterBodyDao: ChapterBodyDao,
     private val chapterTranslationDao: ChapterTranslationDao,
     private val translationManager: TranslationManager,
     private val readingHistoryDao: ReadingHistoryDao,
@@ -128,6 +140,145 @@ internal class ChaptersViewModel @Inject constructor(
         chapterSizes = mutableStateOf(emptyMap()),
         downloadTask = mutableStateOf(null),
     )
+
+    // ─── Экспорт книги ───────────────────────────────────────────────────────
+
+    val exportDialogState = mutableStateOf<ExportDialogState>(ExportDialogState.Hidden)
+    val exportMessage = mutableStateOf<String?>(null)
+
+    private var pendingExport: PendingExport? = null
+
+    // Инжектируемая точка вызова воркера: тесты подменяют её лямбдой-шпионом.
+    var enqueue: (Context, String, String, ExportMode, String, String, Int, String) -> Unit =
+        BookExportWorker::enqueue
+
+    // Инжектируемая точка разрешения имени папки экспорта: тесты подменяют её,
+    // чтобы не зависеть от реального IO-хопа внутри resolveExportDirectoryDisplayName.
+    var resolveExportDirectoryName: suspend (ContentResolver, String) -> String? =
+        ::resolveExportDirectoryDisplayName
+
+    fun onExportClicked(bookUrl: String, bookTitle: String) {
+        viewModelScope.launch {
+            // Счётчики — агрегатные запросы по bookUrl (JOIN), а не списки тел/переводов:
+            // раньше диалог ждал десятки IN-запросов и перекачку всех JSON-текстов
+            // переводов из БД — секунды на книгах с тысячами глав.
+            val totalChapters = chapterDao.countByBookUrl(bookUrl)
+            val downloadedChapters = chapterBodyDao.countDownloadedBodies(bookUrl)
+            val availableTranslations = chapterTranslationDao
+                .getTranslationGroups(bookUrl)
+                .map { LangPair(it.sourceLang, it.targetLang, it.count) }
+            val directoryUri = appPreferences.EXPORT_DIRECTORY_URI.value
+            val exportDirectoryName = directoryUri.takeIf { it.isNotBlank() }
+                ?.let { resolveExportDirectoryName(context.contentResolver, it) }
+
+            if (downloadedChapters == 0) {
+                exportMessage.value = context.getString(StringsR.string.export_no_chapters)
+                return@launch
+            }
+
+            exportDialogState.value = ExportDialogState.ContentChoice(
+                bookUrl = bookUrl,
+                bookTitle = bookTitle,
+                totalChapters = totalChapters,
+                downloadedChapters = downloadedChapters,
+                availableTranslations = availableTranslations,
+                exportDirectoryName = exportDirectoryName,
+            )
+        }
+    }
+
+    fun onExportContentChosen(mode: String, sourceLang: String, targetLang: String) {
+        val choice = exportDialogState.value as? ExportDialogState.ContentChoice ?: return
+        // Для перевода счётчик — число переведённых глав выбранной пары, для
+        // оригинала — число скачанных тел.
+        val availableCount = availableCountFor(choice, mode, sourceLang, targetLang)
+        if (availableCount == 0) {
+            // Для перевода сообщение своё: «Нет скачанных глав» вводит в заблуждение.
+            exportMessage.value = context.getString(
+                if (mode == "translation") StringsR.string.export_no_translated_chapters
+                else StringsR.string.export_no_chapters
+            )
+            return
+        }
+        if (availableCount < choice.totalChapters) {
+            exportDialogState.value = ExportDialogState.Warning(
+                bookUrl = choice.bookUrl,
+                bookTitle = choice.bookTitle,
+                totalChapters = choice.totalChapters,
+                downloadedChapters = availableCount,
+                mode = mode,
+                sourceLang = sourceLang,
+                targetLang = targetLang,
+                exportDirectoryName = choice.exportDirectoryName,
+            )
+        } else {
+            onExportConfirmed(mode, sourceLang, targetLang)
+        }
+    }
+
+    fun onExportConfirmed(mode: String, sourceLang: String, targetLang: String) {
+        // Подтверждение приходит из ContentChoice (полный экспорт) или из Warning
+        // (частичный экспорт) — у обоих состояний есть bookUrl/bookTitle.
+        val dialog = exportDialogState.value
+        val (bookUrl, bookTitle) = when (dialog) {
+            is ExportDialogState.ContentChoice -> dialog.bookUrl to dialog.bookTitle
+            is ExportDialogState.Warning -> dialog.bookUrl to dialog.bookTitle
+            else -> return
+        }
+        val availableCount = availableCountFor(dialog, mode, sourceLang, targetLang)
+        val directoryUri = appPreferences.EXPORT_DIRECTORY_URI.value
+        if (directoryUri.isBlank()) {
+            pendingExport = PendingExport(
+                bookUrl = bookUrl,
+                bookTitle = bookTitle,
+                mode = mode,
+                sourceLang = sourceLang,
+                targetLang = targetLang,
+                availableCount = availableCount,
+            )
+            exportDialogState.value = ExportDialogState.NeedDirectory
+        } else {
+            enqueue(
+                context, bookUrl, bookTitle,
+                if (mode == "original") ExportMode.ORIGINAL
+                else ExportMode.TRANSLATION,
+                sourceLang, targetLang, availableCount, directoryUri
+            )
+            exportDialogState.value = ExportDialogState.Hidden
+        }
+    }
+
+    fun onExportDirectorySaved(uri: String) {
+        appPreferences.EXPORT_DIRECTORY_URI.value = uri
+        val pending = pendingExport
+        if (pending != null) {
+            pendingExport = null
+            enqueue(
+                context, pending.bookUrl, pending.bookTitle,
+                if (pending.mode == "original") ExportMode.ORIGINAL
+                else ExportMode.TRANSLATION,
+                pending.sourceLang, pending.targetLang, pending.availableCount, uri
+            )
+            exportDialogState.value = ExportDialogState.Hidden
+        } else {
+            // Случай «Change» в ContentChoice: диалог остаётся открытым, но строку
+            // с именем папки нужно обновить — иначе после выбора папки висит «not set».
+            viewModelScope.launch {
+                val name = resolveExportDirectoryName(context.contentResolver, uri)
+                val state = exportDialogState.value
+                if (state is ExportDialogState.ContentChoice) {
+                    exportDialogState.value = state.copy(exportDirectoryName = name)
+                }
+            }
+        }
+    }
+
+    fun onExportDialogDismiss() {
+        // Сбрасываем отложенный экспорт: иначе после отмены в NeedDirectory
+        // stale pendingExport останется и сработает для следующей книги.
+        pendingExport = null
+        exportDialogState.value = ExportDialogState.Hidden
+    }
 
     // ─── Перевод названия и описания ──────────────────────────────────────────
 
@@ -846,4 +997,36 @@ internal class ChaptersViewModel @Inject constructor(
         state.selectedChaptersUrl.clear()
         state.selectedChaptersUrl.putAll(inverse)
     }
+}
+
+/** Экспорт, ожидающий выбора папки через SAF (ветка NeedDirectory). */
+private data class PendingExport(
+    val bookUrl: String,
+    val bookTitle: String,
+    val mode: String,
+    val sourceLang: String,
+    val targetLang: String,
+    val availableCount: Int,
+)
+
+/**
+ * Число глав, доступных для экспорта: скачанные тела для оригинала,
+ * переведённые главы выбранной пары для перевода. Warning хранит это
+ * число в downloadedChapters (см. onExportContentChosen).
+ */
+private fun availableCountFor(
+    dialog: ExportDialogState,
+    mode: String,
+    sourceLang: String,
+    targetLang: String,
+): Int = when (dialog) {
+    is ExportDialogState.ContentChoice -> if (mode == "translation") {
+        dialog.availableTranslations.firstOrNull {
+            it.sourceLang == sourceLang && it.targetLang == targetLang
+        }?.translatedChapters ?: 0
+    } else {
+        dialog.downloadedChapters
+    }
+    is ExportDialogState.Warning -> dialog.downloadedChapters
+    else -> 0
 }

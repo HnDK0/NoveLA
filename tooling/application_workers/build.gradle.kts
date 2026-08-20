@@ -16,6 +16,7 @@ dependencies {
     implementation(projects.scraper)
     implementation(projects.tooling.localDatabase)
     implementation(projects.tooling.backupCreate)
+    implementation(projects.tooling.epubParser)
 
     implementation(libs.timber)
     implementation(libs.androidx.workmanager)

@@ -762,4 +762,18 @@
 <string name="manga_autoscroll_speed_value">%1$d dp/s</string>
 <string name="manga_grayscale">グレースケール</string>
 <string name="manga_inverted_colors">色の反転</string>
+<string name="export">エクスポート</string>
+    <string name="export_original">原語</string>
+    <string name="export_translation">翻訳 (%1$s → %2$s)</string>
+    <string name="export_folder">フォルダ: %s</string>
+    <string name="export_change_folder">変更</string>
+    <string name="export_not_fully_downloaded">書籍が完全にダウンロードされていません（%1$d/%2$d）。利用可能な章をエクスポートしますか？</string>
+    <string name="export_no_chapters">ダウンロード済みの章がありません</string>
+    <string name="export_no_translated_chapters">翻訳された章がありません</string>
+    <string name="book_export_channel_name">書籍のエクスポート</string>
+    <string name="book_export_progress">エクスポート中: %1$d/%2$d 章</string>
+    <string name="book_export_complete">エクスポート完了: %1$s</string>
+    <string name="book_export_cancel">キャンセル</string>
+    <string name="book_export_no_chapters">エクスポートする章がありません</string>
+    <string name="book_export_failed">エクスポートに失敗しました</string>
 </resources>

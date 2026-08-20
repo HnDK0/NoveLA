@@ -751,4 +751,18 @@
     <string name="manga_zoom_start_center">Giữa</string>
     <string name="manga_zoom_start_left">Trái</string>
     <string name="manga_zoom_start_right">Phải</string>
+<string name="export">Xuất</string>
+    <string name="export_original">Bản gốc</string>
+    <string name="export_translation">Bản dịch (%1$s → %2$s)</string>
+    <string name="export_folder">Thư mục: %s</string>
+    <string name="export_change_folder">Đổi</string>
+    <string name="export_not_fully_downloaded">Sách chưa tải đầy đủ (%1$d/%2$d). Xuất các chương có sẵn?</string>
+    <string name="export_no_chapters">Không có chương đã tải</string>
+    <string name="export_no_translated_chapters">Không có chương đã dịch</string>
+    <string name="book_export_channel_name">Xuất sách</string>
+    <string name="book_export_progress">Đang xuất: %1$d/%2$d chương</string>
+    <string name="book_export_complete">Đã xuất: %1$s</string>
+    <string name="book_export_cancel">Hủy</string>
+    <string name="book_export_no_chapters">Không có chương để xuất</string>
+    <string name="book_export_failed">Xuất thất bại</string>
 </resources>

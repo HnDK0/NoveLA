@@ -751,4 +751,18 @@
 <string name="manga_autoscroll_speed_value">%1$d dp/s</string>
 <string name="manga_grayscale">ग्रेस्केल</string>
 <string name="manga_inverted_colors">उल्टे रंग</string>
+<string name="export">निर्यात करें</string>
+    <string name="export_original">मूल</string>
+    <string name="export_translation">अनुवाद (%1$s → %2$s)</string>
+    <string name="export_folder">फ़ोल्डर: %s</string>
+    <string name="export_change_folder">बदलें</string>
+    <string name="export_not_fully_downloaded">पुस्तक पूरी तरह डाउनलोड नहीं हुई (%1$d/%2$d)। उपलब्ध अध्याय निर्यात करें?</string>
+    <string name="export_no_chapters">कोई डाउनलोड किया हुआ अध्याय नहीं</string>
+    <string name="export_no_translated_chapters">कोई अनुवादित अध्याय नहीं</string>
+    <string name="book_export_channel_name">पुस्तक निर्यात</string>
+    <string name="book_export_progress">निर्यात: %1$d/%2$d अध्याय</string>
+    <string name="book_export_complete">निर्यात किया गया: %1$s</string>
+    <string name="book_export_cancel">रद्द करें</string>
+    <string name="book_export_no_chapters">निर्यात करने के लिए कोई अध्याय नहीं</string>
+    <string name="book_export_failed">निर्यात विफल</string>
 </resources>

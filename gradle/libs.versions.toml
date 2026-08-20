@@ -50,7 +50,7 @@ compose-bom = "2026.06.00"
 
 
 gson = "2.14.0"
-jsoup = "1.18.1"
+jsoup = "1.23.1"
 room = "2.8.4"
 junit = "4.13.2"
 

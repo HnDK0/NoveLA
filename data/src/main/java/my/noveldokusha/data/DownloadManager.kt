@@ -413,9 +413,9 @@ class DownloadManager @Inject constructor(
                     emptyList()
                 } else {
                     val translatedUrls = uniqueUrls.chunked(500).flatMap { chunk ->
-                        chapterTranslationDao.getTranslationsByChapterUrls(chunk)
+                        chapterTranslationDao.getTranslationsByChapterUrls(chunk, sourceLang, targetLang)
                     }
-                        .filter { it.sourceLang == sourceLang && it.targetLang == targetLang && it.translatedParagraphs.isNotEmpty() }
+                        .filter { it.translatedParagraphs.isNotEmpty() }
                         .map { it.chapterUrl }
                         .toSet()
                     uniqueUrls.filter { url ->

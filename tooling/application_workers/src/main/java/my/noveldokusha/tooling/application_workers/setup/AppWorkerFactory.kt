@@ -10,6 +10,7 @@ import my.noveldokusha.data.AppRemoteRepository
 import my.noveldokusha.interactor.LibraryUpdatesInteractions
 import my.noveldokusha.scraper.LuaSourceProvider
 import my.noveldokusha.tooling.application_workers.AutoBackupWorker
+import my.noveldokusha.tooling.application_workers.BookExportWorker
 import my.noveldokusha.tooling.application_workers.DatabaseMaintenanceWorker
 import my.noveldokusha.tooling.application_workers.LibraryUpdatesWorker
 import my.noveldokusha.tooling.application_workers.UpdatesCheckerWorker
@@ -62,6 +63,13 @@ class AppWorkerFactory @Inject internal constructor(
             DatabaseMaintenanceWorker::class.java.name -> {
                 Timber.d("AppWorkerFactory: creating DatabaseMaintenanceWorker")
                 DatabaseMaintenanceWorker(
+                    context = appContext,
+                    workerParameters = workerParameters,
+                )
+            }
+            BookExportWorker::class.java.name -> {
+                Timber.d("AppWorkerFactory: creating BookExportWorker")
+                BookExportWorker(
                     context = appContext,
                     workerParameters = workerParameters,
                 )

@@ -751,4 +751,18 @@
     <string name="manga_zoom_start_center">الوسط</string>
     <string name="manga_zoom_start_left">يسار</string>
     <string name="manga_zoom_start_right">يمين</string>
+<string name="export">تصدير</string>
+    <string name="export_original">الأصل</string>
+    <string name="export_translation">الترجمة (%1$s → %2$s)</string>
+    <string name="export_folder">المجلد: %s</string>
+    <string name="export_change_folder">تغيير</string>
+    <string name="export_not_fully_downloaded">الكتاب لم يُنزَّل بالكامل (%1$d من %2$d). تصدير الفصول المتاحة؟</string>
+    <string name="export_no_chapters">لا توجد فصول مُنزَّلة</string>
+    <string name="export_no_translated_chapters">لا توجد فصول مترجمة</string>
+    <string name="book_export_channel_name">تصدير الكتاب</string>
+    <string name="book_export_progress">التصدير: %1$d/%2$d فصل</string>
+    <string name="book_export_complete">تم التصدير: %1$s</string>
+    <string name="book_export_cancel">إلغاء</string>
+    <string name="book_export_no_chapters">لا توجد فصول للتصدير</string>
+    <string name="book_export_failed">فشل التصدير</string>
 </resources>

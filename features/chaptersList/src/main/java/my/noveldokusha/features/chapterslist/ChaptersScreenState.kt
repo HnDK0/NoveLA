@@ -53,3 +53,40 @@ internal data class ChaptersScreenState(
         )
     }
 }
+
+/** Пара языков перевода, доступная для экспорта, с числом переведённых глав. */
+data class LangPair(
+    val sourceLang: String,
+    val targetLang: String,
+    val translatedChapters: Int,
+)
+
+/** Состояние диалога экспорта книги в EPUB. */
+sealed interface ExportDialogState {
+    data object Hidden : ExportDialogState
+
+    /** Выбор контента для экспорта: оригинал или один из переводов. */
+    data class ContentChoice(
+        val bookUrl: String,
+        val bookTitle: String,
+        val totalChapters: Int,
+        val downloadedChapters: Int,
+        val availableTranslations: List<LangPair>,
+        val exportDirectoryName: String?,
+    ) : ExportDialogState
+
+    /** Книга скачана не полностью — подтверждение экспорта доступных глав. */
+    data class Warning(
+        val bookUrl: String,
+        val bookTitle: String,
+        val totalChapters: Int,
+        val downloadedChapters: Int,
+        val mode: String,
+        val sourceLang: String,
+        val targetLang: String,
+        val exportDirectoryName: String?,
+    ) : ExportDialogState
+
+    /** Папка экспорта не выбрана — UI открывает SAF-пикер. */
+    data object NeedDirectory : ExportDialogState
+}

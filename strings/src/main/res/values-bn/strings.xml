@@ -751,4 +751,18 @@
     <string name="manga_zoom_start_center">কেন্দ্র</string>
     <string name="manga_zoom_start_left">বাম</string>
     <string name="manga_zoom_start_right">ডান</string>
+<string name="export">রপ্তানি</string>
+    <string name="export_original">মূল</string>
+    <string name="export_translation">অনুবাদ (%1$s → %2$s)</string>
+    <string name="export_folder">ফোল্ডার: %s</string>
+    <string name="export_change_folder">পরিবর্তন</string>
+    <string name="export_not_fully_downloaded">বইটি সম্পূর্ণ ডাউনলোড হয়নি (%1$d/%2$d)। উপলব্ধ অধ্যায় রপ্তানি করবেন?</string>
+    <string name="export_no_chapters">কোনো ডাউনলোড করা অধ্যায় নেই</string>
+    <string name="export_no_translated_chapters">কোন অনূদিত অধ্যায় নেই</string>
+    <string name="book_export_channel_name">বই রপ্তানি</string>
+    <string name="book_export_progress">রপ্তানি: %1$d/%2$d অধ্যায়</string>
+    <string name="book_export_complete">রপ্তানি হয়েছে: %1$s</string>
+    <string name="book_export_cancel">বাতিল</string>
+    <string name="book_export_no_chapters">রপ্তানির জন্য কোনো অধ্যায় নেই</string>
+    <string name="book_export_failed">রপ্তানি ব্যর্থ হয়েছে</string>
 </resources>

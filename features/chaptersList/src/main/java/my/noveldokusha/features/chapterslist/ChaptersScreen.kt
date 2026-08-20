@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.DoneOutline
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RemoveDone
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.PublishedWithChanges
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,13 +50,15 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,9 +71,15 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import my.nanihadesuka.compose.InternalLazyColumnScrollbar
 import my.noveldokusha.coreui.theme.isAtTop
 import my.noveldokusha.coreui.theme.textPadding
@@ -77,6 +87,8 @@ import my.noveldokusha.chapterslist.R
 import my.noveldokusha.core.isLocalUri
 import my.noveldokusha.feature.local_database.ChapterWithContext
 import my.noveldokusha.scraper.Scraper
+import my.noveldokusha.strings.R as StringsR
+import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,6 +121,14 @@ internal fun ChaptersScreen(
     onGlobalSearchClick: (input: String) -> Unit,
     onDownloadNext100Chapters: () -> Unit,
     onDownloadAllChapters: () -> Unit,
+    onExport: (bookUrl: String, bookTitle: String) -> Unit,
+    onExportContentChosen: (mode: String, sourceLang: String, targetLang: String) -> Unit,
+    onExportConfirmed: (mode: String, sourceLang: String, targetLang: String) -> Unit,
+    onExportDirectorySaved: (uri: String) -> Unit,
+    onExportDialogDismiss: () -> Unit,
+    exportDialogState: ExportDialogState,
+    exportMessage: String?,
+    onExportMessageShown: () -> Unit,
     onMigrateBook: () -> Unit = {},
     onDeleteTranslations: () -> Unit = {},
     onFixBook: () -> Unit = {},
@@ -126,6 +146,42 @@ internal fun ChaptersScreen(
     var showCategoryPicker by rememberSaveable { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val lazyListState = rememberLazyListState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    // Folder picker launcher for export
+    val directoryPicker = rememberLauncherForActivityResult(
+        contract = OpenDocumentTreeReadPersistent()
+    ) { uri ->
+        if (uri == null) {
+            // Пользователь закрыл пикер: если ждали папку для экспорта — закрываем
+            // диалог (поток возвращается в Hidden); если меняли папку из
+            // ContentChoice — остаёмся в нём, выбор контента не теряем.
+            if (exportDialogState is ExportDialogState.NeedDirectory) {
+                onExportDialogDismiss()
+            }
+        } else {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            } catch (e: SecurityException) {
+                // Отказ в persistable permission — не блокируем экспорт:
+                // каталог всё равно запомним, следующий экспорт переспросит.
+                Timber.w("Не удалось получить persistable permission для $uri: ${e.message}")
+            }
+            onExportDirectorySaved(uri.toString())
+        }
+    }
+
+    // One-shot export message
+    LaunchedEffect(exportMessage) {
+        if (exportMessage != null) {
+            snackbarHostState.showSnackbar(exportMessage)
+            onExportMessageShown()
+        }
+    }
     val areSelectedChaptersRead by remember {
         derivedStateOf {
             val readUrls = state.chapters.asSequence()
@@ -143,6 +199,7 @@ internal fun ChaptersScreen(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             val isAtTop by lazyListState.isAtTop(threshold = 40.dp)
             val alpha by animateFloatAsState(targetValue = if (isAtTop) 0f else 1f, label = "")
@@ -201,6 +258,8 @@ internal fun ChaptersScreen(
                                     onDismissRequest = { showDropDown = false }) {
                                     ChaptersDropDown(
                                         isLocalSource = state.isLocalSource.value,
+                                        bookUrl = state.book.value.url,
+                                        bookTitle = state.book.value.title,
                                         openInBrowser = {
                                             if (!state.book.value.url.isLocalUri) {
                                                 onOpenInBrowser(state.book.value.url)
@@ -211,6 +270,7 @@ internal fun ChaptersScreen(
                                         onChangeCover = onChangeCover,
                                         onDownloadNext100Chapters = onDownloadNext100Chapters,
                                         onDownloadAllChapters = onDownloadAllChapters,
+                                        onExport = onExport,
                                         onMigrateBook = onMigrateBook,
                                         onDeleteTranslations = onDeleteTranslations,
                                         onFixBook = onFixBook,
@@ -466,5 +526,188 @@ internal fun ChaptersScreen(
                 }
             }
         )
+    }
+
+    // Export content choice dialog
+    when (val ds = exportDialogState) {
+        is ExportDialogState.ContentChoice -> {
+            var selectedMode by rememberSaveable { mutableStateOf("original") }
+            var selectedSourceLang by rememberSaveable { mutableStateOf("") }
+            var selectedTargetLang by rememberSaveable { mutableStateOf("") }
+
+            AlertDialog(
+                onDismissRequest = onExportDialogDismiss,
+                title = {
+                    Text(text = stringResource(StringsR.string.export))
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Original option
+                        FilledTonalButton(
+                            onClick = {
+                                selectedMode = "original"
+                                selectedSourceLang = ""
+                                selectedTargetLang = ""
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = if (selectedMode == "original")
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                else MaterialTheme.colorScheme.surface,
+                                contentColor = if (selectedMode == "original")
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                else MaterialTheme.colorScheme.onSurface
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(text = stringResource(StringsR.string.export_original))
+                        }
+
+                        // Translation options
+                        ds.availableTranslations.forEach { pair ->
+                            val modeKey = "translation_${pair.sourceLang}_${pair.targetLang}"
+                            val isSelected = selectedMode == modeKey
+                            FilledTonalButton(
+                                onClick = {
+                                    selectedMode = modeKey
+                                    selectedSourceLang = pair.sourceLang
+                                    selectedTargetLang = pair.targetLang
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = if (isSelected)
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    else MaterialTheme.colorScheme.surface,
+                                    contentColor = if (isSelected)
+                                        MaterialTheme.colorScheme.onSecondaryContainer
+                                    else MaterialTheme.colorScheme.onSurface
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = stringResource(
+                                        StringsR.string.export_translation,
+                                        pair.sourceLang,
+                                        pair.targetLang
+                                    )
+                                )
+                            }
+                        }
+
+                        // Folder line
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Filled.FolderOpen,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(
+                                text = stringResource(
+                                    StringsR.string.export_folder,
+                                    ds.exportDirectoryName ?: stringResource(StringsR.string.not_set)
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = { directoryPicker.launch(null) }) {
+                                Text(text = stringResource(StringsR.string.export_change_folder))
+                            }
+                        }
+
+                        // Stats — счётчик выбранного режима: скачанные тела для
+                        // оригинала, переведённые главы для выбранной пары.
+                        val (shownDownloaded, shownTotal) = if (selectedMode == "original") {
+                            ds.downloadedChapters to ds.totalChapters
+                        } else {
+                            val pair = ds.availableTranslations.firstOrNull {
+                                it.sourceLang == selectedSourceLang &&
+                                    it.targetLang == selectedTargetLang
+                            }
+                            (pair?.translatedChapters ?: ds.downloadedChapters) to ds.totalChapters
+                        }
+                        Text(
+                            text = stringResource(
+                                R.string.chapter_x_over_n,
+                                shownDownloaded,
+                                shownTotal
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val mode = if (selectedMode == "original") "original" else "translation"
+                            val source = if (selectedMode == "original") "" else selectedSourceLang
+                            val target = if (selectedMode == "original") "" else selectedTargetLang
+                            onExportContentChosen(mode, source, target)
+                        }
+                    ) {
+                        Text(text = stringResource(StringsR.string.export))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = onExportDialogDismiss
+                    ) {
+                        Text(text = stringResource(android.R.string.cancel))
+                    }
+                }
+            )
+        }
+        is ExportDialogState.Warning -> {
+            AlertDialog(
+                onDismissRequest = onExportDialogDismiss,
+                title = {
+                    Text(text = stringResource(StringsR.string.export))
+                },
+                text = {
+                    Text(
+                        text = stringResource(
+                            StringsR.string.export_not_fully_downloaded,
+                            ds.downloadedChapters,
+                            ds.totalChapters
+                        )
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onExportConfirmed(ds.mode, ds.sourceLang, ds.targetLang)
+                        }
+                    ) {
+                        Text(text = stringResource(StringsR.string.export))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onExportDialogDismiss) {
+                        Text(text = stringResource(android.R.string.cancel))
+                    }
+                }
+            )
+        }
+        ExportDialogState.NeedDirectory -> {
+            // Trigger folder picker, no dialog
+            LaunchedEffect(Unit) {
+                directoryPicker.launch(null)
+            }
+        }
+        ExportDialogState.Hidden -> { /* no-op */ }
+    }
+}
+
+private class OpenDocumentTreeReadPersistent : ActivityResultContracts.OpenDocumentTree() {
+    override fun createIntent(context: Context, input: Uri?): Intent {
+        return super.createIntent(context, input)
+            .addFlags(
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        Intent.FLAG_GRANT_PREFIX_URI_PERMISSION
+            )
     }
 }

@@ -1235,5 +1235,21 @@
     <string name="wtr_lab_lang_id">Индонезийский</string>
     <string name="wtr_lab_lang_tr">Турецкий</string>
     <string name="wtr_lab_lang_none">Нет</string>
+
+    <!-- Book Export -->
+    <string name="export">Экспорт</string>
+    <string name="export_original">Оригинал</string>
+    <string name="export_translation">Перевод (%1$s → %2$s)</string>
+    <string name="export_folder">Папка: %s</string>
+    <string name="export_change_folder">Изменить</string>
+    <string name="export_not_fully_downloaded">Книга скачана не полностью (%1$d из %2$d). Экспортировать доступные главы?</string>
+    <string name="export_no_chapters">Нет скачанных глав</string>
+    <string name="export_no_translated_chapters">Нет переведённых глав</string>
+    <string name="book_export_channel_name">Экспорт книги</string>
+    <string name="book_export_progress">Экспорт: %1$d/%2$d глав</string>
+    <string name="book_export_complete">Экспортировано: %1$s</string>
+    <string name="book_export_cancel">Отмена</string>
+    <string name="book_export_no_chapters">Нет глав для экспорта</string>
+    <string name="book_export_failed">Ошибка экспорта</string>
 </resources>
 

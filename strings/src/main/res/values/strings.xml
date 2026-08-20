@@ -751,4 +751,20 @@
     <string name="manga_grayscale">Grayscale</string>
     <string name="manga_inverted_colors">Inverted colors</string>
 
+    <!-- Book Export -->
+    <string name="export">Export</string>
+    <string name="export_original">Original</string>
+    <string name="export_translation">Translation (%1$s → %2$s)</string>
+    <string name="export_folder">Folder: %s</string>
+    <string name="export_change_folder">Change</string>
+    <string name="export_not_fully_downloaded">Book is not fully downloaded (%1$d of %2$d). Export available chapters?</string>
+    <string name="export_no_chapters">No downloaded chapters</string>
+    <string name="export_no_translated_chapters">No translated chapters</string>
+    <string name="book_export_channel_name">Book export</string>
+    <string name="book_export_progress">Exporting: %1$d/%2$d chapters</string>
+    <string name="book_export_complete">Exported: %1$s</string>
+    <string name="book_export_cancel">Cancel</string>
+    <string name="book_export_no_chapters">No chapters to export</string>
+    <string name="book_export_failed">Export failed</string>
+
 </resources>

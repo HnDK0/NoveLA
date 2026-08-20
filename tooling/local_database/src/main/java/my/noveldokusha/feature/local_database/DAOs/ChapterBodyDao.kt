@@ -59,6 +59,13 @@ interface ChapterBodyDao {
     """)
     fun getDownloadedUrlsFlow(bookUrl: String): Flow<List<String>>
 
+    @Query("""
+        SELECT COUNT(*) FROM ChapterBody
+        INNER JOIN Chapter ON Chapter.url = ChapterBody.url
+        WHERE Chapter.bookUrl = :bookUrl
+    """)
+    suspend fun countDownloadedBodies(bookUrl: String): Int
+
     data class UrlSize(val url: String, val sizeBytes: Long)
 
     @Query("""

@@ -83,6 +83,14 @@ class ChaptersActivity : BaseActivity() {
                     onGlobalSearchClick = { navigationRoutes.globalSearch(this, text = it).let(::startActivity) },
                     onDownloadNext100Chapters = viewModel::downloadNext100Chapters,
                     onDownloadAllChapters = viewModel::downloadAllChapters,
+                    onExport = viewModel::onExportClicked,
+                    onExportContentChosen = viewModel::onExportContentChosen,
+                    onExportConfirmed = viewModel::onExportConfirmed,
+                    onExportDirectorySaved = viewModel::onExportDirectorySaved,
+                    onExportDialogDismiss = viewModel::onExportDialogDismiss,
+                    exportDialogState = viewModel.exportDialogState.value,
+                    exportMessage = viewModel.exportMessage.value,
+                    onExportMessageShown = { viewModel.exportMessage.value = null },
                     onMigrateBook = {
                         navigationRoutes.novelMigration(
                             this,

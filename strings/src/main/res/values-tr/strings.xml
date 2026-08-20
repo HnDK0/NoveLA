@@ -751,4 +751,18 @@
     <string name="manga_zoom_start_center">Orta</string>
     <string name="manga_zoom_start_left">Sol</string>
     <string name="manga_zoom_start_right">Sağ</string>
+<string name="export">Dışa aktar</string>
+    <string name="export_original">Orijinal</string>
+    <string name="export_translation">Çeviri (%1$s → %2$s)</string>
+    <string name="export_folder">Klasör: %s</string>
+    <string name="export_change_folder">Değiştir</string>
+    <string name="export_not_fully_downloaded">Kitap tamamen indirilmedi (%1$d/%2$d). Mevcut bölümler dışa aktarılsın mı?</string>
+    <string name="export_no_chapters">İndirilen bölüm yok</string>
+    <string name="export_no_translated_chapters">Çevrilmiş bölüm yok</string>
+    <string name="book_export_channel_name">Kitap dışa aktarma</string>
+    <string name="book_export_progress">Dışa aktarılıyor: %1$d/%2$d bölüm</string>
+    <string name="book_export_complete">Dışa aktarıldı: %1$s</string>
+    <string name="book_export_cancel">İptal</string>
+    <string name="book_export_no_chapters">Dışa aktarılacak bölüm yok</string>
+    <string name="book_export_failed">Dışa aktarma başarısız</string>
 </resources>

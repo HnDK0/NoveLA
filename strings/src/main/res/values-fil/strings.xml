@@ -751,4 +751,18 @@
     <string name="manga_zoom_start_center">Gitna</string>
     <string name="manga_zoom_start_left">Kaliwa</string>
     <string name="manga_zoom_start_right">Kanan</string>
+<string name="export">I-export</string>
+    <string name="export_original">Orihinal</string>
+    <string name="export_translation">Pagsasalin (%1$s → %2$s)</string>
+    <string name="export_folder">Folder: %s</string>
+    <string name="export_change_folder">Baguhin</string>
+    <string name="export_not_fully_downloaded">Hindi pa ganap na na-download ang libro (%1$d sa %2$d). I-export ang mga available na kabanata?</string>
+    <string name="export_no_chapters">Walang na-download na kabanata</string>
+    <string name="export_no_translated_chapters">Walang isinaling kabanata</string>
+    <string name="book_export_channel_name">Pag-export ng libro</string>
+    <string name="book_export_progress">Nag-e-export: %1$d/%2$d kabanata</string>
+    <string name="book_export_complete">Na-export: %1$s</string>
+    <string name="book_export_cancel">Kanselahin</string>
+    <string name="book_export_no_chapters">Walang kabanata para i-export</string>
+    <string name="book_export_failed">Nabigo ang pag-export</string>
 </resources>

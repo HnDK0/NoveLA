@@ -762,4 +762,18 @@
 <string name="manga_autoscroll_speed_value">%1$d dp/s</string>
 <string name="manga_grayscale">흑백</string>
 <string name="manga_inverted_colors">색상 반전</string>
+<string name="export">내보내기</string>
+    <string name="export_original">원본</string>
+    <string name="export_translation">번역 (%1$s → %2$s)</string>
+    <string name="export_folder">폴더: %s</string>
+    <string name="export_change_folder">변경</string>
+    <string name="export_not_fully_downloaded">책이 완전히 다운로드되지 않았습니다 (%1$d/%2$d). 사용 가능한 챕터를 내보낼까요?</string>
+    <string name="export_no_chapters">다운로드된 챕터가 없습니다</string>
+    <string name="export_no_translated_chapters">번역된 장이 없습니다</string>
+    <string name="book_export_channel_name">책 내보내기</string>
+    <string name="book_export_progress">내보내는 중: %1$d/%2$d 챕터</string>
+    <string name="book_export_complete">내보냄: %1$s</string>
+    <string name="book_export_cancel">취소</string>
+    <string name="book_export_no_chapters">내보낼 챕터가 없습니다</string>
+    <string name="book_export_failed">내보내기 실패</string>
 </resources>

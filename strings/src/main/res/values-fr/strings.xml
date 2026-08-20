@@ -761,4 +761,18 @@
     <string name="manga_zoom_start_center">Centre</string>
     <string name="manga_zoom_start_left">Gauche</string>
     <string name="manga_zoom_start_right">Droite</string>
+<string name="export">Exporter</string>
+    <string name="export_original">Original</string>
+    <string name="export_translation">Traduction (%1$s → %2$s)</string>
+    <string name="export_folder">Dossier : %s</string>
+    <string name="export_change_folder">Changer</string>
+    <string name="export_not_fully_downloaded">Le livre n’est pas entièrement téléchargé (%1$d sur %2$d). Exporter les chapitres disponibles ?</string>
+    <string name="export_no_chapters">Aucun chapitre téléchargé</string>
+    <string name="export_no_translated_chapters">Aucun chapitre traduit</string>
+    <string name="book_export_channel_name">Export de livres</string>
+    <string name="book_export_progress">Export : %1$d/%2$d chapitres</string>
+    <string name="book_export_complete">Exporté : %1$s</string>
+    <string name="book_export_cancel">Annuler</string>
+    <string name="book_export_no_chapters">Aucun chapitre à exporter</string>
+    <string name="book_export_failed">Échec de l’export</string>
 </resources>
