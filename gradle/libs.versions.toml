@@ -4,10 +4,10 @@ kotlin = "2.4.10"
 
 plugin-agp = "9.2.1"
 
-hilt = "2.60"
+hilt = "2.60.1"
 hilt-androidx = "1.2.0"
 
-ksp = "2.3.10"
+ksp = "2.3.11"
 
 kotlinx-coroutines-core = "1.9.0"
 kotlinx-coroutines-test = "1.9.0"
@@ -31,7 +31,7 @@ androidx-media = "1.7.0"
 androidx-lifecycle = "2.8.7"
 androidx-workmanager = "2.11.2"
 androidx-startup = "1.2.0"
-androidx-constraintLayout = "2.2.1"
+androidx-constraintLayout = "2.2.2"
 androidx-appcompat = "1.7.1"
 
 androidx-testing-core = "1.6.1"
@@ -64,8 +64,8 @@ okhttp-interceptor-logging = "5.0.0-alpha.14"
 readability4j = "1.0.8"
 
 timber = "5.0.1"
-kotlin-metadata-jvm = "2.4.0"
-sora-editor = "0.24.4"
+kotlin-metadata-jvm = "2.4.10"
+sora-editor = "0.24.6"
 subsampling-scale-image-view = "3.10.0"
 [libraries]
 
