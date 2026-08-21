@@ -7,6 +7,7 @@ on:
     paths-ignore:
       - '**.md'
       - 'screenshots/**'
+      - '.github/dependabot.yml'
 
 permissions:
   contents: write
