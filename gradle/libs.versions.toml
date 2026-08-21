@@ -22,7 +22,7 @@ androidx-navigation-fragment-ktx = "2.8.4"
 androidx-preference-ktx = "1.2.1"
 androidx-core-ktx = "1.15.0"
 androidx-core-splashscreen = "1.2.0"
-androidx-activity-ktx = "1.9.3"
+androidx-activity-ktx = "1.13.0"
 androidx-fragment-ktx = "1.8.9"
 
 androidx-material = "1.12.0"
