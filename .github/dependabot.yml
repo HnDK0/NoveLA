@@ -8,11 +8,16 @@ updates:
         schedule:
             interval: "weekly"
             day: "monday"
-        open-pull-requests-limit: 5
+        open-pull-requests-limit: 10
         labels:
             - "dependencies"
         commit-message:
             prefix: "chore(deps)"
+        cooldown:
+            # Wait 7 days after a release before bumping, so rapid patch/minor
+            # trains collapse into one update instead of several. Version updates
+            # only — security updates still flow immediately.
+            default-days: 7
         groups:
             # Room ships room-runtime/room-compiler/room-testing as separate
             # artifacts that must stay version-aligned — bundle them into one PR.
@@ -33,6 +38,36 @@ updates:
             patch-updates:
                 update-types:
                     - "patch"
+            # Build toolchain (Kotlin compiler/stdlib/plugins, KotlinX coroutines &
+            # serialization, KSP, Android Gradle Plugin). Build-critical and must
+            # stay mutually compatible — isolate from app libraries so a broken bump
+            # is trivial to attribute and revert.
+            toolchain:
+                patterns:
+                    - "org.jetbrains.kotlin:*"
+                    - "org.jetbrains.kotlin.plugin.*"
+                    - "org.jetbrains.kotlinx:*"
+                    - "com.google.devtools.ksp"
+                    - "com.android.tools:*"
+                    - "com.android.*"
+            # Remaining AndroidX artifacts (navigation, workmanager, documentfile,
+            # lifecycle, core, material, …) — one vendor, coherent release cadence.
+            androidx:
+                patterns:
+                    - "androidx.*"
+                    - "com.google.android.material:*"
+            # Networking stack: OkHttp + Gson — kept separate from AndroidX so a
+            # failure is attributable to the network layer, not the UI/runtime.
+            networking:
+                patterns:
+                    - "com.squareup.okhttp3:*"
+                    - "com.google.code.gson:*"
+            # Catch-all: everything else (Coil, Timber, LuaJ, SnakeYAML, Sora editor,
+            # subsampling, readability4j, …) lands in ONE PR. Declared last — first
+            # group match wins, so the domain groups above take precedence.
+            others:
+                patterns:
+                    - "*"
         ignore:
             # Dependabot serialises the gradle-wrapper jar as Base64 text, producing
             # a wrapper that fails with "Invalid or corrupt jarfile" (see PRs #302, #309).
@@ -43,9 +78,16 @@ updates:
             # out of the auto-PR queue; open them manually when we're ready to validate.
             -   dependency-name: "*"
                 update-types: [ "version-update:semver-major" ]
+            # Pinned: parsing behavior for source plugins is version-sensitive;
+            # bump manually and re-test each source parser.
             -   dependency-name: "org.jsoup:jsoup"
-              # Pinned: parsing behavior for source plugins is version-sensitive;
-              # bump manually and re-test each source parser.
+            # Test-only dependencies: never shipped in the APK, negligible security
+            # exposure. NOTE: `ignore` also drops their security PRs (GitHub behavior) —
+            # an accepted tradeoff; delete an entry below to re-enable.
+            -   dependency-name: "androidx.test*:*"
+            -   dependency-name: "junit:junit"
+            -   dependency-name: "org.mockito.kotlin:*"
+            -   dependency-name: "org.robolectric:*"
 
     # GitHub Actions used by workflows in .github/workflows
     -   package-ecosystem: "github-actions"
@@ -53,12 +95,14 @@ updates:
         schedule:
             interval: "weekly"
             day: "monday"
-        open-pull-requests-limit: 5
+        open-pull-requests-limit: 10
         labels:
             - "dependencies"
             - "github-actions"
         commit-message:
             prefix: "chore(deps)"
+        cooldown:
+            default-days: 7
         groups:
             # All Action bumps are low-risk CI infra changes — one PR per week instead of five.
             github-actions:
