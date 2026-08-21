@@ -9,8 +9,6 @@ updates:
             interval: "weekly"
             day: "monday"
         open-pull-requests-limit: 10
-        labels:
-            - "dependencies"
         commit-message:
             prefix: "chore(deps)"
         cooldown:
@@ -96,9 +94,6 @@ updates:
             interval: "weekly"
             day: "monday"
         open-pull-requests-limit: 10
-        labels:
-            - "dependencies"
-            - "github-actions"
         commit-message:
             prefix: "chore(deps)"
         cooldown:
