@@ -2,16 +2,16 @@
 
 kotlin = "2.4.10"
 
-plugin-agp = "9.2.1"
+plugin-agp = "9.3.1"
 
-hilt = "2.60"
-hilt-androidx = "1.2.0"
+hilt = "2.60.1"
+hilt-androidx = "1.4.0"
 
-ksp = "2.3.10"
+ksp = "2.3.11"
 
 kotlinx-coroutines-core = "1.9.0"
 kotlinx-coroutines-test = "1.9.0"
-kotlinx-serialization-json = "1.7.3"
+kotlinx-serialization-json = "1.11.0"
 
 testing-mockito-kotlin = "5.4.0"
 
@@ -20,18 +20,18 @@ androidTools = "31.13.2"
 androidx-navigation-ui-ktx = "2.8.4"
 androidx-navigation-fragment-ktx = "2.8.4"
 androidx-preference-ktx = "1.2.1"
-androidx-core-ktx = "1.15.0"
+androidx-core-ktx = "1.19.0"
 androidx-core-splashscreen = "1.2.0"
-androidx-activity-ktx = "1.9.3"
-androidx-fragment-ktx = "1.8.9"
+androidx-activity-ktx = "1.13.0"
+androidx-fragment-ktx = "1.9.0"
 
-androidx-material = "1.12.0"
+androidx-material = "1.14.0"
 androidx-documentfile = "1.0.1"
 androidx-media = "1.7.0"
 androidx-lifecycle = "2.8.7"
 androidx-workmanager = "2.11.2"
 androidx-startup = "1.2.0"
-androidx-constraintLayout = "2.2.1"
+androidx-constraintLayout = "2.2.2"
 androidx-appcompat = "1.7.1"
 
 androidx-testing-core = "1.6.1"
@@ -46,7 +46,7 @@ compose-coil = "2.7.0"
 compose-activity = "1.9.3"
 compose-lazyColumnScrollbar = "2.2.0"
 compose-material3Android = "1.3.1"
-compose-bom = "2026.06.00"
+compose-bom = "2026.08.00"
 
 
 gson = "2.14.0"
@@ -58,14 +58,14 @@ junit = "4.13.2"
 luajvm = "3.0.1"
 snakeyaml = "2.6"
 
-okhttp = "5.0.0-alpha.14"
-okhttp-interceptor-logging = "5.0.0-alpha.14"
+okhttp = "5.4.0"
+okhttp-interceptor-logging = "5.4.0"
 
 readability4j = "1.0.8"
 
 timber = "5.0.1"
-kotlin-metadata-jvm = "2.4.0"
-sora-editor = "0.24.4"
+kotlin-metadata-jvm = "2.4.10"
+sora-editor = "0.24.6"
 subsampling-scale-image-view = "3.10.0"
 [libraries]
 
