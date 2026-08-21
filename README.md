@@ -23,7 +23,7 @@ Free and open source web novel reader for Android.
 
 <br/>
 
-<img src="preview.png" alt="NoveLA preview" width="100%"/>
+<img src="preview_v2.png" alt="NoveLA preview" width="100%"/>
 
 </div>
 
@@ -59,6 +59,14 @@ git clone https://github.com/HnDK0/NoveLA
 - Download all chapters
 - TTS reading timer
 - 20 interface languages
+- Manga reader for image-based novels, with tap-to-open menu and a size-capped per-page image cache
+- Export any book to EPUB directly from the chapters screen
+- Book ratings with localized labels
+- In-reader webpage translation via a JS bridge (translate any page inside the reader)
+- Per-novel translation settings — enable/disable and choose a language pair independently for each book, included in backups
+- Reader polish: custom font color, letter spacing, auto-scroll, manual paragraph highlighting, and quick reader toggles
+- Library: source strip on book cards (on-cover or below-cover) and redesigned cover badges
+- Translate or clear translation for local books and selected chapters; batch-download the next 100 chapters
 
 ---
 
