@@ -65,8 +65,11 @@ class LuaEngine @Inject constructor(
     val currentSourceId = ThreadLocal<String?>()
 
     // TTL-кэш ответов http_get: геттеры метаданных одной страницы книги делят один сетевой запрос.
-    // Ключ = url|charset|sourceId. Кэшируется любой ответ без исключения (включая 4xx/5xx);
-    // на hit responseTable пересоздаётся из примитивов — общая LuaTable наружу не отдаётся.
+    // Ключ = url|charset|sourceId. Кэшируется ТОЛЬКО успешный ответ (2xx): не кешируем
+    // 4xx/5xx и CF-челленджи — иначе просроченная/ложно-негативная 403 отдаётся из кеша
+    // повторным http_get вместо реального ретрая, и cookie cf_clearance никогда не дойдёт
+    // до сети через CloudFareVerificationInterceptor.
+    // На hit responseTable пересоздаётся из примитивов — общая LuaTable наружу не отдаётся.
     private val httpGetCache = ConcurrentHashMap<String, HttpGetCacheEntry>()
 
     // Тестовый seam: 2 секунд покрывают все геттеры одной страницы, не задерживая повторные заходы.
@@ -299,7 +302,12 @@ class LuaEngine @Inject constructor(
                     networkClient.call(builder).use { r ->
                         val bytes = r.body.bytes()
                         val body  = String(bytes, java.nio.charset.Charset.forName(charset))
-                        putHttpGetCache(cacheKey, HttpGetCacheEntry(body, r.isSuccessful, r.code, r.headers.toMultimap(), System.currentTimeMillis()))
+                        // Кешируем только успешные ответы: 4xx/5xx (в т.ч. CF-челлендж) не
+                        // кешируем, чтобы повторный http_get той же страницы ушёл в сеть с
+                        // cookie cf_clearance, а не получил просроченную 403 из кеша.
+                        if (r.isSuccessful) {
+                            putHttpGetCache(cacheKey, HttpGetCacheEntry(body, true, r.code, r.headers.toMultimap(), System.currentTimeMillis()))
+                        }
                         responseTable(r.isSuccessful, body, r.code, r.headers.toMultimap())
                     }
                 }
