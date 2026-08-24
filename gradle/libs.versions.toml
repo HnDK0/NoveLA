@@ -32,7 +32,7 @@ androidx-lifecycle = "2.8.7"
 androidx-workmanager = "2.11.2"
 androidx-startup = "1.2.0"
 androidx-constraintLayout = "2.2.2"
-androidx-appcompat = "1.7.1"
+androidx-appcompat = "1.8.0"
 
 androidx-testing-core = "1.6.1"
 androidx-testing-runner = "1.6.2"
