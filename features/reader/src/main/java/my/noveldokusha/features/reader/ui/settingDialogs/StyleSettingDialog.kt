@@ -63,9 +63,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -75,11 +79,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
+import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
+import my.noveldokusha.coreui.composableActions.onDoAskForImage
 import my.noveldokusha.coreui.components.PillSlider
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
+import my.noveldokusha.features.reader.tools.BackgroundImageLoader
 import my.noveldokusha.features.reader.tools.FontsLoader
+import my.noveldokusha.features.reader.ui.ReaderBackgroundPreset
+import my.noveldokusha.features.reader.ui.ReaderBackgroundPresets
 import my.noveldokusha.features.reader.ui.ReaderScreenState
 import my.noveldokusha.reader.R
 
@@ -92,11 +101,13 @@ internal fun StyleSettingDialog(
     onLetterSpacingChange: (Float) -> Unit,
     onTextFontChange: (String) -> Unit,
     onTextColorChanged: (String) -> Unit,
+    onBackgroundChanged: (String) -> Unit,
     onDarkModeChange: (DarkMode) -> Unit,
     onAppThemeChange: (AppTheme) -> Unit,
 ) {
     val context = LocalContext.current
     val fontLoader = remember(context) { FontsLoader(context) }
+    val backgroundLoader = remember(context) { BackgroundImageLoader(context) }
     val systemFontsSet = remember { FontsLoader.systemFonts.toSet() }
     val scope = rememberCoroutineScope()
     val importLauncher = rememberLauncherForActivityResult(
@@ -346,24 +357,31 @@ internal fun StyleSettingDialog(
             }
         }
 
-        // Import font — system document picker, multi-select
-        TextButton(
-            onClick = {
-                val intent = ActivityResultContracts.OpenDocument()
-                    .createIntent(context, FONT_MIME_TYPES)
-                    .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                importLauncher.launch(intent)
-            },
-            modifier = Modifier.padding(horizontal = 12.dp)
+        // Import font — system document picker, multi-select.
+        // Row + weight(1f) растягивает кнопку на всю ширину и центрирует
+        // содержимое (иконка + подпись), как у кнопки добавления фона.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
         ) {
-            Icon(
-                Icons.Outlined.FileUpload,
-                null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(stringResource(R.string.reader_import_font))
+            TextButton(
+                onClick = {
+                    val intent = ActivityResultContracts.OpenDocument()
+                        .createIntent(context, FONT_MIME_TYPES)
+                        .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                    importLauncher.launch(intent)
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    Icons.Outlined.FileUpload,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(stringResource(R.string.reader_import_font))
+            }
         }
 
         // Text color
@@ -465,6 +483,162 @@ internal fun StyleSettingDialog(
             valueText = "%.0f".format(blue),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
         )
+
+        // Background — пресеты-градиенты, свои картинки и «Авто», по образцу ряда цвета текста.
+        val currentBackground = state.readerBackground.value
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
+        ) {
+            Icon(
+                Icons.Outlined.FormatColorFill,
+                null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = stringResource(R.string.reader_background),
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(
+                listOf("") +
+                    ReaderBackgroundPresets.map { it.id } +
+                    BackgroundImageLoader.availableBackgrounds.value.map { "background_file:" + it.name }
+            ) { value ->
+                val selected = currentBackground == value
+                val borderModifier = Modifier.border(
+                    width = if (selected) 3.dp else 0.dp,
+                    color = if (selected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                    shape = CircleShape
+                )
+                when {
+                    value.isEmpty() -> {
+                        val autoDesc = stringResource(R.string.reader_background_auto)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .then(borderModifier)
+                                .semantics { contentDescription = autoDesc }
+                                .clickable {
+                                    onBackgroundChanged("")
+                                    // ponytail: сброс фона на «Авто» возвращает и цвет текста к теме.
+                                    onTextColorChanged("")
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "A",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (selected) MaterialTheme.colorScheme.onSurface
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    else -> {
+                        val preset = ReaderBackgroundPresets.firstOrNull { it.id == value }
+                        if (preset != null) {
+                            val presetName = stringResource(preset.nameRes)
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Brush.verticalGradient(preset.colors))
+                                    .then(borderModifier)
+                                    .semantics { contentDescription = presetName }
+                                    .clickable {
+                                        onBackgroundChanged(value)
+                                        // ponytail: цвет текста подбирается под пресет для читаемости.
+                                        onTextColorChanged(preset.textColor)
+                                    },
+                            )
+                        } else {
+                            AsyncImage(
+                                model = BackgroundImageLoader.resolveFile(value),
+                                contentDescription = stringResource(R.string.reader_background_custom),
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .then(borderModifier)
+                                    .clickable { onBackgroundChanged(value) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
+        ) {
+            TextButton(
+                onClick = onDoAskForImage { uri ->
+                    scope.launch {
+                        backgroundLoader.importBackgroundImage(uri).onFailure { e ->
+                            Toast.makeText(
+                                context,
+                                e.message ?: "Background import failed",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }.onSuccess {
+                            // ponytail: после импорта автоматически выбираем imported картинку как фон.
+                            // Имя файла вычисляем из URI так же, как в importBackgroundImage,
+                            // чтобы не дублировать логику и не полагаться на порядок сортировки.
+                            val rawName = context.contentResolver
+                                .query(uri, null, null, null, null)?.use { cursor ->
+                                    if (cursor.moveToFirst()) {
+                                        val idx = cursor.getColumnIndex(
+                                            android.provider.OpenableColumns.DISPLAY_NAME
+                                        )
+                                        if (idx >= 0) cursor.getString(idx) else null
+                                    } else null
+                                } ?: uri.lastPathSegment ?: "image"
+                            var fileName = BackgroundImageLoader.sanitizeFileName(rawName)
+                            if (!BackgroundImageLoader.isValidImageExtension(fileName)) {
+                                fileName += ".png"
+                            }
+                            onBackgroundChanged("background_file:$fileName")
+                        }
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    Icons.Outlined.FileUpload,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(stringResource(R.string.reader_background_custom))
+            }
+            if (BackgroundImageLoader.isImported(currentBackground)) {
+                TextButton(
+                    onClick = {
+                        backgroundLoader.deleteBackground(currentBackground)
+                        onBackgroundChanged("")
+                    }
+                ) {
+                    Icon(
+                        Icons.Outlined.Delete,
+                        null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.reader_background_delete))
+                }
+            }
+        }
 
         // Dark mode chips (compact)
         Row(

@@ -35,6 +35,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.compose.material3.android)
     implementation(libs.coil)
+    implementation(libs.compose.coil)
     implementation(libs.jsoup)
     implementation(libs.timber)
     implementation(libs.subsampling.scale.image.view)

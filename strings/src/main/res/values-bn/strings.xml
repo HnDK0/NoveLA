@@ -236,6 +236,24 @@
     <string name="reader_import_font">ফন্ট ইম্পোর্ট</string>
     <string name="reader_fonts_imported">ইম্পোর্ট করা</string>
     <string name="reader_delete_font">ফন্ট মুছুন</string>
+    <string name="reader_background">পটভূমি</string>
+    <string name="reader_background_auto">স্বয়ংক্রিয়</string>
+    <string name="reader_background_custom">কাস্টম ছবি…</string>
+    <string name="reader_background_delete">মুছুন</string>
+    <string name="reader_background_preset_paper">কাগজ</string>
+    <string name="reader_background_preset_twilight">গোধূলি</string>
+    <string name="reader_background_preset_night">রাত</string>
+    <string name="reader_background_preset_ocean">মহাসাগর</string>
+    <string name="reader_background_preset_forest">পান্না</string>
+    <string name="reader_background_preset_rose">গোলাপ</string>
+    <string name="reader_background_preset_cream">ক্রিম</string>
+    <string name="reader_background_preset_linen">লিনেন</string>
+    <string name="reader_background_preset_mist">কুয়াশা</string>
+    <string name="reader_background_preset_sage">সেজ</string>
+    <string name="reader_background_preset_dusk">সন্ধ্যা</string>
+    <string name="reader_background_preset_cocoa">কোকো</string>
+    <string name="reader_background_preset_arctic">আর্কটিক</string>
+    <string name="reader_background_preset_midnight">মধ্যরাত</string>
     <string name="translation_services">অনুবাদ পরিষেবা</string>
     <string name="gemini_api_key">Gemini API কী</string>
     <string name="active_google_gemini_api">সক্রিয়: Google Gemini API</string>
@@ -730,6 +748,7 @@
     <string name="manga_reader_chapter_list">অধ্যায়ের তালিকা</string>
     <string name="manga_reader_chapter_list_current">বর্তমান</string>
     <string name="manga_reader_chapter_list_empty">কোনো অধ্যায় নেই</string>
+    <string name="manga_reader_no_pages">এই অধ্যায়ে কোনো পাতা নেই</string>
     <string name="manga_reader_chapter_loading">অধ্যায় লোড হচ্ছে…</string>
     <string name="manga_reader_controls">নিয়ন্ত্রণ</string>
     <string name="manga_reader_download_on_open">খোলার সময় অধ্যায় ডাউনলোড করুন</string>
@@ -768,4 +787,5 @@
     <string name="book_export_cancel">বাতিল</string>
     <string name="book_export_no_chapters">রপ্তানির জন্য কোনো অধ্যায় নেই</string>
     <string name="book_export_failed">রপ্তানি ব্যর্থ হয়েছে</string>
+    <string name="export_started">রপ্তানি শুরু হয়েছে</string>
 </resources>

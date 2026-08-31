@@ -236,6 +236,24 @@
     <string name="reader_import_font">Impor font</string>
     <string name="reader_fonts_imported">Diimpor</string>
     <string name="reader_delete_font">Hapus font</string>
+    <string name="reader_background">Latar belakang</string>
+    <string name="reader_background_auto">Otomatis</string>
+    <string name="reader_background_custom">Gambar kustom…</string>
+    <string name="reader_background_delete">Hapus</string>
+    <string name="reader_background_preset_paper">Kertas</string>
+    <string name="reader_background_preset_twilight">Senja</string>
+    <string name="reader_background_preset_night">Malam</string>
+    <string name="reader_background_preset_ocean">Samudra</string>
+    <string name="reader_background_preset_forest">Zamrud</string>
+    <string name="reader_background_preset_rose">Mawar</string>
+    <string name="reader_background_preset_cream">Krim</string>
+    <string name="reader_background_preset_linen">Linen</string>
+    <string name="reader_background_preset_mist">Kabut</string>
+    <string name="reader_background_preset_sage">Sage</string>
+    <string name="reader_background_preset_dusk">Sore</string>
+    <string name="reader_background_preset_cocoa">Kakao</string>
+    <string name="reader_background_preset_arctic">Arktik</string>
+    <string name="reader_background_preset_midnight">Tengah malam</string>
     <string name="translation_services">Layanan Terjemahan</string>
     <string name="gemini_api_key">Kunci API Gemini</string>
     <string name="active_google_gemini_api">Aktif: Google Gemini API</string>
@@ -749,7 +767,8 @@
 <string name="manga_custom_brightness">Kecerahan kustom</string>
 <string name="manga_reader_chapter_list">Daftar bab</string>
 <string name="manga_reader_chapter_list_current">Saat ini</string>
-<string name="manga_reader_chapter_list_empty">Tidak ada bab</string>
+    <string name="manga_reader_chapter_list_empty">Tidak ada bab</string>
+    <string name="manga_reader_no_pages">Tidak ada halaman di bab ini</string>
 <string name="manga_reader_open_in_browser">Buka di peramban</string>
 <string name="manga_autoscroll_speed_value">%1$d dp/s</string>
 <string name="manga_grayscale">Skala abu-abu</string>
@@ -768,4 +787,5 @@
     <string name="book_export_cancel">Batal</string>
     <string name="book_export_no_chapters">Tidak ada bab untuk diekspor</string>
     <string name="book_export_failed">Ekspor gagal</string>
+    <string name="export_started">Ekspor dimulai</string>
 </resources>

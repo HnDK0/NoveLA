@@ -236,6 +236,24 @@
     <string name="reader_import_font">นำเข้าแบบอักษร</string>
     <string name="reader_fonts_imported">ที่นำเข้า</string>
     <string name="reader_delete_font">ลบแบบอักษร</string>
+    <string name="reader_background">พื้นหลัง</string>
+    <string name="reader_background_auto">อัตโนมัติ</string>
+    <string name="reader_background_custom">รูปภาพที่กำหนดเอง…</string>
+    <string name="reader_background_delete">ลบ</string>
+    <string name="reader_background_preset_paper">กระดาษ</string>
+    <string name="reader_background_preset_twilight">สนธยา</string>
+    <string name="reader_background_preset_night">กลางคืน</string>
+    <string name="reader_background_preset_ocean">มหาสมุทร</string>
+    <string name="reader_background_preset_forest">มรกต</string>
+    <string name="reader_background_preset_rose">กุหลาบ</string>
+    <string name="reader_background_preset_cream">ครีม</string>
+    <string name="reader_background_preset_linen">ผ้าลินิน</string>
+    <string name="reader_background_preset_mist">หมอก</string>
+    <string name="reader_background_preset_sage">เสจ</string>
+    <string name="reader_background_preset_dusk">ย่ำค่ำ</string>
+    <string name="reader_background_preset_cocoa">โกโก้</string>
+    <string name="reader_background_preset_arctic">อาร์กติก</string>
+    <string name="reader_background_preset_midnight">เที่ยงคืน</string>
     <string name="translation_services">บริการแปลภาษา</string>
     <string name="gemini_api_key">คีย์ Gemini API</string>
     <string name="active_google_gemini_api">ใช้งาน: Google Gemini API</string>
@@ -730,6 +748,7 @@
     <string name="manga_reader_chapter_list">รายการบท</string>
     <string name="manga_reader_chapter_list_current">บทปัจจุบัน</string>
     <string name="manga_reader_chapter_list_empty">ไม่มีบท</string>
+    <string name="manga_reader_no_pages">ไม่มีหน้าในบทนี้</string>
     <string name="manga_reader_chapter_loading">กำลังโหลดบท…</string>
     <string name="manga_reader_controls">การควบคุม</string>
     <string name="manga_reader_download_on_open">ดาวน์โหลดบทเมื่อเปิด</string>
@@ -768,4 +787,5 @@
     <string name="book_export_cancel">ยกเลิก</string>
     <string name="book_export_no_chapters">ไม่มีบทให้ส่งออก</string>
     <string name="book_export_failed">ส่งออกล้มเหลว</string>
+    <string name="export_started">เริ่มการส่งออก</string>
 </resources>

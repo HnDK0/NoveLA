@@ -236,6 +236,24 @@
     <string name="reader_import_font">फ़ॉन्ट आयात करें</string>
     <string name="reader_fonts_imported">आयातित</string>
     <string name="reader_delete_font">फ़ॉन्ट हटाएं</string>
+    <string name="reader_background">पृष्ठभूमि</string>
+    <string name="reader_background_auto">स्वचालित</string>
+    <string name="reader_background_custom">कस्टम चित्र…</string>
+    <string name="reader_background_delete">हटाएं</string>
+    <string name="reader_background_preset_paper">कागज़</string>
+    <string name="reader_background_preset_twilight">गोधूलि</string>
+    <string name="reader_background_preset_night">रात</string>
+    <string name="reader_background_preset_ocean">महासागर</string>
+    <string name="reader_background_preset_forest">पन्ना</string>
+    <string name="reader_background_preset_rose">गुलाब</string>
+    <string name="reader_background_preset_cream">क्रीम</string>
+    <string name="reader_background_preset_linen">लिनेन</string>
+    <string name="reader_background_preset_mist">कोहरा</string>
+    <string name="reader_background_preset_sage">सेज</string>
+    <string name="reader_background_preset_dusk">साँझ</string>
+    <string name="reader_background_preset_cocoa">कोको</string>
+    <string name="reader_background_preset_arctic">आर्कटिक</string>
+    <string name="reader_background_preset_midnight">आधी रात</string>
     <string name="translation_services">अनुवाद सेवाएँ</string>
     <string name="gemini_api_key">Gemini API कुंजी</string>
     <string name="active_google_gemini_api">सक्रिय: Google Gemini API</string>
@@ -749,7 +767,8 @@
 <string name="manga_custom_brightness">कस्टम चमक</string>
 <string name="manga_reader_chapter_list">अध्याय सूची</string>
 <string name="manga_reader_chapter_list_current">वर्तमान</string>
-<string name="manga_reader_chapter_list_empty">कोई अध्याय नहीं</string>
+    <string name="manga_reader_chapter_list_empty">कोई अध्याय नहीं</string>
+    <string name="manga_reader_no_pages">इस अध्याय में कोई पृष्ठ नहीं है</string>
 <string name="manga_reader_open_in_browser">ब्राउज़र में खोलें</string>
 <string name="manga_autoscroll_speed_value">%1$d dp/s</string>
 <string name="manga_grayscale">ग्रेस्केल</string>
@@ -768,4 +787,5 @@
     <string name="book_export_cancel">रद्द करें</string>
     <string name="book_export_no_chapters">निर्यात करने के लिए कोई अध्याय नहीं</string>
     <string name="book_export_failed">निर्यात विफल</string>
+    <string name="export_started">निर्यात शुरू हुआ</string>
 </resources>

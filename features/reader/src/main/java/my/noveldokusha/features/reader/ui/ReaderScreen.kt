@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -78,10 +79,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -107,6 +111,7 @@ import my.noveldokusha.settings.RegexCleanupSettingsViewModel
 import my.noveldokusha.text_to_speech.Utterance
 import my.noveldokusha.text_to_speech.VoiceData
 import my.noveldokusha.features.reader.services.FloatingTtsService
+import my.noveldokusha.features.reader.tools.BackgroundImageLoader
 import my.noveldokusha.text_translator.domain.TranslationModelState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -124,6 +129,7 @@ internal fun ReaderScreen(
     onSingleTapToOpenSettingsChange: (Boolean) -> Unit,
     onTextFontChanged: (String) -> Unit,
     onTextColorChanged: (String) -> Unit,
+    onBackgroundChanged: (String) -> Unit,
     onTextSizeChanged: (Float) -> Unit,
     onLineHeightChanged: (Float) -> Unit,
     onParagraphSpacingChanged: (Float) -> Unit,
@@ -175,7 +181,24 @@ internal fun ReaderScreen(
             .fillMaxSize()
             .onSizeChanged { readerAreaSize = it }
     ) {
+        // Слой фона читалки: градиентный пресет или импортированная картинка под прозрачным Scaffold.
+        val bgLayer = backgroundLayer(state.settings.style.readerBackground.value)
+        when (val layer = bgLayer) {
+            BackgroundLayer.None -> Spacer(
+                Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+            )
+            is BackgroundLayer.Preset -> Spacer(
+                Modifier.fillMaxSize().background(Brush.verticalGradient(layer.preset.colors))
+            )
+            is BackgroundLayer.Image -> AsyncImage(
+                model = layer.file,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             val fullScreen by rememberUpdatedState(showReaderInfo)
             AnimatedVisibility(
@@ -316,6 +339,7 @@ internal fun ReaderScreen(
                         regexCleanupViewModel = regexCleanupViewModel,
                         onTextFontChanged = onTextFontChanged,
                         onTextColorChanged = onTextColorChanged,
+                        onBackgroundChanged = onBackgroundChanged,
                         onTextSizeChanged = onTextSizeChanged,
                         onLineHeightChanged = onLineHeightChanged,
                         onParagraphSpacingChanged = onParagraphSpacingChanged,
@@ -747,6 +771,7 @@ private fun ViewsPreview(
         currentAppTheme = remember { mutableStateOf(AppTheme.DEFAULT) },
         textFont = remember { mutableStateOf("Arial") },
         textColor = remember { mutableStateOf("") },
+        readerBackground = remember { mutableStateOf("") },
         textSize = remember { mutableFloatStateOf(20f) },
         lineHeight = remember { mutableFloatStateOf(1.35f) },
         paragraphSpacing = remember { mutableFloatStateOf(8f) },
@@ -800,6 +825,7 @@ private fun ViewsPreview(
                 onLetterSpacingChanged = {},
                 onTextFontChanged = {},
                 onTextColorChanged = {},
+                onBackgroundChanged = {},
                 onSelectableTextChange = {},
                 onDarkModeSelected = {},
                 onAppThemeChanged = {},

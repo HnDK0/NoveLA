@@ -75,6 +75,7 @@ import my.noveldokusha.features.reader.manga.MangaReaderActivity
 import my.noveldokusha.features.reader.manga.viewer.webtoon.accumulatedPixels
 import my.noveldokusha.features.reader.manager.ReaderManager
 import my.noveldokusha.features.reader.services.NarratorMediaControlsService
+import my.noveldokusha.features.reader.tools.BackgroundImageLoader
 import my.noveldokusha.features.reader.tools.FontsLoader
 import my.noveldokusha.features.reader.ui.ReaderScreen
 import my.noveldokusha.features.reader.ui.ReaderScreenState
@@ -219,6 +220,11 @@ class ReaderActivity : BaseActivity() {
     }
 
     private val fontsLoader by lazy { FontsLoader(this) }
+    // Lazy: конструктор безопасен только после attachBaseContext (getApplicationContext
+    // возвращает null в property-initializer). Экземпляр оценивается при первом доступе
+    // — below в onCreate, после super.onCreate(). Статический appContext заполняется
+    // до setContent → ReaderScreen → backgroundLayer → resolveFile.
+    private val backgroundLoader by lazy { BackgroundImageLoader(this) }
 
     private val backPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
@@ -237,6 +243,9 @@ class ReaderActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Гарантируем инициализацию фонового лоадера (заполняет статический
+        // appContext) до setContent → ReaderScreen → backgroundLayer.
+        backgroundLoader
 
         // Гейт: тип книги решается по сохранённому в БД contentType — без сетевого
         // probe и без обращения к viewModel (её создание запускает ReaderSession
@@ -512,6 +521,7 @@ class ReaderActivity : BaseActivity() {
                     appPreferences = appPreferences,
                     onTextFontChanged = { appPreferences.READER_FONT_FAMILY.value = it },
                     onTextColorChanged = { appPreferences.READER_TEXT_COLOR.value = it },
+                    onBackgroundChanged = { appPreferences.READER_BACKGROUND_IMAGE.value = it },
                     onTextSizeChanged = { appPreferences.READER_FONT_SIZE.value = it },
                     onLineHeightChanged = { appPreferences.READER_LINE_HEIGHT.value = it },
                     onParagraphSpacingChanged = { appPreferences.READER_PARAGRAPH_SPACING.value = it },

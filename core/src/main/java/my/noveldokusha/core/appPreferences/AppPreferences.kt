@@ -233,6 +233,9 @@ class AppPreferences @Inject constructor(
     val READER_TEXT_COLOR = object : Preference<String>("READER_TEXT_COLOR") {
         override var value by SharedPreference_String(name, preferences, "")
     }
+    val READER_BACKGROUND_IMAGE = object : Preference<String>("READER_BACKGROUND_IMAGE") {
+        override var value by SharedPreference_String(name, preferences, "")
+    }
     val READER_TEXT_TO_SPEECH_VOICE_ID =
         object : Preference<String>("READER_TEXT_TO_SPEECH_VOICE_ID") {
             override var value by SharedPreference_String(name, preferences, "")

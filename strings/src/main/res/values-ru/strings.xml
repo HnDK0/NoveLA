@@ -849,6 +849,24 @@
     <string name="reader_import_font">Импорт шрифта</string>
     <string name="reader_fonts_imported">Импортированные</string>
     <string name="reader_delete_font">Удалить шрифт</string>
+    <string name="reader_background">Фон</string>
+    <string name="reader_background_auto">Авто</string>
+    <string name="reader_background_custom">Своя картинка…</string>
+    <string name="reader_background_delete">Удалить</string>
+    <string name="reader_background_preset_paper">Бумага</string>
+    <string name="reader_background_preset_twilight">Сумерки</string>
+    <string name="reader_background_preset_night">Ночь</string>
+    <string name="reader_background_preset_ocean">Океан</string>
+    <string name="reader_background_preset_forest">Изумруд</string>
+    <string name="reader_background_preset_rose">Роза</string>
+    <string name="reader_background_preset_cream">Крем</string>
+    <string name="reader_background_preset_linen">Лён</string>
+    <string name="reader_background_preset_mist">Дымка</string>
+    <string name="reader_background_preset_sage">Шалфей</string>
+    <string name="reader_background_preset_dusk">Закат</string>
+    <string name="reader_background_preset_cocoa">Какао</string>
+    <string name="reader_background_preset_arctic">Арктика</string>
+    <string name="reader_background_preset_midnight">Полночь</string>
 
 
 

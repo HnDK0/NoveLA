@@ -236,6 +236,24 @@
     <string name="reader_import_font">Nhập phông chữ</string>
     <string name="reader_fonts_imported">Đã nhập</string>
     <string name="reader_delete_font">Xóa phông chữ</string>
+    <string name="reader_background">Nền</string>
+    <string name="reader_background_auto">Tự động</string>
+    <string name="reader_background_custom">Ảnh tùy chỉnh…</string>
+    <string name="reader_background_delete">Xóa</string>
+    <string name="reader_background_preset_paper">Giấy</string>
+    <string name="reader_background_preset_twilight">Hoàng hôn</string>
+    <string name="reader_background_preset_night">Đêm</string>
+    <string name="reader_background_preset_ocean">Đại dương</string>
+    <string name="reader_background_preset_forest">Ngọc lục bảo</string>
+    <string name="reader_background_preset_rose">Hoa hồng</string>
+    <string name="reader_background_preset_cream">Kem</string>
+    <string name="reader_background_preset_linen">Vải lanh</string>
+    <string name="reader_background_preset_mist">Sương mù</string>
+    <string name="reader_background_preset_sage">Xô thơm</string>
+    <string name="reader_background_preset_dusk">Chạng vạng</string>
+    <string name="reader_background_preset_cocoa">Ca cao</string>
+    <string name="reader_background_preset_arctic">Bắc Cực</string>
+    <string name="reader_background_preset_midnight">Nửa đêm</string>
     <string name="translation_services">Dịch vụ dịch thuật</string>
     <string name="gemini_api_key">Khóa API Gemini</string>
     <string name="active_google_gemini_api">Đang hoạt động: Google Gemini API</string>
@@ -730,6 +748,7 @@
     <string name="manga_reader_chapter_list">Danh sách chương</string>
     <string name="manga_reader_chapter_list_current">Hiện tại</string>
     <string name="manga_reader_chapter_list_empty">Không có chương</string>
+    <string name="manga_reader_no_pages">Không có trang nào trong chương này</string>
     <string name="manga_reader_chapter_loading">Đang tải chương…</string>
     <string name="manga_reader_controls">Điều khiển</string>
     <string name="manga_reader_download_on_open">Tải chương khi mở</string>
@@ -768,4 +787,5 @@
     <string name="book_export_cancel">Hủy</string>
     <string name="book_export_no_chapters">Không có chương để xuất</string>
     <string name="book_export_failed">Xuất thất bại</string>
+    <string name="export_started">Đã bắt đầu xuất</string>
 </resources>
