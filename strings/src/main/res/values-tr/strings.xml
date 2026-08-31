@@ -233,6 +233,9 @@
     <string name="dark_mode_black">Siyah</string>
     <string name="color_scheme">Renk Şeması</string>
     <string name="reader_text_color">Metin Rengi</string>
+    <string name="reader_import_font">Yazı Tipini İçe Aktar</string>
+    <string name="reader_fonts_imported">İçe Aktarılan</string>
+    <string name="reader_delete_font">Yazı Tipini sil</string>
     <string name="translation_services">Çeviri Hizmetleri</string>
     <string name="gemini_api_key">Gemini API Anahtarı</string>
     <string name="active_google_gemini_api">Aktif: Google Gemini API</string>

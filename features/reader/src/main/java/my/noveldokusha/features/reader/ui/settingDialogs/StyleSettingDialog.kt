@@ -1,5 +1,10 @@
 package my.noveldokusha.features.reader.ui.settingDialogs
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +21,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -26,42 +34,48 @@ import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.outlined.BrightnessMedium
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.FormatColorFill
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Nightlight
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
+import kotlinx.coroutines.launch
 import my.noveldokusha.coreui.components.PillSlider
 import my.noveldokusha.coreui.theme.AppTheme
 import my.noveldokusha.coreui.theme.DarkMode
@@ -82,6 +96,31 @@ internal fun StyleSettingDialog(
     onAppThemeChange: (AppTheme) -> Unit,
 ) {
     val context = LocalContext.current
+    val fontLoader = remember(context) { FontsLoader(context) }
+    val systemFontsSet = remember { FontsLoader.systemFonts.toSet() }
+    val scope = rememberCoroutineScope()
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val intent = result.data ?: return@rememberLauncherForActivityResult
+        val uris = buildList {
+            intent.clipData?.let { clip ->
+                repeat(clip.itemCount) { i -> add(clip.getItemAt(i).uri) }
+            }
+            intent.data?.let { add(it) }
+        }
+        uris.forEach { uri ->
+            scope.launch {
+                fontLoader.importFont(uri).onFailure { e ->
+                    Toast.makeText(
+                        context,
+                        e.message ?: "Font import failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
     ElevatedCard(
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp)
     ) {
@@ -141,18 +180,17 @@ internal fun StyleSettingDialog(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
         )
 
-        // Text font — clickable card-style selector
+        // Шрифт — кастомный Popup вместо DropdownMenu: позиция вычисляется
+        // один раз по якорным координатам из calculatePosition, без пересчёта
+        // above/below на каждом кадре (корневая причина фрика в M3 DropdownMenu).
         Box {
             var showFontsDropdown by rememberSaveable { mutableStateOf(false) }
-            val fontLoader = remember(context) { FontsLoader(context) }
-            var rowSize by remember { mutableStateOf(Size.Zero) }
 
             Surface(
                 modifier = Modifier
                     .padding(horizontal = 12.dp, vertical = 4.dp)
                     .fillMaxWidth()
-                    .clickable { showFontsDropdown = !showFontsDropdown }
-                    .onGloballyPositioned { rowSize = it.size.toSize() },
+                    .clickable { showFontsDropdown = !showFontsDropdown },
                 shape = RoundedCornerShape(8.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
             ) {
@@ -168,7 +206,7 @@ internal fun StyleSettingDialog(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = state.textFont.value,
+                        text = FontsLoader.displayName(state.textFont.value, systemFontsSet),
                         fontFamily = fontLoader.getFontFamily(state.textFont.value),
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,
@@ -183,28 +221,149 @@ internal fun StyleSettingDialog(
                     )
                 }
             }
-            DropdownMenu(
-                expanded = showFontsDropdown,
-                onDismissRequest = { showFontsDropdown = false },
-                offset = DpOffset(0.dp, 10.dp),
-                modifier = Modifier
-                    .heightIn(max = 300.dp)
-                    .width(with(LocalDensity.current) { rowSize.width.toDp() })
-            ) {
-                FontsLoader.availableFonts.forEach { item ->
-                    DropdownMenuItem(
-                        onClick = { onTextFontChange(item) },
-                        text = {
-                            Text(
-                                text = item,
-                                fontFamily = fontLoader.getFontFamily(item),
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
+
+            if (showFontsDropdown) {
+                Popup(
+                    onDismissRequest = { showFontsDropdown = false },
+                    properties = PopupProperties(focusable = true),
+                    popupPositionProvider = object : PopupPositionProvider {
+                        override fun calculatePosition(
+                            anchorBounds: IntRect,
+                            windowSize: IntSize,
+                            layoutDirection: LayoutDirection,
+                            popupContentSize: IntSize
+                        ): IntOffset {
+                            // Центрируем меню по горизонтали относительно якоря,
+                            // clamp не даёт меню выйти за пределы экрана.
+                            val desiredX = anchorBounds.left + anchorBounds.width / 2 - popupContentSize.width / 2
+                            val x = desiredX.coerceIn(
+                                0,
+                                (windowSize.width - popupContentSize.width).coerceAtLeast(0)
                             )
+                            val y = (anchorBounds.top - popupContentSize.height)
+                                .coerceAtLeast(0)
+                            return IntOffset(x, y)
                         }
-                    )
+                    }
+                ) {
+                    Surface(
+                        shape = MenuDefaults.shape,
+                        color = MenuDefaults.containerColor,
+                    ) {
+                        Column(
+                            Modifier
+                                .widthIn(max = 300.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            // 48.dp — стандартный Material IconButton tap-target.
+                            // Системные пункты резервируют пустой Spacer той же ширины,
+                            // чтобы текстовый слот был одинаковым у всех пунктов.
+                            val trailingIconSlot: @Composable (() -> Unit) = {
+                                Spacer(Modifier.size(48.dp))
+                            }
+
+                            val allFonts = FontsLoader.availableFonts.value
+                            val importedFonts = allFonts.filter { FontsLoader.isImported(it) }
+                            // Кастомный Row вместо DropdownMenuItem: Box(weight=1f,
+                            // contentAlignment=Center) центрирует текст по всей ширине
+                            // пункта, а не по ширине текстового слота внутри Row M3
+                            // (где trailingIcon сужает доступную область).
+                            allFonts.filterNot { FontsLoader.isImported(it) }.forEach { item ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 48.dp)
+                                        .clickable { onTextFontChange(item) }
+                                        .padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Box(
+                                        modifier = Modifier.weight(1f),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(
+                                            text = FontsLoader.displayName(item, systemFontsSet),
+                                            fontFamily = fontLoader.getFontFamily(item),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                    trailingIconSlot()
+                                }
+                            }
+                            if (importedFonts.isNotEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.reader_fonts_imported),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(
+                                        horizontal = 16.dp,
+                                        vertical = 4.dp
+                                    )
+                                )
+                                importedFonts.forEach { item ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 48.dp)
+                                            .clickable { onTextFontChange(item) }
+                                            .padding(horizontal = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.weight(1f),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Text(
+                                                text = FontsLoader.displayName(
+                                                    item,
+                                                    systemFontsSet
+                                                ),
+                                                fontFamily = fontLoader.getFontFamily(item),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
+                                        IconButton(onClick = {
+                                            val deleted = fontLoader.deleteFont(item)
+                                            if (deleted && state.textFont.value == item) {
+                                                onTextFontChange("serif")
+                                            }
+                                        }) {
+                                            Icon(
+                                                Icons.Outlined.Delete,
+                                                contentDescription = stringResource(R.string.reader_delete_font),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
+        }
+
+        // Import font — system document picker, multi-select
+        TextButton(
+            onClick = {
+                val intent = ActivityResultContracts.OpenDocument()
+                    .createIntent(context, FONT_MIME_TYPES)
+                    .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                importLauncher.launch(intent)
+            },
+            modifier = Modifier.padding(horizontal = 12.dp)
+        ) {
+            Icon(
+                Icons.Outlined.FileUpload,
+                null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.reader_import_font))
         }
 
         // Text color
@@ -456,6 +615,16 @@ private val TextColorPalette = listOf(
     "FF000000", "FF212121", "FF616161", "FFFFFFFF",
     "FF3B2F1E", "FF1A237E", "FF0D47A1", "FF1B5E20",
     "FFB71C1C", "FF4A148C", "FF004D40", "FFBF360C",
+)
+
+// MIME-типы, под которыми Android отдаёт TTF/OTF-шрифты в системном пикере.
+private val FONT_MIME_TYPES = arrayOf(
+    "font/ttf",
+    "font/otf",
+    "application/x-font-ttf",
+    "application/x-font-otf",
+    "application/vnd.ms-opentype",
+    "application/font-sfnt",
 )
 
 private fun safeParseColor(hex: String): Int =

@@ -846,6 +846,9 @@
 
     <string name="color_scheme">Цветовая схема</string>
     <string name="reader_text_color">Цвет текста</string>
+    <string name="reader_import_font">Импорт шрифта</string>
+    <string name="reader_fonts_imported">Импортированные</string>
+    <string name="reader_delete_font">Удалить шрифт</string>
 
 
 

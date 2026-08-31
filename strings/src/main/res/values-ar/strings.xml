@@ -233,6 +233,9 @@
     <string name="dark_mode_black">أسود</string>
     <string name="color_scheme">نظام الألوان</string>
     <string name="reader_text_color">لون النص</string>
+    <string name="reader_import_font">استيراد الخط</string>
+    <string name="reader_fonts_imported">المستوردة</string>
+    <string name="reader_delete_font">حذف الخط</string>
     <string name="translation_services">خدمات الترجمة</string>
     <string name="gemini_api_key">مفتاح Gemini API</string>
     <string name="active_google_gemini_api">نشط: Google Gemini API</string>

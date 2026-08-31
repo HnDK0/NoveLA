@@ -233,6 +233,9 @@
     <string name="dark_mode_black">কালো</string>
     <string name="color_scheme">রঙের স্কিম</string>
     <string name="reader_text_color">পাঠ্যের রঙ</string>
+    <string name="reader_import_font">ফন্ট ইম্পোর্ট</string>
+    <string name="reader_fonts_imported">ইম্পোর্ট করা</string>
+    <string name="reader_delete_font">ফন্ট মুছুন</string>
     <string name="translation_services">অনুবাদ পরিষেবা</string>
     <string name="gemini_api_key">Gemini API কী</string>
     <string name="active_google_gemini_api">সক্রিয়: Google Gemini API</string>

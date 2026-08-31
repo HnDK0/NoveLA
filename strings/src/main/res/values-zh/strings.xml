@@ -233,6 +233,9 @@
     <string name="dark_mode_black">黑色</string>
     <string name="color_scheme">配色方案</string>
     <string name="reader_text_color">文字颜色</string>
+    <string name="reader_import_font">导入字体</string>
+    <string name="reader_fonts_imported">已导入</string>
+    <string name="reader_delete_font">删除字体</string>
     <string name="translation_services">翻译服务</string>
     <string name="gemini_api_key">Gemini API 密钥</string>
     <string name="active_google_gemini_api">已启用：Google Gemini API</string>

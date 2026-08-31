@@ -233,6 +233,9 @@
     <string name="dark_mode_black">Đen</string>
     <string name="color_scheme">Bảng màu</string>
     <string name="reader_text_color">Màu chữ</string>
+    <string name="reader_import_font">Nhập phông chữ</string>
+    <string name="reader_fonts_imported">Đã nhập</string>
+    <string name="reader_delete_font">Xóa phông chữ</string>
     <string name="translation_services">Dịch vụ dịch thuật</string>
     <string name="gemini_api_key">Khóa API Gemini</string>
     <string name="active_google_gemini_api">Đang hoạt động: Google Gemini API</string>

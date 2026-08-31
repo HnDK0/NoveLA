@@ -233,6 +233,9 @@
     <string name="dark_mode_black">블랙</string>
     <string name="color_scheme">색상 구성</string>
     <string name="reader_text_color">글자 색</string>
+    <string name="reader_import_font">폰트 가져오기</string>
+    <string name="reader_fonts_imported">가져온 글꼴</string>
+    <string name="reader_delete_font">폰트 삭제</string>
     <string name="translation_services">번역 서비스</string>
     <string name="gemini_api_key">Gemini API 키</string>
     <string name="active_google_gemini_api">활성: Google Gemini API</string>

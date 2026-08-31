@@ -233,6 +233,9 @@
     <string name="dark_mode_black">Hitam</string>
     <string name="color_scheme">Skema Warna</string>
     <string name="reader_text_color">Warna Teks</string>
+    <string name="reader_import_font">Impor font</string>
+    <string name="reader_fonts_imported">Diimpor</string>
+    <string name="reader_delete_font">Hapus font</string>
     <string name="translation_services">Layanan Terjemahan</string>
     <string name="gemini_api_key">Kunci API Gemini</string>
     <string name="active_google_gemini_api">Aktif: Google Gemini API</string>
