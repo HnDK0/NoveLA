@@ -240,10 +240,16 @@ internal class ReaderItemAdapter(
         val imageModel = appFileResolver.resolvedBookImagePath(bookUrl = bookUrl, imagePath = item.image.path, isCover = false)
         Timber.d("viewImage called imageModel=%s path=%s", imageModel, item.image.path)
 
+        // ponytail: Referer для прямых URL — чтобы серверы-источники не блокировали загрузку
+        val referer = (imageModel as? String)
+            ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+            ?.let(::refererFor)
+
         bind.image.load(imageModel) {
             crossfade(true)
             scale(coil.size.Scale.FIT)
             size(1024)
+            if (!referer.isNullOrEmpty()) setHeader("Referer", referer)
             listener(onError = { _,_ ->
                 Timber.d("viewImage: load error for path=%s", item.image.path)
                 if (bind.image.tag == null && item.image.path.startsWith("http")) {
@@ -494,6 +500,11 @@ internal class ReaderItemAdapter(
             false
         }
     }
+
+    private fun refererFor(url: String): String = try {
+        val uri = java.net.URI(url)
+        "${uri.scheme}://${uri.host}/"
+    } catch (_: Exception) { "" }
 
     companion object {
         private const val MENU_ID_SEARCH_WEB = 9999

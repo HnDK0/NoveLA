@@ -189,10 +189,12 @@ private fun HistoryItemCard(
         verticalAlignment = Alignment.Top,
     ) {
         val coverImageModel = rememberResolvedBookImagePath(item.bookUrl, item.bookCoverUrl)
+        val referer = (coverImageModel as? String)?.takeIf { it.startsWith("http://") || it.startsWith("https://") }?.let(::refererFor)
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(coverImageModel)
                 .crossfade(true)
+                .apply { if (!referer.isNullOrEmpty()) setHeader("Referer", referer) }
                 .build(),
             contentDescription = item.bookTitle,
             modifier = Modifier
@@ -274,3 +276,8 @@ private fun relativeTime(epochMillis: Long): String {
         else -> stringResource(StringsR.string.time_years_ago, days / 365)
     }
 }
+
+private fun refererFor(url: String): String = try {
+    val uri = java.net.URI(url)
+    "${uri.scheme}://${uri.host}/"
+} catch (_: Exception) { "" }

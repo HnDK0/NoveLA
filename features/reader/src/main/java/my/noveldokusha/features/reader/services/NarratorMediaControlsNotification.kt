@@ -99,10 +99,12 @@ internal class NarratorMediaControlsNotification @Inject constructor(
             try {
                 val imageLoader = Coil.imageLoader(context)
                 val localCover = appFileResolver.resolvedBookImagePath(bookUrl, coverUrl, isCover = true)
+                val referer = (localCover as? String)?.takeIf { it.startsWith("http://") || it.startsWith("https://") }?.let(::refererFor)
                 val request = ImageRequest.Builder(context)
                     .data(localCover)
                     .size(Size(512, 512))
                     .allowHardware(false)
+                    .apply { if (!referer.isNullOrEmpty()) setHeader("Referer", referer) }
                     .build()
                 val bitmap = when (val result = imageLoader.execute(request)) {
                     is SuccessResult -> result.drawable.toBitmap()
@@ -484,3 +486,8 @@ private fun formatDuration(seconds: Int): String {
         "%d:%02d".format(m, s)
     }
 }
+
+private fun refererFor(url: String): String = try {
+    val uri = java.net.URI(url)
+    "${uri.scheme}://${uri.host}/"
+} catch (_: Exception) { "" }

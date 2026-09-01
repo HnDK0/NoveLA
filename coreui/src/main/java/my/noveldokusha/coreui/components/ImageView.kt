@@ -57,6 +57,7 @@ fun ImageView(
         val context by rememberUpdatedState(LocalContext.current)
         val imageRequest by remember(model, forceCache) {
             derivedStateOf {
+                val referer = (model as? String)?.takeIf { it.startsWith("http://") || it.startsWith("https://") }?.let(::refererFor)
                 ImageRequest
                     .Builder(context)
                     .data(model)
@@ -64,6 +65,7 @@ fun ImageView(
                     .size(512)
                     .precision(Precision.INEXACT)
                     .apply {
+                        if (!referer.isNullOrEmpty()) setHeader("Referer", referer)
                         if (forceCache) {
                             diskCachePolicy(CachePolicy.ENABLED)
                             memoryCachePolicy(CachePolicy.ENABLED)
@@ -99,3 +101,8 @@ fun ImageView(
         )
     }
 }
+
+private fun refererFor(url: String): String = try {
+    val uri = java.net.URI(url)
+    "${uri.scheme}://${uri.host}/"
+} catch (_: Exception) { "" }

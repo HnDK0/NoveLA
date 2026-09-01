@@ -34,6 +34,7 @@ class CoverRepositoryTest {
             private set
         var nextBytes: ByteArray = ByteArray(0)
         var nextSuccess = true
+        var lastHeaders: Map<String, String> = emptyMap()
 
         override val cookieJar: CookieJar = CookieJar.NO_COOKIES
 
@@ -51,8 +52,17 @@ class CoverRepositoryTest {
                 .build()
         }
 
-        override suspend fun getWithHeaders(url: String, headers: Map<String, String>): Response =
-            throw UnsupportedOperationException()
+        override suspend fun getWithHeaders(url: String, headers: Map<String, String>): Response {
+            calls++
+            lastHeaders = headers
+            return Response.Builder()
+                .request(Request.Builder().url(url).build())
+                .protocol(Protocol.HTTP_1_1)
+                .code(if (nextSuccess) 200 else 404)
+                .message("")
+                .body(nextBytes.toResponseBody("image/jpeg".toMediaType()))
+                .build()
+        }
 
         override suspend fun get(url: Uri.Builder): Response =
             throw UnsupportedOperationException()
@@ -106,6 +116,18 @@ class CoverRepositoryTest {
         assertEquals(true, result)
         assertEquals(1, client.calls)
         assertTrue(isCoverValid(cover))
+    }
+
+    @Test
+    fun `ensureCover sends Referer same-origin header`() = runBlocking {
+        val client = FakeNetworkClient().apply { nextBytes = png() }
+        val repo = CoverRepository(client)
+        val cover = File(tempDir.root, "cover.png")
+
+        val result = repo.ensureCover(cover, "https://example.com/c.png")
+
+        assertEquals(true, result)
+        assertTrue(client.lastHeaders["Referer"] == "https://example.com/")
     }
 
     @Test
