@@ -561,6 +561,13 @@
     <string name="language_search">เลือกภาษา</string>
     <string name="language_search_hint">ค้นหาภาษา…</string>
     <string name="language_no_results">ไม่พบภาษา</string>
+    <string name="language_favorites">รายการโปรด</string>
+    <string name="language_recent_pairs">คู่ล่าสุด</string>
+    <string name="language_recent_pairs_empty">เลือกภาษา — คู่จะปรากฏที่นี่เพื่อการใช้งานอย่างรวดเร็ว</string>
+    <string name="language_favorite_add">เพิ่มในรายการโปรด</string>
+    <string name="language_favorite_remove">นำออกจากรายการโปรด</string>
+    <string name="language_all_languages">ทุกภาษา</string>
+    <string name="language_no_favorites">ยังไม่มีรายการโปรด - แตะดาวที่ภาษา</string>
     <string name="novel_prompt_title">ข้อความแจ้งเฉพาะนิยาย</string>
     <string name="novel_prompt_placeholder">ไม่บังคับ: ข้อความแจ้งระบบที่กำหนดเองสำหรับนิยายนี้</string>
     <string name="novel_prompt_description_reader">ตั้งค่าข้อความแจ้งระบบที่กำหนดเองสำหรับนิยายนี้</string>

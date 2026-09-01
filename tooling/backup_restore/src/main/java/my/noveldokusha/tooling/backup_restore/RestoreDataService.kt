@@ -694,6 +694,26 @@ class RestoreDataService : Service() {
                     Timber.d("mergeToSettings: Restored ${pairsMap.size} novel lang pairs")
                 }
 
+                if (settingsJson.has("TRANSLATION_FAVORITE_LANGUAGES")) {
+                    val favArray = settingsJson.getJSONArray("TRANSLATION_FAVORITE_LANGUAGES")
+                    val favList = (0 until favArray.length()).map { favArray.getString(it) }
+                    appPreferences.TRANSLATION_FAVORITE_LANGUAGES.value = favList
+                    Timber.d("mergeToSettings: Restored ${favList.size} favorite languages")
+                }
+
+                if (settingsJson.has("TRANSLATION_RECENT_PAIRS")) {
+                    val pairsArray = settingsJson.getJSONArray("TRANSLATION_RECENT_PAIRS")
+                    val pairsList = (0 until pairsArray.length()).map { i ->
+                        val obj = pairsArray.getJSONObject(i)
+                        TranslationLangPair(
+                            source = obj.optString("source", ""),
+                            target = obj.optString("target", ""),
+                        )
+                    }
+                    appPreferences.TRANSLATION_RECENT_PAIRS.value = pairsList
+                    Timber.d("mergeToSettings: Restored ${pairsList.size} recent lang pairs")
+                }
+
                 if (settingsJson.has("TRANSLATION_GLOBAL_MODE")) {
                     appPreferences.TRANSLATION_GLOBAL_MODE.value = settingsJson.getBoolean("TRANSLATION_GLOBAL_MODE")
                     Timber.d("mergeToSettings: Restored TRANSLATION_GLOBAL_MODE")

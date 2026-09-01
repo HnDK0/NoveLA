@@ -561,6 +561,13 @@
     <string name="language_search">Dil seç</string>
     <string name="language_search_hint">Dilleri ara…</string>
     <string name="language_no_results">Hiçbir dil bulunamadı</string>
+    <string name="language_favorites">Favoriler</string>
+    <string name="language_recent_pairs">Son çiftler</string>
+    <string name="language_recent_pairs_empty">Dilleri seçin — hızlı uygulama için bir çift burada görünecek</string>
+    <string name="language_favorite_add">Favorilere ekle</string>
+    <string name="language_favorite_remove">Favorilerden çıkar</string>
+    <string name="language_all_languages">Tüm diller</string>
+    <string name="language_no_favorites">Henüz favori yok - bir dildeki yıldıza dokunun</string>
     <string name="novel_prompt_title">Romana özel istem</string>
     <string name="novel_prompt_placeholder">İsteğe bağlı: bu roman için özel sistem istemi</string>
     <string name="novel_prompt_description_reader">Bu roman için özel bir sistem istemi belirleyin</string>

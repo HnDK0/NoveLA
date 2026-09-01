@@ -561,6 +561,13 @@
     <string name="language_search">भाषा चुनें</string>
     <string name="language_search_hint">भाषाएँ खोजें…</string>
     <string name="language_no_results">कोई भाषा नहीं मिली</string>
+    <string name="language_favorites">पसंदीदा</string>
+    <string name="language_recent_pairs">हाल की जोड़ियाँ</string>
+    <string name="language_recent_pairs_empty">भाषाएँ चुनें — त्वरित लागू करने के लिए एक जोड़ी यहाँ दिखाई देगी</string>
+    <string name="language_favorite_add">पसंदीदा में जोड़ें</string>
+    <string name="language_favorite_remove">पसंदीदा से हटाएँ</string>
+    <string name="language_all_languages">सभी भाषाएँ</string>
+    <string name="language_no_favorites">अभी कोई पसंदीदा नहीं — किसी भाषा पर स्टार टैप करें</string>
     <string name="novel_prompt_title">उपन्यास-विशिष्ट प्रॉम्प्ट</string>
     <string name="novel_prompt_placeholder">वैकल्पिक: इस उपन्यास के लिए कस्टम सिस्टम प्रॉम्प्ट</string>
     <string name="novel_prompt_description_reader">इस उपन्यास के लिए कस्टम सिस्टम प्रॉम्प्ट सेट करें</string>

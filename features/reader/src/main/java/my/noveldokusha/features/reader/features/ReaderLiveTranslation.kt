@@ -3,6 +3,7 @@ package my.noveldokusha.features.reader.features
 import timber.log.Timber
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import kotlinx.coroutines.CoroutineName
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.NovelPromptData
+import my.noveldokusha.core.appPreferences.TranslationLangPair
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.text_translator.domain.TranslationManager
 import my.noveldokusha.text_translator.domain.TranslationModelState
@@ -47,7 +49,31 @@ internal data class LiveTranslationSettingData(
     val onParallelOrderChange: (String) -> Unit,
     val translationGlobalMode: MutableState<Boolean>,
     val onTranslationGlobalModeChange: (Boolean) -> Unit,
+    // Избранные языки и последние пары для быстрого доступа в диалоге настроек.
+    // SnapshotStateList — реактивный список: мутации внутри него триггерят рекомпозицию,
+    // поэтому диалог сразу отражает переключение избранного и запись новых пар.
+    val favoriteLanguages: SnapshotStateList<String> = mutableStateListOf(),
+    val onToggleFavorite: (String) -> Unit = {},
+    val recentPairs: SnapshotStateList<TranslationLangPair> = mutableStateListOf(),
+    val onApplyRecentPair: (source: String, target: String) -> Unit = { _, _ -> },
 )
+
+/**
+ * Решает, нужно ли записать новую пару в список последних.
+ * Запись происходит только когда оба языка заданы и пара реально изменилась
+ * относительно предыдущей — это исключает частичные (source, oldTarget) пары
+ * и повторную запись без изменений.
+ */
+internal fun shouldRecordRecentPair(
+    previousPair: TranslationLangPair?,
+    newSource: String?,
+    newTarget: String?,
+): Boolean {
+    val source = newSource.orEmpty()
+    val target = newTarget.orEmpty()
+    if (source.isBlank() || target.isBlank()) return false
+    return TranslationLangPair(source = source, target = target) != previousPair
+}
 
 internal class ReaderLiveTranslation(
     private val translationManager: TranslationManager,
@@ -67,6 +93,15 @@ internal class ReaderLiveTranslation(
 
     private fun resolveNovelPromptAppendMode(): Boolean =
         appPreferences.TRANSLATION_NOVEL_PROMPTS.value[bookUrl]?.appendMode ?: false
+
+    // Реактивные списки избранных языков и последних пар: мутации внутри них
+    // триггерят рекомпозицию, поэтому диалог сразу отражает изменения.
+    private val favoriteLanguages = mutableStateListOf<String>().apply {
+        addAll(appPreferences.favoriteLanguages())
+    }
+    private val recentPairs = mutableStateListOf<TranslationLangPair>().apply {
+        addAll(appPreferences.recentTranslationPairs())
+    }
 
     val state = LiveTranslationSettingData(
         isAvailable = translationManager.available,
@@ -93,6 +128,15 @@ internal class ReaderLiveTranslation(
         onParallelOrderChange = ::onParallelOrderChange,
         translationGlobalMode = mutableStateOf(appPreferences.TRANSLATION_GLOBAL_MODE.value),
         onTranslationGlobalModeChange = ::onTranslationGlobalModeChange,
+        favoriteLanguages = favoriteLanguages,
+        onToggleFavorite = { code ->
+            appPreferences.toggleFavoriteLanguage(code)
+            // Пересобираем реактивный список из префов, чтобы диалог сразу обновился.
+            favoriteLanguages.clear()
+            favoriteLanguages.addAll(appPreferences.favoriteLanguages())
+        },
+        recentPairs = recentPairs,
+        onApplyRecentPair = ::onApplyRecentPair,
     )
 
     var translatorState: TranslatorState? = null
@@ -206,6 +250,26 @@ internal class ReaderLiveTranslation(
         }
     }
 
+    private fun onApplyRecentPair(source: String, target: String) {
+        Timber.d("onApplyRecentPair: $source → $target")
+        // Применение недавней пары: выставляем source+target в префах,
+        // включаем перевод и обновляем состояние — тот же эффект, что onEnable(true).
+        appPreferences.setTranslationPairForBook(bookUrl, source, target)
+        appPreferences.setTranslationEnabledForBook(bookUrl, true)
+        state.enable.value = true
+        scope.launch {
+            // Обновляем реактивные source/target (null остаётся null, если модель не скачана).
+            state.source.value = getValidTranslatorOrNull(source)
+            state.target.value = getValidTranslatorOrNull(target)
+            // Перезаписываем пару в начало списка последних.
+            appPreferences.recordRecentTranslationPair(source, target)
+            recentPairs.clear()
+            recentPairs.addAll(appPreferences.recentTranslationPairs())
+            val update = updateTranslatorState()
+            if (update) _onTranslatorChanged.emit(Unit)
+        }
+    }
+
     private fun onSourceChange(it: TranslationModelState?) {
         Timber.d("onSourceChange: ${it?.language}")
         try {
@@ -215,6 +279,20 @@ internal class ReaderLiveTranslation(
                 source = it?.language ?: "",
                 target = state.target.value?.language ?: "",
             )
+            // Запись последней пары — аддитивный побочный эффект, не меняет логику выше.
+            val newSource = state.source.value?.language
+            val newTarget = state.target.value?.language
+            if (shouldRecordRecentPair(
+                    previousPair = appPreferences.recentTranslationPairs().firstOrNull(),
+                    newSource = newSource,
+                    newTarget = newTarget,
+                )
+            ) {
+                appPreferences.recordRecentTranslationPair(newSource.orEmpty(), newTarget.orEmpty())
+                // Пересобираем реактивный список, чтобы новая пара появилась в диалоге сразу.
+                state.recentPairs.clear()
+                state.recentPairs.addAll(appPreferences.recentTranslationPairs())
+            }
             val update = updateTranslatorState()
             Timber.d("onSourceChange: updateRequired=$update")
             if (update) scope.launch {
@@ -235,6 +313,20 @@ internal class ReaderLiveTranslation(
                 source = state.source.value?.language ?: "",
                 target = it?.language ?: "",
             )
+            // Запись последней пары — аддитивный побочный эффект, не меняет логику выше.
+            val newSource = state.source.value?.language
+            val newTarget = state.target.value?.language
+            if (shouldRecordRecentPair(
+                    previousPair = appPreferences.recentTranslationPairs().firstOrNull(),
+                    newSource = newSource,
+                    newTarget = newTarget,
+                )
+            ) {
+                appPreferences.recordRecentTranslationPair(newSource.orEmpty(), newTarget.orEmpty())
+                // Пересобираем реактивный список, чтобы новая пара появилась в диалоге сразу.
+                state.recentPairs.clear()
+                state.recentPairs.addAll(appPreferences.recentTranslationPairs())
+            }
             val update = updateTranslatorState()
             Timber.d("onTargetChange: updateRequired=$update")
             if (update) scope.launch {

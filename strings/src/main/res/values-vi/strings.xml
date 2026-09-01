@@ -561,6 +561,13 @@
     <string name="language_search">Chọn ngôn ngữ</string>
     <string name="language_search_hint">Tìm kiếm ngôn ngữ…</string>
     <string name="language_no_results">Không tìm thấy ngôn ngữ nào</string>
+    <string name="language_favorites">Yêu thích</string>
+    <string name="language_recent_pairs">Cặp gần đây</string>
+    <string name="language_recent_pairs_empty">Chọn ngôn ngữ — một cặp sẽ xuất hiện ở đây để áp dụng nhanh</string>
+    <string name="language_favorite_add">Thêm vào yêu thích</string>
+    <string name="language_favorite_remove">Xóa khỏi yêu thích</string>
+    <string name="language_all_languages">Tất cả ngôn ngữ</string>
+    <string name="language_no_favorites">Chưa có yêu thích - chạm vào ngôi sao trên ngôn ngữ</string>
     <string name="novel_prompt_title">Lời nhắc dành riêng cho tiểu thuyết</string>
     <string name="novel_prompt_placeholder">Tùy chọn: lời nhắc hệ thống tùy chỉnh cho tiểu thuyết này</string>
     <string name="novel_prompt_description_reader">Đặt lời nhắc hệ thống tùy chỉnh cho tiểu thuyết này</string>

@@ -561,6 +561,13 @@
     <string name="language_search">ভাষা নির্বাচন</string>
     <string name="language_search_hint">ভাষা অনুসন্ধান…</string>
     <string name="language_no_results">কোনো ভাষা পাওয়া যায়নি</string>
+    <string name="language_favorites">প্রিয়</string>
+    <string name="language_recent_pairs">সাম্প্রতিক জোড়া</string>
+    <string name="language_recent_pairs_empty">ভাষা নির্বাচন করুন — দ্রুত প্রয়োগের জন্য এখানে একটি জোড়া দেখা যাবে</string>
+    <string name="language_favorite_add">পছন্দে যোগ করুন</string>
+    <string name="language_favorite_remove">পছন্দ থেকে সরান</string>
+    <string name="language_all_languages">সব ভাষা</string>
+    <string name="language_no_favorites">এখনো পছন্দ নেই — কোনো ভাষায় স্টার ট্যাপ করুন</string>
     <string name="novel_prompt_title">নভেল-নির্দিষ্ট প্রম্পট</string>
     <string name="novel_prompt_placeholder">ঐচ্ছিক: এই নভেলের জন্য কাস্টম সিস্টেম প্রম্পট</string>
     <string name="novel_prompt_description_reader">এই নভেলের জন্য একটি কাস্টম সিস্টেম প্রম্পট সেট করুন</string>

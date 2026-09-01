@@ -21,5 +21,7 @@ dependencies {
     implementation(libs.androidx.preference.ktx)
 
     testImplementation(libs.test.junit)
+    testImplementation(libs.test.androidx.core.ktx)
+    testImplementation(libs.robolectric)
     testImplementation("org.json:json:20240303")
 }

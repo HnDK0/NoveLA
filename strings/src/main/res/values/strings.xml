@@ -146,6 +146,13 @@
     <string name="language_search">Select language</string>
     <string name="language_search_hint">Search languages…</string>
     <string name="language_no_results">No languages found</string>
+    <string name="language_favorites">Favorites</string>
+    <string name="language_recent_pairs">Recent pairs</string>
+    <string name="language_recent_pairs_empty">Select languages — a pair will appear here for quick apply</string>
+    <string name="language_favorite_add">Add to favorites</string>
+    <string name="language_favorite_remove">Remove from favorites</string>
+    <string name="language_all_languages">All languages</string>
+    <string name="language_no_favorites">No favorites yet - tap the star on a language</string>
     <string name="novel_prompt_title">Novel-specific prompt</string>
     <string name="novel_prompt_placeholder">Optional: custom system prompt for this novel</string>
     <string name="novel_prompt_description_reader">Set a custom system prompt for this novel</string>

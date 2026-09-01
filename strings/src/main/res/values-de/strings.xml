@@ -561,6 +561,13 @@
     <string name="language_search">Sprache auswählen</string>
     <string name="language_search_hint">Sprachen suchen…</string>
     <string name="language_no_results">Keine Sprachen gefunden</string>
+    <string name="language_favorites">Favoriten</string>
+    <string name="language_recent_pairs">Letzte Paare</string>
+    <string name="language_recent_pairs_empty">Sprachen wählen — ein Paar erscheint hier für schnelles Anwenden</string>
+    <string name="language_favorite_add">Zu Favoriten hinzufügen</string>
+    <string name="language_favorite_remove">Aus Favoriten entfernen</string>
+    <string name="language_all_languages">Alle Sprachen</string>
+    <string name="language_no_favorites">Noch keine Favoriten - tippe auf den Stern bei einer Sprache</string>
     <string name="novel_prompt_title">Romanspezifischer Prompt</string>
     <string name="novel_prompt_placeholder">Optional: eigener System-Prompt für diesen Roman</string>
     <string name="novel_prompt_description_reader">Eigenen System-Prompt für diesen Roman festlegen</string>

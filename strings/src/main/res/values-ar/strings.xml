@@ -561,6 +561,13 @@
     <string name="language_search">اختر اللغة</string>
     <string name="language_search_hint">البحث عن لغات…</string>
     <string name="language_no_results">لم يتم العثور على لغات</string>
+    <string name="language_favorites">المفضلة</string>
+    <string name="language_recent_pairs">الأزواج الأخيرة</string>
+    <string name="language_recent_pairs_empty">اختر اللغات — ستظهر الأزواج هنا للتطبيق السريع</string>
+    <string name="language_favorite_add">إضافة إلى المفضلة</string>
+    <string name="language_favorite_remove">إزالة من المفضلة</string>
+    <string name="language_all_languages">جميع اللغات</string>
+    <string name="language_no_favorites">لا توجد مفضلات بعد - اضغط على النجمة بجانب اللغة</string>
     <string name="novel_prompt_title">موجه خاص بالرواية</string>
     <string name="novel_prompt_placeholder">اختياري: موجه نظام مخصص لهذه الرواية</string>
     <string name="novel_prompt_description_reader">تعيين موجه نظام مخصص لهذه الرواية</string>

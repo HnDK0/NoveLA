@@ -561,6 +561,13 @@
     <string name="language_search">选择语言</string>
     <string name="language_search_hint">搜索语言…</string>
     <string name="language_no_results">未找到语言</string>
+    <string name="language_favorites">收藏</string>
+    <string name="language_recent_pairs">最近配对</string>
+    <string name="language_recent_pairs_empty">选择语言 — 配对将显示在此处以快速应用</string>
+    <string name="language_favorite_add">添加到收藏</string>
+    <string name="language_favorite_remove">从收藏中移除</string>
+    <string name="language_all_languages">所有语言</string>
+    <string name="language_no_favorites">暂无收藏 - 点击语言旁的星标</string>
     <string name="novel_prompt_title">小说专属提示</string>
     <string name="novel_prompt_placeholder">可选：此小说的自定义系统提示</string>
     <string name="novel_prompt_description_reader">为此小说设置自定义系统提示</string>

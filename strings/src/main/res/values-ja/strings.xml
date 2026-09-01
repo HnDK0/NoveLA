@@ -561,6 +561,13 @@
     <string name="language_search">言語を選択</string>
     <string name="language_search_hint">言語を検索…</string>
     <string name="language_no_results">言語が見つかりません</string>
+    <string name="language_favorites">お気に入り</string>
+    <string name="language_recent_pairs">最近のペア</string>
+    <string name="language_recent_pairs_empty">言語を選択 — ペアがここに表示され、すばやく適用できます</string>
+    <string name="language_favorite_add">お気に入りに追加</string>
+    <string name="language_favorite_remove">お気に入りから削除</string>
+    <string name="language_all_languages">すべての言語</string>
+    <string name="language_no_favorites">お気に入りはまだありません - 言語の星をタップ</string>
     <string name="novel_prompt_title">小説固有のプロンプト</string>
     <string name="novel_prompt_placeholder">オプション: この小説用のカスタムシステムプロンプト</string>
     <string name="novel_prompt_description_reader">この小説用のカスタムシステムプロンプトを設定</string>

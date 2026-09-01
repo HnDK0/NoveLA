@@ -561,6 +561,13 @@
     <string name="language_search">Wybierz język</string>
     <string name="language_search_hint">Szukaj języków…</string>
     <string name="language_no_results">Nie znaleziono języków</string>
+    <string name="language_favorites">Ulubione</string>
+    <string name="language_recent_pairs">Ostatnie pary</string>
+    <string name="language_recent_pairs_empty">Wybierz języki — para pojawi się tutaj, aby szybko ją zastosować</string>
+    <string name="language_favorite_add">Dodaj do ulubionych</string>
+    <string name="language_favorite_remove">Usuń z ulubionych</string>
+    <string name="language_all_languages">Wszystkie języki</string>
+    <string name="language_no_favorites">Brak ulubionych - dotknij gwiazdki przy języku</string>
     <string name="novel_prompt_title">Prompt specyficzny dla noweli</string>
     <string name="novel_prompt_placeholder">Opcjonalnie: niestandardowy prompt systemowy dla tej noweli</string>
     <string name="novel_prompt_description_reader">Ustaw niestandardowy prompt systemowy dla tej noweli</string>

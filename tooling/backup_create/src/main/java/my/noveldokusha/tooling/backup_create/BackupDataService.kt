@@ -399,6 +399,17 @@ class BackupDataService : Service() {
                                 })
                             }
                         })
+                        put("TRANSLATION_FAVORITE_LANGUAGES", org.json.JSONArray(
+                            appPreferences.TRANSLATION_FAVORITE_LANGUAGES.value
+                        ))
+                        put("TRANSLATION_RECENT_PAIRS", org.json.JSONArray(
+                            appPreferences.TRANSLATION_RECENT_PAIRS.value.map { pair ->
+                                org.json.JSONObject().apply {
+                                    put("source", pair.source)
+                                    put("target", pair.target)
+                                }
+                            }
+                        ))
                         put("TRANSLATION_GLOBAL_MODE", appPreferences.TRANSLATION_GLOBAL_MODE.value)
                         put("GLOBAL_TRANSLATION_ENABLED", appPreferences.GLOBAL_TRANSLATION_ENABLED.value)
                         put("GLOBAL_TRANSLATION_PREFERRED_SOURCE", appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value)

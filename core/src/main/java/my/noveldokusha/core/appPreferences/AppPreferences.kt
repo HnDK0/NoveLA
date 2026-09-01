@@ -81,6 +81,29 @@ internal fun decodeTranslationPairMap(raw: String): Map<String, TranslationLangP
         result
     } catch (_: Exception) { emptyMap() }
 
+internal fun encodeTranslationPairs(pairs: List<TranslationLangPair>): String {
+    val arr = org.json.JSONArray()
+    pairs.forEach { pair ->
+        arr.put(org.json.JSONObject().apply {
+            put("source", pair.source)
+            put("target", pair.target)
+        })
+    }
+    return arr.toString()
+}
+
+internal fun decodeTranslationPairs(json: String): List<TranslationLangPair> =
+    try {
+        val arr = org.json.JSONArray(json)
+        (0 until arr.length()).map { i ->
+            val obj = arr.getJSONObject(i)
+            TranslationLangPair(
+                source = obj.optString("source", ""),
+                target = obj.optString("target", ""),
+            )
+        }
+    } catch (_: Exception) { emptyList() }
+
 internal fun encodeEnabledMap(map: Map<String, Boolean>): String {
     val obj = org.json.JSONObject()
     map.forEach { (url, enabled) -> obj.put(url, enabled) }
@@ -603,6 +626,28 @@ class AppPreferences @Inject constructor(
             )
         }
 
+    // Избранные языки перевода: список ISO-639-1 кодов, закреплённых пользователем.
+    val TRANSLATION_FAVORITE_LANGUAGES = object : Preference<List<String>>("TRANSLATION_FAVORITE_LANGUAGES") {
+        override var value by SharedPreference_Serializable<List<String>>(
+            name = name,
+            sharedPreferences = preferences,
+            defaultValue = listOf(),
+            encode = { Json.encodeToString(it) },
+            decode = { Json.decodeFromString(it) }
+        )
+    }
+
+    // Последние пары языков перевода (source → target), макс. 5 записей.
+    val TRANSLATION_RECENT_PAIRS = object : Preference<List<TranslationLangPair>>("TRANSLATION_RECENT_PAIRS") {
+        override var value by SharedPreference_Serializable<List<TranslationLangPair>>(
+            name = name,
+            sharedPreferences = preferences,
+            defaultValue = listOf(),
+            encode = { encodeTranslationPairs(it) },
+            decode = { decodeTranslationPairs(it) }
+        )
+    }
+
     fun translationEnabledForBook(bookUrl: String): Boolean =
         resolveTranslationEnabled(
             globalMode = TRANSLATION_GLOBAL_MODE.value,
@@ -652,6 +697,36 @@ class AppPreferences @Inject constructor(
         if (enabled) current[bookUrl] = true else current.remove(bookUrl)
         TRANSLATION_BOOK_ENABLED_MAP.value = current
     }
+
+    // Закрепляет язык в избранном (перемещает в начало) либо снимает закрепление.
+    fun toggleFavoriteLanguage(code: String) {
+        val current = TRANSLATION_FAVORITE_LANGUAGES.value.toMutableList()
+        if (code in current) {
+            current.remove(code)
+        } else {
+            current.remove(code)
+            current.add(0, code)
+        }
+        TRANSLATION_FAVORITE_LANGUAGES.value = current
+    }
+
+    fun isFavoriteLanguage(code: String): Boolean =
+        code in TRANSLATION_FAVORITE_LANGUAGES.value
+
+    // Упорядоченный список избранных языков: сначала недавно закреплённые.
+    fun favoriteLanguages(): List<String> = TRANSLATION_FAVORITE_LANGUAGES.value
+
+    // Записывает пару в начало списка последних, убирая дубликаты и обрезая до 5.
+    fun recordRecentTranslationPair(source: String, target: String) {
+        val pair = TranslationLangPair(source = source, target = target)
+        val current = TRANSLATION_RECENT_PAIRS.value.toMutableList()
+        current.remove(pair)
+        current.add(0, pair)
+        TRANSLATION_RECENT_PAIRS.value = current.take(5)
+    }
+
+    // Последние пары перевода: сначала самая свежая.
+    fun recentTranslationPairs(): List<TranslationLangPair> = TRANSLATION_RECENT_PAIRS.value
 
     // Миграция настроек перевода, сделанных до объединения enabled+pair в единую карту.
     // Старый преф TRANSLATION_BOOK_ENABLED (JSON Map<bookUrl, Boolean>) больше не читается кодом,

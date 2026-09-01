@@ -561,6 +561,13 @@
     <string name="language_search">Pilih bahasa</string>
     <string name="language_search_hint">Cari bahasa…</string>
     <string name="language_no_results">Tidak ada bahasa ditemukan</string>
+    <string name="language_favorites">Favorit</string>
+    <string name="language_recent_pairs">Pasangan terbaru</string>
+    <string name="language_recent_pairs_empty">Pilih bahasa — pasangan akan muncul di sini untuk penerapan cepat</string>
+    <string name="language_favorite_add">Tambahkan ke favorit</string>
+    <string name="language_favorite_remove">Hapus dari favorit</string>
+    <string name="language_all_languages">Semua bahasa</string>
+    <string name="language_no_favorites">Belum ada favorit - ketuk bintang pada bahasa</string>
     <string name="novel_prompt_title">Prompt khusus untuk novel</string>
     <string name="novel_prompt_placeholder">Opsional: prompt sistem kustom untuk novel ini</string>
     <string name="novel_prompt_description_reader">Tetapkan prompt sistem kustom untuk novel ini</string>

@@ -1014,6 +1014,13 @@
     <string name="language_search">Выбрать язык</string>
     <string name="language_search_hint">Поиск языков…</string>
     <string name="language_no_results">Языки не найдены</string>
+    <string name="language_favorites">Избранное</string>
+    <string name="language_recent_pairs">Недавние пары</string>
+    <string name="language_recent_pairs_empty">Выбери языки — пара появится здесь для быстрого применения</string>
+    <string name="language_favorite_add">Добавить в избранное</string>
+    <string name="language_favorite_remove">Убрать из избранного</string>
+    <string name="language_all_languages">Все языки</string>
+    <string name="language_no_favorites">Избранного пока нет — нажми на звезду у языка</string>
     <string name="novel_prompt_title">Промпт для новеллы</string>
     <string name="novel_prompt_placeholder">Опционально: кастомный системный промпт для этой новеллы</string>
     <string name="novel_prompt_description_reader">Задать кастомный системный промпт для этой новеллы</string>

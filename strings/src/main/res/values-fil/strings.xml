@@ -561,6 +561,13 @@
     <string name="language_search">Pumili ng wika</string>
     <string name="language_search_hint">Maghanap ng mga wika…</string>
     <string name="language_no_results">Walang nakitang wika</string>
+    <string name="language_favorites">Mga Paborito</string>
+    <string name="language_recent_pairs">Mga kamakailang pares</string>
+    <string name="language_recent_pairs_empty">Pumili ng mga wika — lalabas dito ang isang pares para sa mabilis na pag-apply</string>
+    <string name="language_favorite_add">Idagdag sa mga paborito</string>
+    <string name="language_favorite_remove">Alisin sa mga paborito</string>
+    <string name="language_all_languages">Lahat ng wika</string>
+    <string name="language_no_favorites">Wala pang paborito - i-tap ang bituin sa isang wika</string>
     <string name="novel_prompt_title">Prompt na tiyak sa nobela</string>
     <string name="novel_prompt_placeholder">Opsyonal: custom system prompt para sa nobelang ito</string>
     <string name="novel_prompt_description_reader">Magtakda ng custom system prompt para sa nobelang ito</string>
