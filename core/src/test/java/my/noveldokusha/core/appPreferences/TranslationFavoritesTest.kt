@@ -26,7 +26,7 @@ class TranslationFavoritesTest {
     @Before
     fun setUp() {
         prefs = AppPreferences(context)
-        // Чистый старт: сбрасываем оба префа перед каждым тестом.
+        // Чистый старт: сбрасываем все префы перевода перед каждым тестом.
         prefs.TRANSLATION_FAVORITE_LANGUAGES.value = emptyList()
         prefs.TRANSLATION_RECENT_PAIRS.value = emptyList()
     }
@@ -201,5 +201,50 @@ class TranslationFavoritesTest {
             .apply()
 
         assertTrue(prefs.recentTranslationPairs().isEmpty())
+    }
+
+    // ─── removeRecentTranslationPair ────────────────────────────────────────
+
+    @Test
+    fun `removeRecentTranslationPair removes only the exact pair`() {
+        prefs.recordRecentTranslationPair("en", "es")
+        prefs.recordRecentTranslationPair("en", "es-419")
+        prefs.recordRecentTranslationPair("fr", "de")
+
+        prefs.removeRecentTranslationPair(TranslationLangPair("en", "es"))
+
+        // Пара с тем же source, но другим target остаётся.
+        assertEquals(
+            listOf(
+                TranslationLangPair("fr", "de"),
+                TranslationLangPair("en", "es-419"),
+            ),
+            prefs.recentTranslationPairs(),
+        )
+    }
+
+    @Test
+    fun `removeRecentTranslationPair of absent pair is a no-op`() {
+        prefs.recordRecentTranslationPair("en", "es")
+        prefs.recordRecentTranslationPair("fr", "de")
+
+        prefs.removeRecentTranslationPair(TranslationLangPair("ja", "ko"))
+
+        assertEquals(
+            listOf(
+                TranslationLangPair("fr", "de"),
+                TranslationLangPair("en", "es"),
+            ),
+            prefs.recentTranslationPairs(),
+        )
+    }
+
+    @Test
+    fun `recordRecentTranslationPair stores a pair only once`() {
+        prefs.recordRecentTranslationPair("en", "es")
+        prefs.recordRecentTranslationPair("en", "es")
+
+        // Дубликатов быть не должно — remove-first в removeRecentTranslationPair безопасен.
+        assertEquals(listOf(TranslationLangPair("en", "es")), prefs.recentTranslationPairs())
     }
 }

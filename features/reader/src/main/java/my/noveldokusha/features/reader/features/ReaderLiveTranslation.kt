@@ -56,6 +56,7 @@ internal data class LiveTranslationSettingData(
     val onToggleFavorite: (String) -> Unit = {},
     val recentPairs: SnapshotStateList<TranslationLangPair> = mutableStateListOf(),
     val onApplyRecentPair: (source: String, target: String) -> Unit = { _, _ -> },
+    val onRemovePair: (TranslationLangPair) -> Unit = {},
 )
 
 /**
@@ -137,6 +138,11 @@ internal class ReaderLiveTranslation(
         },
         recentPairs = recentPairs,
         onApplyRecentPair = ::onApplyRecentPair,
+        onRemovePair = { pair ->
+            appPreferences.removeRecentTranslationPair(pair)
+            recentPairs.clear()
+            recentPairs.addAll(appPreferences.recentTranslationPairs())
+        },
     )
 
     var translatorState: TranslatorState? = null

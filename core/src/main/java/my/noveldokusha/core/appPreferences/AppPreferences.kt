@@ -728,6 +728,15 @@ class AppPreferences @Inject constructor(
     // Последние пары перевода: сначала самая свежая.
     fun recentTranslationPairs(): List<TranslationLangPair> = TRANSLATION_RECENT_PAIRS.value
 
+    // Удаляет точную пару из списка последних (сценарий снятия звезды с чипа пары).
+    // recordRecentTranslationPair дедуплицирует по паре, поэтому дубликатов нет
+    // и remove-first удаляет единственное вхождение.
+    fun removeRecentTranslationPair(pair: TranslationLangPair) {
+        val current = TRANSLATION_RECENT_PAIRS.value.toMutableList()
+        current.remove(pair)
+        TRANSLATION_RECENT_PAIRS.value = current
+    }
+
     // Миграция настроек перевода, сделанных до объединения enabled+pair в единую карту.
     // Старый преф TRANSLATION_BOOK_ENABLED (JSON Map<bookUrl, Boolean>) больше не читается кодом,
     // но может оставаться в SharedPreferences у существующих пользователей.
