@@ -59,6 +59,8 @@ class SourceCatalogActivity : BaseActivity() {
                     onPressBack             = { backPressedCallback.handleOnBackPressed() },
                     onOpenFilterSheet       = { viewModel.state.isFilterSheetOpen.value = true },
                     onApplyFilters          = viewModel::onApplyFilters,
+                    getLibraryBadge         = viewModel::getLibraryBadge,
+                    libraryBadgeData        = viewModel.libraryBadgeData,
                 )
             }
         }

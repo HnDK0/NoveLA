@@ -1,6 +1,8 @@
 package my.noveldokusha.globalsourcesearch
 
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.State
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -9,13 +11,19 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.ViewModel
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.TranslationSettingsResolver
+import my.noveldokusha.core.utils.normalizeBookUrl
+import my.noveldokusha.coreui.components.LibraryBadgeMaps
+import my.noveldokusha.coreui.components.LibraryBadgeState
+import my.noveldokusha.coreui.components.getLibraryBadgeState
 import my.noveldokusha.coreui.states.PagedListIteratorState
+import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.CatalogItem
 import my.noveldokusha.data.ScraperRepository
 import my.noveldokusha.core.utils.StateExtra_String
@@ -35,6 +43,7 @@ internal interface GlobalSourceSearchStateBundle {
 @HiltViewModel
 internal class GlobalSourceSearchViewModel @Inject constructor(
     state: SavedStateHandle,
+    private val appRepository: AppRepository,
     private val scraperRepository: ScraperRepository,
     private val appPreferences: AppPreferences,
     private val translationSettingsResolver: TranslationSettingsResolver,
@@ -49,8 +58,32 @@ internal class GlobalSourceSearchViewModel @Inject constructor(
     val searchInput = state.asMutableStateOf("searchInput") { initialInput }
     val sourcesResults = mutableStateListOf<SourceResults>()
 
+    // In-library badge data: normalized URL -> count, title -> count
+    private val _libraryBadgeData = mutableStateOf(LibraryBadgeMaps())
+    val libraryBadgeData: State<LibraryBadgeMaps> = _libraryBadgeData
+
+    fun getLibraryBadge(bookUrl: String, bookTitle: String): LibraryBadgeState? {
+        val data = _libraryBadgeData.value
+        return getLibraryBadgeState(bookUrl, bookTitle, data.urls, data.titles)
+    }
+
     init {
         search(text = searchInput.value)
+
+        viewModelScope.launch {
+            appRepository.libraryBooks.booksInLibraryFlow
+                .map { books ->
+                    val urls = mutableMapOf<String, Int>()
+                    val titles = mutableMapOf<String, Int>()
+                    for (book in books) {
+                        val normalizedUrl = normalizeBookUrl(book.url)
+                        urls[normalizedUrl] = (urls[normalizedUrl] ?: 0) + 1
+                        titles[book.title] = (titles[book.title] ?: 0) + 1
+                    }
+                    LibraryBadgeMaps(urls, titles)
+                }
+                .collect { _libraryBadgeData.value = it }
+        }
 
         // После обхода CF перезапускаем поиск только для источников
         // чей домен совпадает с пройденным хостом.

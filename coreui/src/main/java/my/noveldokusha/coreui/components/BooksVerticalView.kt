@@ -54,6 +54,7 @@ fun BooksVerticalView(
     // item'а при изменении его названия (list[i] = copy() при key={it.url} этого
     // не делает).
     translatedTitles: Map<String, String> = emptyMap(),
+    topLeftBadge: (@Composable (BookMetadata) -> Unit)? = null,
 ) {
 
     val columns by remember(layoutMode, gridColumns) {
@@ -103,6 +104,7 @@ fun BooksVerticalView(
                     onClick = { onBookClicked(it) },
                     onLongClick = { onBookLongClicked(it) },
                     topRightBadge = { BookRatingBadge(rating = it.rating) },
+                    topLeftBadge = topLeftBadge?.let { badge -> { badge(it) } },
                 )
             }
         }

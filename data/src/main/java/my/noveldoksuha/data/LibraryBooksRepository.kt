@@ -38,6 +38,10 @@ class LibraryBooksRepository @Inject constructor(
         libraryDao.getBooksInLibraryWithContextFlow()
     }
 
+    val booksInLibraryFlow by lazy {
+        libraryDao.booksInLibraryFlow()
+    }
+
     fun getFlow(url: String) = libraryDao.getFlow(url)
     suspend fun insert(book: Book) = if (isValid(book)) libraryDao.insert(book) else Unit
     @Suppress("unused")

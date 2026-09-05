@@ -3,16 +3,21 @@ package my.noveldokusha.sourceexplorer
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.State
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.ViewModel
 import my.noveldokusha.coreui.components.ToolbarMode
+import my.noveldokusha.coreui.components.getLibraryBadgeState
+import my.noveldokusha.coreui.components.LibraryBadgeMaps
+import my.noveldokusha.coreui.components.LibraryBadgeState
 import my.noveldokusha.coreui.states.PagedListIteratorState
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.mappers.mapToBookMetadata
@@ -20,6 +25,7 @@ import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.utils.StateExtra_String
 import my.noveldokusha.core.utils.asMutableStateOf
+import my.noveldokusha.core.utils.normalizeBookUrl
 import my.noveldokusha.feature.local_database.BookMetadata
 import my.noveldokusha.feature.local_database.DAOs.BookTranslationDao
 import my.noveldokusha.feature.local_database.tables.BookTranslation
@@ -60,6 +66,32 @@ internal class SourceCatalogViewModel @Inject constructor(
     // поэтому title должен читаться из реактивного источника ВНУТРИ item-контента.
     private val _translatedTitles = mutableStateMapOf<String, String>()
     val translatedTitles: Map<String, String> = _translatedTitles
+
+    // In-library badge data: normalized URL -> count, title -> count
+    private val _libraryBadgeData = mutableStateOf(LibraryBadgeMaps())
+    val libraryBadgeData: State<LibraryBadgeMaps> = _libraryBadgeData
+
+    init {
+        viewModelScope.launch {
+            appRepository.libraryBooks.booksInLibraryFlow
+                .map { books ->
+                    val urls = mutableMapOf<String, Int>()
+                    val titles = mutableMapOf<String, Int>()
+                    for (book in books) {
+                        val normalizedUrl = normalizeBookUrl(book.url)
+                        urls[normalizedUrl] = (urls[normalizedUrl] ?: 0) + 1
+                        titles[book.title] = (titles[book.title] ?: 0) + 1
+                    }
+                    LibraryBadgeMaps(urls, titles)
+                }
+                .collect { _libraryBadgeData.value = it }
+        }
+    }
+
+    fun getLibraryBadge(bookUrl: String, bookTitle: String): LibraryBadgeState? {
+        val data = libraryBadgeData.value
+        return getLibraryBadgeState(bookUrl, bookTitle, data.urls, data.titles)
+    }
 
     val state = SourceCatalogScreenState(
         sourceCatalogNameStrId = mutableIntStateOf(source.nameStrId),

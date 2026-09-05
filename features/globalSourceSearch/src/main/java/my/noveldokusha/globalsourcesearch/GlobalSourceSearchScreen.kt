@@ -16,6 +16,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +28,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import my.noveldokusha.coreui.components.AnimatedTransition
+import my.noveldokusha.coreui.components.LibraryBadgeMaps
+import my.noveldokusha.coreui.components.LibraryBadgeState
 import my.noveldokusha.coreui.components.ToolbarMode
 import my.noveldokusha.coreui.components.TopAppBarSearch
 import my.noveldokusha.coreui.theme.InternalTheme
@@ -41,7 +44,9 @@ internal fun GlobalSourceSearchScreen(
     onSearchInputChange: (String) -> Unit,
     onSearchInputSubmit: (String) -> Unit,
     onBookClick: (book: BookMetadata) -> Unit,
-    onPressBack: () -> Unit
+    onPressBack: () -> Unit,
+    getLibraryBadge: (String, String) -> LibraryBadgeState? = { _, _ -> null },
+    libraryBadgeData: State<LibraryBadgeMaps> = androidx.compose.runtime.mutableStateOf(LibraryBadgeMaps()),
 ) {
     val focusRequester = remember { FocusRequester() }
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(
@@ -124,7 +129,9 @@ internal fun GlobalSourceSearchScreen(
             GlobalSourceSearchScreenBody(
                 listSources = listSources,
                 contentPadding = innerPadding,
-                onBookClick = onBookClick
+                onBookClick = onBookClick,
+                getLibraryBadge = getLibraryBadge,
+                libraryBadgeData = libraryBadgeData,
             )
         }
     )

@@ -17,6 +17,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -25,6 +26,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import my.noveldokusha.coreui.components.BookImageButtonView
 import my.noveldokusha.coreui.components.BookTitlePosition
+import my.noveldokusha.coreui.components.InLibraryBadge
+import my.noveldokusha.coreui.components.LibraryBadgeMaps
+import my.noveldokusha.coreui.components.LibraryBadgeState
 import my.noveldokusha.coreui.composableActions.ListLoadWatcher
 import my.noveldokusha.coreui.modifiers.bounceOnPressed
 import my.noveldokusha.coreui.states.IteratorState
@@ -42,8 +46,13 @@ import my.noveldokusha.feature.local_database.BookMetadata
 internal fun GlobalSourceSearchScreenBody(
     listSources: List<SourceResults>,
     contentPadding: PaddingValues,
-    onBookClick: (book: BookMetadata) -> Unit
+    onBookClick: (book: BookMetadata) -> Unit,
+    getLibraryBadge: (String, String) -> LibraryBadgeState? = { _, _ -> null },
+    libraryBadgeData: State<LibraryBadgeMaps> = androidx.compose.runtime.mutableStateOf(LibraryBadgeMaps()),
 ) {
+    // Reactive dependency: reading libraryBadgeData.value triggers recomposition when library changes.
+    libraryBadgeData.value
+
     LazyColumn(
         modifier = Modifier.padding(contentPadding),
         contentPadding = PaddingValues(top = 12.dp, bottom = 240.dp)
@@ -65,6 +74,7 @@ internal fun GlobalSourceSearchScreenBody(
                     error = entry.fetchIterator.error?.message,
                     onBookClick = onBookClick,
                     onLoadNext = { entry.fetchIterator.fetchNext() },
+                    getLibraryBadge = getLibraryBadge,
                 )
             }
         }
@@ -78,7 +88,8 @@ private fun SourceListView(
     error: String?,
     onBookClick: (book: BookMetadata) -> Unit,
     onLoadNext: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    getLibraryBadge: (String, String) -> LibraryBadgeState? = { _, _ -> null },
 ) {
     val state = rememberLazyListState()
 
@@ -96,6 +107,7 @@ private fun SourceListView(
             .fillMaxWidth(),
     ) {
         items(items = list, key = { it.url }) {
+            val badge = getLibraryBadge(it.url, it.title)
             BookImageButtonView(
                 title = it.title,
                 coverImageModel = rememberResolvedBookImagePath(
@@ -106,7 +118,10 @@ private fun SourceListView(
                 onLongClick = { },
                 modifier = Modifier
                     .width(130.dp),
-                bookTitlePosition = BookTitlePosition.Outside
+                bookTitlePosition = BookTitlePosition.Outside,
+                topLeftBadge = if (badge != null) {
+                    { InLibraryBadge(inSameSource = badge.inSameSource, sourceCount = badge.sourceCount) }
+                } else null,
             )
         }
 

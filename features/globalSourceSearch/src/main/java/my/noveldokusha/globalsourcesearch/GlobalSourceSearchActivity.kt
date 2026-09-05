@@ -52,6 +52,8 @@ class GlobalSourceSearchActivity : BaseActivity() {
                     onPressBack = { backPressedCallback.handleOnBackPressed() },
                     onSearchInputChange = viewModel.searchInput::value::set,
                     onSearchInputSubmit = viewModel::search,
+                    getLibraryBadge = viewModel::getLibraryBadge,
+                    libraryBadgeData = viewModel.libraryBadgeData,
                 )
             }
         }
