@@ -2,7 +2,7 @@
 
 kotlin = "2.4.10"
 
-plugin-agp = "9.3.1"
+plugin-agp = "9.3.2"
 
 hilt = "2.60.1"
 hilt-androidx = "1.4.0"
@@ -10,7 +10,7 @@ hilt-androidx = "1.4.0"
 ksp = "2.3.11"
 
 kotlinx-coroutines-core = "1.9.0"
-kotlinx-coroutines-test = "1.9.0"
+kotlinx-coroutines-test = "1.11.0"
 kotlinx-serialization-json = "1.11.0"
 
 testing-mockito-kotlin = "5.4.0"
@@ -32,7 +32,7 @@ androidx-lifecycle = "2.8.7"
 androidx-workmanager = "2.11.2"
 androidx-startup = "1.2.0"
 androidx-constraintLayout = "2.2.2"
-androidx-appcompat = "1.7.1"
+androidx-appcompat = "1.8.0"
 
 androidx-testing-core = "1.6.1"
 androidx-testing-runner = "1.6.2"
@@ -58,8 +58,8 @@ junit = "4.13.2"
 luajvm = "3.0.1"
 snakeyaml = "2.6"
 
-okhttp = "5.4.0"
-okhttp-interceptor-logging = "5.4.0"
+okhttp = "5.5.0"
+okhttp-interceptor-logging = "5.5.0"
 
 readability4j = "1.0.8"
 
