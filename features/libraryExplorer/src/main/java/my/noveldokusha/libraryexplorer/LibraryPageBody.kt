@@ -64,6 +64,9 @@ internal fun LibraryPageBody(
     isSelectionMode: Boolean = false,
     pendingRemoval: Set<String> = emptySet(),
     gridState: LazyGridState = rememberLazyGridState(),
+    // bookUrl → переведённое название новеллы (берётся из BookTranslation).
+    // Пустая/отсутствующая запись = показываем оригинал.
+    translatedTitles: Map<String, String> = emptyMap(),
 ) {
     if (list.isEmpty()) {
         Box(
@@ -105,7 +108,7 @@ internal fun LibraryPageBody(
                 Box {
                     val notReadCount = (it.chaptersCount - it.chaptersReadCount).coerceAtLeast(0)
                     BookImageButtonView(
-                        title = it.book.title,
+                        title = translatedTitles[it.book.url]?.takeIf { t -> t.isNotBlank() } ?: it.book.title,
                         coverImageModel = rememberResolvedBookImagePath(
                             bookUrl = it.book.url,
                             imagePath = it.book.coverImageUrl

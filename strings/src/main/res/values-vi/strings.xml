@@ -795,4 +795,16 @@
     <string name="book_export_no_chapters">Không có chương để xuất</string>
     <string name="book_export_failed">Xuất thất bại</string>
     <string name="export_started">Đã bắt đầu xuất</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">Mở cài đặt dịch</string>
+    <string name="plugin_translation_settings_title">Dịch (plugin)</string>
+    <string name="plugin_translation_enabled">Bật dịch bằng plugin</string>
+    <string name="plugin_translation_swap_languages">Hoán đổi ngôn ngữ</string>
+    <string name="plugin_translation_scope_standard">Tiêu chuẩn (chương)</string>
+    <string name="plugin_translation_scope_full">Đầy đủ (chương + sách)</string>
+    <string name="plugin_translation_scope_standard_description">Dịch văn bản chương và tiêu đề chương.</string>
+    <string name="plugin_translation_scope_full_description">Cũng dịch và lưu tiêu đề cùng mô tả của tiểu thuyết.</string>
+    <string name="plugin_translation_prompt_label">Lời nhắc</string>
+    <string name="plugin_translation_prompt_hint">Tùy chọn: lời nhắc hệ thống tùy chỉnh cho Gemini/OpenAI</string>
 </resources>

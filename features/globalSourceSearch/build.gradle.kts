@@ -16,8 +16,10 @@ dependencies {
     implementation(projects.navigation)
     implementation(projects.networking)
     implementation(projects.tooling.localDatabase)
+    implementation(projects.tooling.textTranslator.domain)
 
     implementation(libs.material)
+    implementation(libs.timber)
     implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.core.ktx)

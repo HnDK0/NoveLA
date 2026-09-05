@@ -15,6 +15,7 @@ dependencies {
     implementation(projects.strings)
     implementation(projects.core)
     implementation(projects.tooling.localDatabase)
+    implementation(projects.tooling.textTranslator.domain)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

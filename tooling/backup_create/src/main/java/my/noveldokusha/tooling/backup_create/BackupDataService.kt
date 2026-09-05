@@ -399,6 +399,39 @@ class BackupDataService : Service() {
                                 })
                             }
                         })
+                        put("TRANSLATION_BOOK_ENABLED_MAP", org.json.JSONObject().apply {
+                            appPreferences.TRANSLATION_BOOK_ENABLED_MAP.value.forEach { (url, enabled) ->
+                                put(url, enabled)
+                            }
+                        })
+                        put("TRANSLATION_PLUGIN_ENABLED_MAP", org.json.JSONObject().apply {
+                            appPreferences.TRANSLATION_PLUGIN_ENABLED_MAP.value.forEach { (id, enabled) ->
+                                put(id, enabled)
+                            }
+                        })
+                        put("TRANSLATION_PLUGIN_LANG_PAIR", org.json.JSONObject().apply {
+                            appPreferences.TRANSLATION_PLUGIN_LANG_PAIR.value.forEach { (id, pair) ->
+                                put(id, org.json.JSONObject().apply {
+                                    put("source", pair.source)
+                                    put("target", pair.target)
+                                })
+                            }
+                        })
+                        put("TRANSLATION_PLUGIN_PROVIDER", org.json.JSONObject().apply {
+                            appPreferences.TRANSLATION_PLUGIN_PROVIDER.value.forEach { (id, provider) ->
+                                put(id, provider)
+                            }
+                        })
+                        put("TRANSLATION_PLUGIN_SCOPE", org.json.JSONObject().apply {
+                            appPreferences.TRANSLATION_PLUGIN_SCOPE.value.forEach { (id, scope) ->
+                                put(id, scope)
+                            }
+                        })
+                        put("TRANSLATION_PLUGIN_PROMPTS", org.json.JSONObject().apply {
+                            appPreferences.TRANSLATION_PLUGIN_PROMPTS.value.forEach { (id, prompt) ->
+                                put(id, prompt)
+                            }
+                        })
                         put("TRANSLATION_FAVORITE_LANGUAGES", org.json.JSONArray(
                             appPreferences.TRANSLATION_FAVORITE_LANGUAGES.value
                         ))

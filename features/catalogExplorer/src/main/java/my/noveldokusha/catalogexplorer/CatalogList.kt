@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -54,6 +55,8 @@ internal fun CatalogList(
     onDatabaseClick: (DatabaseInterface) -> Unit,
     onSourceClick: (SourceInterface.Catalog) -> Unit,
     onSourceSetPinned: (id: String, pinned: Boolean) -> Unit,
+    translationSettingsExtensionIds: Map<String, String> = emptyMap(), // catalog.id → extensionId
+    onTranslationSettingsClick: (String) -> Unit = {}, // extensionId
 ) {
     LazyColumn(
         contentPadding = PaddingValues(bottom = 300.dp),
@@ -180,6 +183,19 @@ internal fun CatalogList(
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
+                                )
+                            }
+                        }
+                        val extensionId = translationSettingsExtensionIds[it.catalog.id]
+                        if (extensionId != null && it.catalog.contentType != "manga") {
+                            // Открываем настройки под catalog.id (ключ чтения каскада) — для
+                            // Lua-плагинов он равен metadata.id ("lua_<ext.id>" или кастомному id).
+                            // Для манга-источников переводить нечего (контент — картинки), поэтому
+                            // иконка настройки переводчика скрывается.
+                            IconButton(onClick = { onTranslationSettingsClick(it.catalog.id) }) {
+                                Icon(
+                                    Icons.Filled.Translate,
+                                    contentDescription = stringResource(my.noveldokusha.strings.R.string.extension_translation_settings),
                                 )
                             }
                         }

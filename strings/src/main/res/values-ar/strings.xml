@@ -795,4 +795,16 @@
     <string name="book_export_no_chapters">لا توجد فصول للتصدير</string>
     <string name="book_export_failed">فشل التصدير</string>
     <string name="export_started">بدأ التصدير</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">فتح إعدادات الترجمة</string>
+    <string name="plugin_translation_settings_title">الترجمة (إضافة)</string>
+    <string name="plugin_translation_enabled">تفعيل ترجمة الإضافة</string>
+    <string name="plugin_translation_swap_languages">تبديل اللغات</string>
+    <string name="plugin_translation_scope_standard">قياسي (الفصول)</string>
+    <string name="plugin_translation_scope_full">كامل (الفصول + الكتاب)</string>
+    <string name="plugin_translation_scope_standard_description">يترجم نص الفصول وعناوين الفصول.</string>
+    <string name="plugin_translation_scope_full_description">يترجم ويحفظ أيضًا عنوان الرواية ووصفها.</string>
+    <string name="plugin_translation_prompt_label">الموجه</string>
+    <string name="plugin_translation_prompt_hint">اختياري: موجه نظام مخصص لـ Gemini/OpenAI</string>
 </resources>

@@ -806,4 +806,16 @@
     <string name="book_export_cancel">取消</string>
     <string name="book_export_no_chapters">没有可导出的章节</string>
     <string name="book_export_failed">导出失败</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">打开翻译设置</string>
+    <string name="plugin_translation_settings_title">翻译（插件）</string>
+    <string name="plugin_translation_enabled">启用插件翻译</string>
+    <string name="plugin_translation_swap_languages">交换语言</string>
+    <string name="plugin_translation_scope_standard">标准（章节）</string>
+    <string name="plugin_translation_scope_full">完整（章节 + 书籍）</string>
+    <string name="plugin_translation_scope_standard_description">翻译章节文本和章节标题。</string>
+    <string name="plugin_translation_scope_full_description">同时翻译并保存小说标题和简介。</string>
+    <string name="plugin_translation_prompt_label">提示词</string>
+    <string name="plugin_translation_prompt_hint">可选：为 Gemini/OpenAI 自定义系统提示词</string>
 </resources>

@@ -28,8 +28,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.appPreferences.AppPreferences
+import my.noveldokusha.core.appPreferences.TranslationSettingsResolver
 import my.noveldokusha.coreui.states.NotificationsCenter
+import my.noveldokusha.feature.local_database.DAOs.BookTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
+import my.noveldokusha.feature.local_database.tables.BookTranslation
 import my.noveldokusha.feature.local_database.tables.DownloadTaskEntity
 import my.noveldokusha.core.utils.normalizeBookUrl
 import my.noveldokusha.core.utils.STRIP_HTML_TAGS
@@ -115,6 +118,8 @@ class DownloadManager @Inject constructor(
     private val downloadedPageChaptersStore: DownloadedPageChaptersStore,
     private val translationManager: TranslationManager,
     private val chapterTranslationDao: my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao,
+    private val bookTranslationDao: BookTranslationDao,
+    private val translationSettingsResolver: TranslationSettingsResolver,
     private val notificationsCenter: NotificationsCenter,
     private val downloadTaskDao: DownloadTaskDao,
 ) {
@@ -406,10 +411,13 @@ class DownloadManager @Inject constructor(
         // Фильтруем главы до lock — IO-операция
         val toProcess = withContext(Dispatchers.IO) {
             if (translateMode) {
-                val pair = appPreferences.translationPairForBook(bookUrl)
+                // Эффективная пара/включённость через резолвер — учитывает per-plugin
+                // настройки (каскад per-book > per-plugin > global). Резолвер сам
+                // подставляет sourceId книги, поэтому здесь не читаем глобальные prefs.
+                val pair = translationSettingsResolver.translationPairForBook(bookUrl)
                 val sourceLang = pair.source
                 val targetLang = pair.target
-                if (!appPreferences.translationEnabledForBook(bookUrl) || sourceLang.isBlank() || targetLang.isBlank()) {
+                if (!translationSettingsResolver.translationEnabledForBook(bookUrl) || sourceLang.isBlank() || targetLang.isBlank()) {
                     emptyList()
                 } else {
                     val translatedUrls = uniqueUrls.chunked(500).flatMap { chunk ->
@@ -649,10 +657,11 @@ class DownloadManager @Inject constructor(
                     val cachedBody = chapterBodyRepository.getCachedBody(chapterUrl)
                     val pageDownloaded = downloadedPageChaptersStore.isDownloaded(chapterUrl)
                     if (cachedBody != null || pageDownloaded) {
-                        val pair = appPreferences.translationPairForBook(bookUrl)
+                        // Эффективная пара через резолвер — per-plugin настройки учитываются.
+                        val pair = translationSettingsResolver.translationPairForBook(bookUrl)
                         val sourceLang = pair.source
                         val targetLang = pair.target
-                        val needsTranslation = appPreferences.translationEnabledForBook(bookUrl) &&
+                        val needsTranslation = translationSettingsResolver.translationEnabledForBook(bookUrl) &&
                             sourceLang.isNotBlank() && targetLang.isNotBlank() &&
                             (chapterTranslationDao.getTranslations(chapterUrl, sourceLang, targetLang)
                                 ?.translatedParagraphs?.isNotEmpty() != true)
@@ -771,6 +780,9 @@ class DownloadManager @Inject constructor(
                 }
 
                 // Все главы обработаны
+                // FULL-scope: переводим метаданные книги (заголовок+описание) один раз
+                // за задачу. Ошибки перевода проглатываются — не роняем задачу.
+                ensureBookInfoTranslated(bookUrl)
                 val completed = updateTask(bookUrl) { it.copy(isCompleted = true, isWaitingForNetwork = false) }
                 if (completed != null) notifications[bookUrl]?.showCompleted(completed)
                 withContext(Dispatchers.IO) { downloadTaskDao.delete(bookUrl) }
@@ -1032,14 +1044,17 @@ class DownloadManager @Inject constructor(
      * [TranslateOutcome.Failure] с признаком сетевой ошибки — для ожидания сети.
      */
     private suspend fun translateAndSave(bookUrl: String, chapterUrl: String, body: String): TranslateOutcome {
-        val pair = appPreferences.translationPairForBook(bookUrl)
+        // Эффективная пара/включённость через резолвер (per-plugin каскад).
+        val pair = translationSettingsResolver.translationPairForBook(bookUrl)
         val sourceLang = pair.source
         val targetLang = pair.target
-        val isEnabled = appPreferences.translationEnabledForBook(bookUrl)
+        val isEnabled = translationSettingsResolver.translationEnabledForBook(bookUrl)
         if (!isEnabled || sourceLang.isBlank() || targetLang.isBlank()) {
             Timber.d("translation skipped (enabled=$isEnabled)")
             return TranslateOutcome.Success
         }
+        // Провайдер книги (per-plugin override) — null означает активный глобальный провайдер.
+        val provider = translationSettingsResolver.translationProviderForBook(bookUrl)
 
         return try {
             val cleanBody = body
@@ -1061,7 +1076,7 @@ class DownloadManager @Inject constructor(
             if (paragraphs.isEmpty()) return TranslateOutcome.Success
 
             // H5: Retry-цикл для translateBatch (перевыбрасывает ошибку при исчерпании)
-            val translations = translateBatchWithRetry(paragraphs, sourceLang, targetLang)
+            val translations = translateBatchWithRetry(paragraphs, sourceLang, targetLang, provider)
 
             val translatedParagraphs = org.json.JSONArray(
                 paragraphs.map { translations[it] ?: it }
@@ -1072,7 +1087,7 @@ class DownloadManager @Inject constructor(
                 val chapter = appRepository.bookChapters.get(chapterUrl)
                 if (chapter != null && chapter.title.isNotBlank()) {
                     val translated = translationManager.translateTitle(
-                        chapter.title, sourceLang, targetLang
+                        chapter.title, sourceLang, targetLang, provider
                     )
                     if (translated != null) {
                         titleTranslation = translated
@@ -1097,6 +1112,105 @@ class DownloadManager @Inject constructor(
         } catch (e: Exception) {
             Timber.e(e, "translateAndSave failed")
             TranslateOutcome.Failure(networkRelated = isTranslationNetworkError(e))
+        }
+    }
+
+    /**
+     * Переводит метаданные книги (заголовок + описание) и сохраняет в BookTranslation.
+     *
+     * Срабатывает один раз за задачу скачивания, только когда:
+     *  - scope книги == "FULL" (STANDARD не трогает метаданные);
+     *  - пара языков полная (source+target не пустые);
+     *  - для этой пары хотя бы одно поле (title/description) ещё не переведено — guard
+     *    по заполненности полей, а не по наличию строки: частичный перевод дозавершается
+     *    при повторной загрузке (как в конвейере глав).
+     *
+     * Заголовок и описание переводятся по схеме PA→Free: заголовок — через translateTitle
+     * без override провайдера (для LLM-провайдеров сам откатывается на бесплатный путь),
+     * описание — вручную PA, при сбое PA — бесплатный Google. На метаданные LLM-токены
+     * не тратим (работает и без ключа API). Ошибки перевода проглатываются (логируются),
+     * чтобы не ронять задачу скачивания.
+     */
+    private suspend fun ensureBookInfoTranslated(bookUrl: String) {
+        try {
+            val enabled = translationSettingsResolver.translationEnabledForBook(bookUrl)
+            val pair = translationSettingsResolver.translationPairForBook(bookUrl)
+            val sourceLang = pair.source
+            val targetLang = pair.target
+            val scope = translationSettingsResolver.translationScopeForBook(bookUrl)
+            // Диагностика: почему метаданные скачиваемой новеллы переводятся/нет.
+            Timber.d(
+                "downloadInfo: url=%s enabled=%s source=%s target=%s scope=%s",
+                bookUrl, enabled, sourceLang, targetLang, scope
+            )
+            if (!enabled) return
+            if (sourceLang.isBlank() || targetLang.isBlank()) return
+            if (scope != AppPreferences.TRANSLATION_SCOPE_FULL) return
+            // Долечиваем только отсутствующие поля: если строка уже есть, но заголовок или
+            // описание пустые (транзиентный сбой ранее), при повторной загрузке дозавершаем
+            // их, а не выходим по наличию строки (как это делает конвейер глав).
+            val existingRow = bookTranslationDao.get(bookUrl, sourceLang, targetLang)
+            val needTitle = existingRow?.titleTranslation.isNullOrBlank()
+            val needDescription = existingRow?.descriptionTranslation.isNullOrBlank()
+            if (!needTitle && !needDescription) return
+
+            // Метаданные книги берём из библиотечной записи (title + description).
+            val book = appRepository.libraryBooks.get(bookUrl)
+            if (book == null) return
+
+            var titleTranslation = existingRow?.titleTranslation.orEmpty()
+            if (needTitle) {
+                try {
+                    if (book.title.isNotBlank()) {
+                        // без override провайдера translateTitle даёт PA→Free (см. TranslationManagerComposite):
+                        // для LLM-провайдеров всегда бесплатный путь, не тратит токены.
+                        titleTranslation = translationManager.translateTitle(
+                            book.title, sourceLang, targetLang
+                        ) ?: ""
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "book title translation failed")
+                }
+            }
+
+            var descriptionTranslation = existingRow?.descriptionTranslation.orEmpty()
+            if (needDescription) {
+                try {
+                    if (book.description.isNotBlank()) {
+                        // PA→Free вручную: у getTranslator встроенного фолбека нет. PA качественнее,
+                        // при его сбое — бесплатный Google (не тратим LLM-токены на описание).
+                        descriptionTranslation = try {
+                            translationManager
+                                .getTranslator(sourceLang, targetLang, null, "GOOGLE_PA")
+                                .translate(book.description)
+                        } catch (e: Exception) {
+                            translationManager
+                                .getTranslator(sourceLang, targetLang, null, "GOOGLE_FREE")
+                                .translate(book.description)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "book description translation failed")
+                }
+            }
+
+            // Пустые оба поля — не пишем строку (DAO flow их и так не вернёт).
+            if (titleTranslation.isBlank() && descriptionTranslation.isBlank()) return
+
+            bookTranslationDao.insertReplace(
+                BookTranslation(
+                    bookUrl = bookUrl,
+                    sourceLang = sourceLang,
+                    targetLang = targetLang,
+                    titleTranslation = titleTranslation,
+                    descriptionTranslation = descriptionTranslation,
+                )
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Никогда не роняем задачу из-за перевода метаданных.
+            Timber.e(e, "ensureBookInfoTranslated failed")
         }
     }
 
@@ -1161,6 +1275,7 @@ class DownloadManager @Inject constructor(
         paragraphs: List<String>,
         sourceLang: String,
         targetLang: String,
+        provider: String? = null,
     ): Map<String, String> {
         var lastError: Exception? = null
         for (attempt in 0 until TRANSLATION_MAX_RETRIES) {
@@ -1171,7 +1286,7 @@ class DownloadManager @Inject constructor(
                     // Проверяем не отменена ли задача
                     // (пауза/отмена проверяется выше в downloadBook перед вызовом)
                 }
-                return translationManager.translateBatch(paragraphs, sourceLang, targetLang)
+                return translationManager.translateBatch(paragraphs, sourceLang, targetLang, provider = provider)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

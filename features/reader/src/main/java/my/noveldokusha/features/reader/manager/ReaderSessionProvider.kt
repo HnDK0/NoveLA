@@ -4,6 +4,7 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.core.appPreferences.AppPreferences
+import my.noveldokusha.core.appPreferences.TranslationSettingsResolver
 import my.noveldokusha.features.reader.ReaderRepository
 import my.noveldokusha.features.reader.ui.ReaderViewHandlersActions
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
@@ -18,6 +19,7 @@ internal class ReaderSessionProvider @Inject constructor(
     private val appPreferences: AppPreferences,
     @ApplicationContext private val context: Context,
     private val translationManager: TranslationManager,
+    private val translationSettingsResolver: TranslationSettingsResolver,
     private val readerRepository: ReaderRepository,
     private val readerViewHandlersActions: ReaderViewHandlersActions,
     private val chapterTranslationDao: ChapterTranslationDao,
@@ -32,6 +34,7 @@ internal class ReaderSessionProvider @Inject constructor(
             initialChapterUrl = initialChapterUrl,
             appRepository = appRepository,
             translationManager = translationManager,
+            translationSettingsResolver = translationSettingsResolver,
             appPreferences = appPreferences,
             context = context,
             readerRepository = readerRepository,

@@ -141,6 +141,8 @@
     <string name="translation_mode_global">All novels</string>
     <string name="translation_select_pair_to_enable">Select source and target languages to start translating</string>
     <string name="translation_toggle_off_hint">Translation is off for this novel. Turn it on to translate.</string>
+    <string name="active_translator_label">Active translator: %s</string>
+    <string name="translators_all_off">Translators are off</string>
     <string name="provider_name">Provider: %s</string>
     <string name="language_selection">Language</string>
     <string name="language_search">Select language</string>
@@ -795,5 +797,17 @@
     <string name="book_export_cancel">Cancel</string>
     <string name="book_export_no_chapters">No chapters to export</string>
     <string name="book_export_failed">Export failed</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">Open translation settings</string>
+    <string name="plugin_translation_settings_title">Translation (plugin)</string>
+    <string name="plugin_translation_enabled">Enable plugin translation</string>
+    <string name="plugin_translation_swap_languages">Swap languages</string>
+    <string name="plugin_translation_scope_standard">Standard (chapters)</string>
+    <string name="plugin_translation_scope_full">Full (chapters + book)</string>
+    <string name="plugin_translation_scope_standard_description">Translates chapter text and chapter titles.</string>
+    <string name="plugin_translation_scope_full_description">Also translates and saves the novel title and description.</string>
+    <string name="plugin_translation_prompt_label">Prompt</string>
+    <string name="plugin_translation_prompt_hint">Optional: custom system prompt for Gemini/OpenAI</string>
 
 </resources>

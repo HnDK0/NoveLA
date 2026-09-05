@@ -65,7 +65,12 @@ class TranslationManagerGooglePA(
     override suspend fun hasModelDownloaded(language: String): TranslationModelState? =
         models.firstOrNull { it.language == language }
 
-    override fun getTranslator(source: String, target: String, systemPromptOverride: String?): TranslatorState {
+    override fun getTranslator(
+        source: String,
+        target: String,
+        systemPromptOverride: String?,
+        provider: String?
+    ): TranslatorState {
         Timber.d( "getTranslator: source=$source, target=$target")
         return TranslatorState(
             source = source,
@@ -407,12 +412,12 @@ class TranslationManagerGooglePA(
         sourceLanguage: String,
         targetLanguage: String,
         systemPromptOverride: String?,
+        provider: String?,
     ): Map<String, String> = withContext(Dispatchers.IO) {
         if (texts.isEmpty()) return@withContext emptyMap()
 
         val sourceLang = if (sourceLanguage == "auto") "auto" else sourceLanguage
 
-        // PA chunks by character count (8 000-char limit) inside translateChunks — no item-count limit needed.
         val normalizedTexts = texts.filter { it.isNotBlank() }
         if (normalizedTexts.isEmpty()) return@withContext emptyMap()
 

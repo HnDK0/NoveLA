@@ -409,6 +409,22 @@ internal fun databaseMigrations() = arrayOf(
         it.addColumnIfNotExists("Book", "status", "TEXT NOT NULL DEFAULT ''")
         it.addColumnIfNotExists("Book", "lastUpdateDate", "TEXT NOT NULL DEFAULT ''")
     },
+    migration(32) {
+        // Перевод метаданных книги (заголовок/описание) для пары языков.
+        // Составной PK гарантирует отсутствие дублей при insertReplace.
+        // SQL повторяет createSql из schema-json (без DEFAULT — дефолты
+        // задаются на уровне Kotlin-свойств, а не в схеме).
+        it.execSQL("""
+            CREATE TABLE IF NOT EXISTS BookTranslation (
+                bookUrl TEXT NOT NULL,
+                sourceLang TEXT NOT NULL,
+                targetLang TEXT NOT NULL,
+                titleTranslation TEXT NOT NULL,
+                descriptionTranslation TEXT NOT NULL,
+                PRIMARY KEY (bookUrl, sourceLang, targetLang)
+            )
+        """)
+    },
 )
 
 internal fun migration(vi: Int, migrate: (SupportSQLiteDatabase) -> Unit) =

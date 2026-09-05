@@ -107,7 +107,12 @@ class TranslationManagerOpenAI(
     override suspend fun hasModelDownloaded(language: String): TranslationModelState? =
         models.firstOrNull { it.language == language }
 
-    override fun getTranslator(source: String, target: String, systemPromptOverride: String?): TranslatorState {
+    override fun getTranslator(
+        source: String,
+        target: String,
+        systemPromptOverride: String?,
+        provider: String?
+    ): TranslatorState {
         Timber.d( "getTranslator: source=$source, target=$target, override=${systemPromptOverride != null}")
         return TranslatorState(
             source = source,
@@ -136,6 +141,7 @@ class TranslationManagerOpenAI(
         sourceLanguage: String,
         targetLanguage: String,
         systemPromptOverride: String?,
+        provider: String?,
     ): Map<String, String> = withContext(Dispatchers.IO) {
         if (texts.isEmpty()) return@withContext emptyMap()
 

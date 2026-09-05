@@ -3,6 +3,7 @@ package my.noveldokusha.mappers
 import my.noveldokusha.core.PagedList
 import my.noveldokusha.core.Response
 import my.noveldokusha.core.syncMap
+import my.noveldokusha.core.utils.normalizeBookUrl
 import my.noveldokusha.feature.local_database.BookMetadata
 import my.noveldokusha.feature.local_database.ChapterMetadata
 import my.noveldokusha.scraper.domain.BookResult
@@ -20,7 +21,7 @@ fun Response<List<ChapterResult>>.mapToChapterMetadata() = syncMap { it.mapToCha
 
 fun BookResult.mapToBookMetadata() = BookMetadata(
     title = this.title,
-    url = this.url,
+    url = normalizeBookUrl(this.url),
     coverImageUrl = this.coverImageUrl,
     description = this.description,
     rating = this.rating.orEmpty(),

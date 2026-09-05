@@ -61,6 +61,7 @@ import my.noveldokusha.catalogexplorer.AddByUrlDialog
 import my.noveldokusha.extensions.ExtensionsScreen
 import my.noveldokusha.extensions.ExtensionsManagerViewModel
 import my.noveldokusha.extensions.ExtensionsScreenEvent
+import my.noveldokusha.extensions.PluginTranslationSettingsDialog
 import my.noveldokusha.tooling.novel_migration.ui.MigrationTabContent
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,6 +76,15 @@ fun CatalogExplorerScreen(
     val extensionsViewModel = hiltViewModel<ExtensionsManagerViewModel>()
     val extensionsState by extensionsViewModel.state.collectAsStateWithLifecycle()
 
+    // Карта catalog.id → extensionId для установленных плагинов: каталог Lua-источника
+    // имеет metadata.id = extension.id либо "lua_${extension.id}".
+    val translationSettingsExtensionIds = remember(extensionsState.extensions) {
+        extensionsState.extensions
+            .filter { it.installed }
+            .flatMap { ext -> listOf(ext.id to ext.id, "lua_${ext.id}" to ext.id) }
+            .toMap()
+    }
+
     val context = LocalContext.current
     var extensionsChipsVisible by rememberSaveable { mutableStateOf(false) }
 
@@ -86,6 +96,14 @@ fun CatalogExplorerScreen(
             val code = input.bufferedReader().readText()
             val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "local.lua"
             extensionsViewModel.importLuaFromText(fileName, code)
+        }
+    }
+
+    // Стабильная лямбда: содержит только переадресацию события в VM, без захвата
+    // рекомпозируемого состояния. Позволяет CatalogList оставаться skippable (P2).
+    val onTranslationSettingsClick: (String) -> Unit = remember {
+        { extensionId: String ->
+            extensionsViewModel.onEvent(ExtensionsScreenEvent.OnExtensionConfigure(extensionId))
         }
     }
 
@@ -257,7 +275,9 @@ fun CatalogExplorerScreen(
                         sourcesList = filteredSources,
                         onDatabaseClick = onDatabaseClick,
                         onSourceClick = onSourceClick,
-                        onSourceSetPinned = viewModel::onSourceSetPinned
+                        onSourceSetPinned = viewModel::onSourceSetPinned,
+                        translationSettingsExtensionIds = translationSettingsExtensionIds,
+                        onTranslationSettingsClick = onTranslationSettingsClick,
                     )
                 }
                 1 -> {
@@ -287,6 +307,15 @@ fun CatalogExplorerScreen(
             }
         }
     )
+
+    // Диалог настроек перевода плагина — рендерится на уровне экрана, вне вкладок.
+    extensionsState.translationSettingsExtensionId?.let { extensionId ->
+        PluginTranslationSettingsDialog(
+            extensionId = extensionId,
+            viewModel = extensionsViewModel,
+            onDismiss = { extensionsViewModel.onEvent(ExtensionsScreenEvent.OnTranslationSettingsDismiss) },
+        )
+    }
 
     // Add by URL dialog
     if (uiState.showAddByUrlDialog) {

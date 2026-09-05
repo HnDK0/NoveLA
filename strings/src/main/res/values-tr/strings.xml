@@ -795,4 +795,16 @@
     <string name="book_export_cancel">İptal</string>
     <string name="book_export_no_chapters">Dışa aktarılacak bölüm yok</string>
     <string name="book_export_failed">Dışa aktarma başarısız</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">Çeviri ayarlarını aç</string>
+    <string name="plugin_translation_settings_title">Çeviri (eklenti)</string>
+    <string name="plugin_translation_enabled">Eklenti çevirisini etkinleştir</string>
+    <string name="plugin_translation_swap_languages">Dilleri değiştir</string>
+    <string name="plugin_translation_scope_standard">Standart (bölümler)</string>
+    <string name="plugin_translation_scope_full">Tam (bölümler + kitap)</string>
+    <string name="plugin_translation_scope_standard_description">Bölüm metnini ve bölüm başlıklarını çevirir.</string>
+    <string name="plugin_translation_scope_full_description">Romanın başlığını ve açıklamasını da çevirip kaydeder.</string>
+    <string name="plugin_translation_prompt_label">İstek</string>
+    <string name="plugin_translation_prompt_hint">İsteğe bağlı: Gemini/OpenAI için özel sistem istemi</string>
 </resources>

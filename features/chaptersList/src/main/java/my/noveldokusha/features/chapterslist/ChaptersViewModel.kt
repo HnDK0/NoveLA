@@ -6,16 +6,18 @@ import android.net.Uri
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,8 +36,8 @@ import my.noveldokusha.core.AppCoroutineScope
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppPreferences
+import my.noveldokusha.core.appPreferences.TranslationSettingsResolver
 import my.noveldokusha.core.appPreferences.resolveExportDirectoryDisplayName
-import my.noveldokusha.core.appPreferences.resolveTranslationEnabled
 import my.noveldokusha.core.domain.ChapterPagination
 import my.noveldokusha.core.isContentUri
 import my.noveldokusha.core.isLocalUri
@@ -43,12 +45,15 @@ import my.noveldokusha.core.utils.GenreUtils
 import my.noveldokusha.core.utils.StateExtra_String
 import my.noveldokusha.core.utils.toState
 import my.noveldokusha.feature.local_database.ChapterWithContext
+import my.noveldokusha.feature.local_database.DAOs.BookTranslationDao
+import my.noveldokusha.feature.local_database.DAOs.BookTitleTranslation
 import my.noveldokusha.feature.local_database.DAOs.ChapterBodyDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.feature.local_database.DAOs.ReadingHistoryDao
 import my.noveldokusha.feature.local_database.tables.Chapter
+import my.noveldokusha.feature.local_database.tables.BookTranslation
 import my.noveldokusha.feature.local_database.tables.ReadingHistory
 import my.noveldokusha.scraper.Scraper
 import my.noveldokusha.core.utils.normalizeBookUrl
@@ -83,6 +88,8 @@ internal class ChaptersViewModel @Inject constructor(
     private val chapterDao: ChapterDao,
     private val chapterBodyDao: ChapterBodyDao,
     private val chapterTranslationDao: ChapterTranslationDao,
+    private val bookTranslationDao: BookTranslationDao,
+    private val translationSettingsResolver: TranslationSettingsResolver,
     private val translationManager: TranslationManager,
     private val readingHistoryDao: ReadingHistoryDao,
     stateHandle: SavedStateHandle,
@@ -272,30 +279,65 @@ internal class ChaptersViewModel @Inject constructor(
     val translatedDescription = mutableStateOf<String?>(null)
     val isTranslatingInfo = mutableStateOf(false)
 
+    // Флаг: результат ручного перевода метаданных книги.
+    // Пока активен, подписка НЕ перезаписывает translatedTitle/translatedDescription
+    // из БД (чтобы ручной результат не пропадал при scope != FULL).
+    private var manualTranslationActive = false
+
     fun translateBookInfo() {
         if (isTranslatingInfo.value) return
         viewModelScope.launch {
-            val targetLang = appPreferences.translationTargetForBook(bookUrl)
+            val pair = translationSettingsResolver.translationPairForBook(bookUrl)
+            val sourceLang = pair.source
+            val targetLang = pair.target
             if (targetLang.isBlank()) {
+                toasty.show(R.string.translate_target_lang_not_set)
+                return@launch
+            }
+            if (sourceLang.isBlank()) {
                 toasty.show(R.string.translate_target_lang_not_set)
                 return@launch
             }
 
             isTranslatingInfo.value = true
             try {
-                val translator = translationManager.getTranslator(
-                    source = "auto",
-                    target = targetLang
-                )
-
                 val title = state.book.value.title
                 val description = state.book.value.description
 
-                if (title.isNotBlank())
-                    translatedTitle.value = translator.translate(title)
-                if (description.isNotBlank())
-                    translatedDescription.value = translator.translate(description)
+                // Заголовок/описание книги: PA→Free, не тратим LLM-токены и не требуем API-ключ.
+                // translateTitle без override провайдера сам откатывается на PA→Free для LLM.
+                val translatedTitleText = if (title.isNotBlank())
+                    translationManager.translateTitle(title, sourceLang, targetLang)
+                else null
+                val translatedDescriptionText = if (description.isNotBlank())
+                    try {
+                        translationManager.translateBatch(
+                            listOf(description), sourceLang, targetLang,
+                            systemPromptOverride = null, provider = "GOOGLE_PA"
+                        )[description]
+                    } catch (e: Exception) {
+                        // PA упал — фолбек на бесплатный Google (хуже качество, но бесплатно).
+                        translationManager.translateBatch(
+                            listOf(description), sourceLang, targetLang,
+                            systemPromptOverride = null, provider = "GOOGLE_FREE"
+                        )[description]
+                    }
+                else null
 
+                bookTranslationDao.insertReplace(
+                    BookTranslation(
+                        bookUrl = bookUrl,
+                        sourceLang = sourceLang,
+                        targetLang = targetLang,
+                        titleTranslation = translatedTitleText ?: "",
+                        descriptionTranslation = translatedDescriptionText ?: "",
+                    )
+                )
+                // Ручной результат: пишем напрямую в state, чтобы показать
+                // даже при scope != FULL (подписка на БД в этом случае не активна).
+                manualTranslationActive = true
+                translatedTitle.value = translatedTitleText?.takeIf { it.isNotBlank() }
+                translatedDescription.value = translatedDescriptionText?.takeIf { it.isNotBlank() }
             } catch (e: Exception) {
                 toasty.show(R.string.translate_failed)
             } finally {
@@ -305,8 +347,12 @@ internal class ChaptersViewModel @Inject constructor(
     }
 
     fun clearBookInfoTranslation() {
+        manualTranslationActive = false
         translatedTitle.value = null
         translatedDescription.value = null
+        viewModelScope.launch {
+            bookTranslationDao.deleteByBookUrls(listOf(bookUrl))
+        }
     }
 
     // ─── Инициализация ────────────────────────────────────────────────────────
@@ -422,25 +468,22 @@ internal class ChaptersViewModel @Inject constructor(
             }
         }
 
-        // Подписываемся на переведённые названия глав из БД
+        // Подписываемся на переведённые названия глав из БД.
+        // Каскад (включая плагинный уровень) резолвится через settingsChangeSignal
+        // — тот же путь, что для метаданных книги, чтобы книга плагина с включённым
+        // переводчиком переводила и названия глав независимо от глобального режима.
         viewModelScope.launch {
-            combine(
-                combine(
-                    bookUrlFlow,
-                    appPreferences.TRANSLATION_BOOK_ENABLED_MAP.flow(),
-                ) { url, bookEnabled -> url to bookEnabled },
-                appPreferences.TRANSLATION_BOOK_LANG_PAIR.flow(),
-                appPreferences.GLOBAL_TRANSLATION_ENABLED.flow(),
-                appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.flow(),
-                appPreferences.TRANSLATION_GLOBAL_MODE.flow()
-            ) { (url, bookEnabled), bookPairs, globalEnabled, globalTarget, globalMode ->
-                val enabled = resolveTranslationEnabled(globalMode, globalEnabled, bookEnabled, url)
-                val target = if (globalMode) globalTarget else bookPairs[url]?.target ?: ""
-                enabled to target
-            }
-                .flatMapLatest { (enabled, targetLang) ->
-                    if (enabled) {
-                        chapterTranslationDao.getTranslatedTitlesFlow(bookUrlFlow.value, targetLang)
+            translationSettingsResolver.settingsChangeSignal(bookUrlFlow.value)
+                .flatMapLatest { settings ->
+                    Timber.d(
+                        "chapterTitles: url=%s enabled=%s target=%s scope=%s provider=%s",
+                        bookUrlFlow.value, settings.enabled, settings.target, settings.scope, settings.provider
+                    )
+                    // Названия глав переводятся всегда, когда перевод включён — независимо
+                    // от scope. Scope (STANDARD/FULL) влияет только на название/описание
+                    // самой книги и каталог; главы и содержимое читалки переводятся всегда.
+                    if (settings.enabled) {
+                        chapterTranslationDao.getTranslatedTitlesFlow(bookUrlFlow.value, settings.target)
                     } else {
                         flowOf(emptyList())
                     }
@@ -448,6 +491,101 @@ internal class ChaptersViewModel @Inject constructor(
                 .collectLatest { list ->
                     state.translatedChapterTitles.value = list.associate {
                         it.chapterUrl to it.translatedText
+                    }
+                }
+        }
+
+        // Подписка на перевод метаданных книги (title + description):
+        // ручной translateBookInfo() и FULL-конвейер пишут строку в BookTranslation,
+        // а реактивность обеспечивает settingsChangeSignal: смена пары/режима при
+        // открытом экране переизлучает комбинацию → flatMapLatest переподписывает
+        // DAO-flow → UI обновляется без ручного действия.
+        viewModelScope.launch {
+            translationSettingsResolver.settingsChangeSignal(bookUrlFlow.value)
+                .flatMapLatest { settings ->
+                    // Диагностика резолва метаданных книги.
+                    Timber.d(
+                        "bookInfo: url=%s enabled=%s source=%s target=%s scope=%s",
+                        bookUrlFlow.value, settings.enabled, settings.source, settings.target, settings.scope
+                    )
+                    // Авто-показ перевода метаданных книги ТОЛЬКО при scope == FULL.
+                    // При scope != FULL — не загружаем из БД (ручной результат
+                    // управляется отдельно через manualTranslationActive флаг).
+                    if (settings.target.isBlank() || settings.scope != AppPreferences.TRANSLATION_SCOPE_FULL) {
+                        flowOf(null)
+                    } else {
+                        bookTranslationDao.getTranslatedBookFlow(bookUrlFlow.value, settings.target)
+                            .map { rows -> selectBookInfoRow(rows, settings.source) }
+                    }
+                }
+                .collectLatest { row ->
+                    // Не перезаписываем результат ручного перевода, пока он активен.
+                    if (manualTranslationActive) return@collectLatest
+                    translatedTitle.value = row?.titleTranslation?.takeIf { it.isNotBlank() }
+                    translatedDescription.value = row?.descriptionTranslation?.takeIf { it.isNotBlank() }
+                }
+        }
+
+        // FULL-scope: автоматически переводим заголовок и описание новеллы при её
+        // открытии. Запускается после загрузки метаданных книги, только если перевод
+        // включён, пара языков полная, scope == FULL и перевода ещё нет в БД.
+        viewModelScope.launch {
+            snapshotFlow { state.book.value }
+                .filter { it.title.isNotBlank() || it.description.isNotBlank() }
+                .collect { bookState ->
+                    val enabled = translationSettingsResolver.translationEnabledForBook(bookUrl)
+                    val pair = translationSettingsResolver.translationPairForBook(bookUrl)
+                    val sourceLang = pair.source
+                    val targetLang = pair.target
+                    val scope = translationSettingsResolver.translationScopeForBook(bookUrl)
+                    val provider = translationSettingsResolver.translationProviderForBook(bookUrl)
+                    // Диагностика FULL-конвейера: почему метаданные переводятся/пропускаются.
+                    Timber.d(
+                        "bookInfoFull: url=%s enabled=%s source=%s target=%s scope=%s provider=%s hasBody=%s",
+                        bookUrl, enabled, sourceLang, targetLang, scope, provider,
+                        bookState.description.isNotBlank() || bookState.title.isNotBlank()
+                    )
+                    if (!enabled) return@collect
+                    if (sourceLang.isBlank() || targetLang.isBlank()) return@collect
+                    if (scope != AppPreferences.TRANSLATION_SCOPE_FULL) return@collect
+                    val existingRow = bookTranslationDao.get(bookUrl, sourceLang, targetLang)
+                    if (existingRow?.descriptionTranslation?.isNotBlank() == true) return@collect
+                    if (isTranslatingInfo.value) return@collect
+
+                    isTranslatingInfo.value = true
+                    try {
+                        val translatedTitleText =
+                            existingRow?.titleTranslation?.takeIf { it.isNotBlank() }
+                                ?: if (bookState.title.isNotBlank())
+                                    translationManager.translateTitle(
+                                        bookState.title, sourceLang, targetLang, provider
+                                    ) ?: ""
+                                else ""
+                        val translatedDescriptionText =
+                            if (bookState.description.isNotBlank())
+                                translationManager.translateBatch(
+                                    listOf(bookState.description), sourceLang, targetLang,
+                                    systemPromptOverride = null, provider = provider
+                                )[bookState.description] ?: ""
+                            else ""
+
+                        if (translatedTitleText.isNotBlank() || translatedDescriptionText.isNotBlank()) {
+                            bookTranslationDao.insertReplace(
+                                BookTranslation(
+                                    bookUrl = bookUrl,
+                                    sourceLang = sourceLang,
+                                    targetLang = targetLang,
+                                    titleTranslation = translatedTitleText,
+                                    descriptionTranslation = translatedDescriptionText,
+                                )
+                            )
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Timber.e(e, "auto book info translation failed")
+                    } finally {
+                        isTranslatingInfo.value = false
                     }
                 }
         }
@@ -853,10 +991,14 @@ internal class ChaptersViewModel @Inject constructor(
     }
 
     fun translateSelected() {
-        val pair = appPreferences.translationPairForBook(bookUrl)
+        if (!translationSettingsResolver.translationEnabledForBook(bookUrl)) {
+            toasty.show(R.string.translation_not_configured)
+            return
+        }
+        val pair = translationSettingsResolver.translationPairForBook(bookUrl)
         val sourceLang = pair.source
         val targetLang = pair.target
-        if (!appPreferences.translationEnabledForBook(bookUrl) || sourceLang.isBlank() || targetLang.isBlank()) {
+        if (sourceLang.isBlank() || targetLang.isBlank()) {
             toasty.show(R.string.translation_not_configured)
             return
         }
@@ -1013,4 +1155,12 @@ private fun availableCountFor(
         dialog.downloadedChapters
     }
     else -> 0
+}
+
+internal fun selectBookInfoRow(
+    rows: List<BookTitleTranslation>,
+    effectiveSourceLang: String,
+): BookTitleTranslation? {
+    if (rows.isEmpty()) return null
+    return rows.firstOrNull { it.sourceLang == effectiveSourceLang }
 }

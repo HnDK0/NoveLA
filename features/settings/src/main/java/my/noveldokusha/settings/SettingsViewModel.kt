@@ -91,6 +91,10 @@ internal class SettingsViewModel @Inject constructor(
         geminiModel = appPreferences.TRANSLATION_GEMINI_MODEL.state(viewModelScope),
         translationProvider = appPreferences.TRANSLATION_PROVIDER.state(viewModelScope),
         translationGlobalMode = appPreferences.TRANSLATION_GLOBAL_MODE.state(viewModelScope),
+        hasGlobalPair = derivedStateOf {
+            appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value.isNotBlank() &&
+                appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value.isNotBlank()
+        },
         googlePaApiKeys = appPreferences.TRANSLATION_GOOGLE_PA_API_KEYS.state(viewModelScope),
         scraperUserAgent = appPreferences.SCRAPER_USER_AGENT.state(viewModelScope),
         cloudflareBypassEnabled = appPreferences.CLOUDFLARE_BYPASS_ENABLED.state(viewModelScope),
@@ -327,6 +331,9 @@ internal class SettingsViewModel @Inject constructor(
     }
 
     fun onTranslationGlobalModeChange(global: Boolean) {
+        // FIX-C: блокируем включение глобального режима, пока не задана глобальная
+        // пара языков (source/target). Выключение разрешено всегда.
+        if (global && !state.hasGlobalPair.value) return
         appPreferences.TRANSLATION_GLOBAL_MODE.value = global
     }
 

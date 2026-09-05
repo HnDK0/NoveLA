@@ -206,6 +206,7 @@ internal fun LibraryScreenBody(
             // Single list filtered by selected categories
             val list by viewModel.filteredList
             val sources by viewModel.luaSources.collectAsStateWithLifecycle()
+            val translatedTitles by viewModel.translatedTitles.collectAsStateWithLifecycle()
             if (viewModel.isLibraryLoaded) {
                 LibraryPageBody(
                     list = list,
@@ -218,6 +219,7 @@ internal fun LibraryScreenBody(
                     isSelectionMode = isSelectionMode,
                     pendingRemoval = pendingRemoval,
                     gridState = gridState,
+                    translatedTitles = translatedTitles,
                 )
             } else {
                 Box(

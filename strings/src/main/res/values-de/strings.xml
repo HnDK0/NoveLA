@@ -805,4 +805,16 @@
     <string name="book_export_cancel">Abbrechen</string>
     <string name="book_export_no_chapters">Keine Kapitel zum Exportieren</string>
     <string name="book_export_failed">Export fehlgeschlagen</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">Übersetzungseinstellungen öffnen</string>
+    <string name="plugin_translation_settings_title">Übersetzung (Plugin)</string>
+    <string name="plugin_translation_enabled">Plugin-Übersetzung aktivieren</string>
+    <string name="plugin_translation_swap_languages">Sprachen tauschen</string>
+    <string name="plugin_translation_scope_standard">Standard (Kapitel)</string>
+    <string name="plugin_translation_scope_full">Vollständig (Kapitel + Buch)</string>
+    <string name="plugin_translation_scope_standard_description">Übersetzt Kapiteltext und Kapiteltitel.</string>
+    <string name="plugin_translation_scope_full_description">Übersetzt und speichert auch Titel und Beschreibung des Romans.</string>
+    <string name="plugin_translation_prompt_label">Prompt</string>
+    <string name="plugin_translation_prompt_hint">Optional: eigener System-Prompt für Gemini/OpenAI</string>
 </resources>

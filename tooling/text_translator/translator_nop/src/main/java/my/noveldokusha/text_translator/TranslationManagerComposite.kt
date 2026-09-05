@@ -58,14 +58,19 @@ class TranslationManagerComposite(
 
     private fun activeProvider(): String = appPreferences.TRANSLATION_PROVIDER.value
 
-    override fun getTranslator(source: String, target: String, systemPromptOverride: String?): TranslatorState {
-        val provider = activeProvider()
-        Timber.d( "getTranslator: source=$source, target=$target, provider=$provider, override=${systemPromptOverride != null}")
+    override fun getTranslator(
+        source: String,
+        target: String,
+        systemPromptOverride: String?,
+        provider: String?
+    ): TranslatorState {
+        val resolvedProvider = provider ?: activeProvider()
+        Timber.d( "getTranslator: source=$source, target=$target, provider=$resolvedProvider, override=${systemPromptOverride != null}")
         return when {
-            provider == "OPENAI"      -> openAiManager.getTranslator(source, target, systemPromptOverride)
-            provider == "GEMINI"      -> buildGeminiTranslator(source, target, systemPromptOverride)
-            provider == "GOOGLE_FREE" -> googleFreeManager.getTranslator(source, target)
-            else                      -> googlePAManager.getTranslator(source, target)
+            resolvedProvider == "OPENAI"      -> openAiManager.getTranslator(source, target, systemPromptOverride)
+            resolvedProvider == "GEMINI"      -> buildGeminiTranslator(source, target, systemPromptOverride)
+            resolvedProvider == "GOOGLE_FREE" -> googleFreeManager.getTranslator(source, target)
+            else                              -> googlePAManager.getTranslator(source, target)
         }
     }
 
@@ -88,6 +93,7 @@ class TranslationManagerComposite(
         sourceLanguage: String,
         targetLanguage: String,
         systemPromptOverride: String?,
+        provider: String?,
     ): Map<String, String> = withContext(Dispatchers.IO) {
         Timber.d( "translateBatch: $sourceLanguage → $targetLanguage, override='${systemPromptOverride?.take(200)}', texts=${texts.size}")
         if (texts.isEmpty()) return@withContext emptyMap()
@@ -101,7 +107,8 @@ class TranslationManagerComposite(
             sourceLanguage
         }
 
-        val rawResult = when (activeProvider()) {
+        val resolvedProvider = provider ?: activeProvider()
+        val rawResult = when (resolvedProvider) {
             "OPENAI" -> {
                 Timber.d( "translateBatch: using OpenAI-compatible API")
                 openAiManager.translateBatch(texts, resolvedSource, targetLanguage, systemPromptOverride)
@@ -125,14 +132,15 @@ class TranslationManagerComposite(
 
     /**
      * Translates a single chapter title.
-     * Uses the active provider if it is GOOGLE_FREE or GOOGLE_PA.
+     * Uses the resolved provider (override → active) if it is GOOGLE_FREE or GOOGLE_PA.
      * For GEMINI or OPENAI falls back to Google PA then Google Free
      * to avoid spending API tokens on short titles.
      */
     override suspend fun translateTitle(
         title: String,
         sourceLanguage: String,
-        targetLanguage: String
+        targetLanguage: String,
+        provider: String?
     ): String? = withContext(Dispatchers.IO) {
         if (title.isBlank()) return@withContext null
 
@@ -142,7 +150,9 @@ class TranslationManagerComposite(
             sourceLanguage
         }
 
-        when (activeProvider()) {
+        val providerName = provider ?: activeProvider()
+
+        when (providerName) {
             "GOOGLE_FREE" -> {
                 Timber.d( "translateTitle: using Google Free")
                 try {

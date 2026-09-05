@@ -166,7 +166,8 @@ internal fun SourceCatalogScreen(
                     onReload = state.fetchIterator::reloadFailedLastLoad,
                     onCopyError = context::actionCopyToClipboard,
                     onWebViewOpen = onOpenSourceWebPage,
-                    innerPadding = innerPadding
+                    innerPadding = innerPadding,
+                    translatedTitles = state.translatedTitles,
                 )
             }
         )

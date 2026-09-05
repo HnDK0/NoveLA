@@ -8,6 +8,7 @@ import my.noveldokusha.core.atomicWrite
 import my.noveldokusha.core.isCoverValid
 import my.noveldokusha.core.isHttpsUrl
 import my.noveldokusha.core.isImage
+import my.noveldokusha.core.utils.refererFor
 import my.noveldokusha.network.NetworkClient
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -56,10 +57,4 @@ class CoverRepository @Inject constructor(
         }
     }
 
-    private fun refererFor(url: String): String = try {
-        val uri = java.net.URI(url)
-        "${uri.scheme}://${uri.host}/"
-    } catch (_: Exception) {
-        ""
-    }
 }

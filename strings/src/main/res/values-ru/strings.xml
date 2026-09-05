@@ -1280,5 +1280,17 @@
     <string name="book_export_cancel">Отмена</string>
     <string name="book_export_no_chapters">Нет глав для экспорта</string>
     <string name="book_export_failed">Ошибка экспорта</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">Открыть настройки перевода</string>
+    <string name="plugin_translation_settings_title">Перевод (плагин)</string>
+    <string name="plugin_translation_enabled">Включить перевод плагина</string>
+    <string name="plugin_translation_swap_languages">Поменять языки местами</string>
+    <string name="plugin_translation_scope_standard">Стандартно (главы)</string>
+    <string name="plugin_translation_scope_full">Полный (главы + книга)</string>
+    <string name="plugin_translation_scope_standard_description">Переводит текст глав и заголовки глав.</string>
+    <string name="plugin_translation_scope_full_description">Также переводит и сохраняет название и описание новеллы.</string>
+    <string name="plugin_translation_prompt_label">Промпт</string>
+    <string name="plugin_translation_prompt_hint">Опционально: свой системный промпт для Gemini/OpenAI</string>
 </resources>
 

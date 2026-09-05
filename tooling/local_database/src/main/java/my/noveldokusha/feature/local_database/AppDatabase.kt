@@ -8,6 +8,7 @@ import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import my.noveldokusha.feature.local_database.DAOs.BookTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterBodyDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterPagesDao
@@ -19,6 +20,7 @@ import my.noveldokusha.feature.local_database.DAOs.LibraryDao
 import my.noveldokusha.feature.local_database.DAOs.NovelMigrationDao
 import my.noveldokusha.feature.local_database.DAOs.ReadingHistoryDao
 import my.noveldokusha.feature.local_database.tables.Book
+import my.noveldokusha.feature.local_database.tables.BookTranslation
 import my.noveldokusha.feature.local_database.tables.Chapter
 import my.noveldokusha.feature.local_database.tables.ChapterBody
 import my.noveldokusha.feature.local_database.tables.ChapterPages
@@ -38,6 +40,7 @@ interface AppDatabase {
     fun chapterPagesDao(): ChapterPagesDao
     fun downloadedPageChaptersDao(): DownloadedPageChaptersDao
     fun chapterTranslationDao(): ChapterTranslationDao
+    fun bookTranslationDao(): BookTranslationDao
     fun downloadTaskDao(): DownloadTaskDao
     fun extensionDao(): ExtensionDao
     fun novelMigrationDao(): NovelMigrationDao
@@ -118,6 +121,7 @@ interface AppDatabase {
 @Database(
     entities = [
         Book::class,
+        BookTranslation::class,
         Chapter::class,
         ChapterBody::class,
         ChapterPages::class,
@@ -128,7 +132,7 @@ interface AppDatabase {
         MigrationRecord::class,
         ReadingHistory::class
     ],
-    version = 32,
+    version = 33,
     exportSchema = true
 )
 internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {
@@ -138,6 +142,7 @@ internal abstract class AppRoomDatabase : RoomDatabase(), AppDatabase {
     abstract override fun chapterPagesDao(): ChapterPagesDao
     abstract override fun downloadedPageChaptersDao(): DownloadedPageChaptersDao
     abstract override fun chapterTranslationDao(): ChapterTranslationDao
+    abstract override fun bookTranslationDao(): BookTranslationDao
     abstract override fun downloadTaskDao(): DownloadTaskDao
     abstract override fun extensionDao(): ExtensionDao
     abstract override fun novelMigrationDao(): NovelMigrationDao

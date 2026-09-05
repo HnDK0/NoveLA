@@ -55,7 +55,7 @@ class TranslationLangPairTest {
         val enabledMap = emptyMap<String, Boolean>()
 
         assertFalse(resolveTranslationEnabled(false, globalEnabled = true, enabledMap = enabledMap, bookUrl = "a"))
-        assertEquals(TranslationLangPair(), resolveTranslationPair(false, "en", "ru", emptyMap(), "a"))
+        assertEquals(TranslationLangPair(), resolveTranslationPair(false, true, "en", "ru", emptyMap(), emptyMap(), "a"))
     }
 
     @Test
@@ -72,18 +72,29 @@ class TranslationLangPairTest {
         val enabledMap = emptyMap<String, Boolean>()
 
         assertFalse(resolveTranslationEnabled(false, globalEnabled = true, enabledMap = enabledMap, bookUrl = "a"))
-        assertEquals(TranslationLangPair("en", "ru"), resolveTranslationPair(false, "en", "ru", pairs, "a"))
+        // Пара пер-новел не протекает при выключенном пер-новел (карты enable и pair независимы).
+        assertEquals(TranslationLangPair(), resolveTranslationPair(false, true, "en", "ru", pairs, enabledMap, "a"))
+        // Включённая новелла отдаёт свою пару.
+        assertEquals(
+            TranslationLangPair("en", "ru"),
+            resolveTranslationPair(false, true, "en", "ru", pairs, mapOf("a" to true), "a"),
+        )
     }
 
     @Test
-    fun `global mode ignores per-novel enabled map`() {
+    fun `per-novel toggle does not block global mode (OR)`() {
         val enabledMap = mapOf("a" to false)
 
+        // OR-семантика: выключенный пер-новел НЕ гасит глобальный перевод (глобал = true).
         assertTrue(resolveTranslationEnabled(true, globalEnabled = true, enabledMap = enabledMap, bookUrl = "a"))
-        assertFalse(resolveTranslationEnabled(true, globalEnabled = false, enabledMap = enabledMap, bookUrl = "a"))
+        // Включённая книга переводится и при выключенном глобальном режиме.
+        assertTrue(resolveTranslationEnabled(false, globalEnabled = false, enabledMap = mapOf("a" to true), bookUrl = "a"))
+        // Глобальный режим действует только там, где книга явно не управляется.
+        assertFalse(resolveTranslationEnabled(true, globalEnabled = false, enabledMap = emptyMap(), bookUrl = "a"))
+        // Глобальная пара действует для книги с выключенным пер-новел.
         assertEquals(
             TranslationLangPair(source = "fr", target = "de"),
-            resolveTranslationPair(true, "fr", "de", emptyMap(), "a"),
+            resolveTranslationPair(true, true, "fr", "de", emptyMap(), emptyMap(), "a"),
         )
     }
 

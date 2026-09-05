@@ -7,6 +7,8 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.NovelPromptData
+import my.noveldokusha.core.appPreferences.TranslationLangPair
+import my.noveldokusha.core.appPreferences.TranslationSettingsResolver
 import my.noveldokusha.text_translator.domain.TranslationManager
 import my.noveldokusha.text_translator.domain.TranslationModelState
 import my.noveldokusha.text_translator.domain.TranslatorState
@@ -40,6 +42,7 @@ class ApplyRecentPairTest {
             source: String,
             target: String,
             systemPromptOverride: String?,
+            provider: String?,
         ): TranslatorState = TranslatorState(source = source, target = target) { it }
 
         override fun downloadModel(language: String) {}
@@ -50,6 +53,7 @@ class ApplyRecentPairTest {
             sourceLanguage: String,
             targetLanguage: String,
             systemPromptOverride: String?,
+            provider: String?,
         ): Map<String, String> = emptyMap()
     }
 
@@ -59,6 +63,7 @@ class ApplyRecentPairTest {
     )
 
     private lateinit var prefs: AppPreferences
+    private lateinit var resolver: TranslationSettingsResolver
 
     @Before
     fun setUp() {
@@ -71,15 +76,21 @@ class ApplyRecentPairTest {
         val parallelEnabled = pref(false)
         val parallelOrder = pref("")
         val globalMode = pref(false)
+        val bookEnabledMap = pref(emptyMap<String, Boolean>())
+        val globalEnabled = pref(false)
         prefs = mock()
         whenever(prefs.TRANSLATION_NOVEL_PROMPTS).thenReturn(novelPrompts)
         whenever(prefs.TRANSLATION_PROVIDER).thenReturn(provider)
         whenever(prefs.TRANSLATION_PARALLEL_ENABLED).thenReturn(parallelEnabled)
         whenever(prefs.TRANSLATION_PARALLEL_ORDER).thenReturn(parallelOrder)
         whenever(prefs.TRANSLATION_GLOBAL_MODE).thenReturn(globalMode)
+        whenever(prefs.TRANSLATION_BOOK_ENABLED_MAP).thenReturn(bookEnabledMap)
+        whenever(prefs.GLOBAL_TRANSLATION_ENABLED).thenReturn(globalEnabled)
         whenever(prefs.translationEnabledForBook("book1")).thenReturn(false)
         whenever(prefs.favoriteLanguages()).thenReturn(emptyList())
         whenever(prefs.recentTranslationPairs()).thenReturn(emptyList())
+        resolver = mock()
+        whenever(resolver.translationEnabledForBook("book1")).thenReturn(false)
     }
 
     private fun <T> pref(value: T): AppPreferences.Preference<T> =
@@ -89,6 +100,7 @@ class ApplyRecentPairTest {
         val reader = ReaderLiveTranslation(
             translationManager = FakeTranslationManager(models),
             appPreferences = prefs,
+            translationSettingsResolver = resolver,
             bookUrl = "book1",
             scope = this,
         )
@@ -115,6 +127,7 @@ class ApplyRecentPairTest {
         val reader = ReaderLiveTranslation(
             translationManager = FakeTranslationManager(models),
             appPreferences = prefs,
+            translationSettingsResolver = resolver,
             bookUrl = "book1",
             scope = this,
         )
@@ -127,5 +140,99 @@ class ApplyRecentPairTest {
         assertEquals("ru", reader.state.target.value?.language)
 
         collector.cancel()
+    }
+
+    // ── FIX-C: Guard 1 — onEnable блокирует включение без языковой пары ──
+
+    @Test
+    fun `onEnable blocks when no language pair is set for book`() = runTest {
+        // Резолвер отдаёт пустую пару — guard должен заблокировать включение.
+        whenever(resolver.translationPairForBook("book1"))
+            .thenReturn(TranslationLangPair(source = "", target = ""))
+
+        val reader = ReaderLiveTranslation(
+            translationManager = FakeTranslationManager(models),
+            appPreferences = prefs,
+            translationSettingsResolver = resolver,
+            bookUrl = "book1",
+            scope = this,
+        )
+
+        reader.state.onEnable(true)
+
+        // enable остаётся false — guard отклонил включение.
+        assertEquals(false, reader.state.enable.value)
+    }
+
+    @Test
+    fun `onEnable allows disabling even without language pair`() = runTest {
+        whenever(resolver.translationPairForBook("book1"))
+            .thenReturn(TranslationLangPair(source = "", target = ""))
+
+        val bookEnabledMap = pref(mapOf("book1" to true))
+        whenever(prefs.TRANSLATION_BOOK_ENABLED_MAP).thenReturn(bookEnabledMap)
+
+        val reader = ReaderLiveTranslation(
+            translationManager = FakeTranslationManager(models),
+            appPreferences = prefs,
+            translationSettingsResolver = resolver,
+            bookUrl = "book1",
+            scope = this,
+        )
+        // Принудительно ставим enabled=true, чтобы проверить что disable() проходит.
+        reader.state.enable.value = true
+
+        reader.state.onEnable(false)
+
+        // Выключение всегда разрешено — guard не блокирует enabled=false.
+        assertEquals(false, reader.state.enable.value)
+    }
+
+    // ── FIX-C: Guard 2 — onTranslationGlobalModeChange блокирует без глобальной пары ──
+
+    @Test
+    fun `onTranslationGlobalModeChange blocks when no global pair is set`() = runTest {
+        val emptyGlobalSource = pref("")
+        val emptyGlobalTarget = pref("")
+        whenever(prefs.GLOBAL_TRANSLATION_PREFERRED_SOURCE).thenReturn(emptyGlobalSource)
+        whenever(prefs.GLOBAL_TRANSLATION_PREFERRED_TARGET).thenReturn(emptyGlobalTarget)
+
+        val reader = ReaderLiveTranslation(
+            translationManager = FakeTranslationManager(models),
+            appPreferences = prefs,
+            translationSettingsResolver = resolver,
+            bookUrl = "book1",
+            scope = this,
+        )
+
+        reader.state.onTranslationGlobalModeChange(true)
+
+        // translationGlobalMode остаётся false — guard отклонил включение глобала.
+        assertEquals(false, reader.state.translationGlobalMode.value)
+    }
+
+    @Test
+    fun `onTranslationGlobalModeChange allows disabling even without global pair`() = runTest {
+        val emptyGlobalSource = pref("")
+        val emptyGlobalTarget = pref("")
+        whenever(prefs.GLOBAL_TRANSLATION_PREFERRED_SOURCE).thenReturn(emptyGlobalSource)
+        whenever(prefs.GLOBAL_TRANSLATION_PREFERRED_TARGET).thenReturn(emptyGlobalTarget)
+        whenever(resolver.translationPairForBook("book1"))
+            .thenReturn(TranslationLangPair(source = "", target = ""))
+
+        val reader = ReaderLiveTranslation(
+            translationManager = FakeTranslationManager(models),
+            appPreferences = prefs,
+            translationSettingsResolver = resolver,
+            bookUrl = "book1",
+            scope = this,
+        )
+        // Принудительно ставим globalMode=true.
+        reader.state.translationGlobalMode.value = true
+
+        reader.state.onTranslationGlobalModeChange(false)
+
+        // Выключение глобального режима всегда разрешено.
+        assertEquals(false, reader.state.translationGlobalMode.value)
     }
 }

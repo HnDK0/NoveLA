@@ -805,4 +805,16 @@
     <string name="book_export_cancel">Cancelar</string>
     <string name="book_export_no_chapters">Nenhum capítulo para exportar</string>
     <string name="book_export_failed">Falha na exportação</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">Abrir definições de tradução</string>
+    <string name="plugin_translation_settings_title">Tradução (plugin)</string>
+    <string name="plugin_translation_enabled">Ativar tradução do plugin</string>
+    <string name="plugin_translation_swap_languages">Trocar idiomas</string>
+    <string name="plugin_translation_scope_standard">Padrão (capítulos)</string>
+    <string name="plugin_translation_scope_full">Completo (capítulos + livro)</string>
+    <string name="plugin_translation_scope_standard_description">Traduz o texto dos capítulos e os títulos dos capítulos.</string>
+    <string name="plugin_translation_scope_full_description">Também traduz e guarda o título e a descrição do romance.</string>
+    <string name="plugin_translation_prompt_label">Prompt</string>
+    <string name="plugin_translation_prompt_hint">Opcional: prompt de sistema personalizado para Gemini/OpenAI</string>
 </resources>

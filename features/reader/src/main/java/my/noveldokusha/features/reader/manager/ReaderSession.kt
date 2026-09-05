@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.core.appPreferences.AppPreferences
+import my.noveldokusha.core.appPreferences.TranslationSettingsResolver
 import my.noveldokusha.features.reader.ReaderRepository
 import my.noveldokusha.features.reader.domain.ChapterLoaded
 import my.noveldokusha.features.reader.domain.ChapterState
@@ -55,6 +56,7 @@ internal class ReaderSession(
     readerViewHandlersActions: ReaderViewHandlersActions,
     @ApplicationContext private val context: Context,
     translationManager: TranslationManager,
+    translationSettingsResolver: TranslationSettingsResolver,
     private val chapterTranslationDao: ChapterTranslationDao,
 ) {
     private val scope: CoroutineScope = CoroutineScope(
@@ -115,6 +117,7 @@ internal class ReaderSession(
     val readerLiveTranslation = ReaderLiveTranslation(
         translationManager = translationManager,
         appPreferences = appPreferences,
+        translationSettingsResolver = translationSettingsResolver,
         chapterTranslationDao = chapterTranslationDao,
         bookUrl = bookUrl,
     ).also { it.currentChapterUrl = chapterUrl }

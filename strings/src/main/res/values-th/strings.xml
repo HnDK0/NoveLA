@@ -795,4 +795,16 @@
     <string name="book_export_no_chapters">ไม่มีบทให้ส่งออก</string>
     <string name="book_export_failed">ส่งออกล้มเหลว</string>
     <string name="export_started">เริ่มการส่งออก</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">เปิดการตั้งค่าการแปล</string>
+    <string name="plugin_translation_settings_title">การแปล (ปลั๊กอิน)</string>
+    <string name="plugin_translation_enabled">เปิดใช้งานการแปลของปลั๊กอิน</string>
+    <string name="plugin_translation_swap_languages">สลับภาษา</string>
+    <string name="plugin_translation_scope_standard">มาตรฐาน (บท)</string>
+    <string name="plugin_translation_scope_full">เต็มรูปแบบ (บท + หนังสือ)</string>
+    <string name="plugin_translation_scope_standard_description">แปลข้อความในบทและชื่อบท</string>
+    <string name="plugin_translation_scope_full_description">แปลและบันทึกชื่อเรื่องและคำอธิบายของนวนิยายด้วย</string>
+    <string name="plugin_translation_prompt_label">พรอมต์</string>
+    <string name="plugin_translation_prompt_hint">ไม่บังคับ: พรอมต์ระบบที่กำหนดเองสำหรับ Gemini/OpenAI</string>
 </resources>

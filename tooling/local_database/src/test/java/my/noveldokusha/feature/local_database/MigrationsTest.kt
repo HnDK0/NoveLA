@@ -162,4 +162,39 @@ class MigrationsTest {
             }
         }
     }
+
+    @Test
+    fun `v32 to v33 creates empty BookTranslation table`() {
+        dbFile.parentFile?.mkdirs()
+        dbFile.delete()
+
+        helper.createDatabase(32).use { connection ->
+            val db = (connection as SupportSQLiteConnection).db
+            // Данные, обязанные пережить миграцию
+            db.execSQL(
+                "INSERT INTO Book (url, title, completed, inLibrary, coverImageUrl, description, " +
+                    "lastReadEpochTimeMilli, addedToLibraryEpochTimeMilli, lastUpdateEpochTimeMilli, " +
+                    "category, genres, rating, contentType, status, lastUpdateDate) " +
+                    "VALUES ('https://book/1', 'Title', 0, 0, '', 'Desc', 0, 0, 0, '', '', '', 'NOVEL', '', '')"
+            )
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            33,
+            databaseMigrations().toList()
+        )
+        migrated.use { connection ->
+            val db = (connection as SupportSQLiteConnection).db
+            // Старые данные на месте
+            db.query("SELECT COUNT(*) FROM Book").use { c ->
+                c.moveToFirst()
+                assertTrue("book row lost", c.getInt(0) == 1)
+            }
+            // Новая таблица создана и пуста
+            db.query("SELECT COUNT(*) FROM BookTranslation").use { c ->
+                c.moveToFirst()
+                assertTrue("BookTranslation missing", c.getInt(0) == 0)
+            }
+        }
+    }
 }

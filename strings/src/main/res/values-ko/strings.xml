@@ -806,4 +806,16 @@
     <string name="book_export_cancel">취소</string>
     <string name="book_export_no_chapters">내보낼 챕터가 없습니다</string>
     <string name="book_export_failed">내보내기 실패</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">번역 설정 열기</string>
+    <string name="plugin_translation_settings_title">번역 (플러그인)</string>
+    <string name="plugin_translation_enabled">플러그인 번역 사용</string>
+    <string name="plugin_translation_swap_languages">언어 바꾸기</string>
+    <string name="plugin_translation_scope_standard">표준 (챕터)</string>
+    <string name="plugin_translation_scope_full">전체 (챕터 + 책)</string>
+    <string name="plugin_translation_scope_standard_description">챕터 텍스트와 챕터 제목을 번역합니다.</string>
+    <string name="plugin_translation_scope_full_description">소설 제목과 설명도 번역하여 저장합니다.</string>
+    <string name="plugin_translation_prompt_label">프롬프트</string>
+    <string name="plugin_translation_prompt_hint">선택 사항: Gemini/OpenAI용 사용자 지정 시스템 프롬프트</string>
 </resources>

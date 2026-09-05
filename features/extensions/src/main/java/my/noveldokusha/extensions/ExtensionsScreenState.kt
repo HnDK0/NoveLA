@@ -18,6 +18,7 @@ data class ExtensionsScreenState(
     val luaEditorTitle: String = "",
     val luaEditorCode: String = "",
     val luaEditorError: String? = null,
+    val translationSettingsExtensionId: String? = null,
 )
 
 @Immutable
@@ -66,4 +67,5 @@ sealed interface ExtensionsScreenEvent {
     data class OnLuaEditorChange(val code: String) : ExtensionsScreenEvent
     data object OnLuaEditorSave : ExtensionsScreenEvent
     data class OnResetLuaClick(val extensionId: String) : ExtensionsScreenEvent
+    data object OnTranslationSettingsDismiss : ExtensionsScreenEvent
 }

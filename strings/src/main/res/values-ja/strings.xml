@@ -806,4 +806,16 @@
     <string name="book_export_cancel">キャンセル</string>
     <string name="book_export_no_chapters">エクスポートする章がありません</string>
     <string name="book_export_failed">エクスポートに失敗しました</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">翻訳設定を開く</string>
+    <string name="plugin_translation_settings_title">翻訳（プラグイン）</string>
+    <string name="plugin_translation_enabled">プラグイン翻訳を有効にする</string>
+    <string name="plugin_translation_swap_languages">言語を入れ替える</string>
+    <string name="plugin_translation_scope_standard">標準（章）</string>
+    <string name="plugin_translation_scope_full">完全（章＋書籍）</string>
+    <string name="plugin_translation_scope_standard_description">章の本文と章のタイトルを翻訳します。</string>
+    <string name="plugin_translation_scope_full_description">小説のタイトルと説明も翻訳して保存します。</string>
+    <string name="plugin_translation_prompt_label">プロンプト</string>
+    <string name="plugin_translation_prompt_hint">任意：Gemini/OpenAI用のカスタムシステムプロンプト</string>
 </resources>

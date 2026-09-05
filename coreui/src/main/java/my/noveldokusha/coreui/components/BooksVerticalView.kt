@@ -48,6 +48,12 @@ fun BooksVerticalView(
     // Количество колонок из общего preference BOOKS_GRID_COLUMNS (2..6, дефолт 3)
     gridColumns: Int = 3,
     innerPadding: PaddingValues = PaddingValues(),
+
+    // Переводы названий книг (url -> translatedTitle). Читается внутри каждого
+    // item'а: SnapshotStateMap гарантированно триггерит recomposition конкретного
+    // item'а при изменении его названия (list[i] = copy() при key={it.url} этого
+    // не делает).
+    translatedTitles: Map<String, String> = emptyMap(),
 ) {
 
     val columns by remember(layoutMode, gridColumns) {
@@ -78,16 +84,18 @@ fun BooksVerticalView(
             key = { it.url },
             contentType = { if (layoutMode == ListLayoutMode.VerticalList) 1 else 2 }
         ) {
+            // Переведённое название приоритетнее исходного title.
+            val title = translatedTitles[it.url] ?: it.title
             when (layoutMode) {
                 ListLayoutMode.VerticalList -> MyButton(
-                    text = it.title,
+                    text = title,
                     onClick = { onBookClicked(it) },
                     onLongClick = { onBookLongClicked(it) },
                     modifier = Modifier
                         .fillMaxWidth()
                 )
                 ListLayoutMode.VerticalGrid -> BookImageButtonView(
-                    title = it.title,
+                    title = title,
                     coverImageModel = rememberResolvedBookImagePath(
                         bookUrl = it.url,
                         imagePath = it.coverImageUrl

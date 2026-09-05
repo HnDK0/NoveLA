@@ -795,4 +795,16 @@
     <string name="book_export_no_chapters">Tidak ada bab untuk diekspor</string>
     <string name="book_export_failed">Ekspor gagal</string>
     <string name="export_started">Ekspor dimulai</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">Buka pengaturan terjemahan</string>
+    <string name="plugin_translation_settings_title">Terjemahan (plugin)</string>
+    <string name="plugin_translation_enabled">Aktifkan terjemahan plugin</string>
+    <string name="plugin_translation_swap_languages">Tukar bahasa</string>
+    <string name="plugin_translation_scope_standard">Standar (bab)</string>
+    <string name="plugin_translation_scope_full">Lengkap (bab + buku)</string>
+    <string name="plugin_translation_scope_standard_description">Menerjemahkan teks bab dan judul bab.</string>
+    <string name="plugin_translation_scope_full_description">Juga menerjemahkan dan menyimpan judul serta deskripsi novel.</string>
+    <string name="plugin_translation_prompt_label">Prompt</string>
+    <string name="plugin_translation_prompt_hint">Opsional: prompt sistem kustom untuk Gemini/OpenAI</string>
 </resources>

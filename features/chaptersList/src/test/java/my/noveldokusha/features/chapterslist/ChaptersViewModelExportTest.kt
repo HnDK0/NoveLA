@@ -20,12 +20,14 @@ import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.appPreferences.TernaryState
 import my.noveldokusha.core.appPreferences.TranslationLangPair
+import my.noveldokusha.core.appPreferences.TranslationSettingsResolver
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.BookChaptersRepository
 import my.noveldokusha.data.DownloadManager
 import my.noveldokusha.data.DownloaderRepository
 import my.noveldokusha.data.LibraryBooksRepository
 import my.noveldokusha.data.LocalBookImporterRepository
+import my.noveldokusha.feature.local_database.DAOs.BookTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterBodyDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterDao
 import my.noveldokusha.feature.local_database.DAOs.ChapterTranslationDao
@@ -194,6 +196,16 @@ class ChaptersViewModelExportTest {
             chapterDao = chapterDao,
             chapterBodyDao = chapterBodyDao,
             chapterTranslationDao = chapterTranslationDao,
+            bookTranslationDao = mock<BookTranslationDao>(),
+            translationSettingsResolver = mock<TranslationSettingsResolver>().also { r ->
+                // Резолвер используется в init-подписках отображения и в export-путях;
+                // без стабов mock возвращает null → NPE на pair.source.
+                whenever(r.translationPairForBook(any())).thenReturn(TranslationLangPair("en", "ru"))
+                whenever(r.translationEnabledForBook(any())).thenReturn(false)
+                whenever(r.translationTargetForBook(any())).thenReturn("")
+                whenever(r.translationScopeForBook(any())).thenReturn("STANDARD")
+                whenever(r.translationProviderForBook(any())).thenReturn(null)
+            },
             translationManager = mock<TranslationManager>(),
             readingHistoryDao = mock<ReadingHistoryDao>(),
             stateHandle = stateHandle,

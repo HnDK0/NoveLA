@@ -795,4 +795,16 @@
     <string name="book_export_no_chapters">निर्यात करने के लिए कोई अध्याय नहीं</string>
     <string name="book_export_failed">निर्यात विफल</string>
     <string name="export_started">निर्यात शुरू हुआ</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">अनुवाद सेटिंग खोलें</string>
+    <string name="plugin_translation_settings_title">अनुवाद (प्लगइन)</string>
+    <string name="plugin_translation_enabled">प्लगइन अनुवाद सक्षम करें</string>
+    <string name="plugin_translation_swap_languages">भाषाएँ बदलें</string>
+    <string name="plugin_translation_scope_standard">मानक (अध्याय)</string>
+    <string name="plugin_translation_scope_full">पूर्ण (अध्याय + पुस्तक)</string>
+    <string name="plugin_translation_scope_standard_description">अध्याय का पाठ और अध्याय शीर्षक का अनुवाद करता है।</string>
+    <string name="plugin_translation_scope_full_description">उपन्यास का शीर्षक और विवरण भी अनुवाद और सहेजता है।</string>
+    <string name="plugin_translation_prompt_label">प्रॉम्प्ट</string>
+    <string name="plugin_translation_prompt_hint">वैकल्पिक: Gemini/OpenAI के लिए कस्टम सिस्टम प्रॉम्प्ट</string>
 </resources>

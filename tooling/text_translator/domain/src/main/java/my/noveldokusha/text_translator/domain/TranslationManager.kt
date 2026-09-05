@@ -52,8 +52,14 @@ interface TranslationManager {
      * @param source language locale
      * @param target language locale
      * @param systemPromptOverride optional per-novel prompt override (Gemini/OpenAI only)
+     * @param provider optional backend override; null → active provider from settings
      */
-    fun getTranslator(source: String, target: String, systemPromptOverride: String? = null): TranslatorState
+    fun getTranslator(
+        source: String,
+        target: String,
+        systemPromptOverride: String? = null,
+        provider: String? = null
+    ): TranslatorState
 
     fun downloadModel(language: String)
 
@@ -64,6 +70,7 @@ interface TranslationManager {
         sourceLanguage: String,
         targetLanguage: String,
         systemPromptOverride: String? = null,
+        provider: String? = null,
     ): Map<String, String>
 
     /**
@@ -74,13 +81,16 @@ interface TranslationManager {
     suspend fun detectLanguage(text: String): String? = null
 
     /**
-     * Translate a single chapter title using free Google endpoints (PA → Free fallback).
-     * Never uses token-based providers (Gemini/OpenAI) to avoid wasting quota.
-     * Returns null if translation is not supported or both endpoints fail.
+     * Translate a single chapter title.
+     * GOOGLE_FREE / GOOGLE_PA — direct translation.
+     * GEMINI / OPENAI — falls back to Google PA → Free to avoid wasting LLM tokens on short titles.
+     * Returns null if translation is not supported or all endpoints fail.
+     * @param provider optional backend override; null → active provider from settings
      */
     suspend fun translateTitle(
         title: String,
         sourceLanguage: String,
-        targetLanguage: String
+        targetLanguage: String,
+        provider: String? = null
     ): String? = null
 }

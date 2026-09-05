@@ -694,6 +694,86 @@ class RestoreDataService : Service() {
                     Timber.d("mergeToSettings: Restored ${pairsMap.size} novel lang pairs")
                 }
 
+                if (settingsJson.has("TRANSLATION_BOOK_ENABLED_MAP")) {
+                    val enabledObj = settingsJson.getJSONObject("TRANSLATION_BOOK_ENABLED_MAP")
+                    val enabledMap = mutableMapOf<String, Boolean>()
+                    for (key in enabledObj.keys()) {
+                        if (enabledObj.get(key) is Boolean) {
+                            enabledMap[key] = enabledObj.getBoolean(key)
+                        }
+                    }
+                    appPreferences.TRANSLATION_BOOK_ENABLED_MAP.value = enabledMap
+                    Timber.d("mergeToSettings: Restored ${enabledMap.size} book enabled flags")
+                }
+
+                if (settingsJson.has("TRANSLATION_PLUGIN_ENABLED_MAP")) {
+                    val enabledObj = settingsJson.getJSONObject("TRANSLATION_PLUGIN_ENABLED_MAP")
+                    val enabledMap = mutableMapOf<String, Boolean>()
+                    for (key in enabledObj.keys()) {
+                        val value = enabledObj.get(key)
+                        if (value is Boolean) {
+                            enabledMap[key] = value
+                        }
+                    }
+                    appPreferences.TRANSLATION_PLUGIN_ENABLED_MAP.value = enabledMap
+                    Timber.d("mergeToSettings: Restored ${enabledMap.size} plugin enabled flags")
+                }
+
+                if (settingsJson.has("TRANSLATION_PLUGIN_LANG_PAIR")) {
+                    val pairsObj = settingsJson.getJSONObject("TRANSLATION_PLUGIN_LANG_PAIR")
+                    val pairsMap = mutableMapOf<String, TranslationLangPair>()
+                    for (key in pairsObj.keys()) {
+                        val value = pairsObj.get(key)
+                        if (value is JSONObject) {
+                            pairsMap[key] = TranslationLangPair(
+                                source = value.optString("source", ""),
+                                target = value.optString("target", ""),
+                            )
+                        }
+                    }
+                    appPreferences.TRANSLATION_PLUGIN_LANG_PAIR.value = pairsMap
+                    Timber.d("mergeToSettings: Restored ${pairsMap.size} plugin lang pairs")
+                }
+
+                if (settingsJson.has("TRANSLATION_PLUGIN_PROVIDER")) {
+                    val providerObj = settingsJson.getJSONObject("TRANSLATION_PLUGIN_PROVIDER")
+                    val providerMap = mutableMapOf<String, String>()
+                    for (key in providerObj.keys()) {
+                        val value = providerObj.get(key)
+                        if (value is String) {
+                            providerMap[key] = value
+                        }
+                    }
+                    appPreferences.TRANSLATION_PLUGIN_PROVIDER.value = providerMap
+                    Timber.d("mergeToSettings: Restored ${providerMap.size} plugin providers")
+                }
+
+                if (settingsJson.has("TRANSLATION_PLUGIN_SCOPE")) {
+                    val scopeObj = settingsJson.getJSONObject("TRANSLATION_PLUGIN_SCOPE")
+                    val scopeMap = mutableMapOf<String, String>()
+                    for (key in scopeObj.keys()) {
+                        val value = scopeObj.get(key)
+                        if (value is String) {
+                            scopeMap[key] = value
+                        }
+                    }
+                    appPreferences.TRANSLATION_PLUGIN_SCOPE.value = scopeMap
+                    Timber.d("mergeToSettings: Restored ${scopeMap.size} plugin scopes")
+                }
+
+                if (settingsJson.has("TRANSLATION_PLUGIN_PROMPTS")) {
+                    val promptsObj = settingsJson.getJSONObject("TRANSLATION_PLUGIN_PROMPTS")
+                    val promptsMap = mutableMapOf<String, String>()
+                    for (key in promptsObj.keys()) {
+                        val value = promptsObj.get(key)
+                        if (value is String) {
+                            promptsMap[key] = value
+                        }
+                    }
+                    appPreferences.TRANSLATION_PLUGIN_PROMPTS.value = promptsMap
+                    Timber.d("mergeToSettings: Restored ${promptsMap.size} plugin prompts")
+                }
+
                 if (settingsJson.has("TRANSLATION_FAVORITE_LANGUAGES")) {
                     val favArray = settingsJson.getJSONArray("TRANSLATION_FAVORITE_LANGUAGES")
                     val favList = (0 until favArray.length()).map { favArray.getString(it) }

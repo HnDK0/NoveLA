@@ -15,6 +15,8 @@ import my.noveldokusha.core.AppInternalState
 import my.noveldokusha.core.ExtensionManager
 import my.noveldokusha.core.Toasty
 import my.noveldokusha.core.ToastyToast
+import my.noveldokusha.core.appPreferences.TranslationSettingsResolver
+import my.noveldokusha.data.TranslationSettingsResolverImpl
 import my.noveldokusha.feature.local_database.AppDatabase
 import my.noveldokusha.navigation.NavigationRoutes
 import javax.inject.Singleton
@@ -34,6 +36,12 @@ abstract class AppModule {
     @Binds
     @Singleton
     abstract fun bindExtensionManager(extensionRepository: ExtensionRepository): ExtensionManager
+
+    @Binds
+    @Singleton
+    abstract fun bindTranslationSettingsResolver(
+        impl: TranslationSettingsResolverImpl
+    ): TranslationSettingsResolver
 
     companion object {
 

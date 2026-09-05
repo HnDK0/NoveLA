@@ -12,10 +12,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModel
@@ -27,14 +30,17 @@ import my.noveldokusha.core.appPreferences.LibrarySortOption
 import my.noveldokusha.core.appPreferences.SortConfig
 import my.noveldokusha.core.appPreferences.SortDirection
 import my.noveldokusha.core.appPreferences.TernaryState
+import my.noveldokusha.core.appPreferences.TranslationSettingsResolver
 import my.noveldokusha.core.domain.LibraryCategory
 import my.noveldokusha.core.utils.GenreUtils
 import my.noveldokusha.core.utils.toState
 import my.noveldokusha.feature.local_database.DAOs.LibraryDao
+import my.noveldokusha.feature.local_database.DAOs.BookTranslationDao
 import my.noveldokusha.feature.local_database.BookWithContext
 import my.noveldokusha.interactor.WorkersInteractions
 import my.noveldokusha.scraper.Scraper
 import my.noveldokusha.scraper.SourceInterface
+import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
@@ -62,6 +68,8 @@ internal class LibraryPageViewModel @Inject constructor(
     private val workersInteractions: WorkersInteractions,
     private val libraryDao: LibraryDao,
     private val scraper: Scraper,
+    private val translationSettingsResolver: TranslationSettingsResolver,
+    private val bookTranslationDao: BookTranslationDao,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     var isLibraryLoaded by mutableStateOf(false)
@@ -192,6 +200,44 @@ internal class LibraryPageViewModel @Inject constructor(
                 }
             }
         }.shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
+
+    // bookUrl → переведённое название (read-only отображение из БД).
+    // Подписка на DAO-поток идёт только для книг с активным плагинным
+    // переводом (пустой targetLang = переводов нет, возвращаем пустую карту).
+    // combine с translationSettingsChangeSignal() — триггер пересчёта
+    // при смене ЛЮБОЙ настройки перевода (включая плагинные флои).
+    val translatedTitles: StateFlow<Map<String, String>> = baseLibraryFlow
+        .combine(translationSettingsResolver.translationSettingsChangeSignal()) { books, _ -> books }
+        .flatMapLatest { books ->
+            if (books.isEmpty()) flowOf(emptyMap())
+            else combine(books.map { book ->
+                val url = book.book.url
+                val targetLang = translationSettingsResolver.translationTargetForBook(url)
+                val enabled = translationSettingsResolver.translationEnabledForBook(url)
+                val scope = translationSettingsResolver.translationScopeForBook(url)
+                val provider = translationSettingsResolver.translationProviderForBook(url)
+                // Желаемый source-язык книги — для отбора строки с нужным источником
+                // (при смене source-языка старая строка со старым источником не должна
+                // просачиваться, как это уже делает конвейер глав).
+                val sourceLang = translationSettingsResolver.translationPairForBook(url).source
+                // Диагностика: почему название новеллы в библиотеке переводится/нет.
+                Timber.d(
+                    "libTitle: url=%s enabled=%s target=%s scope=%s provider=%s",
+                    url, enabled, targetLang, scope, provider
+                )
+                // Название новеллы в библиотеке переводим только для включённого
+                // плагина с scope=FULL. Глобальный режим и плагин с scope=STANDARD
+                // названия НЕ переводят — показываем оригинал (перевод из БД от
+                // прошлого FULL/глобала не должен просачиваться).
+                if (targetLang.isBlank() || !enabled || scope != AppPreferences.TRANSLATION_SCOPE_FULL) flowOf(url to "")
+                else bookTranslationDao.getTranslatedBookFlow(url, targetLang)
+                    .map { rows ->
+                        val row = rows.firstOrNull { it.sourceLang == sourceLang }
+                        url to (row?.titleTranslation ?: "")
+                    }
+            }) { results -> results.toMap() }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     // Single filtered list instead of listReading/listCompleted
     val filteredList = baseLibraryFlow

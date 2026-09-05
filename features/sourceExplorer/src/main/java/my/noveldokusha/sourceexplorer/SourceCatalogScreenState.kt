@@ -27,4 +27,7 @@ internal data class SourceCatalogScreenState(
     val filterList: State<List<LuaFilter>>,
     val activeFilters: MutableState<ActiveFilters>,
     val isFilterSheetOpen: MutableState<Boolean>,
+
+    // Переводы названий книг (url -> translatedTitle), читаются в item-контенте
+    val translatedTitles: Map<String, String>,
 )

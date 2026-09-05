@@ -795,4 +795,16 @@
     <string name="book_export_no_chapters">রপ্তানির জন্য কোনো অধ্যায় নেই</string>
     <string name="book_export_failed">রপ্তানি ব্যর্থ হয়েছে</string>
     <string name="export_started">রপ্তানি শুরু হয়েছে</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">অনুবাদ সেটিংস খুলুন</string>
+    <string name="plugin_translation_settings_title">অনুবাদ (প্লাগইন)</string>
+    <string name="plugin_translation_enabled">প্লাগইন অনুবাদ সক্রিয় করুন</string>
+    <string name="plugin_translation_swap_languages">ভাষা অদলবদল করুন</string>
+    <string name="plugin_translation_scope_standard">স্ট্যান্ডার্ড (অধ্যায়)</string>
+    <string name="plugin_translation_scope_full">সম্পূর্ণ (অধ্যায় + বই)</string>
+    <string name="plugin_translation_scope_standard_description">অধ্যায়ের পাঠ্য এবং অধ্যায়ের শিরোনাম অনুবাদ করে।</string>
+    <string name="plugin_translation_scope_full_description">উপন্যাসের শিরোনাম এবং বিবরণও অনুবাদ ও সংরক্ষণ করে।</string>
+    <string name="plugin_translation_prompt_label">প্রম্পট</string>
+    <string name="plugin_translation_prompt_hint">ঐচ্ছিক: Gemini/OpenAI-এর জন্য কাস্টম সিস্টেম প্রম্পট</string>
 </resources>

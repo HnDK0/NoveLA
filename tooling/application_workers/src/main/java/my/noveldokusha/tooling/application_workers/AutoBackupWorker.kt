@@ -332,6 +332,39 @@ class AutoBackupWorker(
                                 })
                             }
                         })
+                        put("TRANSLATION_BOOK_ENABLED_MAP", JSONObject().apply {
+                            appPreferences.TRANSLATION_BOOK_ENABLED_MAP.value.forEach { (url, enabled) ->
+                                put(url, enabled)
+                            }
+                        })
+                        put("TRANSLATION_PLUGIN_ENABLED_MAP", JSONObject().apply {
+                            appPreferences.TRANSLATION_PLUGIN_ENABLED_MAP.value.forEach { (id, enabled) ->
+                                put(id, enabled)
+                            }
+                        })
+                        put("TRANSLATION_PLUGIN_LANG_PAIR", JSONObject().apply {
+                            appPreferences.TRANSLATION_PLUGIN_LANG_PAIR.value.forEach { (id, pair) ->
+                                put(id, JSONObject().apply {
+                                    put("source", pair.source)
+                                    put("target", pair.target)
+                                })
+                            }
+                        })
+                        put("TRANSLATION_PLUGIN_PROVIDER", JSONObject().apply {
+                            appPreferences.TRANSLATION_PLUGIN_PROVIDER.value.forEach { (id, provider) ->
+                                put(id, provider)
+                            }
+                        })
+                        put("TRANSLATION_PLUGIN_SCOPE", JSONObject().apply {
+                            appPreferences.TRANSLATION_PLUGIN_SCOPE.value.forEach { (id, scope) ->
+                                put(id, scope)
+                            }
+                        })
+                        put("TRANSLATION_PLUGIN_PROMPTS", JSONObject().apply {
+                            appPreferences.TRANSLATION_PLUGIN_PROMPTS.value.forEach { (id, prompt) ->
+                                put(id, prompt)
+                            }
+                        })
                         put("TRANSLATION_GLOBAL_MODE", appPreferences.TRANSLATION_GLOBAL_MODE.value)
                         put("GLOBAL_TRANSLATION_ENABLED", appPreferences.GLOBAL_TRANSLATION_ENABLED.value)
                         put("GLOBAL_TRANSLATION_PREFERRED_SOURCE", appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value)

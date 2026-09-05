@@ -795,4 +795,16 @@
     <string name="book_export_cancel">Kanselahin</string>
     <string name="book_export_no_chapters">Walang kabanata para i-export</string>
     <string name="book_export_failed">Nabigo ang pag-export</string>
+
+    <!-- Per-plugin translation settings -->
+    <string name="extension_translation_settings">Buksan ang mga setting ng pagsasalin</string>
+    <string name="plugin_translation_settings_title">Pagsasalin (plugin)</string>
+    <string name="plugin_translation_enabled">Paganahin ang pagsasalin ng plugin</string>
+    <string name="plugin_translation_swap_languages">Pagpalitin ang mga wika</string>
+    <string name="plugin_translation_scope_standard">Karaniwan (mga kabanata)</string>
+    <string name="plugin_translation_scope_full">Buong (mga kabanata + libro)</string>
+    <string name="plugin_translation_scope_standard_description">Isinasalin ang teksto ng kabanata at mga pamagat ng kabanata.</string>
+    <string name="plugin_translation_scope_full_description">Isinasalin at sine-save din ang pamagat at deskripsyon ng nobela.</string>
+    <string name="plugin_translation_prompt_label">Prompt</string>
+    <string name="plugin_translation_prompt_hint">Opsyonal: custom na system prompt para sa Gemini/OpenAI</string>
 </resources>

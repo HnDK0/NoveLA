@@ -58,6 +58,7 @@ internal fun SettingsGeminiTranslation(
     translationProvider: String,
     translationGlobalMode: Boolean,
     onTranslationGlobalModeChange: (Boolean) -> Unit,
+    hasGlobalPair: Boolean,
     geminiApiKey: String,
     geminiModel: String,
     googlePaApiKeys: String,
@@ -140,6 +141,9 @@ internal fun SettingsGeminiTranslation(
                     Switch(
                         checked = translationGlobalMode,
                         onCheckedChange = onTranslationGlobalModeChange,
+                        // FIX-C: переключатель недоступен, пока не задана глобальная
+                        // пара языков — визуальная индикация + барьер на уровне ViewModel
+                        enabled = hasGlobalPair,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = colorAccent(),
                             checkedTrackColor = colorAccent().copy(alpha = 0.3f),

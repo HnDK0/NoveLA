@@ -27,6 +27,7 @@ import my.noveldokusha.data.ScraperRepository
 import org.yaml.snakeyaml.Yaml
 import timber.log.Timber
 import my.noveldokusha.core.getLanguageDisplayName
+import my.noveldokusha.text_translator.domain.TranslationManager
 import javax.inject.Inject
 
 @HiltViewModel
@@ -38,6 +39,7 @@ class ExtensionsManagerViewModel @Inject constructor(
     private val scraperRepository: ScraperRepository,
     private val luaSourceLoader: LuaSourceLoader,          // ← для скачивания .lua
     private val luaSourceProvider: LuaSourceProvider,
+    private val translationManager: TranslationManager,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ExtensionsScreenState())
@@ -77,7 +79,7 @@ class ExtensionsManagerViewModel @Inject constructor(
     fun onEvent(event: ExtensionsScreenEvent) = when (event) {
         is ExtensionsScreenEvent.OnExtensionToggle       -> toggleExtension(event.extensionId, event.enabled)
         is ExtensionsScreenEvent.OnExtensionUninstall    -> uninstallExtension(event.extensionId)
-        is ExtensionsScreenEvent.OnExtensionConfigure    -> Unit // TODO
+        is ExtensionsScreenEvent.OnExtensionConfigure    -> openTranslationSettings(event.extensionId)
         ExtensionsScreenEvent.OnRefresh                  -> refreshAll()
         ExtensionsScreenEvent.OnShowRepositoryDialog     -> _state.update { it.copy(showRepositoryDialog = true) }
         ExtensionsScreenEvent.OnHideRepositoryDialog     -> _state.update { it.copy(showRepositoryDialog = false) }
@@ -92,6 +94,7 @@ class ExtensionsManagerViewModel @Inject constructor(
         is ExtensionsScreenEvent.OnLuaEditorChange        -> updateLuaEditorText(event.code)
         ExtensionsScreenEvent.OnLuaEditorSave             -> saveLuaEditor()
         is ExtensionsScreenEvent.OnResetLuaClick          -> resetLuaExtension(event.extensionId)
+        ExtensionsScreenEvent.OnTranslationSettingsDismiss -> closeTranslationSettings()
     }
 
     // ── Загрузка доступных расширений из репозитория ─────────────────────────
@@ -543,6 +546,77 @@ class ExtensionsManagerViewModel @Inject constructor(
             luaSourceProvider.reload()
         }
     }
+
+    // ── Настройки перевода плагина ──────────────────────────────────────────
+
+    /** Открывает диалог настроек перевода для установленного плагина. */
+    private fun openTranslationSettings(extensionId: String) {
+        _state.update { it.copy(translationSettingsExtensionId = extensionId) }
+    }
+
+    private fun closeTranslationSettings() {
+        _state.update { it.copy(translationSettingsExtensionId = null) }
+    }
+
+    /** Модели языков для выбора пары перевода (из TranslationManager). */
+    val translationModels: List<my.noveldokusha.text_translator.domain.TranslationModelState>
+        get() = translationManager.models
+
+    /** Глобальный режим перевода активен — настройки плагина не применяются. */
+    val translationGlobalMode: Boolean
+        get() = appPreferences.TRANSLATION_GLOBAL_MODE.value
+
+    /** Глобальная пара по умолчанию (для fallback-превью, когда у плагина пусто). */
+    val globalTranslationSource: String
+        get() = appPreferences.GLOBAL_TRANSLATION_PREFERRED_SOURCE.value
+
+    val globalTranslationTarget: String
+        get() = appPreferences.GLOBAL_TRANSLATION_PREFERRED_TARGET.value
+
+    // Чтение текущих значений плагина (пустые/дефолтные, если не заданы).
+    fun translationEnabled(extensionId: String): Boolean =
+        appPreferences.translationEnabledForPlugin(extensionId)
+
+    fun translationPair(extensionId: String): my.noveldokusha.core.appPreferences.TranslationLangPair =
+        appPreferences.translationPairForPlugin(extensionId)
+
+    fun translationProvider(extensionId: String): String? =
+        appPreferences.translationProviderForPlugin(extensionId)
+
+    fun translationScope(extensionId: String): String =
+        appPreferences.translationScopeForPlugin(extensionId)
+
+    fun translationPrompt(extensionId: String): String? =
+        appPreferences.translationPromptForPlugin(extensionId)
+
+    // Запись: пишем в AppPreferences сразу (write+rebuild — диалог читает заново).
+    fun setTranslationEnabled(extensionId: String, enabled: Boolean) {
+        appPreferences.setTranslationEnabledForPlugin(extensionId, enabled)
+    }
+
+    fun setTranslationPair(extensionId: String, source: String, target: String) {
+        appPreferences.setTranslationPairForPlugin(extensionId, source, target)
+    }
+
+    fun setTranslationProvider(extensionId: String, provider: String) {
+        appPreferences.setTranslationProviderForPlugin(extensionId, provider)
+    }
+
+    fun setTranslationScope(extensionId: String, scope: String) {
+        appPreferences.setTranslationScopeForPlugin(extensionId, scope)
+    }
+
+    fun setTranslationPrompt(extensionId: String, prompt: String) {
+        appPreferences.setTranslationPromptForPlugin(extensionId, prompt)
+    }
+
+    // Мост к избранным языкам и последним парам: делегируют напрямую в AppPreferences.
+    fun favoriteLanguages(): List<String> = appPreferences.favoriteLanguages()
+    fun toggleFavoriteLanguage(code: String) = appPreferences.toggleFavoriteLanguage(code)
+    fun recentTranslationPairs() = appPreferences.recentTranslationPairs()
+    fun recordRecentTranslationPair(source: String, target: String) = appPreferences.recordRecentTranslationPair(source, target)
+    fun removeRecentTranslationPair(pair: my.noveldokusha.core.appPreferences.TranslationLangPair) =
+        appPreferences.removeRecentTranslationPair(pair)
 
     // ── Вкл/выкл ─────────────────────────────────────────────────────────────
 
