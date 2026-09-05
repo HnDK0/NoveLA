@@ -10,7 +10,7 @@ hilt-androidx = "1.4.0"
 ksp = "2.3.11"
 
 kotlinx-coroutines-core = "1.9.0"
-kotlinx-coroutines-test = "1.9.0"
+kotlinx-coroutines-test = "1.11.0"
 kotlinx-serialization-json = "1.11.0"
 
 testing-mockito-kotlin = "5.4.0"
