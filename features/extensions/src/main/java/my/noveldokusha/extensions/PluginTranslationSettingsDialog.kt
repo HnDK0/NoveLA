@@ -196,6 +196,10 @@ fun PluginTranslationSettingsDialog(
                             val newPair = pair.value.copy(source = model?.language ?: "")
                             pair.value = newPair
                             viewModel.setTranslationPair(extensionId, newPair.source, newPair.target)
+                            if (newPair.isComplete) {
+                                viewModel.recordRecentTranslationPair(newPair.source, newPair.target)
+                                refreshRecent()
+                            }
                             showSourceDialog = false
                         },
                         onDismiss = { showSourceDialog = false },
@@ -228,6 +232,10 @@ fun PluginTranslationSettingsDialog(
                             val newPair = pair.value.copy(target = model?.language ?: "")
                             pair.value = newPair
                             viewModel.setTranslationPair(extensionId, newPair.source, newPair.target)
+                            if (newPair.isComplete) {
+                                viewModel.recordRecentTranslationPair(newPair.source, newPair.target)
+                                refreshRecent()
+                            }
                             showTargetDialog = false
                         },
                         onDismiss = { showTargetDialog = false },
