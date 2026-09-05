@@ -711,7 +711,6 @@
 <string name="translation_mode_per_novel">यह उपन्यास</string>
 <string name="translation_mode_global">सभी उपन्यास</string>
 <string name="translation_select_pair_to_enable">अनुवाद शुरू करने के लिए स्रोत और लक्ष्य भाषा चुनें</string>
-<string name="translation_toggle_off_hint">इस उपन्यास के लिए अनुवाद बंद है। अनुवाद करने के लिए इसे चालू करें।</string>
 <string name="tts_highlight">टीटीएस हाइलाइट</string>
 <string name="manual_highlight">मैन्युअल हाइलाइट</string>
 <string name="manual_highlight_start">मैन्युअल हाइलाइट शुरू करें</string>
@@ -807,4 +806,6 @@
     <string name="plugin_translation_scope_full_description">उपन्यास का शीर्षक और विवरण भी अनुवाद और सहेजता है।</string>
     <string name="plugin_translation_prompt_label">प्रॉम्प्ट</string>
     <string name="plugin_translation_prompt_hint">वैकल्पिक: Gemini/OpenAI के लिए कस्टम सिस्टम प्रॉम्प्ट</string>
+    <string name="active_translator_label">सक्रिय अनुवादक: %s</string>
+    <string name="translators_all_off">अनुवादक बंद हैं</string>
 </resources>

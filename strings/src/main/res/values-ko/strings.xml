@@ -722,7 +722,6 @@
 <string name="translation_mode_per_novel">이 소설</string>
 <string name="translation_mode_global">모든 소설</string>
 <string name="translation_select_pair_to_enable">번역을 시작하려면 원본 언어와 대상 언어를 선택하세요</string>
-<string name="translation_toggle_off_hint">이 소설에서는 번역이 꺼져 있습니다. 번역하려면 켜세요.</string>
 <string name="tts_highlight">TTS 하이라이트</string>
 <string name="manual_highlight">수동 하이라이트</string>
 <string name="manual_highlight_start">수동 하이라이트 시작</string>
@@ -818,4 +817,6 @@
     <string name="plugin_translation_scope_full_description">소설 제목과 설명도 번역하여 저장합니다.</string>
     <string name="plugin_translation_prompt_label">프롬프트</string>
     <string name="plugin_translation_prompt_hint">선택 사항: Gemini/OpenAI용 사용자 지정 시스템 프롬프트</string>
+    <string name="active_translator_label">활성 번역기: %s</string>
+    <string name="translators_all_off">번역기가 꺼져 있습니다</string>
 </resources>

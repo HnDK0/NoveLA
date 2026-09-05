@@ -722,7 +722,6 @@
 <string name="translation_mode_per_novel">この小説</string>
 <string name="translation_mode_global">すべての小説</string>
 <string name="translation_select_pair_to_enable">翻訳を開始するにはソース言語とターゲット言語を選択してください</string>
-<string name="translation_toggle_off_hint">この小説では翻訳がオフになっています。翻訳するにはオンにしてください。</string>
 <string name="tts_highlight">TTSハイライト</string>
 <string name="manual_highlight">手動ハイライト</string>
 <string name="manual_highlight_start">手動ハイライトを開始</string>
@@ -818,4 +817,6 @@
     <string name="plugin_translation_scope_full_description">小説のタイトルと説明も翻訳して保存します。</string>
     <string name="plugin_translation_prompt_label">プロンプト</string>
     <string name="plugin_translation_prompt_hint">任意：Gemini/OpenAI用のカスタムシステムプロンプト</string>
+    <string name="active_translator_label">アクティブな翻訳者: %s</string>
+    <string name="translators_all_off">翻訳者はオフです</string>
 </resources>

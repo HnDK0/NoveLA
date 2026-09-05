@@ -41,6 +41,7 @@ import my.noveldokusha.core.appPreferences.isComplete
 import my.noveldokusha.coreui.components.LanguageButton
 import my.noveldokusha.coreui.components.LanguageSearchDialog
 import my.noveldokusha.coreui.theme.colorAccent
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import my.noveldokusha.text_translator.domain.TranslationModelState
 
 /**
@@ -57,6 +58,9 @@ fun PluginTranslationSettingsDialog(
     onDismiss: () -> Unit,
 ) {
     val models = viewModel.translationModels
+
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val extension = state.extensions.find { it.id == extensionId }
 
     val enabled = remember(extensionId) { mutableStateOf(viewModel.translationEnabled(extensionId)) }
     val pair = remember(extensionId) { mutableStateOf(viewModel.translationPair(extensionId)) }
@@ -98,7 +102,7 @@ fun PluginTranslationSettingsDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(stringResource(my.noveldokusha.strings.R.string.plugin_translation_settings_title))
+            Text(extension?.name?.let { "Translation — $it" } ?: stringResource(my.noveldokusha.strings.R.string.plugin_translation_settings_title))
         },
         text = {
             Column(

@@ -716,7 +716,6 @@
     <string name="translation_not_configured">Tłumaczenie jest wyłączone lub nie jest skonfigurowane</string>
     <string name="translation_queued">Dodano do kolejki tłumaczeń</string>
     <string name="translation_select_pair_to_enable">Wybierz język źródłowy i docelowy, aby rozpocząć tłumaczenie</string>
-    <string name="translation_toggle_off_hint">Tłumaczenie jest wyłączone dla tej powieści. Włącz je, aby tłumaczyć.</string>
     <string name="translation_nothing_to_translate">Nic do przetłumaczenia</string>
     <string name="translation_mode_title">Tryb tłumaczenia</string>
     <string name="translation_mode_settings_description">Para językowa dla powieści lub jedna para dla wszystkich powieści</string>
@@ -817,4 +816,6 @@
     <string name="plugin_translation_scope_full_description">Tłumaczy i zapisuje również tytuł oraz opis powieści.</string>
     <string name="plugin_translation_prompt_label">Prompt</string>
     <string name="plugin_translation_prompt_hint">Opcjonalnie: własny prompt systemowy dla Gemini/OpenAI</string>
+    <string name="active_translator_label">Aktywny tłumacz: %s</string>
+    <string name="translators_all_off">Tłumacze są wyłączone</string>
 </resources>

@@ -706,7 +706,6 @@
     <string name="translation_not_configured">Ang pagsasalin ay naka-disable o hindi naka-configure</string>
     <string name="translation_queued">Idinagdag sa pila ng pagsasalin</string>
     <string name="translation_select_pair_to_enable">Piliin ang pinagmulan at target na wika para simulan ang pagsasalin</string>
-    <string name="translation_toggle_off_hint">Naka-off ang pagsasalin para sa nobelang ito. I-on ito para magsalin.</string>
     <string name="translation_nothing_to_translate">Walang isasalin</string>
     <string name="translation_mode_title">Mode ng pagsasalin</string>
     <string name="translation_mode_settings_description">Pares ng wika kada nobela, o isang pares para sa lahat ng nobela</string>
@@ -807,4 +806,6 @@
     <string name="plugin_translation_scope_full_description">Isinasalin at sine-save din ang pamagat at deskripsyon ng nobela.</string>
     <string name="plugin_translation_prompt_label">Prompt</string>
     <string name="plugin_translation_prompt_hint">Opsyonal: custom na system prompt para sa Gemini/OpenAI</string>
+    <string name="active_translator_label">Aktibong tagasalin: %s</string>
+    <string name="translators_all_off">Naka-off ang mga tagasalin</string>
 </resources>

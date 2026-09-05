@@ -706,7 +706,6 @@
     <string name="translation_not_configured">Tính năng dịch đang tắt hoặc chưa được cấu hình</string>
     <string name="translation_queued">Đã thêm vào hàng đợi dịch</string>
     <string name="translation_select_pair_to_enable">Chọn ngôn ngữ nguồn và đích để bắt đầu dịch</string>
-    <string name="translation_toggle_off_hint">Tính năng dịch đang tắt cho cuốn truyện này. Bật lên để dịch.</string>
     <string name="translation_nothing_to_translate">Không có gì để dịch</string>
     <string name="translation_mode_title">Chế độ dịch</string>
     <string name="translation_mode_settings_description">Cặp ngôn ngữ theo từng truyện hoặc một cặp cho tất cả truyện</string>
@@ -807,4 +806,6 @@
     <string name="plugin_translation_scope_full_description">Cũng dịch và lưu tiêu đề cùng mô tả của tiểu thuyết.</string>
     <string name="plugin_translation_prompt_label">Lời nhắc</string>
     <string name="plugin_translation_prompt_hint">Tùy chọn: lời nhắc hệ thống tùy chỉnh cho Gemini/OpenAI</string>
+    <string name="active_translator_label">Dịch giả đang hoạt động: %s</string>
+    <string name="translators_all_off">Dịch giả đã tắt</string>
 </resources>

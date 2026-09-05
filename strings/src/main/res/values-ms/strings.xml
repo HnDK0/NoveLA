@@ -711,7 +711,6 @@
 <string name="translation_mode_per_novel">Novel ini</string>
 <string name="translation_mode_global">Semua novel</string>
 <string name="translation_select_pair_to_enable">Pilih bahasa sumber dan bahasa sasaran untuk mula menterjemah</string>
-<string name="translation_toggle_off_hint">Terjemahan dimatikan untuk novel ini. Hidupkannya untuk menterjemah.</string>
 <string name="tts_highlight">Sorotan TTS</string>
 <string name="manual_highlight">Sorotan manual</string>
 <string name="manual_highlight_start">Mula sorotan manual</string>
@@ -807,4 +806,6 @@
     <string name="plugin_translation_scope_full_description">Juga menterjemah dan menyimpan tajuk serta penerangan novel.</string>
     <string name="plugin_translation_prompt_label">Arahan</string>
     <string name="plugin_translation_prompt_hint">Pilihan: arahan sistem tersuai untuk Gemini/OpenAI</string>
+    <string name="active_translator_label">Penterjemah aktif: %s</string>
+    <string name="translators_all_off">Penterjemah ditutup</string>
 </resources>

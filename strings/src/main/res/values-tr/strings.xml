@@ -706,7 +706,6 @@
     <string name="translation_not_configured">Çeviri devre dışı veya yapılandırılmamış</string>
     <string name="translation_queued">Çeviri kuyruğuna eklendi</string>
     <string name="translation_select_pair_to_enable">Çevirmeye başlamak için kaynak ve hedef dilleri seçin</string>
-    <string name="translation_toggle_off_hint">Bu roman için çeviri kapalı. Çevirmek için açın.</string>
     <string name="translation_nothing_to_translate">Çevrilecek bir şey yok</string>
     <string name="translation_mode_title">Çeviri modu</string>
     <string name="translation_mode_settings_description">Romana özel dil çifti veya tüm romanlar için tek çift</string>
@@ -807,4 +806,6 @@
     <string name="plugin_translation_scope_full_description">Romanın başlığını ve açıklamasını da çevirip kaydeder.</string>
     <string name="plugin_translation_prompt_label">İstek</string>
     <string name="plugin_translation_prompt_hint">İsteğe bağlı: Gemini/OpenAI için özel sistem istemi</string>
+    <string name="active_translator_label">Aktif çevirmen: %s</string>
+    <string name="translators_all_off">Çevirmenler kapalı</string>
 </resources>

@@ -278,6 +278,7 @@ fun CatalogExplorerScreen(
                         onSourceSetPinned = viewModel::onSourceSetPinned,
                         translationSettingsExtensionIds = translationSettingsExtensionIds,
                         onTranslationSettingsClick = onTranslationSettingsClick,
+                        isTranslationEnabled = { id -> extensionsViewModel.translationEnabled(id) },
                     )
                 }
                 1 -> {

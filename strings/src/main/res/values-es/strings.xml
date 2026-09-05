@@ -716,7 +716,6 @@
     <string name="translation_not_configured">La traducción está desactivada o no configurada</string>
     <string name="translation_queued">Añadido a la cola de traducción</string>
     <string name="translation_select_pair_to_enable">Selecciona los idiomas de origen y destino para empezar a traducir</string>
-    <string name="translation_toggle_off_hint">La traducción está desactivada para esta novela. Actívala para traducir.</string>
     <string name="translation_nothing_to_translate">Nada que traducir</string>
     <string name="translation_mode_title">Modo de traducción</string>
     <string name="translation_mode_settings_description">Par de idiomas por novela, o un par para todas las novelas</string>
@@ -817,4 +816,6 @@
     <string name="plugin_translation_scope_full_description">También traduce y guarda el título y la descripción de la novela.</string>
     <string name="plugin_translation_prompt_label">Indicación</string>
     <string name="plugin_translation_prompt_hint">Opcional: indicación de sistema personalizada para Gemini/OpenAI</string>
+    <string name="active_translator_label">Traductor activo: %s</string>
+    <string name="translators_all_off">Los traductores están desactivados</string>
 </resources>

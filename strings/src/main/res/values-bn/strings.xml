@@ -706,7 +706,6 @@
     <string name="translation_not_configured">অনুবাদ নিষ্ক্রিয় বা কনফিগার করা নেই</string>
     <string name="translation_queued">অনুবাদ সারিতে যোগ করা হয়েছে</string>
     <string name="translation_select_pair_to_enable">অনুবাদ শুরু করতে উৎস এবং লক্ষ্য ভাষা নির্বাচন করুন</string>
-    <string name="translation_toggle_off_hint">এই উপন্যাসের জন্য অনুবাদ বন্ধ আছে। অনুবাদ করতে এটি চালু করুন।</string>
     <string name="translation_nothing_to_translate">অনুবাদ করার মতো কিছু নেই</string>
     <string name="translation_mode_title">অনুবাদ মোড</string>
     <string name="translation_mode_settings_description">প্রতি উপন্যাসে একটি ভাষা জোড়া, বা সব উপন্যাসের জন্য একটি জোড়া</string>
@@ -807,4 +806,6 @@
     <string name="plugin_translation_scope_full_description">উপন্যাসের শিরোনাম এবং বিবরণও অনুবাদ ও সংরক্ষণ করে।</string>
     <string name="plugin_translation_prompt_label">প্রম্পট</string>
     <string name="plugin_translation_prompt_hint">ঐচ্ছিক: Gemini/OpenAI-এর জন্য কাস্টম সিস্টেম প্রম্পট</string>
+    <string name="active_translator_label">সক্রিয় অনুবাদক: %s</string>
+    <string name="translators_all_off">অনুবাদকগুলো বন্ধ আছে</string>
 </resources>

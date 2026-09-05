@@ -140,7 +140,6 @@
     <string name="translation_mode_per_novel">This novel</string>
     <string name="translation_mode_global">All novels</string>
     <string name="translation_select_pair_to_enable">Select source and target languages to start translating</string>
-    <string name="translation_toggle_off_hint">Translation is off for this novel. Turn it on to translate.</string>
     <string name="active_translator_label">Active translator: %s</string>
     <string name="translators_all_off">Translators are off</string>
     <string name="provider_name">Provider: %s</string>

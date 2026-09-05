@@ -716,7 +716,6 @@
     <string name="translation_not_configured">A tradução está desativada ou não configurada</string>
     <string name="translation_queued">Adicionado à fila de tradução</string>
     <string name="translation_select_pair_to_enable">Selecione os idiomas de origem e destino para começar a traduzir</string>
-    <string name="translation_toggle_off_hint">A tradução está desativada para este romance. Ative-a para traduzir.</string>
     <string name="translation_nothing_to_translate">Nada para traduzir</string>
     <string name="translation_mode_title">Modo de tradução</string>
     <string name="translation_mode_settings_description">Par de idiomas por romance ou um par para todos os romances</string>
@@ -817,4 +816,6 @@
     <string name="plugin_translation_scope_full_description">Também traduz e guarda o título e a descrição do romance.</string>
     <string name="plugin_translation_prompt_label">Prompt</string>
     <string name="plugin_translation_prompt_hint">Opcional: prompt de sistema personalizado para Gemini/OpenAI</string>
+    <string name="active_translator_label">Tradutor ativo: %s</string>
+    <string name="translators_all_off">Os tradutores estão desligados</string>
 </resources>

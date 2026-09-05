@@ -170,12 +170,6 @@ internal fun TranslatorSettingDialog(
             // (level == NONE): иначе при выключенном пер-новел, но включённом плагине
             // подсказка противоречила бы полоске «Активный переводчик: <плагин>».
             when {
-                !state.translationGlobalMode.value && level == ActiveTranslatorLevel.NONE ->
-                    Text(
-                        text = stringResource(R.string.translation_toggle_off_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 !state.translationGlobalMode.value && (state.source.value == null || state.target.value == null) ->
                     Text(
                         text = stringResource(R.string.translation_select_pair_to_enable),

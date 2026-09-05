@@ -706,7 +706,6 @@
     <string name="translation_not_configured">การแปลถูกปิดใช้งานหรือไม่ได้ตั้งค่า</string>
     <string name="translation_queued">เพิ่มลงในคิวการแปลแล้ว</string>
     <string name="translation_select_pair_to_enable">เลือกภาษาต้นทางและภาษาเป้าหมายเพื่อเริ่มแปล</string>
-    <string name="translation_toggle_off_hint">การแปลถูกปิดสำหรับนิยายเรื่องนี้ เปิดใช้งานเพื่อแปล</string>
     <string name="translation_nothing_to_translate">ไม่มีอะไรให้แปล</string>
     <string name="translation_mode_title">โหมดการแปล</string>
     <string name="translation_mode_settings_description">คู่ภาษาเฉพาะนิยาย หรือหนึ่งคู่สำหรับนิยายทั้งหมด</string>
@@ -807,4 +806,6 @@
     <string name="plugin_translation_scope_full_description">แปลและบันทึกชื่อเรื่องและคำอธิบายของนวนิยายด้วย</string>
     <string name="plugin_translation_prompt_label">พรอมต์</string>
     <string name="plugin_translation_prompt_hint">ไม่บังคับ: พรอมต์ระบบที่กำหนดเองสำหรับ Gemini/OpenAI</string>
+    <string name="active_translator_label">นักแปลที่ใช้งาน: %s</string>
+    <string name="translators_all_off">นักแปลปิดอยู่</string>
 </resources>

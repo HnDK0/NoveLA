@@ -717,7 +717,6 @@
     <string name="translation_not_configured">翻译已禁用或未配置</string>
     <string name="translation_queued">已加入翻译队列</string>
     <string name="translation_select_pair_to_enable">选择源语言和目标语言以开始翻译</string>
-    <string name="translation_toggle_off_hint">本书的翻译已关闭。开启后即可翻译。</string>
     <string name="translation_nothing_to_translate">没有可翻译的内容</string>
     <string name="translation_mode_title">翻译模式</string>
     <string name="translation_mode_settings_description">每本书单独的语言对，或所有书籍共用一个语言对</string>
@@ -818,4 +817,6 @@
     <string name="plugin_translation_scope_full_description">同时翻译并保存小说标题和简介。</string>
     <string name="plugin_translation_prompt_label">提示词</string>
     <string name="plugin_translation_prompt_hint">可选：为 Gemini/OpenAI 自定义系统提示词</string>
+    <string name="active_translator_label">当前翻译器：%s</string>
+    <string name="translators_all_off">翻译器已关闭</string>
 </resources>

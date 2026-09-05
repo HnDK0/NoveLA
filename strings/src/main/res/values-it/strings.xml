@@ -721,7 +721,6 @@
 <string name="translation_mode_per_novel">Questo romanzo</string>
 <string name="translation_mode_global">Tutti i romanzi</string>
 <string name="translation_select_pair_to_enable">Seleziona le lingue di origine e di destinazione per iniziare a tradurre</string>
-<string name="translation_toggle_off_hint">La traduzione è disattivata per questo romanzo. Attivala per tradurre.</string>
 <string name="tts_highlight">Evidenziazione TTS</string>
 <string name="manual_highlight">Evidenziazione manuale</string>
 <string name="manual_highlight_start">Avvia evidenziazione manuale</string>
@@ -817,4 +816,6 @@
     <string name="plugin_translation_scope_full_description">Traduce e salva anche il titolo e la descrizione del romanzo.</string>
     <string name="plugin_translation_prompt_label">Prompt</string>
     <string name="plugin_translation_prompt_hint">Opzionale: prompt di sistema personalizzato per Gemini/OpenAI</string>
+    <string name="active_translator_label">Traduttore attivo: %s</string>
+    <string name="translators_all_off">I traduttori sono disattivati</string>
 </resources>

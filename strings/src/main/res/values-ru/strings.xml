@@ -260,8 +260,6 @@
 
     <string name="translation_mode_global">Все новеллы</string>
     <string name="translation_select_pair_to_enable">Выберите язык источника и перевода, чтобы начать перевод</string>
-    <string name="translation_toggle_off_hint">Перевод выключен для этой новеллы. Включите его, чтобы переводить.</string>
-
     <string name="creating_backup">Создание резервной копии</string>
 
     <string name="copying_database">Копирование базы данных</string>
@@ -1292,5 +1290,7 @@
     <string name="plugin_translation_scope_full_description">Также переводит и сохраняет название и описание новеллы.</string>
     <string name="plugin_translation_prompt_label">Промпт</string>
     <string name="plugin_translation_prompt_hint">Опционально: свой системный промпт для Gemini/OpenAI</string>
+    <string name="active_translator_label">Активный переводчик: %s</string>
+    <string name="translators_all_off">Переводчики отключены</string>
 </resources>
 
