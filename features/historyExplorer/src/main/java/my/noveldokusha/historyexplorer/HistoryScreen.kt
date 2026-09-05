@@ -215,6 +215,16 @@ private fun HistoryItemCard(
                 overflow = TextOverflow.Ellipsis,
             )
 
+            if (!item.sourceName.isNullOrBlank()) {
+                Text(
+                    text = item.sourceName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
             Spacer(Modifier.height(4.dp))
 
             if (!item.lastReadChapterTitle.isNullOrBlank()) {
