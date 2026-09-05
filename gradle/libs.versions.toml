@@ -59,7 +59,7 @@ luajvm = "3.0.1"
 snakeyaml = "2.6"
 
 okhttp = "5.5.0"
-okhttp-interceptor-logging = "5.4.0"
+okhttp-interceptor-logging = "5.5.0"
 
 readability4j = "1.0.8"
 
