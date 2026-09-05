@@ -6,6 +6,8 @@ import my.noveldokusha.core.Response
 import my.noveldokusha.core.isLocalUri
 import my.noveldokusha.core.isValidChapterContent
 import my.noveldokusha.core.map
+import my.noveldokusha.core.utils.decodePages
+import my.noveldokusha.core.utils.encodePages
 import my.noveldokusha.data.DownloadedPageChaptersStore
 import my.noveldokusha.data.DownloaderRepository
 import my.noveldokusha.feature.local_database.AppDatabase
@@ -243,15 +245,5 @@ class ChapterBodyRepository @Inject constructor(
             }
             pages
         }
-    }
-
-    private fun encodePages(pages: List<String>): String =
-        org.json.JSONArray(pages).toString()
-
-    private fun decodePages(pagesJson: String): List<String>? = try {
-        val arr = org.json.JSONArray(pagesJson)
-        (0 until arr.length()).map { arr.getString(it) }
-    } catch (e: org.json.JSONException) {
-        null
     }
 }

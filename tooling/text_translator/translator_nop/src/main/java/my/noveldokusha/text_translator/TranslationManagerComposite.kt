@@ -209,7 +209,4 @@ class TranslationManagerComposite(
     override suspend fun detectLanguage(text: String): String? {
         return googleFreeManager.detectLanguage(text)
     }
-
-    override fun downloadModel(language: String) {}
-    override fun removeModel(language: String) {}
 }

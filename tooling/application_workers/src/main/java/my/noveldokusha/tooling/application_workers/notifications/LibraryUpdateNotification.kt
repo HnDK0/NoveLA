@@ -16,6 +16,7 @@ import coil.request.SuccessResult
 import coil.size.Size
 import dagger.hilt.android.qualifiers.ApplicationContext
 import my.noveldokusha.core.AppFileResolver
+import my.noveldokusha.core.utils.refererFor
 import my.noveldokusha.coreui.states.NotificationsCenter
 import my.noveldokusha.coreui.states.text
 import my.noveldokusha.coreui.states.title
@@ -209,8 +210,3 @@ internal class LibraryUpdateNotification @Inject constructor(
     }
 
 }
-
-private fun refererFor(url: String): String = try {
-    val uri = java.net.URI(url)
-    "${uri.scheme}://${uri.host}/"
-} catch (_: Exception) { "" }

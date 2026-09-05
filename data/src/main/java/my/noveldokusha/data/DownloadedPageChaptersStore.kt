@@ -4,12 +4,14 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import my.noveldokusha.core.utils.decodePages
+import my.noveldokusha.core.utils.encodePages
+import my.noveldokusha.core.utils.refererFor
 import my.noveldokusha.feature.local_database.DAOs.DownloadedPageChaptersDao
 import my.noveldokusha.feature.local_database.tables.DownloadedPageChapter
 import my.noveldokusha.network.NetworkClient
 import okhttp3.CacheControl
 import okhttp3.Request
-import org.json.JSONArray
 import timber.log.Timber
 import java.io.File
 import java.io.IOException
@@ -71,15 +73,6 @@ class DownloadedPageChaptersStore @Inject constructor(
         return ext.takeIf { it.length in 1..5 && it.all(Char::isLetterOrDigit) } ?: "img"
     }
 
-    private fun encodePages(pages: List<String>): String = JSONArray(pages).toString()
-
-    private fun decodePages(json: String): List<String> = try {
-        val arr = JSONArray(json)
-        (0 until arr.length()).map { arr.getString(it) }
-    } catch (e: Exception) {
-        emptyList()
-    }
-
     suspend fun isDownloaded(chapterUrl: String): Boolean = dao.get(chapterUrl) != null
 
     /**
@@ -96,7 +89,7 @@ class DownloadedPageChaptersStore @Inject constructor(
      */
     suspend fun getLocalPageFile(chapterUrl: String, pageUrl: String): File? {
         val row = dao.get(chapterUrl) ?: return null
-        val pages = decodePages(row.pages)
+        val pages = decodePages(row.pages) ?: emptyList()
         val idx = pages.indexOf(pageUrl)
         if (idx == -1) return null
         val file = pageFile(chapterUrl, idx, pageUrl)
@@ -164,7 +157,7 @@ class DownloadedPageChaptersStore @Inject constructor(
     suspend fun deleteChapters(chapterUrls: List<String>) = withContext(Dispatchers.IO) {
         if (chapterUrls.isEmpty()) return@withContext
         val rows = dao.getByUrls(chapterUrls)
-        rows.forEach { purgePageImages(decodePages(it.pages)) }
+        rows.forEach { purgePageImages(decodePages(it.pages) ?: emptyList()) }
         dao.removeRows(chapterUrls)
         chapterUrls.forEach { chapterDir(it).deleteRecursively() }
     }
@@ -207,7 +200,7 @@ class DownloadedPageChaptersStore @Inject constructor(
         if (bookUrls.isEmpty()) return@withContext
         val rows = dao.getByBookUrls(bookUrls)
         if (rows.isEmpty()) return@withContext
-        rows.forEach { purgePageImages(decodePages(it.pages)) }
+        rows.forEach { purgePageImages(decodePages(it.pages) ?: emptyList()) }
         dao.removeRows(rows.map { it.url })
         rows.forEach { chapterDir(it.url).deleteRecursively() }
     }
@@ -220,10 +213,4 @@ class DownloadedPageChaptersStore @Inject constructor(
         pageImagesDir.deleteRecursively()
     }
 
-    private fun refererFor(url: String): String = try {
-        val uri = java.net.URI(url)
-        "${uri.scheme}://${uri.host}/"
-    } catch (_: Exception) {
-        ""
-    }
 }

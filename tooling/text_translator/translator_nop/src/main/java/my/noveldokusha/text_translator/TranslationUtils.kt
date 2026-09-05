@@ -1,7 +1,9 @@
 package my.noveldokusha.text_translator
 
+import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.text_translator.domain.LANGUAGE_DISPLAY_NAMES
 import okhttp3.Response
+import timber.log.Timber
 import java.util.Locale
 
 /**
@@ -176,10 +178,90 @@ fun buildSystemPrompt(
         .replace("{target_language}", tgt)
 }
 
+/**
+ * Resolves the system prompt for translation.
+ *
+ * Priority:
+ * 1. [systemPromptOverride] — per-novel or per-request override (if non-null and non-blank)
+ * 2. User-configured active system prompt from [AppPreferences]
+ * 3. [DEFAULT_TRANSLATION_PROMPT] as last resort
+ */
+internal fun resolveTemplatePrompt(
+    appPreferences: AppPreferences,
+    systemPromptOverride: String?
+): String {
+    if (systemPromptOverride != null && systemPromptOverride.isNotBlank()) {
+        Timber.d("resolveTemplatePrompt: using override '${systemPromptOverride.take(200)}'")
+        return systemPromptOverride
+    }
+    val fallback = appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value
+        .ifBlank { DEFAULT_TRANSLATION_PROMPT }
+    Timber.d("resolveTemplatePrompt: no override, using fallback '${fallback.take(200)}'")
+    return fallback
+}
+
 internal fun readBodyOrThrow(response: Response, context: String): String {
     val body = response.body.string()
     if (body.isBlank()) {
         throw IllegalStateException("$context: Empty response body")
     }
     return body
+}
+
+/**
+ * Parses a numbered translation response back to a map of original → translated.
+ * Uses index-based matching to correctly handle duplicate paragraphs.
+ *
+ * Tolerates:
+ *  - Preamble before the first numbered item (silently discarded)
+ *  - Alternate numbering formats: "1)", "**1.**", "№1.", "1 ."
+ *  - Missing items (falls back to original text)
+ */
+private val numberPattern = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
+
+internal fun parseNumberedTranslations(
+    translatedText: String,
+    originalTexts: List<String>
+): Map<String, String> {
+    val byIndex = mutableMapOf<Int, String>()
+    val lines = translatedText.split("\n")
+    var currentIndex = -1
+    var currentText = StringBuilder()
+
+    fun flush() {
+        if (currentIndex >= 0 && currentText.isNotBlank()) {
+            byIndex[currentIndex] = currentText.toString().trim()
+        }
+        currentText.clear()
+    }
+
+    for (line in lines) {
+        val match = numberPattern.find(line)
+        if (match != null) {
+            flush()
+            val num = match.groupValues[1].toIntOrNull() ?: continue
+            currentIndex = num - 1
+            val rest = line.substring(match.value.length)
+            if (rest.isNotBlank()) currentText.append(rest)
+        } else {
+            if (currentIndex == -1) continue
+            if (currentText.isNotEmpty()) currentText.append("\n")
+            currentText.append(line.trim())
+        }
+    }
+    flush()
+
+    val result = mutableMapOf<String, String>()
+    originalTexts.forEachIndexed { index, originalText ->
+        val translation = byIndex[index]
+        if (translation != null) {
+            result[originalText] = translation
+        } else {
+            Timber.w("parseNumberedTranslations: missing index $index, using original")
+            result[originalText] = originalText
+        }
+    }
+
+    Timber.d("parseNumberedTranslations: ${byIndex.size}/${originalTexts.size} parsed")
+    return result
 }

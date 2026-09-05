@@ -453,9 +453,6 @@ class TranslationManagerGooglePA(
         result
     }
 
-    override fun downloadModel(language: String) {}
-    override fun removeModel(language: String) {}
-
     companion object {
         private const val TAG = "TranslationGooglePA"
     }

@@ -79,17 +79,6 @@ class TranslationManagerOpenAI(
     private val useEnglishLocale: Boolean
         get() = appPreferences.TRANSLATION_PROMPT_USE_ENGLISH_LOCALE.value
 
-    private fun resolveTemplatePrompt(systemPromptOverride: String?): String {
-        if (systemPromptOverride != null && systemPromptOverride.isNotBlank()) {
-            Timber.d( "resolveTemplatePrompt: using override '${systemPromptOverride.take(200)}'")
-            return systemPromptOverride
-        }
-        val fallback = appPreferences.TRANSLATION_ACTIVE_SYSTEM_PROMPT.value
-            .ifBlank { DEFAULT_TRANSLATION_PROMPT }
-        Timber.d( "resolveTemplatePrompt: no override, using fallback '${fallback.take(200)}'")
-        return fallback
-    }
-
     override val available = true
     override val isUsingOnlineTranslation = true
 
@@ -294,75 +283,9 @@ class TranslationManagerOpenAI(
     // ─── Prompt building ───────────────────────────────────────────────────────
 
     private fun buildPrompt(sourceLanguage: String, targetLanguage: String, systemPromptOverride: String? = null): String =
-        buildSystemPrompt(resolveTemplatePrompt(systemPromptOverride), sourceLanguage, targetLanguage, useEnglishLocale)
+        buildSystemPrompt(resolveTemplatePrompt(appPreferences, systemPromptOverride), sourceLanguage, targetLanguage, useEnglishLocale)
 
     // ─── Response parsing ──────────────────────────────────────────────────────
-
-    /**
-     * Parses a numbered translation response back to a map of original → translated.
-     * Uses index-based matching to correctly handle duplicate paragraphs.
-     *
-     * Tolerates:
-     *  - Preamble before the first numbered item (silently discarded)
-     *  - Alternate numbering formats: "1)", "**1.**", "№1.", "1 ."
-     *  - Missing items (falls back to original text)
-     */
-    private val numberPattern = Regex("""^\*{0,2}[№#]?\s*(\d+)\s*[.)]\*{0,2}\s*""")
-
-    private fun parseNumberedTranslations(
-        translatedText: String,
-        originalTexts: List<String>
-    ): Map<String, String> {
-        // Index-based map: key = 0-based index, value = translated text
-        val byIndex = mutableMapOf<Int, String>()
-
-        // Matches: "1.", "1)", "**1.**", "№1.", "#1.", "1 ." at start of line
-        val lines = translatedText.split("\n")
-        var currentIndex = -1  // -1 = before first numbered item (preamble)
-        var currentText = StringBuilder()
-
-        fun flush() {
-            if (currentIndex >= 0 && currentText.isNotBlank()) {
-                byIndex[currentIndex] = currentText.toString().trim()
-            }
-            currentText.clear()
-        }
-
-        for (line in lines) {
-            val match = numberPattern.find(line)
-            if (match != null) {
-                flush()
-                val num = match.groupValues[1].toIntOrNull() ?: continue
-                currentIndex = num - 1  // convert to 0-based
-                val rest = line.substring(match.value.length)
-                if (rest.isNotBlank()) currentText.append(rest)
-            } else {
-                if (currentIndex == -1) continue  // preamble before "1." — discard
-                val trimmed = line.trim()
-                if (currentText.isNotEmpty()) currentText.append("\n")
-                currentText.append(trimmed)
-            }
-        }
-        flush()
-
-        // Build final result by index — handles duplicate original texts correctly
-        val result = mutableMapOf<String, String>()
-        originalTexts.forEachIndexed { index, originalText ->
-            val translation = byIndex[index]
-            if (translation != null) {
-                result[originalText] = translation
-            } else {
-                Timber.w( "parseNumberedTranslations: missing index $index, using original")
-                result[originalText] = originalText
-            }
-        }
-
-        Timber.d( "parseNumberedTranslations: ${byIndex.size}/${originalTexts.size} parsed")
-        return result
-    }
-
-    override fun downloadModel(language: String) {}
-    override fun removeModel(language: String) {}
 
     override suspend fun detectLanguage(text: String): String? = null
 

@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
+import my.noveldokusha.core.utils.formatDuration
 import my.noveldokusha.coreui.composableActions.debouncedAction
 import my.noveldokusha.reader.R
 import kotlinx.coroutines.withTimeoutOrNull
@@ -726,18 +727,6 @@ private fun FloatingTtsMiniPlayer(
                 }
             }
         }
-    }
-}
-
-private fun formatDuration(seconds: Int): String {
-    if (seconds <= 0) return "0:00"
-    val h = seconds / 3600
-    val m = (seconds % 3600) / 60
-    val s = seconds % 60
-    return if (h > 0) {
-        "${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}"
-    } else {
-        "${m}:${s.toString().padStart(2, '0')}"
     }
 }
 

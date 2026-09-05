@@ -1,4 +1,4 @@
-package my.noveldokusha.catalogexplorer
+package my.noveldokusha.coreui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,7 +18,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -28,14 +27,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import my.noveldokusha.coreui.R
-import my.noveldokusha.scraper.Scraper
 
-private sealed class ValidationResult {
+sealed class ValidationResult {
     data class Success(val urls: List<String>) : ValidationResult()
     data class Error(val message: String) : ValidationResult()
 }
 
-private fun String.isValidUrl(): Boolean {
+fun String.isValidUrl(): Boolean {
     return try {
         val uri = java.net.URI(this)
         uri.scheme in listOf("http", "https") && uri.host != null
@@ -44,11 +42,42 @@ private fun String.isValidUrl(): Boolean {
     }
 }
 
+fun validateUrls(urlsText: String, isUrlSupported: (String) -> Boolean): ValidationResult {
+    val lines = urlsText.lines().map { it.trim() }.filter { it.isNotBlank() }
+
+    if (lines.isEmpty()) {
+        return ValidationResult.Error("At least one URL is required")
+    }
+
+    val validUrls = mutableListOf<String>()
+    val errors = mutableListOf<String>()
+
+    for ((index, url) in lines.withIndex()) {
+        if (!url.isValidUrl()) {
+            errors.add("Line ${index + 1}: Invalid URL format")
+            continue
+        }
+
+        if (!isUrlSupported(url)) {
+            errors.add("Line ${index + 1}: Unsupported source")
+            continue
+        }
+
+        validUrls.add(url)
+    }
+
+    if (errors.isNotEmpty()) {
+        return ValidationResult.Error(errors.joinToString("\n"))
+    }
+
+    return ValidationResult.Success(validUrls)
+}
+
 @Composable
 fun AddByUrlDialog(
     onDismiss: () -> Unit,
     onConfirm: (urls: List<String>) -> Unit,
-    scraper: Scraper
+    isUrlSupported: (String) -> Boolean
 ) {
     var urlsText by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -124,7 +153,7 @@ fun AddByUrlDialog(
                 }
                 FilledTonalButton(
                     onClick = {
-                        val validationResult = validateUrls(urlsText, scraper)
+                        val validationResult = validateUrls(urlsText, isUrlSupported)
                         when (validationResult) {
                             is ValidationResult.Success -> {
                                 onConfirm(validationResult.urls)
@@ -153,35 +182,4 @@ fun AddByUrlDialog(
         },
         dismissButton = {}
     )
-}
-
-private fun validateUrls(urlsText: String, scraper: Scraper): ValidationResult {
-    val lines = urlsText.lines().map { it.trim() }.filter { it.isNotBlank() }
-
-    if (lines.isEmpty()) {
-        return ValidationResult.Error("At least one URL is required")
-    }
-
-    val validUrls = mutableListOf<String>()
-    val errors = mutableListOf<String>()
-
-    for ((index, url) in lines.withIndex()) {
-        if (!url.isValidUrl()) {
-            errors.add("Line ${index + 1}: Invalid URL format")
-            continue
-        }
-
-        if (!scraper.isUrlSupported(url)) {
-            errors.add("Line ${index + 1}: Unsupported source")
-            continue
-        }
-
-        validUrls.add(url)
-    }
-
-    if (errors.isNotEmpty()) {
-        return ValidationResult.Error(errors.joinToString("\n"))
-    }
-
-    return ValidationResult.Success(validUrls)
 }

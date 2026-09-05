@@ -61,10 +61,6 @@ interface TranslationManager {
         provider: String? = null
     ): TranslatorState
 
-    fun downloadModel(language: String)
-
-    fun removeModel(language: String)
-
     suspend fun translateBatch(
         texts: List<String>,
         sourceLanguage: String,

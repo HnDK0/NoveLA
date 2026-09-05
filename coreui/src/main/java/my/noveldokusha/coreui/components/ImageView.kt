@@ -18,6 +18,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.size.Precision
+import my.noveldokusha.core.utils.refererFor
 import my.noveldokusha.coreui.R
 
 @Composable
@@ -101,8 +102,3 @@ fun ImageView(
         )
     }
 }
-
-private fun refererFor(url: String): String = try {
-    val uri = java.net.URI(url)
-    "${uri.scheme}://${uri.host}/"
-} catch (_: Exception) { "" }

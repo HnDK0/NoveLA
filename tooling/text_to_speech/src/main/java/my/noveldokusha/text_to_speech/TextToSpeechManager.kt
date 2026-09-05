@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.Collections
-import me.nanihadesuka.algorithms.delimiterAwareTextSplitter
+import my.noveldokusha.text_to_speech.delimiterAwareTextSplitter
 
 interface Utterance<T : Utterance<T>> {
     enum class PlayState { PLAYING, FINISHED, LOADING }

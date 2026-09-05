@@ -34,6 +34,7 @@ import my.noveldokusha.feature.local_database.DAOs.BookTranslationDao
 import my.noveldokusha.feature.local_database.DAOs.DownloadTaskDao
 import my.noveldokusha.feature.local_database.tables.BookTranslation
 import my.noveldokusha.feature.local_database.tables.DownloadTaskEntity
+import my.noveldokusha.core.isNetworkError
 import my.noveldokusha.core.utils.normalizeBookUrl
 import my.noveldokusha.core.utils.STRIP_HTML_TAGS
 import my.noveldokusha.text_translator.domain.TranslationManager
@@ -826,28 +827,6 @@ class DownloadManager @Inject constructor(
         object Failed : TranslateResult()
         object Interrupted : TranslateResult()
         object Skipped : TranslateResult()
-    }
-
-    /**
-     * Определяет, является ли ошибка сетевой (DNS/соединение/таймаут/TLS).
-     * M4: добавлены SocketTimeoutException, SSLException как основные критерии,
-     * строковые проверки оставлены как fallback.
-     */
-    private fun isNetworkError(error: my.noveldokusha.core.Response.Error): Boolean {
-        val exception = error.exception
-        return when (exception) {
-            is UnknownHostException,
-            is ConnectException,
-            is SocketTimeoutException,
-            is SSLException -> true
-            else -> {
-                val msg = error.message
-                msg.contains("Unable to resolve host", ignoreCase = true) ||
-                        msg.contains("Failed to connect", ignoreCase = true) ||
-                        msg.contains("Network is unreachable", ignoreCase = true) ||
-                        msg.contains("hostname", ignoreCase = true)
-            }
-        }
     }
 
     /**

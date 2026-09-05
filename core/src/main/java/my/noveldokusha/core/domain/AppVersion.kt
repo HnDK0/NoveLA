@@ -12,15 +12,8 @@ data class AppVersion(val major: Int, val minor: Int, val fix: Int) : Comparable
         }.getOrDefault(AppVersion(0, 0, 0))
     }
 
-    override fun compareTo(other: AppVersion): Int {
-        if (major > other.major) return 1
-        if (major < other.major) return -1
-        if (minor > other.minor) return 1
-        if (minor < other.minor) return -1
-        if (fix > other.fix) return 1
-        if (fix < other.fix) return -1
-        return 0
-    }
+    override fun compareTo(other: AppVersion): Int =
+        compareValuesBy(this, other, { it.major }, { it.minor }, { it.fix })
 
     override fun toString() = "v$major.$minor.$fix"
 }

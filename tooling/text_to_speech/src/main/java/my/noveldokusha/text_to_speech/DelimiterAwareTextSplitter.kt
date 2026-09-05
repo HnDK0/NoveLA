@@ -1,4 +1,4 @@
-package me.nanihadesuka.algorithms
+package my.noveldokusha.text_to_speech
 
 import java.nio.CharBuffer
 

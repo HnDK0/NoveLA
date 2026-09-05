@@ -16,6 +16,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import my.noveldokusha.core.utils.refererFor
 import my.noveldokusha.data.DownloadedPageChaptersStore
 import my.noveldokusha.features.reader.manga.MangaPage
 import my.noveldokusha.network.NetworkClient
@@ -269,12 +270,5 @@ class PageImageLoader @Inject constructor(
         if (opts.outWidth > 0 && opts.outHeight > 0) opts.outWidth to opts.outHeight else null
     } catch (e: Exception) {
         null
-    }
-
-    private fun refererFor(url: String): String = try {
-        val uri = java.net.URI(url)
-        "${uri.scheme}://${uri.host}/"
-    } catch (_: Exception) {
-        ""
     }
 }

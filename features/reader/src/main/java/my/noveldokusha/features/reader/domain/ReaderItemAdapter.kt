@@ -23,6 +23,7 @@ import androidx.core.view.updateLayoutParams
 import coil.load
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.utils.inflater
+import my.noveldokusha.core.utils.refererFor
 import my.noveldokusha.features.reader.features.TextSynthesis
 import my.noveldokusha.reader.R
 import my.noveldokusha.reader.databinding.ActivityReaderListItemBodyBinding
@@ -500,11 +501,6 @@ internal class ReaderItemAdapter(
             false
         }
     }
-
-    private fun refererFor(url: String): String = try {
-        val uri = java.net.URI(url)
-        "${uri.scheme}://${uri.host}/"
-    } catch (_: Exception) { "" }
 
     companion object {
         private const val MENU_ID_SEARCH_WEB = 9999

@@ -45,9 +45,6 @@ class ApplyRecentPairTest {
             provider: String?,
         ): TranslatorState = TranslatorState(source = source, target = target) { it }
 
-        override fun downloadModel(language: String) {}
-        override fun removeModel(language: String) {}
-
         override suspend fun translateBatch(
             texts: List<String>,
             sourceLanguage: String,

@@ -57,7 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import my.noveldokusha.coreui.components.ChipOption
 import my.noveldokusha.coreui.components.LanguageFilterChips
 import my.noveldokusha.navigation.NavigationRouteViewModel
-import my.noveldokusha.catalogexplorer.AddByUrlDialog
+import my.noveldokusha.coreui.components.AddByUrlDialog
 import my.noveldokusha.extensions.ExtensionsScreen
 import my.noveldokusha.extensions.ExtensionsManagerViewModel
 import my.noveldokusha.extensions.ExtensionsScreenEvent
@@ -325,7 +325,7 @@ fun CatalogExplorerScreen(
                 viewModel.addNovelsByUrls(urls)
                 viewModel.setShowAddByUrlDialog(false)
             },
-            scraper = viewModel.scraperRepository.scraper
+            isUrlSupported = viewModel.scraperRepository.scraper::isUrlSupported
         )
     }
 }

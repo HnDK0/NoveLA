@@ -1,5 +1,6 @@
 package my.noveldokusha.core.utils
 
+import org.json.JSONArray
 import java.net.URI
 
 /**
@@ -27,4 +28,24 @@ fun normalizeBookUrl(url: String): String {
     } catch (_: Exception) {
         url
     }
+}
+
+/**
+ * Build a referer header value from a page URL.
+ * Returns `"scheme://host/"` or empty string on parse failure.
+ */
+fun refererFor(url: String): String = try {
+    val uri = URI(url)
+    "${uri.scheme}://${uri.host}/"
+} catch (_: Exception) {
+    ""
+}
+
+fun encodePages(pages: List<String>): String = JSONArray(pages).toString()
+
+fun decodePages(json: String): List<String>? = try {
+    val arr = JSONArray(json)
+    (0 until arr.length()).map { arr.getString(it) }
+} catch (e: Exception) {
+    null
 }

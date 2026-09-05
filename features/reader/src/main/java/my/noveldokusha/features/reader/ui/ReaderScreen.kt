@@ -694,8 +694,7 @@ private fun ViewsPreview(
         onTargetChange = {},
         onEnable = {},
         onSourceChange = {},
-        onDownloadTranslationModel = {}
-        , onRedoTranslation = {},
+        onRedoTranslation = {},
         novelPrompt = remember { mutableStateOf("") },
         onNovelPromptChange = {},
         novelPromptAppendMode = remember { mutableStateOf(false) },

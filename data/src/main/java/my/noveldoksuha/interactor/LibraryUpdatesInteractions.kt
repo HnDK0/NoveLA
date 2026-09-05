@@ -21,6 +21,7 @@ import my.noveldokusha.core.domain.ChapterPagination
 import my.noveldokusha.core.isHttpsUrl
 import my.noveldokusha.core.utils.normalizeBookUrl
 import my.noveldokusha.core.isLocalUri
+import my.noveldokusha.core.isNetworkError
 import my.noveldokusha.core.Response
 import my.noveldokusha.data.CoverRepository
 import java.net.ConnectException
@@ -529,22 +530,5 @@ class LibraryUpdatesInteractions @Inject constructor(
             delay(1000L * (1 shl attempt))
         }
         return block()
-    }
-
-    private fun isNetworkError(error: Response.Error): Boolean {
-        val exception = error.exception
-        return when (exception) {
-            is UnknownHostException,
-            is ConnectException,
-            is SocketTimeoutException,
-            is SSLException -> true
-            else -> {
-                val msg = error.message
-                msg.contains("Unable to resolve host", ignoreCase = true) ||
-                    msg.contains("Failed to connect", ignoreCase = true) ||
-                    msg.contains("Network is unreachable", ignoreCase = true) ||
-                    msg.contains("hostname", ignoreCase = true)
-            }
-        }
     }
 }

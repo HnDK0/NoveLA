@@ -2,6 +2,10 @@ package my.noveldokusha.core
 
 import my.noveldokusha.core.Response.Error
 import my.noveldokusha.core.Response.Success
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
 
 sealed class Response<out T> {
     data class Success<out T>(val data: T) : Response<T>()
@@ -63,5 +67,22 @@ fun <T> Response<Response<T>>.flatten(): Response<T> =
                     this.data
                 }
             }
+    }
+}
+
+fun isNetworkError(error: Error): Boolean {
+    val exception = error.exception
+    return when (exception) {
+        is UnknownHostException,
+        is ConnectException,
+        is SocketTimeoutException,
+        is SSLException -> true
+        else -> {
+            val msg = error.message
+            msg.contains("Unable to resolve host", ignoreCase = true) ||
+                    msg.contains("Failed to connect", ignoreCase = true) ||
+                    msg.contains("Network is unreachable", ignoreCase = true) ||
+                    msg.contains("hostname", ignoreCase = true)
+        }
     }
 }

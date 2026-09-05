@@ -47,7 +47,6 @@ import javax.inject.Inject
 @Immutable
 internal data class LibraryUiState(
     val bookActionsSheetBook: Book? = null,
-    val showAddByUrlDialog: Boolean = false,
     val isSelectionMode: Boolean = false,
     val isFixingBooks: Boolean = false,
     val fixProgress: Int = 0,
@@ -124,10 +123,6 @@ internal class LibraryViewModel @Inject constructor(
 
     fun setBookActionsSheetBook(book: Book?) {
         _uiState.update { it.copy(bookActionsSheetBook = book) }
-    }
-
-    fun setShowAddByUrlDialog(show: Boolean) {
-        _uiState.update { it.copy(showAddByUrlDialog = show) }
     }
 
     fun setGridColumns(columns: Int) {

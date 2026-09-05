@@ -50,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import my.noveldokusha.core.rememberResolvedBookImagePath
+import my.noveldokusha.core.utils.refererFor
 import my.noveldokusha.feature.local_database.BookMetadata
 import my.noveldokusha.navigation.NavigationRouteViewModel
 import my.noveldokusha.strings.R as StringsR
@@ -277,7 +278,4 @@ private fun relativeTime(epochMillis: Long): String {
     }
 }
 
-private fun refererFor(url: String): String = try {
-    val uri = java.net.URI(url)
-    "${uri.scheme}://${uri.host}/"
-} catch (_: Exception) { "" }
+

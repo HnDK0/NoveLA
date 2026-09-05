@@ -23,6 +23,8 @@ import coil.request.SuccessResult
 import coil.size.Size
 import dagger.hilt.android.qualifiers.ApplicationContext
 import my.noveldokusha.core.AppFileResolver
+import my.noveldokusha.core.utils.formatDuration
+import my.noveldokusha.core.utils.refererFor
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -474,20 +476,3 @@ internal class NarratorMediaControlsNotification @Inject constructor(
     }
 }
 
-private fun formatDuration(seconds: Int): String {
-    val total = seconds.coerceAtLeast(0)
-    val h = total / 3600
-    val m = (total % 3600) / 60
-    val s = total % 60
-
-    return if (h > 0) {
-        "%d:%02d:%02d".format(h, m, s)
-    } else {
-        "%d:%02d".format(m, s)
-    }
-}
-
-private fun refererFor(url: String): String = try {
-    val uri = java.net.URI(url)
-    "${uri.scheme}://${uri.host}/"
-} catch (_: Exception) { "" }
