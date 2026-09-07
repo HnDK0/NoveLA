@@ -97,7 +97,7 @@ class App : Application(), SingletonImageLoader.Factory, WorkConfiguration.Provi
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
             .crossfade((300 * animatorDurationScale).toInt())
             .allowHardware(true)
-            .allowRgb565(isLowRamDevice) // ponytail: RGB_565 только на слабых устройствах — теряет качество на normal/high-end
+            .allowRgb565(true) // RGB_565: 2 байта/пиксель вместо 4 — вдвое больше обложек в кеше
 
         return when (val networkClient = networkClient) {
             is ScraperNetworkClient -> sharedBuilder

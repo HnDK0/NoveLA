@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +42,7 @@ import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.appPreferences.SourceStripPosition
 import my.noveldokusha.core.utils.refererFor
 import my.noveldokusha.coreui.R
@@ -165,6 +167,7 @@ internal fun LibraryPageBody(
         // ponytail: track all disposables — previous code leaked 4 of 5 prefetch requests
         val context = LocalContext.current
         val imageLoader = SingletonImageLoader.get(context)
+        val appFileResolver = remember(context) { AppFileResolver(context) }
         LaunchedEffect(gridState, list) {
             val pendingPrefetch = mutableListOf<coil3.request.Disposable>()
             snapshotFlow {
@@ -178,8 +181,10 @@ internal fun LibraryPageBody(
                 for (i in startIndex until endIndex) {
                     val book = list[i]
                     val request = ImageRequest.Builder(context)
-                        .data(book.book.coverImageUrl)
-                        .size(512)
+                        .data(appFileResolver.resolvedBookImagePath(
+                            bookUrl = book.book.url,
+                            imagePath = book.book.coverImageUrl
+                        ))
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .apply {

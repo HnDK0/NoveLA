@@ -67,7 +67,6 @@ fun ImageView(
                 ImageRequest
                     .Builder(context)
                     .data(model)
-                    .size(512)
                     .precision(Precision.INEXACT)
                     .apply {
                         if (!referer.isNullOrEmpty()) {
@@ -90,7 +89,6 @@ fun ImageView(
                 ImageRequest
                     .Builder(context)
                     .data(error)
-                    .size(512)
                     .precision(Precision.INEXACT)
                     .build()
             }
