@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -157,6 +158,16 @@ internal class LibraryPageViewModel @Inject constructor(
     // → потом Room отвечает → книги появляются.
     private val sharedBooksFlow = appRepository.libraryBooks
         .getBooksInLibraryWithContextFlow
+        // ponytail: TTS обновляет Book.lastReadChapter каждые ~5-10с, но библиотека
+        // не использует это поле (сортировка LAST_READ → lastReadEpochTimeMilli,
+        // фильтр категорий → category). Room InvalidationTracker — table-level,
+        // поэтому любая запись в Book/Chapter инвалидирует Flow → каскад 8+ downstream.
+        // Нормализуем list: обнуляем lastReadChapter и сравниваем через data class equals().
+        .distinctUntilChanged { old, new ->
+            if (old.size != new.size) return@distinctUntilChanged false
+            old.map { it.copy(book = it.book.copy(lastReadChapter = null)) } ==
+                new.map { it.copy(book = it.book.copy(lastReadChapter = null)) }
+        }
         .shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
 
     var searchQuery by mutableStateOf("")
