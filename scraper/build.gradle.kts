@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.noveldokusha.android.library)
     alias(libs.plugins.noveldokusha.android.compose)
     alias(libs.plugins.kotlin.parcelize)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
 }
@@ -22,6 +23,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.timber)
     implementation(libs.compose.androidx.material.icons.extended)
+    implementation(libs.kotlinx.serialization.json)
 
     // Lua and YAML support
     implementation(libs.luajvm)

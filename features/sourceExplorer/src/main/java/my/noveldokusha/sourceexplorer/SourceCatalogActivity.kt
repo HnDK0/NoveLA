@@ -45,6 +45,7 @@ class SourceCatalogActivity : BaseActivity() {
         setContent {
             Theme(themeProvider = themeProvider) {
                 SourceCatalogScreen(
+                    viewModel = viewModel,
                     state = viewModel.state,
                     onSearchTextInputChange = viewModel.state.searchTextInput::value::set,
                     onSearchTextInputSubmit = viewModel::onSearchText,

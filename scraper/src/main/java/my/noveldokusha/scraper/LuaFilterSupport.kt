@@ -2,6 +2,7 @@ package my.noveldokusha.scraper
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 import timber.log.Timber
@@ -17,7 +18,7 @@ import timber.log.Timber
  *
  * Схема одного фильтра (Lua):
  * {
- *   type  = "select" | "checkbox" | "tristate" | "switch" | "text" | "sort"
+ *   type  = "select" | "checkbox" | "tristate" | "switch" | "text" | "sort" | "tag_input"
  *   key   = "filter_key",
  *   label = "Display Label",
  *   -- для select/checkbox/tristate/sort:
@@ -30,6 +31,9 @@ import timber.log.Timber
  *   defaultValue = false
  *   -- для text:
  *   defaultValue = ""
+ *   -- для tag_input:
+ *   options = { { value = "tag1", label = "Tag 1" }, ... }
+ *   allowCustom = true
  * }
  *
  * Передача фильтров в getCatalogFiltered(index, filters):
@@ -41,19 +45,23 @@ import timber.log.Timber
  *   text      → filters["key"]              = "string"
  *   sort      → filters["key"]              = "value"
  *             → filters["key_ascending"]    = "true" / "false"
+ *   tag_input → filters["key_included"]     = { "tag1", "tag2" }  (LuaTable)
  */
 
 // ── Модели опций ──────────────────────────────────────────────────────────────
 
+@Serializable
 data class LuaFilterOption(val value: String, val label: String)
 
 // ── Модели фильтров ───────────────────────────────────────────────────────────
 
+@Serializable
 sealed class LuaFilter {
     abstract val key: String
     abstract val label: String
 
     /** Одиночный выбор из списка (Picker в lnreader) */
+    @Serializable
     data class Select(
         override val key: String,
         override val label: String,
@@ -66,6 +74,7 @@ sealed class LuaFilter {
      * Передаётся как filters["key_included"] = LuaTable
      * Если multiselect = false — можно выбрать только один вариант.
      */
+    @Serializable
     data class CheckboxGroup(
         override val key: String,
         override val label: String,
@@ -77,6 +86,7 @@ sealed class LuaFilter {
      * Тройное состояние — включить / исключить / игнорировать (ExcludableCheckboxGroup в lnreader).
      * Передаётся как filters["key_included"] и filters["key_excluded"] = LuaTable
      */
+    @Serializable
     data class TriState(
         override val key: String,
         override val label: String,
@@ -84,6 +94,7 @@ sealed class LuaFilter {
     ) : LuaFilter()
 
     /** Переключатель вкл/выкл (Switch в lnreader) */
+    @Serializable
     data class Switch(
         override val key: String,
         override val label: String,
@@ -91,6 +102,7 @@ sealed class LuaFilter {
     ) : LuaFilter()
 
     /** Текстовый ввод (TextInput в lnreader) */
+    @Serializable
     data class TextInput(
         override val key: String,
         override val label: String,
@@ -101,12 +113,26 @@ sealed class LuaFilter {
      * Сортировка с направлением (кастомный тип, нет аналога в lnreader).
      * Передаётся как filters["key"] = "value" и filters["key_ascending"] = "true"/"false"
      */
+    @Serializable
     data class Sort(
         override val key: String,
         override val label: String,
         val options: List<LuaFilterOption>,
         val defaultValue: String,
         val defaultAscending: Boolean
+    ) : LuaFilter()
+
+    /**
+     * Теговый ввод — пользователь выбирает теги из предложенных или вводит свои.
+     * Передаётся как filters["key_included"] = LuaTable (массив строк).
+     * allowCustom = true разрешает ввод произвольных тегов.
+     */
+    @Serializable
+    data class TagInput(
+        override val key: String,
+        override val label: String,
+        val options: List<LuaFilterOption>,
+        val allowCustom: Boolean = true
     ) : LuaFilter()
 }
 
@@ -116,6 +142,7 @@ sealed class LuaFilter {
  * Состояние выбранных фильтров — живёт только в ViewModel, сбрасывается при пересоздании.
  * НЕ сохраняется в SharedPreferences / SavedStateHandle.
  */
+@Serializable
 data class ActiveFilters(
     val sortValues: Map<String, String> = emptyMap(),            // key → option.value
     val sortAscending: Map<String, Boolean> = emptyMap(),        // key → ascending
@@ -125,6 +152,7 @@ data class ActiveFilters(
     val triExcluded: Map<String, List<String>> = emptyMap(),     // key → [option.value, ...]
     val switchValues: Map<String, Boolean> = emptyMap(),         // key → true/false
     val textValues: Map<String, String> = emptyMap(),            // key → string
+    val tagInputValues: Map<String, List<String>> = emptyMap(),  // key → [tag, ...]
 ) {
     /**
      * true если все значения дефолтные.
@@ -138,8 +166,24 @@ data class ActiveFilters(
                 triIncluded.all { it.value.isEmpty() } &&
                 triExcluded.all { it.value.isEmpty() } &&
                 switchValues.isEmpty() &&
-                textValues.all { it.value.isEmpty() }
+                textValues.all { it.value.isEmpty() } &&
+                tagInputValues.all { it.value.isEmpty() }
 }
+
+/** Сохранённый пресет фильтров с именем и временем создания */
+@Serializable
+data class FilterPreset(
+    val name: String,
+    val filters: ActiveFilters,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+/** Запись истории фильтров — хранит набор фильтров и момент применения */
+@Serializable
+data class FilterHistoryEntry(
+    val filters: ActiveFilters,
+    val timestamp: Long = System.currentTimeMillis()
+)
 
 // ── Парсер Lua → Kotlin ───────────────────────────────────────────────────────
 
@@ -233,6 +277,16 @@ fun parseLuaFilterList(luaTable: LuaValue): List<LuaFilter> {
                 label        = label,
                 defaultValue = t.get("defaultValue").optjstring("")
             )
+            "tag_input" -> {
+                val optsTable = t.get("options").opttable(null)
+                val opts = if (optsTable != null) parseOptions(optsTable) else emptyList()
+                LuaFilter.TagInput(
+                    key         = key,
+                    label       = label,
+                    options     = opts,
+                    allowCustom = t.get("allowCustom").optboolean(true)
+                )
+            }
             else -> {
                 Timber.w("parseLuaFilterList: unknown filter type '$type' for key '$key'")
                 null
@@ -305,6 +359,11 @@ fun ActiveFilters.toLuaTable(luaEngine: LuaEngine): LuaTable {
     // text
     textValues.forEach { (key, value) ->
         if (value.isNotEmpty()) t.set(key, LuaValue.valueOf(value))
+    }
+
+    // tag_input: _included как LuaTable-массивы строк
+    tagInputValues.forEach { (key, values) ->
+        if (values.isNotEmpty()) t.set("${key}_included", luaEngine.convertToLua(values))
     }
 
     return t

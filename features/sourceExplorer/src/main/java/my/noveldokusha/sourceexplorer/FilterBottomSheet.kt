@@ -16,11 +16,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import my.noveldokusha.coreui.theme.colorAccent
 import my.noveldokusha.scraper.ActiveFilters
+import my.noveldokusha.scraper.FilterHistoryEntry
+import my.noveldokusha.scraper.FilterPreset
 import my.noveldokusha.scraper.LuaFilter
 
 enum class TriStateValue { NEUTRAL, INCLUDED, EXCLUDED }
@@ -32,6 +35,12 @@ internal fun FilterBottomSheet(
     activeFilters: ActiveFilters,
     onApply: (ActiveFilters) -> Unit,
     onDismiss: () -> Unit,
+    presets: List<FilterPreset>,
+    textHistory: List<FilterHistoryEntry>,
+    onPresetSave: (String) -> Unit,
+    onPresetLoad: (FilterPreset) -> Unit,
+    onPresetDelete: (FilterPreset) -> Unit,
+    onTextHistoryAdd: (filterKey: String, value: String) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState()
 
@@ -42,6 +51,7 @@ internal fun FilterBottomSheet(
     val tristateState = remember { mutableStateMapOf<String, Map<String, TriStateValue>>() }
     val switchValues  = remember { mutableStateMapOf<String, Boolean>() }
     val textValues    = remember { mutableStateMapOf<String, String>() }
+    val tagInputValues = remember { mutableStateMapOf<String, MutableList<String>>() }
 
     LaunchedEffect(filterList) {
         filterList.forEach { filter ->
@@ -69,6 +79,8 @@ internal fun FilterBottomSheet(
                     switchValues[filter.key] = activeFilters.switchValues[filter.key] ?: filter.defaultValue
                 is LuaFilter.TextInput ->
                     textValues[filter.key] = activeFilters.textValues[filter.key] ?: filter.defaultValue
+                is LuaFilter.TagInput ->
+                    tagInputValues[filter.key] = (activeFilters.tagInputValues[filter.key] ?: emptyList()).toMutableList()
             }
         }
     }
@@ -85,6 +97,7 @@ internal fun FilterBottomSheet(
                 is LuaFilter.TriState -> tristateState[filter.key] = filter.options.associate { it.value to TriStateValue.NEUTRAL }
                 is LuaFilter.Switch -> switchValues[filter.key] = filter.defaultValue
                 is LuaFilter.TextInput -> textValues[filter.key] = filter.defaultValue
+                is LuaFilter.TagInput -> tagInputValues[filter.key] = mutableListOf()
             }
         }
     }
@@ -105,6 +118,7 @@ internal fun FilterBottomSheet(
             triExcluded      = triExc,
             switchValues     = switchValues.toMap(),
             textValues       = textValues.toMap(),
+            tagInputValues   = tagInputValues.mapValues { it.value.toList() },
         )
     }
 
@@ -128,6 +142,13 @@ internal fun FilterBottomSheet(
                 }
             }
 
+            PresetSection(
+                presets = presets,
+                onLoad = onPresetLoad,
+                onDelete = onPresetDelete,
+                onSave = onPresetSave,
+            )
+
             HorizontalDivider()
 
             // Filter sections
@@ -135,6 +156,11 @@ internal fun FilterBottomSheet(
                 modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                if (filterList.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = colorAccent())
+                    }
+                }
                 filterList.forEach { filter ->
                     when (filter) {
                         is LuaFilter.Sort -> SortSection(filter, sortValues[filter.key] ?: filter.defaultValue, sortAscending[filter.key] ?: filter.defaultAscending, { sortValues[filter.key] = it }, { sortAscending[filter.key] = it })
@@ -156,7 +182,26 @@ internal fun FilterBottomSheet(
                             })
                         }
                         is LuaFilter.Switch -> SwitchSection(filter, switchValues[filter.key] ?: filter.defaultValue) { switchValues[filter.key] = it }
-                        is LuaFilter.TextInput -> TextSection(filter, textValues[filter.key] ?: filter.defaultValue) { textValues[filter.key] = it }
+                        is LuaFilter.TextInput -> TextSection(
+                            filter = filter,
+                            value = textValues[filter.key] ?: filter.defaultValue,
+                            onChange = { textValues[filter.key] = it },
+                            history = textHistory,
+                            onHistoryAdd = { onTextHistoryAdd(filter.key, it) }
+                        )
+                        is LuaFilter.TagInput -> TagInputSection(
+                            filter = filter,
+                            selectedValues = tagInputValues[filter.key] ?: emptyList(),
+                            onToggle = { value ->
+                                val current = tagInputValues[filter.key]?.toMutableList() ?: mutableListOf()
+                                if (value in current) current.remove(value) else current.add(value)
+                                tagInputValues[filter.key] = current
+                            },
+                            onAddCustom = { value ->
+                                val current = tagInputValues[filter.key]?.toMutableList() ?: mutableListOf()
+                                if (value !in current) { current.add(value); tagInputValues[filter.key] = current }
+                            }
+                        )
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), modifier = Modifier.padding(vertical = 8.dp))
                 }
@@ -276,11 +321,197 @@ private fun SwitchSection(filter: LuaFilter.Switch, value: Boolean, onChange: (B
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TextSection(filter: LuaFilter.TextInput, value: String, onChange: (String) -> Unit) {
+private fun TextSection(
+    filter: LuaFilter.TextInput,
+    value: String,
+    onChange: (String) -> Unit,
+    history: List<FilterHistoryEntry> = emptyList(),
+    onHistoryAdd: (String) -> Unit = {},
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val filteredHistory = history
+        .mapNotNull { entry -> entry.filters.textValues[filter.key]?.let { v -> v to entry.timestamp } }
+        .sortedByDescending { it.second }
+        .distinctBy { it.first }
+        .take(10)
+
+    LaunchedEffect(value) {
+        if (value.isNotBlank()) {
+            kotlinx.coroutines.delay(500)
+            onHistoryAdd(value)
+        }
+    }
+
+    LaunchedEffect(filteredHistory) {
+        if (filteredHistory.isNotEmpty()) expanded = true
+    }
+
     Column {
         FilterSectionHeader(filter.label)
-        OutlinedTextField(value = value, onValueChange = onChange, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorAccent(), focusedLabelColor = colorAccent(), cursorColor = colorAccent()))
+        Box {
+            OutlinedTextField(
+                value = value,
+                onValueChange = { onChange(it); expanded = true },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorAccent(), focusedLabelColor = colorAccent(), cursorColor = colorAccent()),
+                trailingIcon = {
+                    if (value.isNotEmpty()) {
+                        IconButton(onClick = { onChange(""); expanded = false }) {
+                            Icon(Icons.Filled.Close, "Clear")
+                        }
+                    }
+                }
+            )
+            DropdownMenu(expanded = expanded && filteredHistory.isNotEmpty(), onDismissRequest = { expanded = false }) {
+                filteredHistory.forEach { (histValue, _) ->
+                    DropdownMenuItem(
+                        text = { Text(histValue) },
+                        onClick = { onChange(histValue); expanded = false }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun TagInputSection(
+    filter: LuaFilter.TagInput,
+    selectedValues: List<String>,
+    onToggle: (String) -> Unit,
+    onAddCustom: (String) -> Unit,
+) {
+    var text by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+    val filteredOptions = filter.options.filter {
+        it.label.contains(text, ignoreCase = true) && it.value !in selectedValues
+    }
+    val showAddCustom = filter.allowCustom && text.isNotBlank() &&
+        filter.options.none { it.label.equals(text, ignoreCase = true) } &&
+        text !in selectedValues
+
+    Column {
+        FilterSectionHeader(filter.label)
+        if (selectedValues.isNotEmpty()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+                selectedValues.forEach { value ->
+                    val label = filter.options.find { it.value == value }?.label ?: value
+                    FilterChip(
+                        selected = true,
+                        onClick = { onToggle(value) },
+                        label = { Text(label) },
+                        trailingIcon = { Icon(Icons.Filled.Close, "Remove", modifier = Modifier.size(FilterChipDefaults.IconSize)) },
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = colorAccent().copy(alpha = 0.15f), selectedLabelColor = colorAccent()),
+                        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = true, selectedBorderColor = colorAccent(), selectedBorderWidth = 1.5.dp)
+                    )
+                }
+            }
+        }
+        Box {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it; expanded = true },
+                placeholder = { Text("Type to search...") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().onGloballyPositioned { expanded = true },
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorAccent(), cursorColor = colorAccent()),
+                trailingIcon = {
+                    if (text.isNotEmpty()) {
+                        IconButton(onClick = { text = ""; expanded = false }) {
+                            Icon(Icons.Filled.Close, "Clear")
+                        }
+                    }
+                }
+            )
+            DropdownMenu(expanded = expanded && (filteredOptions.isNotEmpty() || showAddCustom), onDismissRequest = { expanded = false }) {
+                filteredOptions.take(10).forEach { opt ->
+                    DropdownMenuItem(
+                        text = { Text(opt.label) },
+                        onClick = { onToggle(opt.value); text = ""; expanded = false }
+                    )
+                }
+                if (showAddCustom) {
+                    DropdownMenuItem(
+                        text = { Text("Add: $text") },
+                        onClick = { onAddCustom(text); text = ""; expanded = false }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PresetSection(
+    presets: List<FilterPreset>,
+    onLoad: (FilterPreset) -> Unit,
+    onDelete: (FilterPreset) -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var presetName by remember { mutableStateOf("") }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (presets.isNotEmpty()) {
+            Box {
+                OutlinedButton(onClick = { expanded = true }, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, colorAccent().copy(alpha = 0.6f))) {
+                    Text("Presets", style = MaterialTheme.typography.bodyMedium)
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    presets.forEach { preset ->
+                        DropdownMenuItem(
+                            text = { Text(preset.name) },
+                            leadingIcon = { Icon(Icons.Filled.Check, null, tint = colorAccent()) },
+                            trailingIcon = {
+                                IconButton(onClick = { onDelete(preset); expanded = false }) {
+                                    Icon(Icons.Filled.Close, "Delete", tint = MaterialTheme.colorScheme.error)
+                                }
+                            },
+                            onClick = { onLoad(preset); expanded = false }
+                        )
+                    }
+                }
+            }
+        }
+        OutlinedButton(onClick = { showSaveDialog = true }, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, colorAccent().copy(alpha = 0.6f))) {
+            Text("Save filters", style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+
+    if (showSaveDialog) {
+        AlertDialog(
+            onDismissRequest = { showSaveDialog = false },
+            title = { Text("Save filter preset") },
+            text = {
+                OutlinedTextField(
+                    value = presetName,
+                    onValueChange = { if (it.length <= 50) presetName = it },
+                    label = { Text("Preset name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { if (presetName.isNotBlank()) { onSave(presetName.trim()); presetName = ""; showSaveDialog = false } }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { presetName = ""; showSaveDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 

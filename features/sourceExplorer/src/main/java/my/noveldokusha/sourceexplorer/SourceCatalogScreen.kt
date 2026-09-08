@@ -51,6 +51,7 @@ import my.noveldokusha.coreui.components.LibraryBadgeState
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 internal fun SourceCatalogScreen(
+    viewModel: SourceCatalogViewModel,
     state: SourceCatalogScreenState,
     onSearchTextInputChange: (String) -> Unit,
     onSearchTextInputSubmit: (String) -> Unit,
@@ -191,11 +192,9 @@ internal fun SourceCatalogScreen(
         )
 
         if (state.isFilterSheetOpen.value && state.hasFilters) {
-            FilterBottomSheet(
-                filterList    = state.filterList.value,
-                activeFilters = state.activeFilters.value,
-                onApply       = onApplyFilters,
-                onDismiss     = { state.isFilterSheetOpen.value = false }
+            FilterSheetWrapper(
+                viewModel = viewModel,
+                onDismiss = { state.isFilterSheetOpen.value = false },
             )
         }
     }

@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.noveldokusha.android.library)
     alias(libs.plugins.noveldokusha.android.compose)
     alias(libs.plugins.kotlin.parcelize)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -25,6 +26,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.timber)
+
+    implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.compose.androidx.activity)
     implementation(libs.compose.material3.android)

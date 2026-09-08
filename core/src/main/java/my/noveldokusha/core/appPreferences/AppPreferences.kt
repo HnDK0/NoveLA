@@ -11,6 +11,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.preference.PreferenceManager
 import dagger.hilt.android.qualifiers.ApplicationContext
+import timber.log.Timber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -45,6 +46,20 @@ data class NovelPromptData(
 data class TranslationLangPair(
     val source: String = "",
     val target: String = "",
+)
+
+@Serializable
+data class FilterPreset(
+    val name: String,
+    val filterJson: String,
+    val createdAt: Long = System.currentTimeMillis(),
+)
+
+@Serializable
+data class FilterHistoryEntry(
+    val filterKey: String,
+    val value: String,
+    val timestamp: Long = System.currentTimeMillis(),
 )
 
 // Новелла «включена», только если пара полная (выбраны оба языка).
@@ -1534,6 +1549,47 @@ class AppPreferences @Inject constructor(
         )
     }
 
+    // ── Filter presets & text search history ────────────────────────────────────
+
+    fun getFilterPresets(sourceId: String): List<FilterPreset> {
+        val raw = preferences.getString("filter_presets_$sourceId", null) ?: return emptyList()
+        return try {
+            Json.decodeFromString<List<FilterPreset>>(raw)
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to deserialize filter presets for $sourceId")
+            emptyList()
+        }
+    }
+
+    fun saveFilterPresets(sourceId: String, presets: List<FilterPreset>) {
+        preferences.edit()
+            .putString("filter_presets_$sourceId", Json.encodeToString(presets))
+            .apply()
+    }
+
+    fun getTextHistory(sourceId: String): List<FilterHistoryEntry> {
+        val raw = preferences.getString("text_history_$sourceId", null) ?: return emptyList()
+        return try {
+            Json.decodeFromString<List<FilterHistoryEntry>>(raw)
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to deserialize text history for $sourceId")
+            emptyList()
+        }
+    }
+
+    fun addTextHistory(sourceId: String, entry: FilterHistoryEntry) {
+        val current = getTextHistory(sourceId).toMutableList()
+        current.add(0, entry)
+        preferences.edit()
+            .putString("text_history_$sourceId", Json.encodeToString(current.take(20)))
+            .apply()
+    }
+
+    fun clearTextHistory(sourceId: String) {
+        preferences.edit()
+            .remove("text_history_$sourceId")
+            .apply()
+    }
 
     abstract inner class Preference<T>(val name: String) {
         abstract var value: T
