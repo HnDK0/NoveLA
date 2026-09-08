@@ -273,8 +273,10 @@ class LuaEngine @Inject constructor(
 
     /**
      * http_get(url [, config])
-     * config = { headers = {}, charset = "UTF-8" }
+     * config = { headers = {}, charset = "UTF-8", binary = false }
      * returns { success, body, code }
+     * body — string по умолчанию; при binary=true — таблица байтов {0x00, 0x3F, ...}.
+     * Binary-ответы не кэшируются.
      */
     private inner class HttpGetFunction : TwoArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue): LuaValue = runBlocking {
@@ -282,15 +284,18 @@ class LuaEngine @Inject constructor(
             val config        = if (a2.istable()) a2.checktable() else LuaTable()
             val pluginHeaders = convertHeaders(config.get("headers").opttable(LuaTable()))
             val charset       = config.get("charset").optjstring("UTF-8")
+            val binary        = config.get("binary").optboolean(false)
             val headers       = defaultHeaders(url) + pluginHeaders
             // sourceId читается на вызывающем потоке: ThreadLocal не переживает переключение диспетчера.
             val sourceId      = currentSourceId.get()
-            val cacheKey      = "$url|$charset|${sourceId ?: "default"}|${headers.toString().hashCode()}"
-            // Кэш проверяется до SSRF: в него попадают только ответы, уже прошедшие проверку при первой загрузке.
-            httpGetCache[cacheKey]?.let { entry ->
-                if (System.currentTimeMillis() - entry.storedAt < httpGetCacheTtlMs) {
-                    Timber.d("http_get cache hit: $url")
-                    return@runBlocking responseTable(entry.success, entry.body, entry.code, entry.headers)
+            // Binary-ответы не кэшируются: они обычно Большие и одноразовые.
+            if (!binary) {
+                val cacheKey = "$url|$charset|${sourceId ?: "default"}|${headers.toString().hashCode()}"
+                httpGetCache[cacheKey]?.let { entry ->
+                    if (System.currentTimeMillis() - entry.storedAt < httpGetCacheTtlMs) {
+                        Timber.d("http_get cache hit: $url")
+                        return@runBlocking responseTable(entry.success, entry.body, entry.code, entry.headers)
+                    }
                 }
             }
             if (!isSsrfSafe(url)) return@runBlocking ssrfErrorTable(url)
@@ -301,14 +306,16 @@ class LuaEngine @Inject constructor(
                     sourceId?.let { sid -> if (sid.isNotBlank()) builder.tag(String::class.java, "source:$sid") }
                     networkClient.call(builder).use { r ->
                         val bytes = r.body.bytes()
-                        val body  = String(bytes, java.nio.charset.Charset.forName(charset))
-                        // Кешируем только успешные ответы: 4xx/5xx (в т.ч. CF-челлендж) не
-                        // кешируем, чтобы повторный http_get той же страницы ушёл в сеть с
-                        // cookie cf_clearance, а не получил просроченную 403 из кеша.
-                        if (r.isSuccessful) {
-                            putHttpGetCache(cacheKey, HttpGetCacheEntry(body, true, r.code, r.headers.toMultimap(), System.currentTimeMillis()))
+                        if (binary) {
+                            responseTableBinary(bytes, r.code, r.headers.toMultimap())
+                        } else {
+                            val body = String(bytes, java.nio.charset.Charset.forName(charset))
+                            if (r.isSuccessful) {
+                                val cacheKey = "$url|$charset|${sourceId ?: "default"}|${headers.toString().hashCode()}"
+                                putHttpGetCache(cacheKey, HttpGetCacheEntry(body, true, r.code, r.headers.toMultimap(), System.currentTimeMillis()))
+                            }
+                            responseTable(r.isSuccessful, body, r.code, r.headers.toMultimap())
                         }
-                        responseTable(r.isSuccessful, body, r.code, r.headers.toMultimap())
                     }
                 }
             } catch (e: CancellationException) {
@@ -362,6 +369,25 @@ class LuaEngine @Inject constructor(
         t.set("success", LuaValue.valueOf(success))
         t.set("body",    LuaValue.valueOf(body))
         t.set("code",    LuaValue.valueOf(code))
+        val h = LuaTable()
+        headers.forEach { (k, values) ->
+            val vt = LuaTable()
+            values.forEachIndexed { i, v -> vt.set(i + 1, LuaValue.valueOf(v)) }
+            h.set(k.lowercase(), vt)
+        }
+        t.set("headers", h)
+    }
+
+    /**
+     * responseTable для бинарных данных: body — Lua-таблица байтов {0x00, 0x3F, ...}.
+     * Индексы 1-based (Lua-конвенция).
+     */
+    private fun responseTableBinary(bytes: ByteArray, code: Int, headers: Map<String, List<String>> = emptyMap()) = LuaTable().also { t ->
+        t.set("success", LuaValue.valueOf(code in 200..299))
+        val bodyTable = LuaTable()
+        for (i in bytes.indices) bodyTable.set(i + 1, LuaValue.valueOf(bytes[i].toInt() and 0xFF))
+        t.set("body", bodyTable)
+        t.set("code", LuaValue.valueOf(code))
         val h = LuaTable()
         headers.forEach { (k, values) ->
             val vt = LuaTable()
@@ -457,40 +483,73 @@ class LuaEngine @Inject constructor(
         return map
     }
 
-    // http_get_batch(urls_table) → массив { success, body, code } в том же порядке
-    private inner class HttpGetBatchFunction : OneArgFunction() {
-        override fun call(arg: LuaValue): LuaValue {
-            val urlTable = arg.checktable()
+    // http_get_batch(urls_table [, config]) → массив { success, body, code } в том же порядке
+    /**
+     * http_get_batch(urlsTable [, config])
+     * Fetches multiple URLs in parallel.
+     * config: { binary = false } — when true, body is a byte table instead of a string.
+     */
+    private inner class HttpGetBatchFunction : TwoArgFunction() {
+        override fun call(arg1: LuaValue, arg2: LuaValue): LuaValue {
+            val urlTable = arg1.checktable()
             val urls = (1..urlTable.length()).map { urlTable.get(it).checkjstring() }
+            val binary = arg2.opttable(LuaTable()).get("binary").optboolean(false)
             val sourceId = currentSourceId.get()
 
-            val results = runBlocking {
-                urls.map { url ->
-                    async(Dispatchers.IO) {
-                        try {
-                            if (!isSsrfSafe(url)) return@async false to Triple("", 0, emptyMap<String, List<String>>())
-                            val builder = getRequest(url)
-                            val headers = defaultHeaders(url)
-                            headers.forEach { (k, v) -> builder.header(k, v) }
-                            sourceId?.let { sid -> if (sid.isNotBlank()) builder.tag(String::class.java, "source:$sid") }
-                            networkClient.call(builder).use { r ->
-                                val body = r.body.string()
-                                r.isSuccessful to Triple(body, r.code, r.headers.toMultimap())
+            if (binary) {
+                val results = runBlocking {
+                    urls.map { url ->
+                        async(Dispatchers.IO) {
+                            try {
+                                if (!isSsrfSafe(url)) return@async Triple(ByteArray(0), 0, emptyMap<String, List<String>>())
+                                val builder = getRequest(url)
+                                val headers = defaultHeaders(url)
+                                headers.forEach { (k, v) -> builder.header(k, v) }
+                                sourceId?.let { sid -> if (sid.isNotBlank()) builder.tag(String::class.java, "source:$sid") }
+                                networkClient.call(builder).use { r ->
+                                    Triple(r.body.bytes(), r.code, r.headers.toMultimap())
+                                }
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Timber.e(e, "http_get_batch failed: $url")
+                                Triple(ByteArray(0), 0, emptyMap<String, List<String>>())
                             }
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            Timber.e(e, "http_get_batch failed: $url")
-                            false to Triple("", 0, emptyMap<String, List<String>>())
                         }
+                    }.awaitAll()
+                }
+                return LuaTable().also { out ->
+                    results.forEachIndexed { i, (bytes, code, headers) ->
+                        out.set(i + 1, responseTableBinary(bytes, code, headers))
                     }
-                }.awaitAll()
-            }
-
-            return LuaTable().also { out ->
-                results.forEachIndexed { i, (success, triple) ->
-                    val (body, code, headers) = triple
-                    out.set(i + 1, responseTable(success, body, code, headers))
+                }
+            } else {
+                val results = runBlocking {
+                    urls.map { url ->
+                        async(Dispatchers.IO) {
+                            try {
+                                if (!isSsrfSafe(url)) return@async Triple("", 0, emptyMap<String, List<String>>())
+                                val builder = getRequest(url)
+                                val headers = defaultHeaders(url)
+                                headers.forEach { (k, v) -> builder.header(k, v) }
+                                sourceId?.let { sid -> if (sid.isNotBlank()) builder.tag(String::class.java, "source:$sid") }
+                                networkClient.call(builder).use { r ->
+                                    val body = r.body.string()
+                                    Triple(body, r.code, r.headers.toMultimap())
+                                }
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Timber.e(e, "http_get_batch failed: $url")
+                                Triple("", 0, emptyMap<String, List<String>>())
+                            }
+                        }
+                    }.awaitAll()
+                }
+                return LuaTable().also { out ->
+                    results.forEachIndexed { i, (body, code, headers) ->
+                        out.set(i + 1, responseTable(true, body, code, headers))
+                    }
                 }
             }
         }

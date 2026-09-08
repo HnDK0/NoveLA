@@ -12,12 +12,14 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 import java.io.File
 import java.nio.file.Files
@@ -113,5 +115,66 @@ class LuaEngineHttpGetCacheTest {
         httpGetBody(engine, url)         // просроченная запись — снова в сеть, network call 3
 
         runBlocking { verify(networkClient, times(3)).call(any(), any()) }
+    }
+
+    // ── Binary ─────────────────────────────────────────────────────────────────
+
+    /** Бинарный http_get возвращает Lua-таблицу байтов {0x00, 0x3F, 0xB9, ...}. */
+    @Test
+    fun `binary response returns byte table`() {
+        val expectedBytes = byteArrayOf(0x00, 0x3F, 0xB9.toByte(), 0xCD.toByte(), 0xFF.toByte())
+        val networkClient = mock<NetworkClient>()
+        runBlocking {
+            whenever(networkClient.call(any(), any())).thenAnswer { inv ->
+                val request = inv.getArgument<Request.Builder>(0).build()
+                Response.Builder()
+                    .request(request)
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body(expectedBytes.toResponseBody("application/octet-stream".toMediaType()))
+                    .build()
+            }
+        }
+        val context = mock<Context>()
+        whenever(context.filesDir).thenReturn(tempDir)
+        val resources = mock<Resources>()
+        val configuration = Configuration()
+        configuration.locale = Locale.US
+        whenever(resources.configuration).thenReturn(configuration)
+        whenever(context.resources).thenReturn(resources)
+
+        val engine = LuaEngine(context, networkClient)
+        val globals = runBlocking { engine.loadScript("-- binary probe") }
+        val config = LuaTable()
+        config.set("binary", LuaValue.TRUE)
+        val table = globals.get("http_get")
+            .call(LuaValue.valueOf("http://example.com/image"), config)
+            .checktable()
+
+        val body = table.get("body").checktable()
+        assertEquals(expectedBytes.size, body.length().toInt())
+        for (i in expectedBytes.indices) {
+            assertEquals(expectedBytes[i].toInt() and 0xFF, body.get(i + 1).toint())
+        }
+        assertEquals(200, table.get("code").toint())
+        assertTrue(table.get("success").toboolean())
+    }
+
+    /** Binary-ответы не кэшируются: повторный вызов уходит в сеть. */
+    @Test
+    fun `binary response is not cached`() {
+        val (engine, networkClient) = createEngine()
+        val url = "http://example.com/binary-data"
+        val config = LuaTable()
+        config.set("binary", LuaValue.TRUE)
+
+        val globals = runBlocking { engine.loadScript("-- binary nocache probe") }
+        // Два вызова с binary=true
+        globals.get("http_get").call(LuaValue.valueOf(url), config)
+        globals.get("http_get").call(LuaValue.valueOf(url), config)
+
+        // Оба вызова должны уйти в сеть (кэш пропускается)
+        runBlocking { verify(networkClient, times(2)).call(any(), any()) }
     }
 }
