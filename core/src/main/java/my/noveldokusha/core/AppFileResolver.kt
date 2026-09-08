@@ -7,6 +7,7 @@ import androidx.compose.ui.platform.LocalContext
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.nio.file.Paths
+import java.security.MessageDigest
 import java.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,6 +18,8 @@ class AppFileResolver @Inject constructor(
 ) {
     companion object {
         const val COVER_PATH_RELATIVE_TO_BOOK = "__cover_image"
+        private const val MAX_FOLDER_NAME_LENGTH = 200
+        private const val HASH_BYTE_COUNT = 16
     }
 
     val folderBooks = File(context.filesDir, "books")
@@ -70,7 +73,19 @@ class AppFileResolver @Inject constructor(
     }
 
     fun getLocalBookFolderName(bookUrl: String): String = when {
-        bookUrl.isHttpsUrl -> Base64.getEncoder().encodeToString(bookUrl.encodeToByteArray())
+        bookUrl.isHttpsUrl -> {
+            val encoded = Base64.getEncoder().encodeToString(bookUrl.encodeToByteArray())
+            if (encoded.length > MAX_FOLDER_NAME_LENGTH) {
+                // Hash long names to stay within filesystem 255-byte limit
+                val hash = MessageDigest.getInstance("SHA-256")
+                    .digest(bookUrl.encodeToByteArray())
+                    .take(HASH_BYTE_COUNT)
+                    .joinToString("") { "%02x".format(it) }
+                "h_$hash"
+            } else {
+                encoded
+            }
+        }
         bookUrl.isLocalUri -> bookUrl.removeLocalUriPrefix
         else -> bookUrl
     }
