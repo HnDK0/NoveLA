@@ -159,6 +159,10 @@ internal class CloudFareVerificationInterceptor(
         "id=\"cf-challenge-running\"",
         "ddos-guard.net",
         ".ddos-guard.net",
+        "cf-error-details",
+        "cf-subheadline",
+        "cf-wrapper",
+        "Attention Required! | Cloudflare",
     )
 
     /**
