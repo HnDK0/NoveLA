@@ -86,21 +86,15 @@ internal class GlobalSourceSearchViewModel @Inject constructor(
                 .collect { _libraryBadgeData.value = it }
         }
 
-        // После обхода CF перезапускаем поиск только для источников
-        // чей домен совпадает с пройденным хостом.
-        // SharedFlow — сигнал получают все подписчики одновременно.
+        // Interceptor уже делает retry с cf_clearance и возвращает
+        // валидный response оригинальному coroutine из fetchNext().
+        // reset()+fetchNext() здесь убраны — они убивали coroutine,
+        // который уже получил ответ от interceptor (Race Condition).
         viewModelScope.launch {
             CloudflareBypassSignal.bypassCompleted.collect { bypassedHost ->
-                sourcesResults
-                    .filter { result ->
-                        runCatching {
-                            android.net.Uri.parse(result.source.catalog.baseUrl).host == bypassedHost
-                        }.getOrDefault(false)
-                    }
-                    .forEach { result ->
-                        result.fetchIterator.reset()
-                        result.fetchIterator.fetchNext()
-                    }
+                Timber.d("bypassCompleted received: $bypassedHost")
+                // No action needed — interceptor already retried and returned
+                // the valid response to the original fn(index) coroutine.
             }
         }
     }

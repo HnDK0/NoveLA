@@ -139,9 +139,11 @@ internal class SourceCatalogViewModel @Inject constructor(
             loadTextHistory()
         }
 
-        // Перезагружаем текущий список после успешного обхода CF.
-        // SharedFlow — сигнал получают все подписчики одновременно.
-        // Сравниваем host источника чтобы не трогать каталоги других сайтов.
+        // Interceptor уже делает retry с cf_clearance и возвращает
+        // валидный response оригинальному coroutine из fetchNext().
+        // reset()+fetchNext() здесь убраны — они убивали coroutine,
+        // который уже получил ответ от interceptor, и запускали
+        // дублирующий запрос без cf_clearance (Race Condition).
         viewModelScope.launch {
             val sourceHost = runCatching {
                 android.net.Uri.parse(sourceBaseUrl).host
@@ -149,11 +151,8 @@ internal class SourceCatalogViewModel @Inject constructor(
 
             CloudflareBypassSignal.bypassCompleted.collect { bypassedHost ->
                 Timber.d("bypassCompleted received: $bypassedHost, sourceHost: $sourceHost")
-                if (sourceHost != null && sourceHost == bypassedHost) {
-                    Timber.d("Reloading catalog for $sourceHost")
-                    state.fetchIterator.reset()
-                    state.fetchIterator.fetchNext()
-                }
+                // No action needed — interceptor already retried and returned
+                // the valid response to the original fn(index) coroutine.
             }
         }
 
