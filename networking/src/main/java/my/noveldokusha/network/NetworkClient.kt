@@ -7,6 +7,7 @@ import my.noveldokusha.core.AppInternalState
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.network.interceptors.CloudFareVerificationInterceptor
 import my.noveldokusha.network.interceptors.DecodeResponseInterceptor
+import my.noveldokusha.network.interceptors.ServerErrorRetryInterceptor
 import my.noveldokusha.network.interceptors.UserAgentInterceptor
 import okhttp3.Cache
 import okhttp3.ConnectionPool
@@ -99,6 +100,7 @@ class ScraperNetworkClient @Inject constructor(
                 }
                 addInterceptor(UserAgentInterceptor(appPreferences))
                 addInterceptor(DecodeResponseInterceptor())
+                addInterceptor(ServerErrorRetryInterceptor())
                 if (appPreferences.CLOUDFLARE_BYPASS_ENABLED.value) {
                     addInterceptor(CloudFareVerificationInterceptor(appContext, appPreferences, cfConnectionPool))
                 }
