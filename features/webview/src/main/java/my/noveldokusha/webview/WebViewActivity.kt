@@ -43,6 +43,7 @@ class WebViewActivity : ComponentActivity() {
     private var currentTargetUrl: String = ""
     private var isBypassMode: Boolean = false
     private var oldCfClearance: String = ""
+    private var hasAutoClosed: Boolean = false  // ponytail: dedup guard for auto-close paths
     private lateinit var webView: WebView
     private lateinit var translateBridge: NovelaTranslateBridge
 
@@ -108,21 +109,15 @@ class WebViewActivity : ComponentActivity() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     // Инъекция JS-обвязки перевода только вне bypass-режима и только на http(s)-документы.
-                    // Повторный сброс isTranslated здесь безвреден: JS-гард идемпотентности
-                    // (if (window.__novelaPageTranslator) return) не даёт обвязке перезаписаться,
-                    // а при активном переводе новый onPageFinished невозможен без смены документа
-                    // (reload/навигация) — страница в любом случае начинает с чистого состояния,
-                    // и кнопка корректно возвращается в «Translate».
                     if (!isBypassMode && url != null && (url.startsWith("http://") || url.startsWith("https://"))) {
                         webView.evaluateJavascript(PAGE_TRANSLATOR_JS, null)
-                        isTranslated = false  // новый документ → страница непереведена; повторные onPageFinished при активном переводе безвредны (JS-гард идемпотентности)
-                        translateBridge.setActive(false)  // новый документ → гейт моста закрыт до следующего клика Translate
+                        isTranslated = false
+                        translateBridge.setActive(false)
                     }
-                    CookieManager.getInstance().flush()
-                    val cookies = CookieManager.getInstance().getCookie(url) ?: ""
-                    if (cookies.contains("cf_clearance")) {
-                        Timber.d("CF Cookie detected!")
-                    }
+                    // ponytail: auto-close on cf_clearance in bypass mode — server-set cookies
+                    // are already in CookieManager by onPageFinished; Turnstile JS cookies
+                    // are caught by the polling fallback below.
+                    if (isBypassMode) autoCloseOnClearance()
                 }
 
                 // ✅ ИСПРАВЛЕНИЕ: логируем HTTP ошибки для диагностики
@@ -156,33 +151,30 @@ class WebViewActivity : ComponentActivity() {
                 }
             }
 
+            // ponytail: fallback — close on interceptor's terminal signal (success/give-up/timeout).
+            // This catches cases where autoCloseOnClearance didn't fire (e.g., signal arrived
+            // before cf_clearance was set, or oldCfClearance comparison was stale).
             LaunchedEffect(Unit) {
-                // В bypass-режиме закрываемся по сигналу interceptor'а: он эмитит
-                // bypassFinished на любом терминальном исходе (успех, give-up, таймаут).
-                // Наличие куки само по себе не является успехом — 403-страница
-                // челленджа ставит cf_clearance сразу.
                 if (isBypassMode) {
                     val host = Uri.parse(currentTargetUrl).host ?: ""
                     CloudflareBypassSignal.bypassFinished
                         .filter { it == host }
                         .collect {
-                            CookieManager.getInstance().flush()
-                            finish()
+                            if (!isFinishing && !hasAutoClosed) {
+                                CookieManager.getInstance().flush()
+                                hasAutoClosed = true
+                                finish()
+                            }
                         }
                 }
             }
 
+            // ponytail: polling fallback for Turnstile JS cookies (set AFTER onPageFinished)
+            // + update currentUrl for toolbar display
             LaunchedEffect(Unit) {
                 while (true) {
-                    val cookies = CookieManager.getInstance().getCookie(currentTargetUrl) ?: ""
-                    val currentCfClearance = cookies.split(";")
-                        .map { it.trim() }
-                        .firstOrNull { it.startsWith("cf_clearance=") }
-                        ?.removePrefix("cf_clearance=")
-                        ?: ""
-                    if (currentCfClearance.isNotEmpty() && currentCfClearance != oldCfClearance) {
-                        isReady = true
-                    }
+                    // In bypass mode, auto-close on new clearance (catches JS-set cookies)
+                    if (isBypassMode) autoCloseOnClearance()
                     webView.url?.let { currentUrl = it }
                     delay(500)
                 }
@@ -194,11 +186,14 @@ class WebViewActivity : ComponentActivity() {
                     isReady = isReady,
                     webViewFactory = { webView },
                     onNavigateToUrl = { url -> webView.loadUrl(url) },
-                    onBackClicked = { finish() },
+                    onBackClicked = { if (!isFinishing) finish() },
                     onDoneClicked = {
-                        CookieManager.getInstance().flush()
-                        CloudflareBypassSignal.channel.trySend(Unit)
-                        finish()
+                        if (!isFinishing) {
+                            CookieManager.getInstance().flush()
+                            CloudflareBypassSignal.channel.trySend(Unit)
+                            hasAutoClosed = true
+                            finish()
+                        }
                     },
                     onReloadClicked = { webView.reload() },
                     onClearCookiesClicked = { hardResetSession() },
@@ -277,6 +272,30 @@ class WebViewActivity : ComponentActivity() {
         toasty.show("Link copied")
     }
 
+    // ponytail: extract cf_clearance value from cookie string, return empty if absent
+    private fun extractCfClearance(cookies: String): String {
+        return cookies.split(";")
+            .map { it.trim() }
+            .firstOrNull { it.startsWith("cf_clearance=") }
+            ?.removePrefix("cf_clearance=")
+            ?: ""
+    }
+
+    // ponytail: safe auto-close — correct order (flush → signal → finish), dedup, guard
+    private fun autoCloseOnClearance() {
+        if (isFinishing || hasAutoClosed || !isBypassMode) return
+        val cookies = CookieManager.getInstance().getCookie(currentTargetUrl) ?: ""
+        val newCf = extractCfClearance(cookies)
+        if (newCf.isEmpty() || newCf == oldCfClearance) return
+        hasAutoClosed = true
+        val host = Uri.parse(currentTargetUrl).host ?: ""
+        Timber.d("CF: cf_clearance detected in bypass WebView, auto-closing (host=$host)")
+        CookieManager.getInstance().flush()
+        CloudflareBypassSignal.notifyBypassFinished(host)
+        CloudflareBypassSignal.channel.trySend(Unit)
+        finish()
+    }
+
     // Неустранимые сетевые ошибки главного фрейма: перезагрузка не поможет.
     private companion object {
         val FATAL_MAIN_FRAME_ERROR_CODES = setOf(
@@ -297,13 +316,14 @@ class WebViewActivity : ComponentActivity() {
     // Ошибки на сабресурсах challenge-platform (DNS, 401/403) — штатная часть Turnstile:
     // они игнорируются, иначе капча закрывалась бы до появления.
     private fun abortBypassIfFatal(url: String?, isMainFrame: Boolean, errorCode: Int?) {
-        if (!isBypassMode) return
+        if (!isBypassMode || isFinishing) return
         val fatal = isMainFrame && (
             isChallengePlatformUrl(url) || errorCode in FATAL_MAIN_FRAME_ERROR_CODES
         )
         if (!fatal) return
         val host = Uri.parse(currentTargetUrl).host ?: return
         Timber.e("CF: Fatal challenge error, aborting bypass for $host (url=$url, code=$errorCode)")
+        hasAutoClosed = true
         CloudflareBypassSignal.abort(host)
         finish()
     }
