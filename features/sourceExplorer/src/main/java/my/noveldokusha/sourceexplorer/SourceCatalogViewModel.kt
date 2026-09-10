@@ -399,4 +399,9 @@ internal class SourceCatalogViewModel @Inject constructor(
         appPreferences.addTextHistory(sourceBaseUrl, coreEntry)
         loadTextHistory()
     }
+
+    fun onTextHistoryRemove(filterKey: String, value: String) {
+        appPreferences.removeTextHistory(sourceBaseUrl, filterKey, value)
+        loadTextHistory()
+    }
 }

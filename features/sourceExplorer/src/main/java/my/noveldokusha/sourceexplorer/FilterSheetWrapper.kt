@@ -32,5 +32,6 @@ internal fun FilterSheetWrapper(
         onPresetLoad = viewModel::onPresetLoad,
         onPresetDelete = viewModel::onPresetDelete,
         onTextHistoryAdd = viewModel::onTextHistoryAdd,
+        onTextHistoryRemove = viewModel::onTextHistoryRemove,
     )
 }

@@ -1591,6 +1591,14 @@ class AppPreferences @Inject constructor(
             .apply()
     }
 
+    fun removeTextHistory(sourceId: String, filterKey: String, value: String) {
+        val current = getTextHistory(sourceId).toMutableList()
+        current.removeAll { it.filterKey == filterKey && it.value == value }
+        preferences.edit()
+            .putString("text_history_$sourceId", Json.encodeToString(current.take(20)))
+            .apply()
+    }
+
     abstract inner class Preference<T>(val name: String) {
         abstract var value: T
         fun flow() = toFlow(name) { value }.flowOn(Dispatchers.IO)

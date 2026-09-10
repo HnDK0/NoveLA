@@ -1,10 +1,12 @@
 package my.noveldokusha.sourceexplorer
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -13,10 +15,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,6 +44,7 @@ internal fun FilterBottomSheet(
     onPresetLoad: (FilterPreset) -> Unit,
     onPresetDelete: (FilterPreset) -> Unit,
     onTextHistoryAdd: (filterKey: String, value: String) -> Unit,
+    onTextHistoryRemove: (filterKey: String, value: String) -> Unit = { _, _ -> },
 ) {
     val sheetState = rememberModalBottomSheetState()
 
@@ -187,7 +191,8 @@ internal fun FilterBottomSheet(
                             value = textValues[filter.key] ?: filter.defaultValue,
                             onChange = { textValues[filter.key] = it },
                             history = textHistory,
-                            onHistoryAdd = { onTextHistoryAdd(filter.key, it) }
+                            onHistoryAdd = { onTextHistoryAdd(filter.key, it) },
+                            onHistoryRemove = { onTextHistoryRemove(filter.key, it) }
                         )
                         is LuaFilter.TagInput -> TagInputSection(
                             filter = filter,
@@ -211,7 +216,10 @@ internal fun FilterBottomSheet(
             HorizontalDivider()
             Box(modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Button(
-                    onClick = { onApply(buildActiveFilters()) },
+                    onClick = {
+                        onApply(buildActiveFilters())
+                        textValues.forEach { (key, v) -> if (v.isNotBlank()) onTextHistoryAdd(key, v) }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = colorAccent()),
                     shape = RoundedCornerShape(12.dp)
@@ -260,18 +268,37 @@ private fun SelectSection(filter: LuaFilter.Select, value: String, onChange: (St
         } else {
             var expanded by remember { mutableStateOf(false) }
             val currentLabel = filter.options.find { it.value == value }?.label ?: value
-            Box {
-                OutlinedButton(onClick = { expanded = true }, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, colorAccent().copy(alpha = 0.6f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth()) {
+            Column {
+                OutlinedButton(onClick = { expanded = !expanded }, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, colorAccent().copy(alpha = 0.6f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth()) {
                     Text(currentLabel, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                    Icon(if (expanded) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward, null, modifier = Modifier.size(18.dp), tint = colorAccent())
                 }
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    filter.options.sortedBy { it.label.lowercase() }.forEach { opt ->
-                        val selected = value == opt.value
-                        DropdownMenuItem(
-                            text = { Text(opt.label, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, color = if (selected) colorAccent() else MaterialTheme.colorScheme.onSurface) },
-                            trailingIcon = if (selected) ({ Icon(Icons.Filled.Check, null, tint = colorAccent()) }) else null,
-                            onClick = { onChange(opt.value); expanded = false }
-                        )
+                if (expanded) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp),
+                        tonalElevation = 3.dp,
+                        shadowElevation = 4.dp,
+                        border = BorderStroke(1.dp, colorAccent().copy(alpha = 0.3f))
+                    ) {
+                        Column(modifier = Modifier.heightIn(max = 200.dp).verticalScroll(rememberScrollState())) {
+                            filter.options.sortedBy { it.label.lowercase() }.forEach { opt ->
+                                val selected = value == opt.value
+                                Surface(
+                                    onClick = { onChange(opt.value); expanded = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(opt.label, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, color = if (selected) colorAccent() else MaterialTheme.colorScheme.onSurface)
+                                        if (selected) Icon(Icons.Filled.Check, null, tint = colorAccent(), modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -329,49 +356,65 @@ private fun TextSection(
     onChange: (String) -> Unit,
     history: List<FilterHistoryEntry> = emptyList(),
     onHistoryAdd: (String) -> Unit = {},
+    onHistoryRemove: (String) -> Unit = {},
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val filteredHistory = history
-        .mapNotNull { entry -> entry.filters.textValues[filter.key]?.let { v -> v to entry.timestamp } }
-        .sortedByDescending { it.second }
-        .distinctBy { it.first }
-        .take(10)
-
-    LaunchedEffect(value) {
-        if (value.isNotBlank()) {
-            kotlinx.coroutines.delay(500)
-            onHistoryAdd(value)
+    // ponytail: Feeder-style autocomplete — Column + onFocusChanged + AnimatedVisibility.
+    // No Popup, no DropdownMenu, no window focus stealing.
+    val filteredHistory by remember(value, history, filter.key) {
+        derivedStateOf {
+            history
+                .mapNotNull { entry -> entry.filters.textValues[filter.key]?.let { v -> v to entry.timestamp } }
+                .sortedByDescending { it.second }
+                .distinctBy { it.first }
+                .filter { (histValue, _) -> histValue != value }
+                .take(10)
         }
     }
 
-    LaunchedEffect(filteredHistory) {
-        if (filteredHistory.isNotEmpty()) expanded = true
-    }
+    var showSuggestions by rememberSaveable { mutableStateOf(false) }
 
-    Column {
+    Column(
+        modifier = Modifier.onFocusChanged { showSuggestions = it.hasFocus }
+    ) {
         FilterSectionHeader(filter.label)
-        Box {
-            OutlinedTextField(
-                value = value,
-                onValueChange = { onChange(it); expanded = true },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorAccent(), focusedLabelColor = colorAccent(), cursorColor = colorAccent()),
-                trailingIcon = {
-                    if (value.isNotEmpty()) {
-                        IconButton(onClick = { onChange(""); expanded = false }) {
-                            Icon(Icons.Filled.Close, "Clear")
-                        }
+        OutlinedTextField(
+            value = value,
+            onValueChange = { onChange(it) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp),
+            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorAccent(), focusedLabelColor = colorAccent(), cursorColor = colorAccent()),
+            trailingIcon = {
+                if (value.isNotEmpty()) {
+                    IconButton(onClick = { onChange("") }) {
+                        Icon(Icons.Filled.Close, "Clear")
                     }
                 }
-            )
-            DropdownMenu(expanded = expanded && filteredHistory.isNotEmpty(), onDismissRequest = { expanded = false }) {
-                filteredHistory.forEach { (histValue, _) ->
-                    DropdownMenuItem(
-                        text = { Text(histValue) },
-                        onClick = { onChange(histValue); expanded = false }
-                    )
+            }
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        AnimatedVisibility(visible = showSuggestions && filteredHistory.isNotEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            ) {
+                Column(modifier = Modifier.heightIn(max = 200.dp)) {
+                    filteredHistory.forEach { (histValue, _) ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable { onChange(histValue); onHistoryAdd(histValue); showSuggestions = false },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                histValue,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                            IconButton(onClick = { onHistoryRemove(histValue) }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Filled.Close, "Remove", modifier = Modifier.size(14.dp))
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -412,13 +455,18 @@ private fun TagInputSection(
                 }
             }
         }
-        Box {
+        // ponytail: Inline suggestions instead of DropdownMenu — avoids popup window stealing
+        // IME focus inside ModalBottomSheet (Android WindowManager bug with nested popups).
+        val showSuggestions = expanded && (filteredOptions.isNotEmpty() || showAddCustom)
+        Column(
+            modifier = Modifier.onFocusChanged { if (!it.hasFocus) expanded = false }
+        ) {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it; expanded = true },
                 placeholder = { Text("Type to search...") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().onGloballyPositioned { expanded = true },
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorAccent(), cursorColor = colorAccent()),
                 trailingIcon = {
@@ -429,18 +477,42 @@ private fun TagInputSection(
                     }
                 }
             )
-            DropdownMenu(expanded = expanded && (filteredOptions.isNotEmpty() || showAddCustom), onDismissRequest = { expanded = false }) {
-                filteredOptions.take(10).forEach { opt ->
-                    DropdownMenuItem(
-                        text = { Text(opt.label) },
-                        onClick = { onToggle(opt.value); text = ""; expanded = false }
-                    )
-                }
-                if (showAddCustom) {
-                    DropdownMenuItem(
-                        text = { Text("Add: $text") },
-                        onClick = { onAddCustom(text); text = ""; expanded = false }
-                    )
+            if (showSuggestions) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp),
+                    tonalElevation = 3.dp,
+                    shadowElevation = 4.dp,
+                    border = BorderStroke(1.dp, colorAccent().copy(alpha = 0.3f))
+                ) {
+                    Column(modifier = Modifier.heightIn(max = 200.dp).verticalScroll(rememberScrollState())) {
+                        filteredOptions.take(10).forEach { opt ->
+                            Surface(
+                                onClick = { onToggle(opt.value); text = ""; expanded = false },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(opt.label)
+                                }
+                            }
+                        }
+                        if (showAddCustom) {
+                            Surface(
+                                onClick = { onAddCustom(text); text = ""; expanded = false },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Add: $text", color = colorAccent())
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -465,22 +537,40 @@ private fun PresetSection(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (presets.isNotEmpty()) {
-            Box {
-                OutlinedButton(onClick = { expanded = true }, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, colorAccent().copy(alpha = 0.6f))) {
+            Column {
+                OutlinedButton(onClick = { expanded = !expanded }, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, colorAccent().copy(alpha = 0.6f))) {
                     Text("Presets", style = MaterialTheme.typography.bodyMedium)
                 }
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    presets.forEach { preset ->
-                        DropdownMenuItem(
-                            text = { Text(preset.name) },
-                            leadingIcon = { Icon(Icons.Filled.Check, null, tint = colorAccent()) },
-                            trailingIcon = {
-                                IconButton(onClick = { onDelete(preset); expanded = false }) {
-                                    Icon(Icons.Filled.Close, "Delete", tint = MaterialTheme.colorScheme.error)
+                if (expanded) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp),
+                        tonalElevation = 3.dp,
+                        shadowElevation = 4.dp,
+                        border = BorderStroke(1.dp, colorAccent().copy(alpha = 0.3f))
+                    ) {
+                        Column(modifier = Modifier.heightIn(max = 200.dp).verticalScroll(rememberScrollState())) {
+                            presets.forEach { preset ->
+                                Surface(
+                                    onClick = { onLoad(preset); expanded = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Icon(Icons.Filled.Check, null, tint = colorAccent(), modifier = Modifier.size(18.dp))
+                                            Text(preset.name)
+                                        }
+                                        IconButton(onClick = { onDelete(preset) }, modifier = Modifier.size(24.dp)) {
+                                            Icon(Icons.Filled.Close, "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
                                 }
-                            },
-                            onClick = { onLoad(preset); expanded = false }
-                        )
+                            }
+                        }
                     }
                 }
             }
