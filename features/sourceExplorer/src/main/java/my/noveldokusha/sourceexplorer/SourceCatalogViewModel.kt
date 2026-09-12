@@ -20,7 +20,6 @@ import my.noveldokusha.coreui.components.getLibraryBadgeState
 import my.noveldokusha.coreui.components.LibraryBadgeMaps
 import my.noveldokusha.coreui.components.LibraryBadgeState
 import my.noveldokusha.coreui.states.PagedListIteratorState
-import my.noveldokusha.core.syncMap
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.mappers.mapToBookMetadata
 import my.noveldokusha.core.Toasty
@@ -303,13 +302,6 @@ internal class SourceCatalogViewModel @Inject constructor(
         if (filterableSource != null && !filters.isEmpty) {
             state.fetchIterator.setFunction {
                 filterableSource.getCatalogFiltered(it, filters).mapToBookMetadata()
-                    .syncMap { paged ->
-                        if (filters.contentType.isNotEmpty()) {
-                            paged.copy(list = paged.list.filter { it.contentType == filters.contentType })
-                        } else {
-                            paged
-                        }
-                    }
             }
         } else {
             state.fetchIterator.setFunction { source.getCatalogList(it).mapToBookMetadata() }

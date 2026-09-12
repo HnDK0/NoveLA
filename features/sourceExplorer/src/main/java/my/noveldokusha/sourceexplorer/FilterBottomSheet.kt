@@ -28,7 +28,7 @@ import my.noveldokusha.scraper.ActiveFilters
 import my.noveldokusha.scraper.FilterHistoryEntry
 import my.noveldokusha.scraper.FilterPreset
 import my.noveldokusha.scraper.LuaFilter
-import my.noveldokusha.strings.R as StringsR
+
 
 enum class TriStateValue { NEUTRAL, INCLUDED, EXCLUDED }
 
@@ -46,8 +46,6 @@ internal fun FilterBottomSheet(
     onPresetDelete: (FilterPreset) -> Unit,
     onTextHistoryAdd: (filterKey: String, value: String) -> Unit,
     onTextHistoryRemove: (filterKey: String, value: String) -> Unit = { _, _ -> },
-    contentTypeFilter: String = "",
-    onContentTypeChange: (String) -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState()
 
@@ -126,7 +124,6 @@ internal fun FilterBottomSheet(
             switchValues     = switchValues.toMap(),
             textValues       = textValues.toMap(),
             tagInputValues   = tagInputValues.mapValues { it.value.toList() },
-            contentType      = contentTypeFilter,
         )
     }
 
@@ -164,37 +161,6 @@ internal fun FilterBottomSheet(
                 modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Content type filter (All/Manga/Novel)
-                FilterSectionHeader(stringResource(StringsR.string.type))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val contentTypeOptions = listOf(
-                        "" to stringResource(StringsR.string.all_categories),
-                        "manga" to stringResource(StringsR.string.content_type_manga),
-                        "novel" to stringResource(StringsR.string.content_type_novel),
-                    )
-                    contentTypeOptions.forEach { (value, label) ->
-                        FilterChip(
-                            selected = contentTypeFilter == value,
-                            onClick = { onContentTypeChange(value) },
-                            label = { Text(label) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = colorAccent().copy(alpha = 0.15f),
-                                selectedLabelColor = colorAccent(),
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = contentTypeFilter == value,
-                                selectedBorderColor = colorAccent(),
-                            )
-                        )
-                    }
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), modifier = Modifier.padding(vertical = 8.dp))
-
                 if (filterList.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = colorAccent())
