@@ -48,6 +48,8 @@ class AppFileResolver @Inject constructor(
         ).toFile().also { ensureInsideBooksDir(it, bookFolderName) }
 
     fun getStorageBookImageFile(bookFolderName: String, imagePath: String): File {
+        // ponytail: defensive — reject empty paths from plugins or corrupted EPUBs
+        require(imagePath.isNotBlank()) { "Image path must not be blank" }
         val localBookFolderName = when {
             imagePath.isLocalUri -> getLocalBookFolderName(bookFolderName)
             else -> bookFolderName
@@ -107,6 +109,8 @@ class AppFileResolver @Inject constructor(
         imagePath: String,
         isCover: Boolean = true
     ): Any {
+        // ponytail: defensive — plugin returns empty cover path, don't crash
+        if (imagePath.isBlank()) return ""
         val resolved = if (imagePath.startsWith("//")) "https:$imagePath" else imagePath
         return when {
             resolved.isContentUri -> resolved
