@@ -129,6 +129,15 @@ open class LuaSourceAdapter(
             }
         }
 
+        val triggerMarkers = mutableSetOf<String>()
+        val triggerTable = t.get("trigger_markers").opttable(null)
+        if (triggerTable != null) {
+            for (i in 1..triggerTable.length()) {
+                val m = triggerTable.get(org.luaj.vm2.LuaValue.valueOf(i)).optjstring(null)
+                if (!m.isNullOrBlank()) triggerMarkers.add(m)
+            }
+        }
+
         val host = try {
             java.net.URI(baseUrl).host ?: return
         } catch (_: Exception) { return }
@@ -137,7 +146,8 @@ open class LuaSourceAdapter(
             host,
             my.noveldokusha.network.interceptors.CfDomainOptions(
                 whitelist = whitelist,
-                ignoreMarkers = ignoreMarkers
+                ignoreMarkers = ignoreMarkers,
+                triggerMarkers = triggerMarkers
             )
         )
     }

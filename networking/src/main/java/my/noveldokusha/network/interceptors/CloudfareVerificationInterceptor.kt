@@ -60,7 +60,9 @@ private val CLOUDFLARE_WHITELIST = listOf(
 
 data class CfDomainOptions(
     val whitelist: Boolean = false,
-    val ignoreMarkers: Set<String> = emptySet()
+    val ignoreMarkers: Set<String> = emptySet(),
+    /** Кастомные маркеры, триггерящие обход для нестандартных WAF (не Cloudflare). */
+    val triggerMarkers: Set<String> = emptySet()
 )
 
 object LuaCfOptionsRegistry {
@@ -390,7 +392,22 @@ internal class CloudFareVerificationInterceptor(
             val foundMarkers = activeMarkers.filter { body.contains(it, ignoreCase = true) }
             Timber.e( "CF triggered: code=${response.code} isCfServer=$isCfServer foundMarkers=$foundMarkers")
         }
-        return !isCf
+        if (isCf) return false
+
+        // Кастомные маркеры плагина: триггерят обход для нестандартных WAF
+        // (не Cloudflare/DDoS-Guard), когда сервер не опознан, но тело содержит
+        // маркер из trigger_markers. Работает на любом коде ответа (200 включительно),
+        // т.к. некоторые WAF отдают капчу как обычную страницу.
+        val triggerMarkers = domainOptions?.triggerMarkers ?: emptySet()
+        if (triggerMarkers.isNotEmpty()) {
+            val foundTriggers = triggerMarkers.filter { body.contains(it, ignoreCase = true) }
+            if (foundTriggers.isNotEmpty()) {
+                Timber.e("CF triggered (custom markers): code=${response.code} foundTriggers=$foundTriggers")
+                return false
+            }
+        }
+
+        return true
     }
 
     private fun clearCookiesForDomain(url: String, cm: CookieManager) {
