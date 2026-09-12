@@ -1579,6 +1579,7 @@ class AppPreferences @Inject constructor(
 
     fun addTextHistory(sourceId: String, entry: FilterHistoryEntry) {
         val current = getTextHistory(sourceId).toMutableList()
+        current.removeAll { it.filterKey == entry.filterKey && it.value == entry.value }
         current.add(0, entry)
         preferences.edit()
             .putString("text_history_$sourceId", Json.encodeToString(current.take(20)))

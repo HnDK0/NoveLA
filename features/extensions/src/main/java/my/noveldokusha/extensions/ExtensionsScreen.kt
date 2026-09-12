@@ -19,15 +19,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -72,6 +75,7 @@ import my.noveldokusha.core.getLanguageDisplayName
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import my.noveldokusha.coreui.R
+import my.noveldokusha.strings.R as StringsR
 
 
 @Composable
@@ -150,11 +154,9 @@ private fun UnifiedExtensionsScreen(
             else -> {
                 val localExtensionDesc = stringResource(my.noveldokusha.strings.R.string.local_extension_description)
                 val localExtensionAuthor = stringResource(my.noveldokusha.strings.R.string.extension_author_local)
-                val filteredExtensions = if (state.selectedLanguages.isEmpty()) {
-                    state.availableExtensions
-                } else {
-                    state.availableExtensions.filter { it.language in state.selectedLanguages }
-                }
+                val filteredExtensions = state.availableExtensions
+                    .filter { state.selectedLanguages.isEmpty() || it.language in state.selectedLanguages }
+                    .filter { state.selectedContentType.isEmpty() || it.contentType == state.selectedContentType || (state.selectedContentType == "novel" && it.contentType.isEmpty()) }
 
                 val localInstalledExtensions = remember(state.extensions, state.availableExtensions, state.selectedLanguages) {
                     val ids = filteredExtensions.map { it.id }.toSet()
@@ -219,24 +221,106 @@ private fun UnifiedExtensionsScreen(
                         }
                     }
                 } else {
+                    var searchQuery by rememberSaveable { mutableStateOf("") }
+
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        placeholder = { Text(stringResource(StringsR.string.search)) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(Icons.Default.Close, contentDescription = null)
+                                }
+                            }
+                        },
+                        singleLine = true
+                    )
+
+                    // Content type filter chips
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val contentTypeOptions = listOf(
+                            "" to stringResource(StringsR.string.all_categories),
+                            "manga" to stringResource(StringsR.string.content_type_manga),
+                            "novel" to stringResource(StringsR.string.content_type_novel),
+                        )
+                        contentTypeOptions.forEach { (value, label) ->
+                            FilterChip(
+                                selected = state.selectedContentType == value,
+                                onClick = { viewModel.onEvent(ExtensionsScreenEvent.OnContentTypeFilterToggle(value)) },
+                                label = { Text(label) },
+                            )
+                        }
+                    }
+
+                    val searchFilteredExtensions = if (searchQuery.isBlank()) {
+                        filteredExtensions
+                    } else {
+                        filteredExtensions.filter {
+                            it.name.contains(searchQuery, ignoreCase = true) ||
+                            it.description.contains(searchQuery, ignoreCase = true)
+                        }
+                    }
+
+                    val searchLocalInstalled = if (searchQuery.isBlank()) {
+                        localInstalledExtensions
+                    } else {
+                        localInstalledExtensions.filter {
+                            it.name.contains(searchQuery, ignoreCase = true) ||
+                            it.description.contains(searchQuery, ignoreCase = true)
+                        }
+                    }
+
+                    val searchInstalledExtensions = remember(searchFilteredExtensions, searchLocalInstalled) {
+                        (searchFilteredExtensions.filter { it.isInstalled } + searchLocalInstalled)
+                            .sortedBy { it.name.lowercase(Locale.ROOT) }
+                    }
+
+                    val searchAvailableExtensions = remember(searchFilteredExtensions) {
+                        searchFilteredExtensions.filter { !it.isInstalled }.sortedBy { it.name.lowercase(Locale.ROOT) }
+                    }
+
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth(),
                         contentPadding = PaddingValues(bottom = 300.dp),
                     ) {
-                        if (installedExtensions.isNotEmpty()) {
+                        if (searchInstalledExtensions.isNotEmpty()) {
                             item(contentType = "header") {
-                                Text(
-                                    text = stringResource(my.noveldokusha.strings.R.string.installed),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
+                                val hasUpdates = searchInstalledExtensions.any { it.isUpdateAvailable }
+                                Row(
                                     modifier = Modifier
+                                        .fillMaxWidth()
                                         .padding(horizontal = 16.dp)
                                         .padding(top = 8.dp),
-                                )
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = stringResource(my.noveldokusha.strings.R.string.installed),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                    if (hasUpdates) {
+                                        TextButton(
+                                            onClick = { viewModel.onEvent(ExtensionsScreenEvent.OnUpdateAll) }
+                                        ) {
+                                            Text(stringResource(StringsR.string.update_all))
+                                        }
+                                    }
+                                }
                             }
 
-                            items(installedExtensions, key = { extension -> extension.id }, contentType = { "extension" }) { extension ->
+                            items(searchInstalledExtensions, key = { extension -> "installed_${extension.id}" }, contentType = { "extension" }) { extension ->
                                 ExtensionListItem(
                                     extension = extension,
                                     viewModel = viewModel
@@ -244,7 +328,7 @@ private fun UnifiedExtensionsScreen(
                             }
                         }
 
-                        if (availableExtensions.isNotEmpty()) {
+                        if (searchAvailableExtensions.isNotEmpty()) {
                             item(contentType = "header") {
                                 Text(
                                     text = stringResource(my.noveldokusha.strings.R.string.available),
@@ -256,7 +340,7 @@ private fun UnifiedExtensionsScreen(
                                 )
                             }
 
-                            items(availableExtensions, key = { extension -> extension.id }, contentType = { "extension" }) { extension ->
+                            items(searchAvailableExtensions, key = { extension -> "available_${extension.id}" }, contentType = { "extension" }) { extension ->
                                 ExtensionListItem(
                                     extension = extension,
                                     viewModel = viewModel
@@ -366,6 +450,25 @@ private fun RepositoryUrlDialog(
     )
 }
 
+
+@Composable
+private fun ContentTypeBadge(contentType: String) {
+    // ponytail: empty contentType = novel (same convention as library covers)
+    val (textRes, color) = when (contentType) {
+        "manga" -> StringsR.string.content_type_manga to MaterialTheme.colorScheme.primary
+        else -> StringsR.string.content_type_novel to MaterialTheme.colorScheme.tertiary
+    }
+    Text(
+        text = stringResource(textRes),
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        modifier = Modifier
+            .padding(start = 6.dp)
+            .background(color.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    )
+}
+
 @Composable
 private fun ExtensionListItem(
     extension: ExtensionInfo,
@@ -380,6 +483,7 @@ private fun ExtensionListItem(
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f, fill = false)
                 )
+                ContentTypeBadge(contentType = extension.contentType)
                 Row {
                     if (extension.isUpdateAvailable) {
                         Text(

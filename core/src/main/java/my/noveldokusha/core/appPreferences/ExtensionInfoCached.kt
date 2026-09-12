@@ -18,5 +18,6 @@ data class ExtensionInfoCached(
     val remoteVersion: String = "",
     val codeUrl: String,
     val iconUrl: String,
-    val language: String
+    val language: String,
+    val contentType: String = ""
 )

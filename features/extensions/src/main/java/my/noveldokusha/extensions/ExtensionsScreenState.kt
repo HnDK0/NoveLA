@@ -9,6 +9,7 @@ data class ExtensionsScreenState(
     val availableExtensions: List<ExtensionInfo> = emptyList(),
     val availableLanguages: List<ExtensionLanguage> = emptyList(),
     val selectedLanguages: Set<String> = emptySet(),
+    val selectedContentType: String = "", // "" = All, "manga", "novel"
     val isLoading: Boolean = false,
     val error: String? = null,
     val showRepositoryDialog: Boolean = false,
@@ -18,7 +19,7 @@ data class ExtensionsScreenState(
     val luaEditorTitle: String = "",
     val luaEditorCode: String = "",
     val luaEditorError: String? = null,
-    val translationSettingsExtensionId: String? = null,
+    val translationSettingsExtensionId: String? = null
 )
 
 @Immutable
@@ -36,7 +37,8 @@ data class ExtensionInfo(
     val isEnabled: Boolean = false,
     val isInstalling: Boolean = false,
     val isUpdateAvailable: Boolean = false,
-    val isLocal: Boolean = false
+    val isLocal: Boolean = false,
+    val contentType: String = ""
 )
 
 @Immutable
@@ -59,8 +61,10 @@ sealed interface ExtensionsScreenEvent {
     // Filter and navigation events
     data class OnLanguageFilterToggle(val languageCode: String) : ExtensionsScreenEvent // toggle language in filter
     data class OnLanguageFilterClear(val languageCode: String?) : ExtensionsScreenEvent // null = clear all
+    data class OnContentTypeFilterToggle(val contentType: String) : ExtensionsScreenEvent // "" = All, "manga", "novel"
     data object OnBackPressed : ExtensionsScreenEvent // New event for back navigation
     data class OnExtensionInstall(val extensionId: String) : ExtensionsScreenEvent
+    data object OnUpdateAll : ExtensionsScreenEvent
     data class OnExtensionUninstallById(val extensionId: String) : ExtensionsScreenEvent
     data class OnEditLuaClick(val extensionId: String) : ExtensionsScreenEvent
     data object OnLuaEditorDismiss : ExtensionsScreenEvent

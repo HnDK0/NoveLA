@@ -153,6 +153,7 @@ data class ActiveFilters(
     val switchValues: Map<String, Boolean> = emptyMap(),         // key → true/false
     val textValues: Map<String, String> = emptyMap(),            // key → string
     val tagInputValues: Map<String, List<String>> = emptyMap(),  // key → [tag, ...]
+    val contentType: String = "",                                // "" = All, "manga", "novel"
 ) {
     /**
      * true если все значения дефолтные.
@@ -167,7 +168,8 @@ data class ActiveFilters(
                 triExcluded.all { it.value.isEmpty() } &&
                 switchValues.isEmpty() &&
                 textValues.all { it.value.isEmpty() } &&
-                tagInputValues.all { it.value.isEmpty() }
+                tagInputValues.all { it.value.isEmpty() } &&
+                contentType.isEmpty()
 }
 
 /** Сохранённый пресет фильтров с именем и временем создания */

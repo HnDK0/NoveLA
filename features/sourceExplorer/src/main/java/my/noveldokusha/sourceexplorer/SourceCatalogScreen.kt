@@ -47,6 +47,7 @@ import my.noveldokusha.feature.local_database.BookMetadata
 import my.noveldokusha.scraper.ActiveFilters
 import my.noveldokusha.coreui.components.LibraryBadgeMaps
 import my.noveldokusha.coreui.components.LibraryBadgeState
+import my.noveldokusha.strings.R as StringsR
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -93,14 +94,19 @@ internal fun SourceCatalogScreen(
                                             ?: if (state.sourceCatalogNameStrId.value != 0)
                                                 stringResource(id = state.sourceCatalogNameStrId.value)
                                             else ""
+                                        val (contentTypeLabel, contentTypeColor) = when (state.sourceContentType) {
+                                            "manga" -> stringResource(StringsR.string.content_type_manga) to MaterialTheme.colorScheme.primary
+                                            else -> stringResource(StringsR.string.content_type_novel) to MaterialTheme.colorScheme.tertiary
+                                        }
                                         Text(
                                             text = title,
                                             style = MaterialTheme.typography.headlineMedium,
                                             maxLines = 1
                                         )
                                         Text(
-                                            text = stringResource(R.string.catalog),
-                                            style = MaterialTheme.typography.titleSmall
+                                            text = "$contentTypeLabel · ${stringResource(R.string.catalog)}",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = contentTypeColor
                                         )
                                     }
                                 },

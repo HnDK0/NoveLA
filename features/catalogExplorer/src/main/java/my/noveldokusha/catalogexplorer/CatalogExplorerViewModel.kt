@@ -31,6 +31,7 @@ internal data class CatalogExplorerUiState(
     val databaseList: List<my.noveldokusha.scraper.DatabaseInterface> = emptyList(),
     val sourcesList: List<CatalogItem> = emptyList(),
     val selectedLanguages: Set<String> = emptySet(),
+    val selectedContentType: String = "",
     val showAddByUrlDialog: Boolean = false,
     val showLanguageChips: Boolean = false,
 )
@@ -103,6 +104,13 @@ internal class CatalogExplorerViewModel @Inject constructor(
         else
             _uiState.value.selectedLanguages + code
         appPreferences.SOURCES_LANGUAGES_ISO639_1.value = nextLangs
+    }
+
+    fun toggleContentType(contentType: String) {
+        _uiState.update {
+            val next = if (it.selectedContentType == contentType) "" else contentType
+            it.copy(selectedContentType = next)
+        }
     }
 
     fun clearLanguageFilter() {

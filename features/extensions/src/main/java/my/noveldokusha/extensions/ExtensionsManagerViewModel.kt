@@ -94,8 +94,10 @@ class ExtensionsManagerViewModel @Inject constructor(
         is ExtensionsScreenEvent.OnUpdateRepositoryUrl   -> updateRepositoryUrl(event.url)
         is ExtensionsScreenEvent.OnLanguageFilterToggle  -> toggleLanguageFilter(event.languageCode)
         is ExtensionsScreenEvent.OnLanguageFilterClear   -> clearLanguageFilter(event.languageCode)
+        is ExtensionsScreenEvent.OnContentTypeFilterToggle -> toggleContentTypeFilter(event.contentType)
         ExtensionsScreenEvent.OnBackPressed              -> Unit
         is ExtensionsScreenEvent.OnExtensionInstall      -> installExtension(event.extensionId)
+        ExtensionsScreenEvent.OnUpdateAll                -> updateAllExtensions()
         is ExtensionsScreenEvent.OnExtensionUninstallById -> uninstallExtensionById(event.extensionId)
         is ExtensionsScreenEvent.OnEditLuaClick           -> openLuaEditor(event.extensionId)
         ExtensionsScreenEvent.OnLuaEditorDismiss          -> closeLuaEditor()
@@ -161,13 +163,14 @@ class ExtensionsManagerViewModel @Inject constructor(
                                     description      = src.get("description") as? String ?: "",
                                     author           = src.get("author") as? String ?: "",
                                     version          = installedVer ?: remoteVer,
-                                    remoteVersion    = remoteVer, // Удаленная версия из YAML
-                                    codeUrl          = src["url"] as String, // Поле называется "url" в YAML
+                                    remoteVersion    = remoteVer,
+                                    codeUrl          = src["url"] as String,
                                     iconUrl          = src["icon"] as String,
                                     language         = langCode,
                                     isInstalled      = installedVer != null,
                                     isEnabled        = isEnabled(id),
-                                    isUpdateAvailable = isUpdateAvailable(remoteVer, installedVer)
+                                    isUpdateAvailable = isUpdateAvailable(remoteVer, installedVer),
+                                    contentType      = src["content_type"] as? String ?: ""
                                 )
                             )
                         }
@@ -244,7 +247,8 @@ class ExtensionsManagerViewModel @Inject constructor(
                     language = cached.language,
                     isInstalled = getInstalledVersion(cached.id) != null,
                     isEnabled = isEnabled(cached.id),
-                    isUpdateAvailable = isUpdateAvailable(cached.remoteVersion, getInstalledVersion(cached.id))
+                    isUpdateAvailable = isUpdateAvailable(cached.remoteVersion, getInstalledVersion(cached.id)),
+                    contentType = cached.contentType
                 )
             }
             val langs = list.groupBy { it.language }
@@ -277,7 +281,8 @@ class ExtensionsManagerViewModel @Inject constructor(
                 remoteVersion = ext.remoteVersion,
                 codeUrl = ext.codeUrl,
                 iconUrl = ext.iconUrl,
-                language = ext.language
+                language = ext.language,
+                contentType = ext.contentType
             )
         }
         appPreferences.EXTENSIONS_AVAILABLE_CACHE.value = cached
@@ -330,6 +335,15 @@ class ExtensionsManagerViewModel @Inject constructor(
                 luaSourceLoader.removeScript(extensionId)
             } finally {
                 setInstalling(extensionId, false)
+            }
+        }
+    }
+
+    private fun updateAllExtensions() {
+        viewModelScope.launch {
+            val extensionsToUpdate = _state.value.availableExtensions.filter { it.isUpdateAvailable }
+            extensionsToUpdate.forEach { ext ->
+                installExtension(ext.id)
             }
         }
     }
@@ -686,6 +700,12 @@ class ExtensionsManagerViewModel @Inject constructor(
     private fun clearLanguageFilter(code: String?) {
         _state.update { it.copy(selectedLanguages = if (code == null) emptySet() else it.selectedLanguages - code) }
         appPreferences.EXTENSIONS_LANGUAGES_FILTER.value = _state.value.selectedLanguages
+    }
+
+    private fun toggleContentTypeFilter(contentType: String) {
+        _state.update { state ->
+            state.copy(selectedContentType = if (state.selectedContentType == contentType) "" else contentType)
+        }
     }
 
     private fun refreshAll() = loadAllAvailableExtensions(forceRefresh = true)

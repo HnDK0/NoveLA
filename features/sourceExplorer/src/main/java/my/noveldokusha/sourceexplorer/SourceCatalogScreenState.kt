@@ -13,6 +13,7 @@ import my.noveldokusha.scraper.LuaFilter
 internal data class SourceCatalogScreenState(
     val sourceCatalogNameStrId: State<Int>,
     val sourceCatalogName: State<String?>,
+    val sourceContentType: String,
     val searchTextInput: MutableState<String>,
     val fetchIterator: PagedListIteratorState<BookMetadata>,
     val toolbarMode: MutableState<ToolbarMode>,

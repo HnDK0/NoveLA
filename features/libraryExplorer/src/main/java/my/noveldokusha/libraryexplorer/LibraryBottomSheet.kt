@@ -196,6 +196,38 @@ internal fun LibraryBottomSheet(
                 )
             }
 
+            // ── Тип контента (Все/Манга/Новелла) ────────────────────────────
+            Text(
+                text = stringResource(id = R.string.type),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.titleMedium
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+            ) {
+                ContentTypeFilter.entries.forEach { filter ->
+                    FilterChip(
+                        selected = selectedContentType == filter,
+                        onClick = { pageModel.setContentTypeFilter(filter) },
+                        label = { Text(stringResource(filter.labelRes), style = MaterialTheme.typography.labelMedium) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            selectedLabelColor = MaterialTheme.colorScheme.primary,
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selectedContentType == filter,
+                            selectedBorderColor = MaterialTheme.colorScheme.primary,
+                        )
+                    )
+                }
+            }
+
             HorizontalDivider(
                 modifier = Modifier
                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -371,43 +403,6 @@ internal fun LibraryBottomSheet(
                             )
                         )
                     }
-                }
-            }
-
-            // ── Тип контента (Все/Манга/Новелла) ────────────────────────────
-            HorizontalDivider(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .alpha(0.4f)
-            )
-            Text(
-                text = stringResource(id = R.string.type),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.titleMedium
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-            ) {
-                ContentTypeFilter.entries.forEach { filter ->
-                    FilterChip(
-                        selected = selectedContentType == filter,
-                        onClick = { pageModel.setContentTypeFilter(filter) },
-                        label = { Text(stringResource(filter.labelRes), style = MaterialTheme.typography.labelMedium) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                            selectedLabelColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = selectedContentType == filter,
-                            selectedBorderColor = MaterialTheme.colorScheme.primary,
-                        )
-                    )
                 }
             }
         }

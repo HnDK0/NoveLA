@@ -696,6 +696,7 @@
     <string name="installing">Installing…</string>
     <string name="install">Install</string>
     <string name="update">Update</string>
+    <string name="update_all">Update all</string>
     <string name="retry">Retry</string>
     <string name="top">↑ Top</string>
     <string name="copy">Copy</string>

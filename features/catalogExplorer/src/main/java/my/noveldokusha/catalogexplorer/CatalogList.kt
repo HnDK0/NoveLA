@@ -45,6 +45,11 @@ import my.noveldokusha.scraper.fixtures.fixturesDatabaseList
 import my.noveldokusha.core.getLanguageDisplayName
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.Alignment
+import my.noveldokusha.coreui.theme.colorAccent
+import my.noveldokusha.strings.R as StringsR
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -123,10 +128,36 @@ internal fun CatalogList(
                 onClick = { onSourceClick(it.catalog) },
                 modifier = Modifier.animateItem(),
                 headlineContent = {
-                    Text(
-                        text = it.catalog.displayName(),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = it.catalog.displayName(),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        val contentType = it.catalog.contentType
+                        val labelRes = when (contentType) {
+                            "manga" -> StringsR.string.content_type_manga
+                            else -> StringsR.string.content_type_novel
+                        }
+                        val bgColor = when (contentType) {
+                            "manga" -> colorAccent().copy(alpha = 0.12f)
+                            else -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f)
+                        }
+                        val fgColor = when (contentType) {
+                            "manga" -> colorAccent()
+                            else -> MaterialTheme.colorScheme.tertiary
+                        }
+                        Text(
+                            text = stringResource(labelRes),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = fgColor,
+                            modifier = Modifier
+                                .background(bgColor, RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                        )
+                    }
                 },
                 supportingContent = {
                     val languageCode = it.catalog.languageTag
