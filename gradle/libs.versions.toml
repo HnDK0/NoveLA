@@ -56,7 +56,7 @@ junit = "4.13.2"
 
 # Lua and YAML dependencies
 luajvm = "3.0.1"
-snakeyaml = "2.6"
+snakeyaml = "2.7"
 
 okhttp = "5.5.0"
 okhttp-interceptor-logging = "5.5.0"
