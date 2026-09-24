@@ -2,12 +2,12 @@
 
 kotlin = "2.4.20"
 
-plugin-agp = "9.4.0"
+plugin-agp = "9.4.1"
 
 hilt = "2.60.1"
 hilt-androidx = "1.4.0"
 
-ksp = "2.3.11"
+ksp = "2.3.12"
 
 kotlinx-coroutines-core = "1.9.0"
 kotlinx-coroutines-test = "1.11.0"
@@ -17,8 +17,8 @@ testing-mockito-kotlin = "5.4.0"
 
 androidTools = "31.13.2"
 
-androidx-navigation-ui-ktx = "2.10.0"
-androidx-navigation-fragment-ktx = "2.10.0"
+androidx-navigation-ui-ktx = "2.10.1"
+androidx-navigation-fragment-ktx = "2.10.1"
 androidx-preference-ktx = "1.2.1"
 androidx-core-ktx = "1.19.0"
 androidx-core-splashscreen = "1.2.0"
@@ -51,7 +51,7 @@ compose-bom = "2026.08.00"
 
 gson = "2.14.0"
 jsoup = "1.23.1"
-room = "2.8.4"
+room = "2.8.5"
 junit = "4.13.2"
 
 # Lua and YAML dependencies
