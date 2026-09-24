@@ -18,10 +18,14 @@ class EpubExporterTest {
         chapters: List<Pair<String, String>>,
         coverBytes: ByteArray? = null,
         description: String? = null,
+        imageByteLoader: suspend (String) -> ByteArray? = { null },
         onProgress: (Int, Int) -> Unit = { _, _ -> }
     ): ByteArray = runBlocking {
         val out = ByteArrayOutputStream()
-        export(out, title, language, chapters, coverBytes, description, onProgress)
+        export(
+            out, title, language, chapters, coverBytes, description,
+            imageByteLoader = imageByteLoader, onProgress = onProgress
+        )
         out.toByteArray()
     }
 
@@ -137,19 +141,26 @@ class EpubExporterTest {
     // ─── 3. Tag stripping and paragraph splitting ────────────────────────────
 
     @Test
-    fun `html tags are stripped from body`() {
+    fun `html tags are stripped from body but images are preserved`() {
         val bytes = exportToBytes(
             chapters = listOf("Tags" to "First <img src=\"x\" yrel=\"1.45\"> line<br>second")
         )
         val chapter = unzip(bytes).getValue("OEBPS/chapter-001.xhtml")
-        val p = paragraphContent(chapter)
 
-        assertFalse(p.contains("<"))
-        assertFalse(p.contains(">"))
-        assertFalse(p.contains("img"))
-        assertFalse(p.contains("br"))
-        assertTrue(p.contains("First"))
-        assertTrue(p.contains("second"))
+        // Текст вокруг <img> очищен от тегов, картинка не потеряна: без loader
+        // байтов её src сохраняется как есть (валидный XHTML-тег).
+        assertTrue(chapter.contains("""<img src="x" alt=""/>"""))
+        assertFalse(chapter.contains("yrel"))
+        assertFalse(chapter.contains("line<br>"))
+        assertTrue(chapter.contains("<p>First</p>"))
+        assertTrue(chapter.contains("<p>linesecond</p>"))
+        assertFalse(chapter.contains("<p>second</p>"))
+
+        // Внутри самих абзацев не осталось «голых» тегов.
+        for (p in Regex("<p>(.*?)</p>", RegexOption.DOT_MATCHES_ALL).findAll(chapter)) {
+            assertFalse(p.groupValues[1].contains("<"))
+            assertFalse(p.groupValues[1].contains(">"))
+        }
     }
 
     @Test
@@ -330,7 +341,7 @@ class EpubExporterTest {
     // ─── 9. Главы только из разметки ────────────────────────────────────────
 
     @Test
-    fun `chapter with only img markup is skipped entirely`() {
+    fun `chapter with only img markup is kept with its image`() {
         val bytes = exportToBytes(
             chapters = listOf(
                 "First" to "Some text",
@@ -339,20 +350,23 @@ class EpubExporterTest {
         )
         val entries = unzip(bytes)
 
-        // Глава из одного <img> не даёт текста после снятия тегов — файл не пишется.
+        // Глава из одного <img> не даёт текста, но картинку терять нельзя —
+        // файл пишется (без loader src остаётся как есть).
         assertTrue(entries.containsKey("OEBPS/chapter-001.xhtml"))
-        assertFalse(entries.containsKey("OEBPS/chapter-002.xhtml"))
+        assertTrue(entries.containsKey("OEBPS/chapter-002.xhtml"))
+        val imgChapter = entries.getValue("OEBPS/chapter-002.xhtml")
+        assertTrue(imgChapter.contains("""<img src="cover.jpg" alt=""/>"""))
 
-        // И из навигации она тоже исключена.
+        // И в навигации она учтена.
         val opf = entries.getValue("OEBPS/content.opf")
-        assertEquals(1, Regex("<itemref idref=").findAll(opf).count())
-        assertFalse(opf.contains("chapter-002"))
+        assertEquals(2, Regex("<itemref idref=").findAll(opf).count())
+        assertTrue(opf.contains("chapter-002"))
         val nav = entries.getValue("OEBPS/nav.xhtml")
-        assertEquals(1, Regex("<li>").findAll(nav).count())
-        assertFalse(nav.contains("ImgOnly"))
+        assertEquals(2, Regex("<li>").findAll(nav).count())
+        assertTrue(nav.contains("ImgOnly"))
         val ncx = entries.getValue("OEBPS/toc.ncx")
-        assertEquals(1, Regex("<navPoint ").findAll(ncx).count())
-        assertFalse(ncx.contains("ImgOnly"))
+        assertEquals(2, Regex("<navPoint ").findAll(ncx).count())
+        assertTrue(ncx.contains("ImgOnly"))
     }
 
     // ─── 10. HTML-сущности: unescape один раз, затем xmlEscape ──────────────

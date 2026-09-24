@@ -19,6 +19,9 @@ import java.util.zip.ZipOutputStream
 // иначе текст с CRLF (\r\n\r\n) склеится в один абзац.
 private val PARAGRAPH_BREAK = Regex("\\n\\s*\\n")
 
+// src картинки внутри <img ...> (регистр тега и атрибута не важен).
+private val IMG_SRC_REGEX = Regex("""<img\b[^>]*?\bsrc\s*=\s*["']([^"']*)["'][^>]*>""", RegexOption.IGNORE_CASE)
+
 private const val MIME_TYPE = "application/epub+zip"
 
 private val MIME_BYTES = MIME_TYPE.toByteArray(Charsets.UTF_8)
@@ -74,6 +77,14 @@ private fun coverExtension(mime: String): String = when (mime) {
     else -> "jpg"
 }
 
+/** Фрагмент HTML → список абзацев: снять теги, снять сущности, разбить по пустой строке. */
+private fun textToParagraphs(html: String): List<String> = html
+    .replace(STRIP_HTML_TAGS, "")
+    .let { Parser.unescapeEntities(it, false) }
+    .split(PARAGRAPH_BREAK)
+    .map { it.trim() }
+    .filter { it.isNotEmpty() }
+
 /**
  * Записывает книгу в формат EPUB3 с максимальной совместимостью ридеров:
  * nav.xhtml (обязательный TOC EPUB3) И toc.ncx (legacy-ридеры ищут именно его,
@@ -88,6 +99,7 @@ private fun coverExtension(mime: String): String = when (mime) {
  * Обёртка над [exportStreaming]: список глав уже целиком в памяти — для
  * интерактивных вызовов и тестов. Тяжёлые книги (тысячи глав) экспортируйте
  * через [exportStreaming], чтобы не держать весь текст в памяти (OOM).
+ * [imageByteLoader] — см. [exportStreaming].
  */
 suspend fun export(
     outputStream: OutputStream,
@@ -96,6 +108,7 @@ suspend fun export(
     chapters: List<Pair<String, String>>,
     coverBytes: ByteArray? = null,
     description: String? = null,
+    imageByteLoader: suspend (src: String) -> ByteArray? = { null },
     onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }
 ) = exportStreaming(
     outputStream,
@@ -105,6 +118,7 @@ suspend fun export(
     { offset, count -> chapters.subList(offset, minOf(offset + count, chapters.size)) },
     coverBytes,
     description,
+    imageByteLoader,
     onProgress
 )
 
@@ -115,10 +129,13 @@ suspend fun export(
  * валят 256MB-кучу OutOfMemoryError).
  *
  * [chapterLoader] вызывается последовательно с (offset, count) и должен
- * возвращать пары (заголовок, тело) для глав этого диапазона; пустые тела
- * пропускаются. Порядок записей в zip: mimetype, container, главы, затем
- * content.opf/nav.xhtml/toc.ncx/обложка — имена файлов глав известны заранее
- * (chapter-NNN.xhtml), поэтому навигация пишется последней.
+ * возвращать пары (заголовок, тело) для глав этого диапазона; главы без
+ * текста И картинок пропускаются. [imageByteLoader] по src картинки из тела
+ * главы возвращает её байты (или null — тогда картинка не вшивается, а её
+ * исходный src сохраняется в XHTML). Порядок записей в zip: mimetype,
+ * container, главы, затем content.opf/nav.xhtml/toc.ncx/обложка — имена
+ * файлов глав известны заранее (chapter-NNN.xhtml), поэтому навигация
+ * пишется последней.
  *
  * Прогресс: done — число фактически записанных глав, total — общее число
  * глав книги (известно до начала экспорта).
@@ -131,6 +148,7 @@ suspend fun exportStreaming(
     chapterLoader: suspend (offset: Int, count: Int) -> List<Pair<String, String>>,
     coverBytes: ByteArray? = null,
     description: String? = null,
+    imageByteLoader: suspend (src: String) -> ByteArray? = { null },
     onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }
 ) = withContext(Dispatchers.IO) {
     require(totalChapters > 0) { "Список глав пуст — EPUB без контента недопустим" }
@@ -175,6 +193,8 @@ suspend fun exportStreaming(
         //    validTitles (это десятки КБ даже для тысяч глав) — по ним потом
         //    строятся content.opf, nav.xhtml и toc.ncx.
         val validTitles = mutableListOf<String>()
+        // Картинки глав: имена файлов и MIME копятся для content.opf/manifest.
+        val chapterImages = mutableListOf<Pair<String, String>>()
         var offset = 0
         while (offset < totalChapters) {
             // Отмена: прерываемся между батчами, чтобы не оставлять битый архив на полпути.
@@ -189,22 +209,49 @@ suspend fun exportStreaming(
                 val trimmedBody = body.trim()
                 if (trimmedBody.isEmpty()) return@forEach
 
-                val paragraphs = trimmedBody
-                    .replace(STRIP_HTML_TAGS, "") // снимаем разметку, оставляя только текст
-                    .let { Parser.unescapeEntities(it, false) }
-                    .split(PARAGRAPH_BREAK)
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
-                // Глава, содержащая только разметку (например, один <img>), после
-                // снятия тегов не даёт текста — не пишем пустой файл в навигацию.
-                if (paragraphs.isEmpty()) return@forEach
+                // src всех <img> тела — ДО снятия тегов: главы, состоящие только
+                // из картинок, после strip не дают текста, но их нельзя терять.
+                val imgSrcList = IMG_SRC_REGEX.findAll(trimmedBody).map { it.groupValues[1] }.toList()
+                val paragraphs = textToParagraphs(trimmedBody)
+                if (paragraphs.isEmpty() && imgSrcList.isEmpty()) return@forEach
+                val name = chapterFileName(validTitles.size)
+                val imageBaseName = name.removeSuffix(".xhtml")
+                var imageIndex = 0
+                // Текст и картинки в порядке оригинала: между <img> текст
+                // собирается в абзацы; сами <img> вшиваются байтами (если
+                // imageByteLoader вернул их) и переписываются на локальный src.
                 val bodyXml = buildString {
-                    paragraphs.forEach { p ->
+                    var lastEnd = 0
+                    IMG_SRC_REGEX.findAll(trimmedBody).forEach { m ->
+                        val textPart = trimmedBody.substring(lastEnd, m.range.first)
+                        textToParagraphs(textPart).forEach { p ->
+                            if (isNotEmpty()) appendLine()
+                            append("""    <p>${xmlEscape(p)}</p>""")
+                        }
+                        appendLine()
+                        // Сырой src декодируем от HTML-сущностей (&amp; в URL — норма
+                        // в скраперном HTML): иначе даунлоад уйдёт с литеральным
+                        // &amp;, а фолбэк напишет двойное экранирование &amp;amp;.
+                        val src = Parser.unescapeEntities(m.groupValues[1], false)
+                        val bytes = imageByteLoader(src)
+                        if (bytes != null && bytes.isNotEmpty()) {
+                            val mime = detectImageMime(bytes)
+                            val fileName = "images/$imageBaseName-img-$imageIndex.${coverExtension(mime)}"
+                            zip.writeEntryBytes("OEBPS/$fileName", bytes)
+                            chapterImages += fileName to mime
+                            append("""    <img src="$fileName" alt=""/>""")
+                        } else {
+                            // Байты не получены — оставляем исходный src как есть.
+                            append("""    <img src="${xmlEscape(src)}" alt=""/>""")
+                        }
+                        imageIndex++
+                        lastEnd = m.range.last + 1
+                    }
+                    textToParagraphs(trimmedBody.substring(lastEnd)).forEach { p ->
                         if (isNotEmpty()) appendLine()
                         append("""    <p>${xmlEscape(p)}</p>""")
                     }
                 }
-                val name = chapterFileName(validTitles.size)
                 zip.writeEntry(
                     "OEBPS/$name",
                     """$XML_PROLOG
@@ -240,6 +287,10 @@ $bodyXml
                 val name = chapterFileName(i)
                 appendLine()
                 append("""    <item id="$name" href="$name" media-type="application/xhtml+xml"/>""")
+            }
+            chapterImages.forEachIndexed { i, (fileName, mime) ->
+                appendLine()
+                append("""    <item id="img-$i" href="$fileName" media-type="$mime"/>""")
             }
         }
         val spine = buildString {

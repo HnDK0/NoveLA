@@ -26,6 +26,8 @@ import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.appPreferences.AppPreferences
 import my.noveldokusha.core.isCoverValid
 import my.noveldokusha.core.isHttpsUrl
+import my.noveldokusha.core.isLocalUri
+import my.noveldokusha.network.NetworkClient
 import my.noveldokusha.coreui.states.NotificationsCenter
 import my.noveldokusha.data.CoverRepository
 import my.noveldokusha.epub_tooling.exportStreaming
@@ -63,6 +65,7 @@ class BookExportWorker(
         fun notificationsCenter(): NotificationsCenter
         fun appFileResolver(): AppFileResolver
         fun coverRepository(): CoverRepository
+        fun networkClient(): NetworkClient
     }
 
     companion object {
@@ -139,6 +142,7 @@ class BookExportWorker(
         val notificationsCenter = entryPoint.notificationsCenter()
         val appFileResolver = entryPoint.appFileResolver()
         val coverRepository = entryPoint.coverRepository()
+        val networkClient = entryPoint.networkClient()
 
         val bookUrl = inputData.getString(KEY_BOOK_URL) ?: return Result.failure()
         val bookTitle = inputData.getString(KEY_BOOK_TITLE) ?: return Result.failure()
@@ -276,7 +280,49 @@ class BookExportWorker(
                         loadChapterBatch(appDatabase, chapters, offset, count, exportMode, sourceLang, targetLang)
                     },
                     coverBytes,
-                    description
+                    description,
+                    // Картинки глав. Для локальных/импортированных книг файлы
+                    // лежат в storage-папке книги (src — относительный путь).
+                    // Для сетевых книг байтов нет — src это абсолютный URL,
+                    // который ридер грузит по сети; при экспорте скачиваем
+                    // картинку, чтобы EPUB был автономным. Сбой загрузки не
+                    // валит экспорт: src остаётся в XHTML как есть.
+                    { src ->
+                        // Локальные/импортированные книги: файл лежит в storage-папке.
+                        // Вся лямбда в try: битый/небезопасный src (require в
+                        // getStorageBookImageFile) не должен ронять экспорт книги —
+                        // картинка просто не вшивается, src остаётся в XHTML.
+                        try {
+                            val localFile = if (bookUrl.isLocalUri) {
+                                appFileResolver.getStorageBookImageFile(
+                                    appFileResolver.getLocalBookFolderName(bookUrl),
+                                    src
+                                ).takeIf { it.exists() && it.length() > 0L }
+                            } else {
+                                null
+                            }
+                            localFile?.readBytes() ?: if (src.isHttpsUrl) {
+                                // Сетевые книги: src — абсолютный URL, байтов локально
+                                // нет, скачиваем при экспорте (EPUB должен быть автономным).
+                                networkClient.getWithHeaders(
+                                    src,
+                                    mapOf("Referer" to bookUrl)
+                                ).use { response ->
+                                    if (!response.isSuccessful) null else {
+                                        val bytes = response.body?.bytes()
+                                        bytes?.takeIf { it.isNotEmpty() }
+                                    }
+                                }
+                            } else {
+                                null
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            // Сеть недоступна/картинка мертва — src останется в XHTML.
+                            null
+                        }
+                    }
                 ) { done, _ ->
                     lastProgress = done
                     // Троттлинг по времени: notify() на каждые 5 глав при быстром
