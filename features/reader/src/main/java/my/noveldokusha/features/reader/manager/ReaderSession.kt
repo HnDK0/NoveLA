@@ -202,6 +202,7 @@ internal class ReaderSession(
                     }
                 }
             },
+            onSpeakerPaused = { itemPos -> saveLastReadPositionStateSpeaker(itemPos) },
         )
 
         readerManualHighlight = ReaderManualHighlight(
@@ -218,34 +219,6 @@ internal class ReaderSession(
     }
 
     fun init() {
-        // Подписываемся ДО initLoadData, чтобы поймать chapterLoadedFlow(Total)
-        // и инициализировать currentActiveItemState сохранённой позицией.
-        // Иначе setPlaying(true) увидит chapterIndex=-1 и стартует с первого видимого элемента.
-        scope.launch {
-            readerChaptersLoader.chapterLoadedFlow
-                .filter { it.type == ChapterLoaded.Type.Initial }
-                .take(1)
-                .collect { loaded ->
-                    val chapterIndex = loaded.chapterIndex
-                    if (chapterIndex !in 0 until orderedChapters.size) return@collect
-                    val chapter = orderedChapters[chapterIndex]
-                    val pos = readerRepository.getInitialChapterItemPosition(
-                        bookUrl = bookUrl,
-                        chapterIndex = chapterIndex,
-                        chapter = chapter,
-                    )
-                    readerTextToSpeech.forceResetState(
-                        ReaderItem.Title(
-                            chapterUrl = chapter.url,
-                            chapterIndex = pos.chapterIndex,
-                            chapterItemPosition = pos.chapterItemPosition,
-                            text = ""
-                        )
-                    )
-                    Timber.d("TTS-JUMP init: forceResetState(${pos.chapterIndex},${pos.chapterItemPosition})")
-                }
-        }
-
         initLoadData()
         scope.launch {
             appRepository.libraryBooks.updateLastReadEpochTimeMilli(

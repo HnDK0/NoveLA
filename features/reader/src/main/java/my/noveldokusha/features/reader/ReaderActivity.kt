@@ -1091,7 +1091,11 @@ class ReaderActivity : BaseActivity() {
 
         NarratorMediaControlsService.maybeAutoResume()
 
-        if (viewModel.readerSpeaker.isSpeaking.value) {
+        // isActive (а не isSpeaking): при паузе TTS с погашенным экраном (пауза через
+        // наушники) follow-скролл заморожен и список остаётся на видимой позиции момента
+        // оффскрина — при возврате дотягиваем до позиции остановленной озвучки.
+        // Гейт !userHasScrolled: если юзер после паузы сам листал, его позицию не трогаем.
+        if (viewModel.readerSpeaker.isActive.value && !userHasScrolled) {
             viewModel.readerSpeaker.forceUpdateCurrentItemState()
             val position = viewModel.readerSpeaker.getActualPlayingPosition()
                 ?: viewModel.readerSpeaker.currentTextPlaying.value.itemPos

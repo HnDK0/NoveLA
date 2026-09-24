@@ -100,6 +100,7 @@ internal class ReaderTextToSpeech(
     private val getPreferredVoiceIdForOriginal: () -> String,
     private val setPreferredVoiceIdForOriginal: (voiceId: String) -> Unit,
     private val onBufferLow: (() -> Unit)? = null,
+    private val onSpeakerPaused: (ReaderItem.Position) -> Unit = {},
     private val getParallelEnabled: () -> Boolean,
     private val getParallelOrder: () -> String,
 ) {
@@ -489,14 +490,6 @@ internal class ReaderTextToSpeech(
         runCatching { manager.shutdown() }
     }
 
-    fun forceResetState(itemPos: ReaderItem.Position?) {
-        if (itemPos == null) return
-        state.isPlaying.value = false
-        manager.setCurrentSpeakState(
-            TextSynthesis(itemPos, Utterance.PlayState.FINISHED)
-        )
-    }
-
     suspend fun readChapterStartingFromStart(
         chapterIndex: Int
     ) = withContext(Dispatchers.Main.immediate) {
@@ -656,6 +649,14 @@ internal class ReaderTextToSpeech(
                     ReaderTextToSpeech.userPaused = true
                 }
                 stop()
+                // Сохраняем позицию остановленной озвучки: пауза из наушников / медиа-
+                // уведомления / системная пауза при погашенном экране не проходит через
+                // onPause Activity, поэтому без записи здесь БД осталась бы на позиции
+                // «экран погас», а не на позиции паузы звука.
+                val itemPos = state.currentActiveItemState.value.itemPos
+                if (isChapterIndexValid(itemPos.chapterIndex)) {
+                    onSpeakerPaused(itemPos)
+                }
                 return
             }
             ReaderTextToSpeech.pausedBySystem = false
