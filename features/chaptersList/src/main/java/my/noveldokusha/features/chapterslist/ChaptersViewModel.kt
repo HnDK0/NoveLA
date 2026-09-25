@@ -55,6 +55,7 @@ import my.noveldokusha.feature.local_database.DAOs.ReadingHistoryDao
 import my.noveldokusha.feature.local_database.tables.Chapter
 import my.noveldokusha.feature.local_database.tables.BookTranslation
 import my.noveldokusha.feature.local_database.tables.ReadingHistory
+import my.noveldokusha.interactor.LibraryUpdatesInteractions
 import my.noveldokusha.scraper.Scraper
 import my.noveldokusha.core.utils.normalizeBookUrl
 import my.noveldokusha.chapterslist.BuildConfig
@@ -92,6 +93,7 @@ internal class ChaptersViewModel @Inject constructor(
     private val translationSettingsResolver: TranslationSettingsResolver,
     private val translationManager: TranslationManager,
     private val readingHistoryDao: ReadingHistoryDao,
+    private val libraryUpdatesInteractions: LibraryUpdatesInteractions,
     stateHandle: SavedStateHandle,
 ) : ViewModel(), ChapterStateBundle {
 
@@ -711,6 +713,7 @@ internal class ChaptersViewModel @Inject constructor(
         downloaderRepository.bookCoverImageUrl(bookUrl = bookUrl).onSuccess {
             if (it == null) return@onSuccess
             appRepository.libraryBooks.updateCover(bookUrl, it)
+            libraryUpdatesInteractions.syncCover(bookUrl, it)
         }
     }
 

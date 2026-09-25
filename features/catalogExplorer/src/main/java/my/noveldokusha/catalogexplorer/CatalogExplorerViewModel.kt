@@ -164,6 +164,7 @@ internal class CatalogExplorerViewModel @Inject constructor(
                                 val coverUrl = getBookCover(url)
                                 if (coverUrl != null) {
                                     appRepository.libraryBooks.updateCover(url, coverUrl)
+                                    libraryUpdatesInteractions.syncCover(url, coverUrl)
                                 }
 
                                 // Fetch and update description

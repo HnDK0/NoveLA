@@ -83,6 +83,11 @@ internal class LibraryViewModel @Inject constructor(
     val pendingRemoval: Map<String, Boolean> = _pendingRemoval
 
     init {
+        // Самовосстановление: докачать обложки, которых нет на диске.
+        viewModelScope.launch {
+            libraryUpdatesInteractions.backfillMissingCovers()
+        }
+
         // Sync with preferences
         viewModelScope.launch {
             launch {

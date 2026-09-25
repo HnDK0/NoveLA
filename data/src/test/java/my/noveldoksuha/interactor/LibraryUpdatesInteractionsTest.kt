@@ -2,6 +2,7 @@ package my.noveldokusha.interactor
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import android.content.Context
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.Response
 import my.noveldokusha.data.AppRepository
@@ -27,6 +28,7 @@ class LibraryUpdatesInteractionsTest {
     private val libraryDao = mock<LibraryDao>()
     private val coverRepository = mock<CoverRepository>()
     private val appFileResolver = mock<AppFileResolver>()
+    private val context = mock<Context>()
 
     private val interactions = LibraryUpdatesInteractions(
         appRepository = appRepository,
@@ -34,6 +36,7 @@ class LibraryUpdatesInteractionsTest {
         libraryDao = libraryDao,
         coverRepository = coverRepository,
         appFileResolver = appFileResolver,
+        context = context,
     )
 
     private val bookUrl = "https://example.com/book/123"

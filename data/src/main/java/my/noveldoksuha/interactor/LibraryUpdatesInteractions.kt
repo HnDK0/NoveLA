@@ -14,8 +14,13 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.withContext
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import dagger.hilt.android.qualifiers.ApplicationContext
 import my.noveldokusha.data.AppRepository
 import my.noveldokusha.data.DownloaderRepository
+import my.noveldokusha.data.backfillCovers
 import my.noveldokusha.core.AppFileResolver
 import my.noveldokusha.core.domain.ChapterPagination
 import my.noveldokusha.core.isHttpsUrl
@@ -42,10 +47,12 @@ class LibraryUpdatesInteractions @Inject constructor(
     private val libraryDao: LibraryDao,
     private val coverRepository: CoverRepository,
     private val appFileResolver: AppFileResolver,
+    @ApplicationContext private val context: Context,
 ) {
     companion object {
         private val hostGroupSemaphore = Semaphore(4)
         private val isUpdating = AtomicBoolean(false)
+        private val isBackfilling = AtomicBoolean(false)
     }
 
     data class NewUpdate(
@@ -512,10 +519,38 @@ class LibraryUpdatesInteractions @Inject constructor(
 
     private val updatesInProgress = mutableSetOf<String>()
 
-    private suspend fun syncCover(bookUrl: String, remoteCoverUrl: String) {
+    suspend fun syncCover(bookUrl: String, remoteCoverUrl: String) {
         val coverFile = appFileResolver.getStorageBookCoverImageFile(appFileResolver.getLocalBookFolderName(bookUrl))
         if (!coverRepository.ensureCover(coverFile, remoteCoverUrl)) {
             Timber.w("Failed to download cover for $bookUrl")
+        }
+    }
+
+    /**
+     * Докачивает обложки книг, у которых нет локального файла на диске.
+     * Вызывается при открытии библиблиотеки, пропускает параллельные запуски
+     * и выходит сразу, если сети нет.
+     */
+    suspend fun backfillMissingCovers(): Unit = withContext(Dispatchers.IO) {
+        if (!isBackfilling.compareAndSet(false, true)) return@withContext
+        try {
+            if (!isNetworkAvailable()) return@withContext
+            backfillCovers(appRepository.libraryBooks.getAllInLibrary(), appFileResolver, coverRepository)
+        } finally {
+            isBackfilling.set(false)
+        }
+    }
+
+    // ponytail: локальная копия isNetworkAvailable из DownloadManager
+    private fun isNetworkAvailable(): Boolean {
+        return try {
+            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return true // если не можем проверить — считаем что сеть есть
+            val network = connectivityManager.activeNetwork ?: return false
+            val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } catch (_: Exception) {
+            true // fallback — пробуем сделать запрос
         }
     }
 

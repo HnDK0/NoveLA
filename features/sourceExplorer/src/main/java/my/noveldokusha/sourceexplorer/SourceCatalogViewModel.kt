@@ -341,6 +341,7 @@ internal class SourceCatalogViewModel @Inject constructor(
                             .bookCoverImageUrl(book.url).toSuccessOrNull()?.data
                         if (coverUrl != null) {
                             appRepository.libraryBooks.updateCover(book.url, coverUrl)
+                            libraryUpdatesInteractions.syncCover(book.url, coverUrl)
                         }
                     } catch (_: Exception) {}
                 }
