@@ -12,12 +12,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -36,6 +38,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
@@ -49,6 +52,7 @@ import my.noveldokusha.coreui.components.ExpandableText
 import my.noveldokusha.coreui.components.ImageView
 import my.noveldokusha.coreui.components.MyButton
 import my.noveldokusha.coreui.modifiers.bounceOnPressed
+import my.noveldokusha.coreui.theme.ImageBorderShape
 import my.noveldokusha.coreui.theme.clickableNoIndicator
 import my.noveldokusha.coreui.theme.textPadding
 import my.noveldokusha.databaseexplorer.R
@@ -130,15 +134,30 @@ internal fun DatabaseBookInfoScreenBody(
                             dismissOnBackPress = true,
                             dismissOnClickOutside = true
                         )
-                    ) {
-                        ImageView(
-                            imageModel = state.book.value.coverImageUrl,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickableNoIndicator { showImageFullScreen = false },
-                            contentScale = ContentScale.Fit
-                        )
-                    }
+                        ) {
+                            // Фон не закрываем: окно диалога прозрачно, полупрозрачное
+                            // затемнение даёт platform dim (FLAG_DIM_BEHIND), как в
+                            // исходной версии. Клик по экрану закрывает.
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickableNoIndicator { showImageFullScreen = false },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                ImageView(
+                                    imageModel = state.book.value.coverImageUrl,
+                                    // Как у коверов в каталоге: скругление ImageBorderShape + отступы
+                                    modifier = Modifier
+                                        .padding(16.dp)
+                                        .clip(ImageBorderShape)
+                                        .fillMaxWidth()
+                                        .aspectRatio(1f / 1.45f),
+                                    // Crop, как у коверов в каталоге: картинка заполняет
+                                    // рамку и скругление углов реально видно.
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
                 }
                 FilledTonalButton(
                     onClick = onSourcesClick,

@@ -14,12 +14,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -55,6 +55,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
@@ -70,6 +71,7 @@ import my.noveldokusha.coreui.components.BookRatingChip
 import my.noveldokusha.core.appPreferences.SourceStripPosition
 import my.noveldokusha.coreui.components.ExpandableText
 import my.noveldokusha.coreui.components.ImageView
+import my.noveldokusha.coreui.theme.ImageBorderShape
 import my.noveldokusha.coreui.theme.clickableNoIndicator
 import my.noveldokusha.chapterslist.R
 import my.noveldokusha.core.rememberResolvedBookImagePath
@@ -153,13 +155,29 @@ internal fun ChaptersScreenHeader(
                         dismissOnClickOutside = true
                     )
                 ) {
-                    ImageView(
-                        imageModel = coverImageModel,
+                    // Фон не закрываем: окно диалога прозрачно, полупрозрачное
+                    // затемнение даёт platform dim (FLAG_DIM_BEHIND), как в
+                    // исходной версии. Клик по экрану закрывает.
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxSize()
                             .clickableNoIndicator { showImageFullScreen = false },
-                        contentScale = ContentScale.Fit
-                    )
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ImageView(
+                            imageModel = coverImageModel,
+                            // Как у коверов в каталоге: скругление ImageBorderShape + отступы
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .clip(ImageBorderShape)
+                                .fillMaxWidth()
+                                .aspectRatio(1f / 1.45f)
+                                .clickableNoIndicator { showImageFullScreen = false },
+                            // Crop, как у коверов в каталоге: картинка заполняет
+                            // рамку и скругление углов реально видно.
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 }
 
                 Column(

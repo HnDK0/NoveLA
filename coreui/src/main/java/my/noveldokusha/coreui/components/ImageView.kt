@@ -3,6 +3,7 @@ package my.noveldokusha.coreui.components
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -112,7 +113,10 @@ fun ImageView(
                 model = imageRequest,
                 contentDescription = contentDescription,
                 contentScale = contentScale,
-                modifier = Modifier.matchParentSize(),
+                // fillMaxSize вместо matchParentSize: Box должен получать высоту
+                // от AsyncImage, когда внешний модификатор задаёт только ширину
+                // (диалог обложки) — иначе Box нулевой высоты и картинки не видно.
+                modifier = Modifier.fillMaxSize(),
                 colorFilter = colorFilter,
                 placeholder = placeholderPainter,
                 error = painterResource(error),
