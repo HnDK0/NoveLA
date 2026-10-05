@@ -2,12 +2,12 @@
 
 kotlin = "2.4.20"
 
-plugin-agp = "9.4.0"
+plugin-agp = "9.4.1"
 
 hilt = "2.60.1"
 hilt-androidx = "1.4.0"
 
-ksp = "2.3.11"
+ksp = "2.3.12"
 
 kotlinx-coroutines-core = "1.9.0"
 kotlinx-coroutines-test = "1.11.0"
@@ -17,13 +17,13 @@ testing-mockito-kotlin = "5.4.0"
 
 androidTools = "31.13.2"
 
-androidx-navigation-ui-ktx = "2.10.0"
-androidx-navigation-fragment-ktx = "2.10.0"
+androidx-navigation-ui-ktx = "2.10.2"
+androidx-navigation-fragment-ktx = "2.10.2"
 androidx-preference-ktx = "1.2.1"
-androidx-core-ktx = "1.19.0"
+androidx-core-ktx = "1.19.1"
 androidx-core-splashscreen = "1.2.0"
 androidx-activity-ktx = "1.13.0"
-androidx-fragment-ktx = "1.9.0"
+androidx-fragment-ktx = "1.9.1"
 
 androidx-material = "1.14.0"
 androidx-documentfile = "1.0.1"
@@ -44,7 +44,7 @@ androidx-testing-junit = "1.3.0"
 androidx-testing-espresso = "3.6.1"
 robolectric = "4.16.1"
 
-compose-coil = "3.6.2"
+compose-coil = "3.6.3"
 compose-activity = "1.9.3"
 compose-lazyColumnScrollbar = "2.2.0"
 compose-material3Android = "1.3.1"
@@ -53,7 +53,7 @@ compose-bom = "2026.08.00"
 
 gson = "2.14.0"
 jsoup = "1.23.1"
-room = "2.8.4"
+room = "2.8.5"
 junit = "4.13.2"
 
 # Lua and YAML dependencies
