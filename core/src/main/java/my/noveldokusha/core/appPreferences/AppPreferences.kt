@@ -320,10 +320,39 @@ class AppPreferences @Inject constructor(
     }
 
     val APP_THEME = object : Preference<String>("APP_THEME") {
-        override var value by SharedPreference_String(name, preferences, "DEFAULT")
+        override var value by SharedPreference_String(name, preferences, "PAPER")
     }
     val THEME_DARK_MODE = object : Preference<String>("THEME_DARK_MODE") {
         override var value by SharedPreference_String(name, preferences, "SYSTEM")
+    }
+    // Redesign home: one source per homepage category. Map key = HomeFeed label
+    // ("For you", "Trending", "Latest", "Recently updated"), value = the source
+    // baseUrl whose catalog fills that category's row on the homepage.
+    // Missing key = category not set up yet (shows its "no source chosen" state).
+    val HOME_FEED_SOURCE_MAP = object : Preference<Map<String, String>>("HOME_FEED_SOURCE_MAP") {
+        override var value by SharedPreference_Serializable<Map<String, String>>(
+            name = name,
+            sharedPreferences = preferences,
+            defaultValue = emptyMap(),
+            encode = { Json.encodeToString(it) },
+            decode = { Json.decodeFromString(it) }
+        )
+    }
+    // Redesign home: which feed tabs are visible on the homepage. Empty set = all feeds.
+    val HOME_FEEDS_VISIBLE = object : Preference<Set<String>>("HOME_FEEDS_VISIBLE") {
+        override var value by SharedPreference_StringSet(name, preferences, emptySet())
+    }
+    // Global search source priority: user-dragged order of source baseUrls.
+    // Sources listed here appear first (in this exact order) as search result rows.
+    // Sources not listed keep their natural order after them.
+    val GLOBAL_SEARCH_SOURCE_ORDER = object : Preference<List<String>>("GLOBAL_SEARCH_SOURCE_ORDER") {
+        override var value by SharedPreference_Serializable<List<String>>(
+            name = name,
+            sharedPreferences = preferences,
+            defaultValue = listOf(),
+            encode = { Json.encodeToString(it) },
+            decode = { Json.decodeFromString(it) }
+        )
     }
     val READER_FONT_SIZE = object : Preference<Float>("READER_FONT_SIZE") {
         override var value by SharedPreference_Float(name, preferences, 14f)

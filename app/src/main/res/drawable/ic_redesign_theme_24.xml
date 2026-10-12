@@ -1,0 +1,23 @@
+<!-- Prototype appearance icon: crescent moon + dots (stroke style) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M12,3a9,9 0 1,0 9,9c0,-1 -0.8,-1.8 -1.8,-1.8h-1.5a1.6,1.6 0 0,1 -1.5,-2.2A4.8,4.8 0 0,0 12,3z"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.65"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <path
+        android:pathData="M7.5,11a0.8,0.8 0 1,0 1.6,0a0.8,0.8 0 1,0 -1.6,0z"
+        android:fillColor="#000000"/>
+    <path
+        android:pathData="M10,7.5a0.8,0.8 0 1,0 1.6,0a0.8,0.8 0 1,0 -1.6,0z"
+        android:fillColor="#000000"/>
+    <path
+        android:pathData="M15,7.6a0.8,0.8 0 1,0 1.6,0a0.8,0.8 0 1,0 -1.6,0z"
+        android:fillColor="#000000"/>
+</vector>

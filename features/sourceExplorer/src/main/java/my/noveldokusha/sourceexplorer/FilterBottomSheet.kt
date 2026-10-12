@@ -24,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import my.noveldokusha.coreui.theme.colorAccent
+import my.noveldokusha.coreui.components.NovelaFilterChip
 import my.noveldokusha.scraper.ActiveFilters
 import my.noveldokusha.scraper.FilterHistoryEntry
 import my.noveldokusha.scraper.FilterPreset
@@ -342,13 +343,10 @@ private fun CheckboxSection(filter: LuaFilter.CheckboxGroup, included: Set<Strin
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 filter.options.sortedBy { it.label.lowercase() }.forEach { opt ->
                     val isIncluded = opt.value in included
-                    FilterChip(
+                    NovelaFilterChip(
                         selected = isIncluded,
                         onClick = { onToggle(opt.value) },
-                        label = { Text(opt.label) },
-                        leadingIcon = if (isIncluded) ({ Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }) else null,
-                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = colorAccent().copy(alpha = 0.15f), selectedLabelColor = colorAccent(), selectedLeadingIconColor = colorAccent()),
-                        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = isIncluded, selectedBorderColor = colorAccent(), selectedBorderWidth = 1.5.dp)
+                        label = opt.label,
                     )
                 }
             }
@@ -478,13 +476,10 @@ private fun TagInputSection(
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 8.dp)) {
                 selectedValues.forEach { value ->
                     val label = filter.options.find { it.value == value }?.label ?: value
-                    FilterChip(
+                    NovelaFilterChip(
                         selected = true,
                         onClick = { onToggle(value) },
-                        label = { Text(label) },
-                        trailingIcon = { Icon(Icons.Filled.Close, "Remove", modifier = Modifier.size(FilterChipDefaults.IconSize)) },
-                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = colorAccent().copy(alpha = 0.15f), selectedLabelColor = colorAccent()),
-                        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = true, selectedBorderColor = colorAccent(), selectedBorderWidth = 1.5.dp)
+                        label = label,
                     )
                 }
             }

@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -24,6 +25,7 @@ import my.noveldokusha.core.rememberResolvedBookImagePath
 import my.noveldokusha.coreui.components.BookImageButtonView
 import my.noveldokusha.core.appPreferences.SourceStripPosition
 import my.noveldokusha.coreui.components.MyButton
+import my.noveldokusha.coreui.components.NovelaFilterChip
 import my.noveldokusha.feature.local_database.tables.Book
 import my.noveldokusha.scraper.SourceInterface
 import my.noveldokusha.scraper.displayName
@@ -46,9 +48,23 @@ fun MigrationBookPickerScreen(
     onStartSearch: () -> Unit,
 ) {
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.migration_select_books, sourceName)) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
+                title = {
+                    Text(
+                        stringResource(R.string.migration_select_books, sourceName),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onPressBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
@@ -74,23 +90,16 @@ fun MigrationBookPickerScreen(
                         .padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    FilterChip(
+                    NovelaFilterChip(
                         selected = targetSource == null,
                         onClick = { onSetTargetSource(null) },
-                        label = { Text(stringResource(R.string.all_sources), style = MaterialTheme.typography.labelSmall) },
+                        label = stringResource(R.string.all_sources),
                     )
                     targetSources.forEach { source ->
-                        FilterChip(
+                        NovelaFilterChip(
                             selected = targetSource == source,
                             onClick = { onSetTargetSource(source) },
-                            label = {
-                                Text(
-                                    source.displayName(),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            },
+                            label = source.displayName(),
                         )
                     }
                 }
@@ -193,7 +202,8 @@ fun MigrationBookPickerScreen(
                 enabled = selectedBooks.isNotEmpty(),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .navigationBarsPadding(),
             )
         }
     }

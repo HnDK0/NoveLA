@@ -18,6 +18,7 @@ dependencies {
     implementation(projects.networking)
     implementation(projects.tooling.localDatabase)
     implementation(projects.features.extensions)
+    implementation(projects.tooling.epubImporter)
     implementation(projects.tooling.novelMigration)
 
     implementation(libs.compose.androidx.activity)

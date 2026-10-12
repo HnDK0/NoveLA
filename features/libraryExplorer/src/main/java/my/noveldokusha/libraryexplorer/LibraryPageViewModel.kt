@@ -145,6 +145,41 @@ private fun Sequence<BookWithContext>.applyCategoryFilter(
     }
 }
 
+/**
+ * Pure library sort — extracted from the ViewModel for unit testing.
+ * ponytail: Kotlin sort on the already-filtered list; stable + O(n log n).
+ * SOURCE groups by source name (unknown sources sink to the end via "~"),
+ * titles as the tie-breaker inside each source shelf.
+ */
+internal fun sortLibraryBooks(
+    books: List<BookWithContext>,
+    sortConfig: SortConfig,
+    sourceResolver: (String) -> String?,
+): List<BookWithContext> = when (sortConfig.direction) {
+    SortDirection.ASC -> when (sortConfig.option) {
+        LibrarySortOption.TITLE -> books.sortedBy { it.book.title.lowercase() }
+        LibrarySortOption.UNREAD_CHAPTERS -> books.sortedBy { it.chaptersCount - it.chaptersReadCount }
+        LibrarySortOption.LAST_READ -> books.sortedBy { it.book.lastReadEpochTimeMilli }
+        LibrarySortOption.LAST_UPDATE -> books.sortedBy { it.book.lastUpdateEpochTimeMilli }
+        LibrarySortOption.ADDED -> books.sortedBy { it.book.addedToLibraryEpochTimeMilli }
+        LibrarySortOption.SOURCE -> books.sortedWith(
+            compareBy<BookWithContext> { sourceResolver(it.book.url) ?: "~" }
+                .thenBy { it.book.title.lowercase() }
+        )
+    }
+    SortDirection.DESC -> when (sortConfig.option) {
+        LibrarySortOption.TITLE -> books.sortedByDescending { it.book.title.lowercase() }
+        LibrarySortOption.UNREAD_CHAPTERS -> books.sortedByDescending { it.chaptersCount - it.chaptersReadCount }
+        LibrarySortOption.LAST_READ -> books.sortedByDescending { it.book.lastReadEpochTimeMilli }
+        LibrarySortOption.LAST_UPDATE -> books.sortedByDescending { it.book.lastUpdateEpochTimeMilli }
+        LibrarySortOption.ADDED -> books.sortedByDescending { it.book.addedToLibraryEpochTimeMilli }
+        LibrarySortOption.SOURCE -> books.sortedWith(
+            compareByDescending<BookWithContext> { sourceResolver(it.book.url) ?: "~" }
+                .thenBy { it.book.title.lowercase() }
+        )
+    }
+}
+
 @HiltViewModel
 internal class LibraryPageViewModel @Inject constructor(
     private val appRepository: AppRepository,
@@ -420,22 +455,7 @@ internal class LibraryPageViewModel @Inject constructor(
         categoryFilteredBooks,
         preferences.LIBRARY_SORT_CONFIG.flow()
     ) { books, sortConfig ->
-        when (sortConfig.direction) {
-            SortDirection.ASC -> when (sortConfig.option) {
-                LibrarySortOption.TITLE -> books.sortedBy { it.book.title.lowercase() }
-                LibrarySortOption.UNREAD_CHAPTERS -> books.sortedBy { it.chaptersCount - it.chaptersReadCount }
-                LibrarySortOption.LAST_READ -> books.sortedBy { it.book.lastReadEpochTimeMilli }
-                LibrarySortOption.LAST_UPDATE -> books.sortedBy { it.book.lastUpdateEpochTimeMilli }
-                LibrarySortOption.ADDED -> books.sortedBy { it.book.addedToLibraryEpochTimeMilli }
-            }
-            SortDirection.DESC -> when (sortConfig.option) {
-                LibrarySortOption.TITLE -> books.sortedByDescending { it.book.title.lowercase() }
-                LibrarySortOption.UNREAD_CHAPTERS -> books.sortedByDescending { it.chaptersCount - it.chaptersReadCount }
-                LibrarySortOption.LAST_READ -> books.sortedByDescending { it.book.lastReadEpochTimeMilli }
-                LibrarySortOption.LAST_UPDATE -> books.sortedByDescending { it.book.lastUpdateEpochTimeMilli }
-                LibrarySortOption.ADDED -> books.sortedByDescending { it.book.addedToLibraryEpochTimeMilli }
-            }
-        }
+        sortLibraryBooks(books, sortConfig, ::resolveSourceName)
     }
         .onEach { isLibraryLoaded = true }
         .toState(viewModelScope, listOf())

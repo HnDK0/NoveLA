@@ -1,6 +1,8 @@
 package my.noveldokusha.tooling.novel_migration.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -63,14 +65,23 @@ fun MigrationTabContent(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
             contentPadding = PaddingValues(bottom = 300.dp),
         ) {
-            item {
+            item(key = "migration-heading") {
+                // Editorial page-heading (prototype .page-heading)
                 Text(
-                    text = stringResource(R.string.sources),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 8.dp),
+                    text = "MOVE YOUR SHELF",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.4.sp,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
+                )
+                Text(
+                    text = stringResource(R.string.migration_tab),
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium,
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 6.dp),
                 )
             }
 
@@ -115,9 +126,21 @@ fun MigrationTabContent(
                         }
                     },
                 )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 60.dp),
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                )
             }
 
             if (state.unknownCount > 0) {
+                item(key = "unknown-source-divider") {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 60.dp),
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                    )
+                }
                 item(key = "unknown-source") {
                     SlimListItem(
                         onClick = onUnknownSourceClick,

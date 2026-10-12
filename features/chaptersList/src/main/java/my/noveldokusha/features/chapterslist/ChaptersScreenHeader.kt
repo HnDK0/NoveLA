@@ -2,7 +2,7 @@ package my.noveldokusha.features.chapterslist
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,9 +10,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,31 +23,20 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BookmarkAdded
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Flag
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.GTranslate
-import androidx.compose.material.icons.automirrored.outlined.List
-import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.Surface
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,26 +45,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import my.noveldokusha.coreui.components.BookImageButtonView
-import my.noveldokusha.coreui.components.BookRatingChip
-import my.noveldokusha.core.appPreferences.SourceStripPosition
 import my.noveldokusha.coreui.components.ExpandableText
 import my.noveldokusha.coreui.components.ImageView
 import my.noveldokusha.coreui.theme.ImageBorderShape
 import my.noveldokusha.coreui.theme.clickableNoIndicator
 import my.noveldokusha.chapterslist.R
+import my.noveldokusha.core.isLocalUri
 import my.noveldokusha.core.rememberResolvedBookImagePath
+import my.noveldokusha.strings.R as StringsR
 
+/**
+ * Prototype detail page header (pages/detail):
+ * fixed-size cover + editorial title block, 3-column stats grid,
+ * primary action row, source card, book tools and chapter heading.
+ * All information comes from the real book state — no decorative fakes.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ChaptersScreenHeader(
@@ -97,6 +90,10 @@ internal fun ChaptersScreenHeader(
     modifier: Modifier = Modifier,
     onCoverLongClick: () -> Unit,
     onGlobalSearchClick: (input: String, contentType: String) -> Unit,
+    onResumeReading: () -> Unit,
+    onOpenInBrowser: (String) -> Unit,
+    onDownloadAllChapters: () -> Unit,
+    onDownloadNext100Chapters: () -> Unit,
     onScrollToLastRead: (() -> Unit)?,
     onScrollToChapter: () -> Unit,
     bookCategory: String,
@@ -111,394 +108,493 @@ internal fun ChaptersScreenHeader(
         )
     } ?: R.drawable.ic_baseline_empty_24
 
-    Box(modifier = modifier) {
-        Box(Modifier.matchParentSize()) {
-            ImageView(
-                imageModel = coverImageModel,
-                referer = coverReferer,
-                contentScale = ContentScale.FillWidth,
-                modifier = Modifier
-                    .alpha(0.2f)
-                    .fillMaxSize()
-            )
+    Column(
+        modifier = modifier
+            .padding(top = paddingValues.calculateTopPadding())
+            .padding(horizontal = 16.dp),
+    ) {
+        // — Hero (prototype .detail-hero): fixed cover + title block —
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            var showImageFullScreen by rememberSaveable { mutableStateOf(false) }
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0f to MaterialTheme.colorScheme.background.copy(alpha = 0f),
-                            0.3f to MaterialTheme.colorScheme.background.copy(alpha = 0f),
-                            1f to MaterialTheme.colorScheme.background,
-                        )
-                    )
-            )
-        }
-        Column(
-            modifier = Modifier
-                .padding(top = paddingValues.calculateTopPadding())
-                .padding(horizontal = 14.dp),
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    .width(118.dp)
+                    .aspectRatio(118f / 170f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickableNoIndicator { showImageFullScreen = true },
             ) {
-                var showImageFullScreen by rememberSaveable { mutableStateOf(false) }
-                BookImageButtonView(
-                    title = "",
-                    coverImageModel = coverImageModel,
+                ImageView(
+                    imageModel = coverImageModel,
                     referer = coverReferer,
-                    onClick = { showImageFullScreen = true },
-                    onLongClick = onCoverLongClick,
-                    sourceStripPosition = SourceStripPosition.BelowCover,
-                    modifier = Modifier.weight(1f)
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
                 )
-                if (showImageFullScreen) Dialog(
-                    onDismissRequest = { showImageFullScreen = false },
-                    properties = DialogProperties(
-                        usePlatformDefaultWidth = false,
-                        dismissOnBackPress = true,
-                        dismissOnClickOutside = true
-                    )
-                ) {
-                    // Фон не закрываем: окно диалога прозрачно, полупрозрачное
-                    // затемнение даёт platform dim (FLAG_DIM_BEHIND), как в
-                    // исходной версии. Клик по экрану закрывает.
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickableNoIndicator { showImageFullScreen = false },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        ImageView(
-                            imageModel = coverImageModel,
-                            referer = coverReferer,
-                            // Как у коверов в каталоге: скругление ImageBorderShape + отступы
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .clip(ImageBorderShape)
-                                .fillMaxWidth()
-                                .aspectRatio(1f / 1.45f)
-                                .clickableNoIndicator { showImageFullScreen = false },
-                            // Crop, как у коверов в каталоге: картинка заполняет
-                            // рамку и скругление углов реально видно.
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                }
-
-                Column(
-                    modifier = Modifier
-                        .padding(top = 16.dp)
-                        .fillMaxHeight()
-                        .weight(1f),
-                ) {
-                    SelectionContainer {
-                        // Главное название книги: без ограничения строк,
-                        // чтобы длинные названия отображались полностью.
-                        Text(
-                            text = translatedTitle ?: bookState.title,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clickableNoIndicator {
-                                onGlobalSearchClick(bookState.title, bookState.contentType)
-                            }
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    // Source
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Outlined.Public,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        SelectionContainer {
-                            Text(
-                                text = sourceCatalogName,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    // Прогресс прочитанных глав
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.List,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "$readChapters / $numberOfChapters",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        LinearProgressIndicator(
-                            progress = { if (numberOfChapters > 0) readChapters.toFloat() / numberOfChapters else 0f },
-                            modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-                            gapSize = 0.dp,
-                            drawStopIndicator = {},
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${if (numberOfChapters > 0) readChapters * 100 / numberOfChapters else 0}%",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    // Статус и дата последнего обновления, парсятся с сайта источника.
-                    // Две отдельные строки: в одну они не помещаются.
-                    if (status.isNotBlank() || lastUpdateDate.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Column {
-                            if (status.isNotBlank()) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Flag,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = stringResource(R.string.book_status_format, status),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            if (lastUpdateDate.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Update,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = stringResource(R.string.book_last_update_format, lastUpdateDate),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    // Rating
-                    if (rating.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-                    BookRatingChip(rating)
-                    // Category chip
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Outlined.Folder,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        val categoryLabel = when (bookCategory) {
-                            "" -> stringResource(R.string.reading)
-                            "Completed" -> stringResource(R.string.completed)
-                            else -> bookCategory
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
-                            modifier = Modifier.clickable(
-                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                indication = null,
-                                onClick = onCategoryClick,
-                            ),
-                        ) {
-                            Text(
-                                text = categoryLabel,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
-                        }
-                    }
-                    // Divider
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        thickness = Dp.Hairline,
-                    )
-                    // Genres
-                    if (genres.isNotEmpty()) {
-                        val genresCollapsedCount = 4
-                        var genresExpanded by rememberSaveable { mutableStateOf(false) }
-                        val visibleGenres = if (genresExpanded || genres.size <= genresCollapsedCount)
-                            genres
-                        else
-                            genres.take(genresCollapsedCount)
-
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .animateContentSize()
-                                .clickable(
-                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = { if (genres.size > genresCollapsedCount) genresExpanded = !genresExpanded }
-                                )
-                        ) {
-                            visibleGenres.forEach { genre ->
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.surface,
-                                    border = BorderStroke(Dp.Hairline, MaterialTheme.colorScheme.outline),
-                                ) {
-                                    Text(
-                                        text = genre,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
-                            }
-                            if (!genresExpanded && genres.size > genresCollapsedCount) {
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    border = BorderStroke(Dp.Hairline, MaterialTheme.colorScheme.outline),
-                                    modifier = Modifier.clickable(
-                                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                        indication = null,
-                                        onClick = { genresExpanded = true }
-                                    ),
-                                ) {
-                                    Text(
-                                        text = "+${genres.size - genresCollapsedCount}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
             }
-
-            // Description
-            val displayDesc = (translatedDescription ?: bookState.description).trim()
-            if (displayDesc.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                val descText by remember(displayDesc) { derivedStateOf { displayDesc } }
-                SelectionContainer {
-                    ExpandableText(
-                        text = descText,
-                        linesForExpand = 3,
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Кнопки навигации по главам
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
+            if (showImageFullScreen) Dialog(
+                onDismissRequest = { showImageFullScreen = false },
+                properties = DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = true
+                )
             ) {
-                // Кнопка "К последней читаемой"
-                if (onScrollToLastRead != null) {
-                    Button(
-                        onClick = onScrollToLastRead,
-                        shape = my.noveldokusha.coreui.theme.shapes.large,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickableNoIndicator { showImageFullScreen = false },
+                    contentAlignment = Alignment.Center
+                ) {
+                    ImageView(
+                        imageModel = coverImageModel,
+                        referer = coverReferer,
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .clip(ImageBorderShape)
+                            .fillMaxWidth()
+                            .aspectRatio(1f / 1.45f)
+                            .clickableNoIndicator { showImageFullScreen = false },
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .weight(1f),
+            ) {
+                Text(
+                    text = stringResource(StringsR.string.source_dot_novel_details, sourceCatalogName).uppercase(),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 8.sp,
+                        letterSpacing = 1.2.sp,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(6.dp))
+                SelectionContainer {
+                    Text(
+                        text = translatedTitle ?: bookState.title,
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 24.sp,
                         ),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.BookmarkAdded,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = stringResource(id = R.string.scroll_to_last_read_chapter),
-                            style = MaterialTheme.typography.labelMedium,
-                            maxLines = 2,
-                            textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.clickableNoIndicator {
+                            onGlobalSearchClick(bookState.title, bookState.contentType)
+                        }
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                // Prototype .detail-tags: genre pills + accent status pill
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    genres.take(3).forEach { genre ->
+                        DetailPill(text = genre)
+                    }
+                    if (status.isNotBlank()) {
+                        DetailPill(
+                            text = status,
+                            accent = true,
                         )
                     }
                 }
+            }
+        }
 
-                if (onScrollToLastRead == null) {
-                    Spacer(modifier = Modifier.weight(1f))
+        Spacer(Modifier.height(14.dp))
+
+        // — Stats grid (prototype .detail-stats): rating | read | status+updated —
+        val statusLabel = if (bookState.completed) stringResource(StringsR.string.completed)
+        else stringResource(StringsR.string.reading)
+        val updatedLabel = if (lastUpdateDate.isNotBlank())
+            stringResource(StringsR.string.last_update_short, lastUpdateDate)
+        else stringResource(StringsR.string.original_catalogue)
+        Surface(
+            shape = RoundedCornerShape(11.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                DetailStatCell(
+                    value = rating.ifBlank { "—" },
+                    label = stringResource(StringsR.string.rating_label),
+                    modifier = Modifier.weight(1f),
+                )
+                VerticalHairline()
+                DetailStatCell(
+                    value = "$readChapters / $numberOfChapters",
+                    label = stringResource(StringsR.string.reading_progress_label),
+                    modifier = Modifier.weight(1f),
+                )
+                VerticalHairline()
+                DetailStatCell(
+                    value = statusLabel,
+                    label = updatedLabel,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        // — Actions row (prototype .detail-actions): primary continue + icon tools —
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Surface(
+                onClick = onResumeReading,
+                shape = RoundedCornerShape(11.dp),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.surface,
+                    )
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        text = if (readChapters > 0) stringResource(StringsR.string.resume_reading)
+                        else stringResource(StringsR.string.start_reading),
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.surface,
+                    )
                 }
+            }
 
-                // Кнопка "Перевод" — только для новелл: на страницах
-                // видео- и манга-книг переводчик не используется.
-                if (showTranslateButton) {
-                    Button(
-                        onClick = {
-                            if (translatedTitle != null || translatedDescription != null) {
-                                onClearTranslationClick()
-                            } else {
-                                onTranslateClick()
-                            }
-                        },
-                        shape = my.noveldokusha.coreui.theme.shapes.large,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        modifier = Modifier,
-                    ) {
+            DetailIconButton(
+                content = {
+                    Icon(
+                        Icons.Filled.Search,
+                        contentDescription = stringResource(id = R.string.go_to_chapter),
+                        modifier = Modifier.size(17.dp),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                },
+                onClick = onScrollToChapter,
+            )
+
+            if (showTranslateButton) {
+                DetailIconButton(
+                    content = {
                         if (isTranslating) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
+                                modifier = Modifier.size(15.dp),
                                 strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         } else {
                             Icon(
-                                imageVector = if (translatedTitle != null || translatedDescription != null) Icons.Outlined.Close else Icons.Outlined.GTranslate,
-                                contentDescription = if (translatedTitle != null || translatedDescription != null) stringResource(R.string.clear_translation) else stringResource(R.string.translate),
-                                modifier = Modifier.size(16.dp)
+                                imageVector = if (translatedTitle != null || translatedDescription != null)
+                                    Icons.Outlined.Close else Icons.Outlined.GTranslate,
+                                contentDescription = if (translatedTitle != null || translatedDescription != null)
+                                    stringResource(R.string.clear_translation) else stringResource(R.string.translate),
+                                modifier = Modifier.size(17.dp),
+                                tint = MaterialTheme.colorScheme.onSurface,
                             )
                         }
-                    }
-                }
+                    },
+                    onClick = {
+                        if (translatedTitle != null || translatedDescription != null) {
+                            onClearTranslationClick()
+                        } else {
+                            onTranslateClick()
+                        }
+                    },
+                )
+            }
+        }
 
-                // Кнопка "Перейти к главе"
-                Button(
-                    onClick = onScrollToChapter,
-                    shape = my.noveldokusha.coreui.theme.shapes.large,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    modifier = Modifier,
+        // — Source card (prototype .detail-source-card) —
+        if (!bookState.url.isLocalUri) {
+            Spacer(Modifier.height(12.dp))
+            Surface(
+                shape = RoundedCornerShape(11.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Search,
-                        contentDescription = stringResource(id = R.string.go_to_chapter),
-                        modifier = Modifier.size(16.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(27.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "↗",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    Spacer(Modifier.width(9.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(StringsR.string.open_source_page),
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = stringResource(StringsR.string.original_catalogue),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        )
+                    }
+                    Text(
+                        text = stringResource(StringsR.string.open_in_browser),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable(onClick = { onOpenInBrowser(bookState.url) }),
                     )
                 }
             }
         }
+
+        // — About this story (prototype .synopsis) —
+        val displayDesc = (translatedDescription ?: bookState.description).trim()
+        if (displayDesc.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = stringResource(StringsR.string.about_this_story).uppercase(),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                    letterSpacing = 1.4.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(7.dp))
+            SelectionContainer {
+                ExpandableText(
+                    text = displayDesc,
+                    linesForExpand = 4,
+                )
+            }
+        }
+
+        // — Category + genres —
+        Spacer(Modifier.height(10.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val categoryLabel = when (bookCategory) {
+                "" -> stringResource(R.string.reading)
+                "Completed" -> stringResource(R.string.completed)
+                else -> bookCategory
+            }
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                modifier = Modifier.clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                    onClick = onCategoryClick,
+                ),
+            ) {
+                Text(
+                    text = categoryLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+            if (genres.size > 3) {
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "+${genres.size - 3}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                )
+            }
+        }
+
+        // — Chapter heading (prototype .chapter-heading) —
+        Spacer(Modifier.height(20.dp))
+        Row(
+            verticalAlignment = Alignment.Bottom,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(StringsR.string.reading_order_eyebrow).uppercase(),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        letterSpacing = 1.4.sp,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = stringResource(StringsR.string.chapters),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        text = numberOfChapters.toString(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Text(
+                text = stringResource(StringsR.string.download_all_chapters),
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clickable(onClick = onDownloadAllChapters)
+                    .padding(start = 8.dp, top = 6.dp, bottom = 6.dp),
+            )
+        }
+
+        // — Chapter tools (prototype .chapter-tools) —
+        Spacer(Modifier.height(8.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Surface(
+                onClick = onDownloadNext100Chapters,
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = stringResource(StringsR.string.download_next_100_chapters),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 7.dp),
+                )
+            }
+            if (onScrollToLastRead != null) {
+                Surface(
+                    onClick = onScrollToLastRead,
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        text = stringResource(R.string.scroll_to_last_read_chapter),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 7.dp),
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(5.dp))
+    }
+}
+
+/** Prototype `.pill`: hairline rounded-99 tag; accent variant uses soft primary fill. */
+@Composable
+private fun DetailPill(text: String, accent: Boolean = false) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall.copy(
+            fontSize = 9.sp,
+            fontWeight = FontWeight.SemiBold,
+        ),
+        color = if (accent) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        modifier = Modifier
+            .then(
+                if (accent) Modifier
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                        RoundedCornerShape(99.dp),
+                    )
+                else Modifier
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant,
+                        RoundedCornerShape(99.dp),
+                    )
+            )
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+    )
+}
+
+/** One stats-grid cell: bold value over a muted caption. */
+@Composable
+private fun RowScope.DetailStatCell(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.padding(vertical = 9.dp, horizontal = 3.dp),
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun VerticalHairline() {
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .fillMaxHeight()
+            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+    )
+}
+
+/** Prototype `.action-button.icon-only`: 39dp bordered square tool. */
+@Composable
+private fun DetailIconButton(
+    content: @Composable () -> Unit,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(11.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.size(width = 39.dp, height = 40.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) { content() }
     }
 }

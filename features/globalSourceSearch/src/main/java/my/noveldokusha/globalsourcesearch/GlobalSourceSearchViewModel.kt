@@ -120,6 +120,9 @@ internal class GlobalSourceSearchViewModel @Inject constructor(
                 .collect { sources ->
                     sources
                         .filter { matchesScope(it.catalog.contentType, scope) }
+                        // User-dragged source priority (settings): priority rows first,
+                        // in the dragged order; the rest keep their natural order.
+                        .let { SearchSourceOrder.apply(it, appPreferences.GLOBAL_SEARCH_SOURCE_ORDER.value) { s -> s.catalog.baseUrl.trimEnd('/') } }
                         .map { source ->
                             SourceResults(
                                 source = source,

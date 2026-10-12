@@ -1,9 +1,15 @@
 package my.noveldokusha.historyexplorer
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,12 +23,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -42,9 +50,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -61,6 +71,7 @@ import java.util.concurrent.TimeUnit
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
+    onClose: (() -> Unit)? = null,
     navigationRouteViewModel: NavigationRouteViewModel = viewModel(),
     historyViewModel: HistoryViewModel = viewModel(),
 ) {
@@ -73,8 +84,19 @@ fun HistoryScreen(
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = MaterialTheme.colorScheme.background,
                 ),
+                navigationIcon = {
+                    // When hosted as the redesign overlay page, show a back arrow
+                    if (onClose != null) {
+                        IconButton(onClick = onClose) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(StringsR.string.go_back)
+                            )
+                        }
+                    }
+                },
                 title = {
                     Text(
                         text = stringResource(id = StringsR.string.title_history),
@@ -129,18 +151,36 @@ fun HistoryScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Prototype .empty-state: dashed border, serif title, muted body
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .fillMaxWidth()
+                            .padding(vertical = 36.dp, horizontal = 18.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surface)
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant,
+                                RoundedCornerShape(14.dp)
+                            )
+                            .padding(horizontal = 18.dp, vertical = 36.dp),
+                    ) {
                         Icon(
                             Icons.Filled.History,
                             contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            modifier = Modifier.size(40.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(12.dp))
                         Text(
                             text = stringResource(StringsR.string.no_history_yet),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = FontFamily.Serif,
+                                fontWeight = FontWeight.Medium,
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -149,27 +189,67 @@ fun HistoryScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    // Bottom clearance for the system navigation bar / gesture bar.
+                    contentPadding = PaddingValues(
+                        bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
                 ) {
+                    // — Editorial page heading (prototype .page-heading) —
+                    item(key = "heading") {
+                        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                            Text(
+                                text = stringResource(StringsR.string.history_eyebrow).uppercase(),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp,
+                                    letterSpacing = 1.4.sp,
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = stringResource(id = StringsR.string.title_history),
+                                style = MaterialTheme.typography.headlineMedium.copy(
+                                    fontFamily = FontFamily.Serif,
+                                    fontWeight = FontWeight.Medium,
+                                ),
+                                color = MaterialTheme.colorScheme.onBackground,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = stringResource(StringsR.string.history_page_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     items(state.items, key = { it.bookUrl }) { item ->
-                        HistoryItemCard(
-                            item = item,
-                            onClick = {
-                                val now = System.currentTimeMillis()
-                                if (now - lastClickTime.value >= 200L) {
-                                    lastClickTime.value = now
-                                    navigationRouteViewModel.chapters(
-                                        context = context,
-                                        bookMetadata = BookMetadata(
-                                            title = item.bookTitle,
-                                            url = item.bookUrl,
-                                            coverImageUrl = item.bookCoverUrl,
-                                        )
-                                    ).let(context::startActivity)
-                                }
-                            },
-                            onLongClick = { historyViewModel.delete(item.bookUrl) }
-                        )
+                        Column {
+                            HistoryItemCard(
+                                item = item,
+                                onClick = {
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastClickTime.value >= 200L) {
+                                        lastClickTime.value = now
+                                        navigationRouteViewModel.chapters(
+                                            context = context,
+                                            bookMetadata = BookMetadata(
+                                                title = item.bookTitle,
+                                                url = item.bookUrl,
+                                                coverImageUrl = item.bookCoverUrl,
+                                            )
+                                        ).let(context::startActivity)
+                                    }
+                                },
+                                onLongClick = { historyViewModel.delete(item.bookUrl) }
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 76.dp, end = 16.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+                                thickness = 1.dp,
+                            )
+                        }
                     }
                 }
             }

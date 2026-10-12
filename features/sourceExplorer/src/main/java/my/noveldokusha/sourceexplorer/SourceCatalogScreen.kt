@@ -34,6 +34,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import my.noveldokusha.coreui.components.AnimatedTransition
@@ -86,33 +88,24 @@ internal fun SourceCatalogScreen(
                         when (target) {
                             ToolbarMode.MAIN -> TopAppBar(
                                 colors = TopAppBarDefaults.topAppBarColors(
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
+                                    containerColor = MaterialTheme.colorScheme.background,
+                                    scrolledContainerColor = MaterialTheme.colorScheme.background,
                                 ),
                                 title = {
-                                    Column {
-                                        val title = state.sourceCatalogName.value
-                                            ?: if (state.sourceCatalogNameStrId.value != 0)
-                                                stringResource(id = state.sourceCatalogNameStrId.value)
-                                            else ""
-                                        val (contentTypeLabel, contentTypeColor) = when (state.sourceContentType) {
-                                            "manga" -> stringResource(StringsR.string.content_type_manga) to MaterialTheme.colorScheme.primary
-                                            "video" -> stringResource(StringsR.string.content_type_video) to MaterialTheme.colorScheme.secondary
-                                            else -> stringResource(StringsR.string.content_type_novel) to MaterialTheme.colorScheme.tertiary
-                                        }
-                                        Text(
-                                            text = title,
-                                            style = MaterialTheme.typography.headlineMedium,
-                                            maxLines = 1
-                                        )
-                                        Text(
-                                            text = "$contentTypeLabel · ${stringResource(R.string.catalog)}",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = contentTypeColor,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
+                                    // Redesign appbar: serif title, no filler subtitle
+                                    val title = state.sourceCatalogName.value
+                                        ?: if (state.sourceCatalogNameStrId.value != 0)
+                                            stringResource(id = state.sourceCatalogNameStrId.value)
+                                        else ""
+                                    Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontFamily = FontFamily.Serif,
+                                            fontWeight = FontWeight.Medium,
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
                                 },
                                 navigationIcon = {
                                     IconButton(onClick = onPressBack) {

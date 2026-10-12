@@ -37,6 +37,12 @@ class NoveldokushaAndroidComposeBestPracticesConventionPlugin : Plugin<Project> 
                 }
             }
 
+            // Compose modules carry @Preview composables but no JVM tests;
+            // Gradle 9.6 fails the unit-test task when 0 tests are discovered.
+            val testTasks = tasks.withType(org.gradle.api.tasks.testing.Test::class.java)
+            testTasks.configureEach {
+                failOnNoDiscoveredTests.set(false)
+            }
         }
     }
 }

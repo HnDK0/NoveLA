@@ -1018,6 +1018,9 @@ private fun CompactThemePreviewChip(
 }
 
 private fun getThemeAccentColor(theme: AppTheme): Long = when (theme) {
+    AppTheme.PAPER -> 0xFF53604B
+    AppTheme.NIGHT -> 0xFFB2BCA8
+    AppTheme.SEPIA -> 0xFF6D6952
     AppTheme.DEFAULT -> 0L // unused, handled via isMonet
     AppTheme.TACHIYOMI -> 0xFF0088FF
     AppTheme.GREEN_APPLE -> 0xFF188140

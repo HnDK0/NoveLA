@@ -6,10 +6,8 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -20,6 +18,9 @@ data class ChipOption(
     val count: Int = 0,
 )
 
+/**
+ * Language filter chips (redesign pill chips on a flat surface container).
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LanguageFilterChips(
@@ -37,26 +38,26 @@ fun LanguageFilterChips(
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surface,
     ) {
         FlowRow(
-            modifier = Modifier.padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             val allSelected = selected.isEmpty()
 
-            FilterChip(
+            NovelaFilterChip(
                 selected = allSelected,
                 onClick = onClearAll,
-                label = { Text(text = "All") },
+                label = "All",
             )
 
             all.forEach { option ->
-                FilterChip(
+                NovelaFilterChip(
                     selected = option.id in selected,
                     onClick = { onToggle(option.id) },
-                    label = { Text(text = option.label) },
+                    label = option.label,
+                    trailingCount = if (option.count > 0) option.count else null,
                 )
             }
         }

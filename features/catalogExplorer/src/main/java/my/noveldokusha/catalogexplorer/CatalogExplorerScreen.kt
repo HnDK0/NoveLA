@@ -1,6 +1,7 @@
 package my.noveldokusha.catalogexplorer
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.AltRoute
@@ -28,6 +30,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +61,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import my.noveldokusha.coreui.components.ChipOption
 import my.noveldokusha.coreui.components.LanguageFilterChips
+import my.noveldokusha.coreui.components.NovelaFilterChip
 import my.noveldokusha.navigation.NavigationRouteViewModel
 import my.noveldokusha.coreui.components.AddByUrlDialog
 import my.noveldokusha.extensions.ExtensionsScreen
@@ -91,6 +95,9 @@ fun CatalogExplorerScreen(
 
     val context = LocalContext.current
     var extensionsChipsVisible by rememberSaveable { mutableStateOf(false) }
+
+    // Prototype finder shortcut: import local EPUB/FB2 into the library.
+    val onImportEpub = my.noveldokusha.tooling.epub_importer.onDoImportFile()
 
     val importLuaLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -161,13 +168,23 @@ fun CatalogExplorerScreen(
             Column {
                 TopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = MaterialTheme.colorScheme.background,
                     ),
                         title = {
-                            Text(
-                                text = stringResource(R.string.title_finder),
-                                style = MaterialTheme.typography.headlineMedium
-                            )
+                            // Redesign appbar: real NoveLA logo + title (no filler copy)
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                Image(
+                                    painter = painterResource(id = my.noveldokusha.coreui.R.drawable.ic_logo),
+                                    contentDescription = "NoveLA",
+                                    modifier = Modifier.size(32.dp),
+                                )
+                                Text(
+                                    text = stringResource(R.string.title_finder),
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.padding(start = 10.dp)
+                                )
+                            }
                     },
                     actions = {
                         // Show different actions based on selected tab
@@ -193,7 +210,7 @@ fun CatalogExplorerScreen(
                     }
                 )
 
-                // Tab row with icons
+                // Prototype feed-tabs: underline indicator on surface, hairline divider
                 val selectedColor = MaterialTheme.colorScheme.onSurface
                 val unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
                 val tabTitles = listOf(
@@ -203,22 +220,26 @@ fun CatalogExplorerScreen(
                 )
                 TabRow(
                     selectedTabIndex = uiState.selectedTabIndex,
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     indicator = {
                         val tabPos = it[uiState.selectedTabIndex]
                         Box(
                             modifier = Modifier
                                 .tabIndicatorOffset(tabPos)
-                                .fillMaxSize()
-                                .padding(4.dp)
+                                .padding(horizontal = 22.dp)
+                                .height(2.dp)
                                 .background(
-                                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    RoundedCornerShape(4.dp)
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(2.dp)
                                 )
-                                .zIndex(-1f)
                         )
                     },
-                    divider = {},
+                    divider = {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            thickness = 1.dp
+                        )
+                    },
                 ) {
                     tabTitles.forEachIndexed { index, (titleRes, icon) ->
                         Tab(
@@ -270,10 +291,10 @@ fun CatalogExplorerScreen(
                                 "video" to stringResource(StringsR.string.content_type_video),
                             )
                             contentTypeOptions.forEach { (value, label) ->
-                                FilterChip(
+                                NovelaFilterChip(
                                     selected = uiState.selectedContentType == value,
                                     onClick = { viewModel.toggleContentType(value) },
-                                    label = { Text(label) },
+                                    label = label,
                                 )
                             }
                         }
@@ -310,6 +331,10 @@ fun CatalogExplorerScreen(
                         translationSettingsExtensionIds = translationSettingsExtensionIds,
                         onTranslationSettingsClick = onTranslationSettingsClick,
                         pluginEnabledMap = pluginEnabledMap,
+                        onGlobalSearchClick = onGlobalSearchClick,
+                        onAddByUrlClick = { viewModel.setShowAddByUrlDialog(true) },
+                        onImportFileClick = onImportEpub,
+                        onManageExtensionsClick = { viewModel.setTabIndex(1) },
                     )
                 }
                 1 -> {
@@ -370,12 +395,8 @@ private fun BrowseTabActions(
     onToggleLanguageChips: () -> Unit,
 ) {
     Row {
-        IconButton(onClick = onAddByUrlClick) {
-            Icon(
-                Icons.Filled.AddLink,
-                contentDescription = stringResource(R.string.add_by_url)
-            )
-        }
+        // Legacy header "Add by URL" removed — the redesigned Finder page has
+        // the "Add by URL" shortcut card in the body (single entry point).
         IconButton(onClick = onGlobalSearchClick) {
             Icon(
                 imageVector = Icons.Filled.Search,
@@ -410,7 +431,7 @@ private fun MigrationTabActions(
         }
         IconButton(onClick = onGlobalSearchClick) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.AltRoute,
+                imageVector = Icons.Filled.Search,
                 contentDescription = stringResource(R.string.search),
                 tint = MaterialTheme.colorScheme.onSurface
             )

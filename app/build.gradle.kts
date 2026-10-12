@@ -44,11 +44,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "my.novela"
+        applicationId = "com.paras.novela"
         versionCode = 39
         versionName = "1.6.1"
         base.archivesName.set("NoveLA_v$versionName")
-        manifestPlaceholders["appLabel"] = "NoveLA"
+        manifestPlaceholders["appLabel"] = "pnovela"
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
@@ -73,7 +73,7 @@ android {
         named("debug") {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            manifestPlaceholders["appLabel"] = "NoveLA Debug"
+            manifestPlaceholders["appLabel"] = "pnovela Debug"
         }
 
         named("release") {

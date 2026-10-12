@@ -31,7 +31,10 @@ import my.noveldokusha.coreui.theme.colorscheme.MidnightDuskColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.MochaColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.MonetColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.MonochromeColorScheme
+import my.noveldokusha.coreui.theme.colorscheme.NightColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.NordColorScheme
+import my.noveldokusha.coreui.theme.colorscheme.PaperColorScheme
+import my.noveldokusha.coreui.theme.colorscheme.SepiaColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.SapphireColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.StrawberryDaiquiriColorScheme
 import my.noveldokusha.coreui.theme.colorscheme.TachiyomiColorScheme
@@ -167,6 +170,9 @@ fun InternalTheme(
 
 private fun getBaseColorScheme(appTheme: AppTheme, context: Context): BaseColorScheme {
     return when (appTheme) {
+        AppTheme.PAPER -> PaperColorScheme
+        AppTheme.NIGHT -> NightColorScheme
+        AppTheme.SEPIA -> SepiaColorScheme
         AppTheme.DEFAULT -> MonetColorScheme(context)
         AppTheme.TACHIYOMI -> TachiyomiColorScheme
         AppTheme.GREEN_APPLE -> GreenAppleColorScheme

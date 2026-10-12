@@ -6,11 +6,11 @@ import androidx.compose.ui.unit.dp
 
 
 val shapes = Shapes(
-    small = RoundedCornerShape(6.dp),
-    medium = RoundedCornerShape(8.dp),
-    large = RoundedCornerShape(14.dp)
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(18.dp)
 )
 
-val ImageBorderShape = shapes.medium
+val ImageBorderShape = shapes.small
 
 val selectableMinHeight = 48.dp
