@@ -28,6 +28,7 @@
 			android:name=".features.main.MainActivity"
 			android:exported="true"
 			android:theme="@style/AppTheme.Launcher"
+			android:windowSoftInputMode="adjustResize"
 			>
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN" />

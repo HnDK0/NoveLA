@@ -7,6 +7,9 @@ enum class AppTheme(
     @StringRes val titleRes: Int,
     val isMonet: Boolean = false,
 ) {
+    PAPER(R.string.theme_name_paper),
+    NIGHT(R.string.theme_name_night),
+    SEPIA(R.string.theme_name_sepia),
     DEFAULT(R.string.theme_name_monet, isMonet = true),
     TACHIYOMI(R.string.theme_name_tachiyomi),
     GREEN_APPLE(R.string.theme_name_green_apple),

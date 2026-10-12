@@ -8,12 +8,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -36,7 +41,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.SingletonImageLoader
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
@@ -51,6 +58,12 @@ import my.noveldokusha.coreui.components.BookRatingBadge
 import my.noveldokusha.coreui.components.toContentTypeBadgeIcon
 import my.noveldokusha.core.rememberResolvedBookImagePath
 import my.noveldokusha.feature.local_database.BookWithContext
+
+/**
+ * Grid entry: either a full-span source group header or a book card.
+ * Used when the library is sorted by source to render shelf dividers.
+ */
+private data class LibraryGridEntry(val header: String?, val book: BookWithContext?, val key: String)
 
 @Composable
 internal fun LibraryPageBody(
@@ -69,6 +82,8 @@ internal fun LibraryPageBody(
     // bookUrl → переведённое название новеллы (берётся из BookTranslation).
     // Пустая/отсутствующая запись = показываем оригинал.
     translatedTitles: Map<String, String> = emptyMap(),
+    // When true (SOURCE sort), insert full-span shelf headers per source group.
+    groupBySource: Boolean = false,
 ) {
     if (list.isEmpty()) {
         Box(
@@ -94,69 +109,111 @@ internal fun LibraryPageBody(
         LazyVerticalGrid(
             state = gridState,
             columns = GridCells.Fixed(gridColumns.coerceIn(2, 6)),
-            contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp, start = 4.dp, end = 4.dp),
+            contentPadding = PaddingValues(
+                top = 4.dp,
+                // Clear the docked bottom-nav bar + system navigation insets.
+                bottom = 100.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+                start = 4.dp,
+                end = 4.dp,
+            ),
         ) {
+            // Shelf headers: O(n) single pass, recomputed only when the list changes.
+            // (list is memoized upstream; getSourceName hits a ConcurrentHashMap cache.)
+            val gridEntries = if (!groupBySource) {
+                list.map { LibraryGridEntry(null, it, it.book.url) }
+            } else {
+                buildList {
+                    var lastSource: String? = null
+                    for (b in list) {
+                        val s = getSourceName(b.book.url)
+                        if (s != lastSource) {
+                            add(LibraryGridEntry(s, null, "hdr_${s.lowercase()}"))
+                            lastSource = s
+                        }
+                        add(LibraryGridEntry(null, b, b.book.url))
+                    }
+                }
+            }
             items(
-                items = list,
-                key = { it.book.url },
-                contentType = { "book" }
-            ) {
-                val isSelected = selectedBooks[it.book.url] ?: false
-                val isRemoving = it.book.url in pendingRemoval
-                AnimatedVisibility(
-                    visible = !isRemoving,
-                    exit = fadeOut(animationSpec = tween(300)) + scaleOut(animationSpec = tween(300))
-                ) {
-                    Box {
-                        val notReadCount = (it.chaptersCount - it.chaptersReadCount).coerceAtLeast(0)
-                        BookImageButtonView(
-                            title = translatedTitles[it.book.url]?.takeIf { t -> t.isNotBlank() } ?: it.book.title,
-                            coverImageModel = rememberResolvedBookImagePath(
-                                bookUrl = it.book.url,
-                                imagePath = it.book.coverImageUrl
-                            ),
-                            onClick = { onClick(it) },
-                            onLongClick = { onLongClick(it) },
-                            sourceStripUnreadCount = notReadCount,
-                            sourceStripSourceName = getSourceName(it.book.url),
-                            sourceStripPosition = sourceStripPosition,
-                            fadeInDurationMillis = 250,
-                            topLeftBadge = {
+                items = gridEntries,
+                key = { it.key },
+                contentType = { if (it.header != null) "header" else "book" },
+                span = { entry -> GridItemSpan(if (entry.header != null) maxLineSpan else 1) }
+            ) { entry ->
+                val header = entry.header
+                if (header != null) {
+                    // Prototype shelf divider: eyebrow-caps source name + hairline
+                    Text(
+                        text = header.uppercase(),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp,
+                            letterSpacing = 1.4.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 6.dp),
+                    )
+                } else {
+                    val it = entry.book!!
+                    val isSelected = selectedBooks[it.book.url] ?: false
+                    val isRemoving = it.book.url in pendingRemoval
+                    AnimatedVisibility(
+                        visible = !isRemoving,
+                        exit = fadeOut(animationSpec = tween(300)) + scaleOut(animationSpec = tween(300))
+                    ) {
+                        Box {
+                            val notReadCount = (it.chaptersCount - it.chaptersReadCount).coerceAtLeast(0)
+                            BookImageButtonView(
+                                title = translatedTitles[it.book.url]?.takeIf { t -> t.isNotBlank() } ?: it.book.title,
+                                coverImageModel = rememberResolvedBookImagePath(
+                                    bookUrl = it.book.url,
+                                    imagePath = it.book.coverImageUrl
+                                ),
+                                onClick = { onClick(it) },
+                                onLongClick = { onLongClick(it) },
+                                sourceStripUnreadCount = notReadCount,
+                                sourceStripSourceName = getSourceName(it.book.url),
+                                sourceStripPosition = sourceStripPosition,
+                                fadeInDurationMillis = 250,
+                                topLeftBadge = {
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(4.dp)
+                                            .size(20.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(it.book.contentType.toContentTypeBadgeIcon()),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(12.dp),
+                                            tint = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    }
+                                },
+                                topRightBadge = { BookRatingBadge(rating = it.book.rating) },
+                                forceCache = true
+                            )
+
+                            // Selection overlay
+                            if (isSelectionMode && isSelected) {
                                 Box(
                                     modifier = Modifier
-                                        .padding(4.dp)
-                                        .size(20.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)),
-                                    contentAlignment = Alignment.Center
+                                        .matchParentSize()
+                                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f))
                                 ) {
                                     Icon(
-                                        painter = painterResource(it.book.contentType.toContentTypeBadgeIcon()),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(12.dp),
-                                        tint = MaterialTheme.colorScheme.onPrimary
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = stringResource(R.string.selected),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier
+                                            .align(Alignment.Center)
+                                            .size(48.dp)
                                     )
                                 }
-                            },
-                            topRightBadge = { BookRatingBadge(rating = it.book.rating) },
-                            forceCache = true
-                        )
-
-                        // Selection overlay
-                        if (isSelectionMode && isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f))
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = stringResource(R.string.selected),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier
-                                        .align(Alignment.Center)
-                                        .size(48.dp)
-                                )
                             }
                         }
                     }

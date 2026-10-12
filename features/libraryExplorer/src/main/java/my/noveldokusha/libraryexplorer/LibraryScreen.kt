@@ -2,6 +2,7 @@ package my.noveldokusha.libraryexplorer
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
@@ -28,15 +29,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.ExperimentalAnimationApi
 import android.content.Intent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.MoreVert
 import my.noveldokusha.coreui.components.AnimatedTransition
 import my.noveldokusha.coreui.components.ToolbarMode
@@ -50,12 +61,17 @@ import my.noveldokusha.feature.local_database.tables.Book
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun LibraryScreen(
+    onOpenHistory: () -> Unit = {},
     navigationRouteViewModel: NavigationRouteViewModel = viewModel()
 ) {
     val libraryModel: LibraryViewModel = viewModel()
     val pageViewModel: LibraryPageViewModel = viewModel()
     
     val uiState by libraryModel.uiState.collectAsStateWithLifecycle()
+
+    // Shelf count for the prototype appbar subtitle ("N books on your shelf")
+    // filteredList is a Compose State (Flow.toState) — read .value inside composition
+    val shelfCount = pageViewModel.filteredList.value.size
 
     val context = LocalContext.current
     val showDropdownMenu = remember { mutableStateOf(false) }
@@ -178,14 +194,25 @@ fun LibraryScreen(
                         when (target) {
                             ToolbarMode.MAIN -> TopAppBar(
                                 colors = TopAppBarDefaults.topAppBarColors(
-                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    containerColor = MaterialTheme.colorScheme.background,
                                 ),
                                 title = {
-                                    Text(
-                                        text = "NoveLA",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        color = MaterialTheme.colorScheme.onBackground
-                                    )
+                                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                        // Redesign appbar: real NoveLA logo + title (no filler copy)
+                                        androidx.compose.foundation.Image(
+                                            painter = androidx.compose.ui.res.painterResource(
+                                                id = my.noveldokusha.coreui.R.drawable.ic_logo
+                                            ),
+                                            contentDescription = "NoveLA",
+                                            modifier = Modifier.size(32.dp),
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.your_library),
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onBackground,
+                                            modifier = Modifier.padding(start = 10.dp)
+                                        )
+                                    }
                                 },
                                 actions = {
                                     if (pageViewModel.isUpdating) {
@@ -196,6 +223,14 @@ fun LibraryScreen(
                                                 tint = MaterialTheme.colorScheme.error
                                             )
                                         }
+                                    }
+                                    // Redesign: history lives off the nav (prototype has 4 tabs);
+                                    // keep the feature one tap away from the shelf.
+                                    IconButton(onClick = onOpenHistory) {
+                                        Icon(
+                                            Icons.Filled.History,
+                                            stringResource(R.string.title_history)
+                                        )
                                     }
                                     IconButton(onClick = { libraryModel.setToolbarMode(ToolbarMode.SEARCH) }) {
                                         Icon(Icons.Filled.Search, stringResource(R.string.search_for_title))
@@ -272,7 +307,9 @@ fun LibraryScreen(
                 showCategories = uiState.showCategories,
                 customCategories = uiState.customCategories,
                 onCreateCategory = { showCreateCategoryDialog = true },
-                onDeleteCategory = { libraryModel.removeCategory(it) }
+                onDeleteCategory = { libraryModel.removeCategory(it) },
+                // Source-sort renders shelf dividers per source group
+                groupBySource = uiState.sortConfig.option == my.noveldokusha.core.appPreferences.LibrarySortOption.SOURCE,
             )
         }
     )

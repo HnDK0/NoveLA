@@ -124,6 +124,9 @@ private fun ThemePreviewChip(
     onClick: () -> Unit,
 ) {
     val accentColor = when (theme) {
+        AppTheme.PAPER -> Color(0xFF53604B)
+        AppTheme.NIGHT -> Color(0xFFB2BCA8)
+        AppTheme.SEPIA -> Color(0xFF6D6952)
         AppTheme.DEFAULT -> MaterialTheme.colorScheme.primary
         AppTheme.TACHIYOMI -> HighlightDark
         AppTheme.GREEN_APPLE -> Color(0xFF188140)

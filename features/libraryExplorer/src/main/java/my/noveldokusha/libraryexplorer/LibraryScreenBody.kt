@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import my.noveldokusha.core.appPreferences.SourceStripPosition
 import my.noveldokusha.coreui.R
+import my.noveldokusha.coreui.components.NovelaFilterChip
 import my.noveldokusha.core.domain.LibraryCategory
 import my.noveldokusha.feature.local_database.BookWithContext
 
@@ -70,6 +71,8 @@ internal fun LibraryScreenBody(
     customCategories: List<String> = emptyList(),
     onCreateCategory: () -> Unit = {},
     onDeleteCategory: (String) -> Unit = {},
+    // Render full-span source shelf headers (active when sorted by source)
+    groupBySource: Boolean = false,
     viewModel: LibraryPageViewModel = viewModel(),
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
@@ -101,103 +104,56 @@ internal fun LibraryScreenBody(
                 val totalCount = catCounts.values.sum()
 
                 FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .padding(8.dp)
                 ) {
                     // "All" chip
-                    FilterChip(
+                    NovelaFilterChip(
                         selected = selectedCategories.isEmpty(),
                         onClick = { viewModel.clearCategoryFilters() },
-                        label = {
-                            Text(
-                                text = "${stringResource(R.string.all_categories)} ($totalCount)",
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                            selectedLabelColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = selectedCategories.isEmpty(),
-                            selectedBorderColor = MaterialTheme.colorScheme.primary,
-                        )
+                        label = stringResource(R.string.all_categories),
+                        trailingCount = totalCount,
                     )
                     // Category chips
                     allCategories.forEach { (category, label) ->
                         val count = catCounts[category] ?: 0
                         val isSelected = category in selectedCategories
-                        FilterChip(
+                        NovelaFilterChip(
                             selected = isSelected,
                             onClick = { viewModel.toggleCategory(category) },
-                            label = {
-                                Text(
-                                    text = "$label ($count)",
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                selectedLabelColor = MaterialTheme.colorScheme.primary,
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = isSelected,
-                                selectedBorderColor = MaterialTheme.colorScheme.primary,
-                            )
+                            label = label,
+                            trailingCount = count,
                         )
                     }
                     // "+" chip
-                    FilterChip(
+                    NovelaFilterChip(
                         selected = false,
                         onClick = onCreateCategory,
-                        label = {
+                        label = "",
+                        leadingIcon = {
                             Icon(
                                 Icons.Filled.Add,
                                 contentDescription = stringResource(R.string.create_category),
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = false,
-                            borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                        )
                     )
                     // Delete chip (only when custom categories exist)
                     if (customCategories.isNotEmpty()) {
-                        FilterChip(
+                        NovelaFilterChip(
                             selected = false,
                             onClick = { showDeleteCategoryPicker = true },
-                            label = {
+                            label = "",
+                            leadingIcon = {
                                 Icon(
                                     Icons.Filled.Delete,
                                     contentDescription = stringResource(R.string.delete_category),
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.error,
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = false,
-                                borderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.5f),
-                            )
                         )
                     }
                 }
@@ -220,6 +176,7 @@ internal fun LibraryScreenBody(
                     pendingRemoval = pendingRemoval,
                     gridState = gridState,
                     translatedTitles = translatedTitles,
+                    groupBySource = groupBySource,
                 )
             } else {
                 Box(

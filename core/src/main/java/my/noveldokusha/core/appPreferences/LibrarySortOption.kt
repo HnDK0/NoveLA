@@ -8,7 +8,8 @@ enum class LibrarySortOption(val displayName: String) {
     UNREAD_CHAPTERS("unread_chapters"),
     LAST_READ("last_read"),
     LAST_UPDATE("last_update"),
-    ADDED("date_added");
+    ADDED("date_added"),
+    SOURCE("source");
 
     fun getNextSortOption(): LibrarySortOption {
         return when (this) {
@@ -16,7 +17,8 @@ enum class LibrarySortOption(val displayName: String) {
             UNREAD_CHAPTERS -> LAST_READ
             LAST_READ -> LAST_UPDATE
             LAST_UPDATE -> ADDED
-            ADDED -> TITLE
+            ADDED -> SOURCE
+            SOURCE -> TITLE
         }
     }
 

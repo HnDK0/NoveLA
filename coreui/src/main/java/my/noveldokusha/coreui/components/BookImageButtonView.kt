@@ -28,10 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +47,15 @@ import my.noveldokusha.coreui.theme.ImageBorderShape
 import my.noveldokusha.coreui.theme.InternalTheme
 import my.noveldokusha.coreui.theme.PreviewThemes
 
+/**
+ * Redesign book card (prototype .book-card):
+ *  - clean cover, rounded corners, subtle placeholder, no gradient title overlay
+ *  - badges overlaid (top-left / top-right slots, caller-styled)
+ *  - optional dark "cover badge" strip pinned to the cover bottom (OnCover mode)
+ *  - title BELOW the cover, 2-line clamp, semi-bold (prototype .book-title)
+ *  - meta line below the title: unread count · source name (prototype .book-meta)
+ *  - InfoPanel variant keeps a compact panel below the cover
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BookImageButtonView(
@@ -77,9 +83,9 @@ fun BookImageButtonView(
     val showStrip = stripUnreadCount != null || stripSourceName != null
     val isOnCover = sourceStripPosition == SourceStripPosition.OnCover
     val isInfoPanel = sourceStripPosition == SourceStripPosition.InfoPanel
-    val titleBottomPadding = if (showStrip && isOnCover) 32.dp else 8.dp
 
     Column(modifier = modifier.testTag(AppTestTags.BOOK_IMAGE_BUTTON_VIEW)) {
+        // — Cover —
         Box(
             Modifier
                 .padding(2.dp)
@@ -87,11 +93,10 @@ fun BookImageButtonView(
                 .fillMaxWidth()
                 .aspectRatio(1 / 1.45f)
         ) {
-            // Image
             Box(
                 Modifier
                     .matchParentSize()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                     .combinedClickable(
                         indication = indication,
                         interactionSource = effectiveInteractionSource,
@@ -118,49 +123,8 @@ fun BookImageButtonView(
                 Box(modifier = Modifier.align(Alignment.TopEnd)) { it() }
             }
 
-            // Gradient title overlay — always show unless InfoPanel
-            if (!isInfoPanel) {
-                Text(
-                    text = title,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.0f),
-                                0.4f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
-                                1f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                            )
-                        )
-                        .padding(top = 30.dp, bottom = titleBottomPadding)
-                        .padding(horizontal = 8.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.inverseSurface,
-                        drawStyle = Stroke(
-                            miter = 4f,
-                            width = 4f,
-                            join = StrokeJoin.Miter
-                        )
-                    )
-                )
-                Text(
-                    text = title,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .padding(top = 30.dp, bottom = titleBottomPadding)
-                        .padding(horizontal = 8.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.inverseOnSurface,
-                    )
-                )
-            }
-
-            // Source strip on cover
+            // OnCover variant — dark translucent pill pinned to the cover bottom
+            // (prototype .cover-badge / .cover-progress zone)
             if (isOnCover && showStrip) {
                 SourceStrip(
                     unreadCount = stripUnreadCount,
@@ -173,7 +137,29 @@ fun BookImageButtonView(
             }
         }
 
-        // Below-cover: source strip or InfoPanel
+        // — Title below cover (prototype .book-title) — not duplicated in InfoPanel mode
+        if (!isInfoPanel && title.isNotBlank()) {
+            Text(
+                text = title,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 4.dp, end = 4.dp, top = 6.dp),
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    lineHeight = 14.sp,
+                    lineHeightStyle = LineHeightStyle(
+                        alignment = LineHeightStyle.Alignment.Center,
+                        trim = LineHeightStyle.Trim.None,
+                    ),
+                    lineBreak = LineBreak.Heading,
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+
+        // — Meta line (prototype .book-meta): unread count · source —
         if (!isOnCover && showStrip && !isInfoPanel) {
             SourceStrip(
                 unreadCount = stripUnreadCount,
@@ -181,8 +167,7 @@ fun BookImageButtonView(
                 onCover = false,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 2.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .padding(start = 4.dp, end = 4.dp, top = 3.dp)
             )
         }
 
@@ -193,7 +178,7 @@ fun BookImageButtonView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 2.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerLow)
                     .padding(horizontal = 6.dp, vertical = 4.dp)
             ) {
@@ -259,7 +244,10 @@ fun BookImageButtonView(
     }
 }
 
-/** Полоса «непрочитанные | источник»: фикс. окно 32.dp слева, делитель 1.dp, имя источника справа (weight). */
+/**
+ * Meta row: «unread · source». On-cover → dark translucent strip (fixed dark pill,
+ * like the prototype's cover badge); below-cover → plain muted text row.
+ */
 @Composable
 private fun SourceStrip(
     unreadCount: Int?,
@@ -267,26 +255,13 @@ private fun SourceStrip(
     onCover: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    val stripBackground: Brush = if (onCover) {
-        Brush.verticalGradient(
-            0f to MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-            1f to MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
-        )
-    } else {
-        Brush.linearGradient(
-            colors = listOf(
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
-            ),
-            start = Offset.Zero,
-            end = Offset.Infinite
-        )
-    }
+    val stripColor = if (onCover) CoverBadgeColor else Color.Transparent
+    val contentColor = if (onCover) CoverBadgeTextColor else MaterialTheme.colorScheme.onSurfaceVariant
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .height(20.dp)
-            .background(stripBackground)
+            .background(stripColor)
             .padding(horizontal = 6.dp)
     ) {
         if (unreadCount != null) {
@@ -299,14 +274,14 @@ private fun SourceStrip(
                         imageVector = Icons.Filled.Check,
                         contentDescription = null,
                         modifier = Modifier.size(12.dp),
-                        tint = MaterialTheme.colorScheme.onPrimary
+                        tint = contentColor
                     )
                 } else {
                     Text(
                         text = unreadCount.toString(),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = contentColor,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 9.sp
@@ -318,7 +293,7 @@ private fun SourceStrip(
                 Modifier
                     .width(1.dp)
                     .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f))
+                    .background(contentColor.copy(alpha = 0.4f))
             )
         }
         if (sourceName != null) {
@@ -326,17 +301,21 @@ private fun SourceStrip(
                 text = sourceName,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onPrimary,
-                textAlign = TextAlign.Center,
+                color = contentColor,
+                textAlign = if (onCover) TextAlign.Center else TextAlign.Start,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Medium,
                     fontSize = 9.sp
                 )
             )
         }
     }
 }
+
+// Prototype cover badge: rgba(33,35,31,.78) bg, #F6F4EC text — fixed over any cover art.
+private val CoverBadgeColor = Color(0xC7212320)
+private val CoverBadgeTextColor = Color(0xFFF6F4EC)
 
 /** Иконка типа контента */
 fun String?.toContentTypeBadgeIcon(): Int = when (this) {

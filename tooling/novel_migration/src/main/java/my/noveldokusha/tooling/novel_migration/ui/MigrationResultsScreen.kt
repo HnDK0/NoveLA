@@ -1,6 +1,10 @@
 package my.noveldokusha.tooling.novel_migration.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -43,10 +47,25 @@ fun MigrationResultsScreen(
     onSelectAlternative: ((bookIndex: Int, resultIndex: Int) -> Unit)? = null,
     onReturnToLibrary: (() -> Unit)? = null,
 ) {
+    val hairline = MaterialTheme.colorScheme.outlineVariant
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(title) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
+                title = {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onPressBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
@@ -159,15 +178,28 @@ fun MigrationResultsScreen(
 
                 if (!isMigrating) {
                     val canMigrate = migratingBooks.any { it.result != null && !it.isSkipped && !it.isDone }
+                    // Docked action bar: hairline top border, nav-bar safe on all devices
                     Surface(
-                        tonalElevation = 3.dp,
-                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .drawBehind {
+                                drawLine(
+                                    color = hairline,
+                                    start = Offset(0f, 0.5f),
+                                    end = Offset(size.width, 0.5f),
+                                    strokeWidth = 1f,
+                                )
+                            },
                     ) {
                         MyButton(
                             text = stringResource(R.string.migration_migrate_all),
                             onClick = onMigrateAll,
                             enabled = canMigrate,
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                                .navigationBarsPadding(),
                         )
                     }
                 }

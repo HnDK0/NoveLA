@@ -16,8 +16,9 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import my.noveldokusha.coreui.components.NovelaFilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -80,9 +81,11 @@ internal fun LibraryBottomSheet(
             ) {
                 Text(
                     text = stringResource(id = R.string.filter),
-                    modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.titleMedium
+                    modifier = Modifier.weight(1f).padding(start = 6.dp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                    )
                 )
                 TextButton(onClick = { pageModel.resetAllFilters() }) {
                     Icon(
@@ -101,10 +104,12 @@ internal fun LibraryBottomSheet(
 
             // ── Размер сетки ──────────────────────────────────────────────────
             Text(
-                text = stringResource(id = R.string.grid_columns),
+                text = stringResource(id = R.string.grid_columns).uppercase(),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.4.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -154,10 +159,12 @@ internal fun LibraryBottomSheet(
 
             // ── Стиль карточки ─────────────────────────────────────
             Text(
-                text = stringResource(id = R.string.card_style),
+                text = stringResource(id = R.string.card_style).uppercase(),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.4.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -166,56 +173,31 @@ internal fun LibraryBottomSheet(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
             ) {
-                FilterChip(
+                NovelaFilterChip(
                     selected = uiState.sourceStripPosition == SourceStripPosition.OnCover,
                     onClick = { model.setSourceStripPosition(SourceStripPosition.OnCover) },
-                    label = { Text(stringResource(R.string.source_strip_on_cover)) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        selectedLabelColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        enabled = true,
-                        selected = uiState.sourceStripPosition == SourceStripPosition.OnCover,
-                        selectedBorderColor = MaterialTheme.colorScheme.primary,
-                    )
+                    label = stringResource(R.string.source_strip_on_cover),
                 )
-                FilterChip(
+                NovelaFilterChip(
                     selected = uiState.sourceStripPosition == SourceStripPosition.BelowCover,
                     onClick = { model.setSourceStripPosition(SourceStripPosition.BelowCover) },
-                    label = { Text(stringResource(R.string.source_strip_below_cover)) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        selectedLabelColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        enabled = true,
-                        selected = uiState.sourceStripPosition == SourceStripPosition.BelowCover,
-                        selectedBorderColor = MaterialTheme.colorScheme.primary,
-                    )
+                    label = stringResource(R.string.source_strip_below_cover),
                 )
-                FilterChip(
+                NovelaFilterChip(
                     selected = uiState.sourceStripPosition == SourceStripPosition.InfoPanel,
                     onClick = { model.setSourceStripPosition(SourceStripPosition.InfoPanel) },
-                    label = { Text(stringResource(R.string.source_strip_info_panel)) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        selectedLabelColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        enabled = true,
-                        selected = uiState.sourceStripPosition == SourceStripPosition.InfoPanel,
-                        selectedBorderColor = MaterialTheme.colorScheme.primary,
-                    )
+                    label = stringResource(R.string.source_strip_info_panel),
                 )
             }
 
             // ── Тип контента (Все/Манга/Новелла) ────────────────────────────
             Text(
-                text = stringResource(id = R.string.type),
+                text = stringResource(id = R.string.type).uppercase(),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.4.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -225,19 +207,10 @@ internal fun LibraryBottomSheet(
                     .padding(horizontal = 12.dp)
             ) {
                 ContentTypeFilter.entries.forEach { filter ->
-                    FilterChip(
+                    NovelaFilterChip(
                         selected = selectedContentType == filter,
                         onClick = { pageModel.setContentTypeFilter(filter) },
-                        label = { Text(stringResource(filter.labelRes), style = MaterialTheme.typography.labelMedium) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                            selectedLabelColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = selectedContentType == filter,
-                            selectedBorderColor = MaterialTheme.colorScheme.primary,
-                        )
+                        label = stringResource(filter.labelRes),
                     )
                 }
             }
@@ -250,10 +223,12 @@ internal fun LibraryBottomSheet(
 
             // ── Сортировка ────────────────────────────────────────────────────
             Text(
-                text = stringResource(id = R.string.sort),
+                text = stringResource(id = R.string.sort).uppercase(),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.4.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             val sortOptions = listOf(
@@ -262,6 +237,7 @@ internal fun LibraryBottomSheet(
                 LibrarySortOption.LAST_READ       to R.string.last_read,
                 LibrarySortOption.LAST_UPDATE     to R.string.last_update,
                 LibrarySortOption.ADDED           to R.string.date_added,
+                LibrarySortOption.SOURCE          to R.string.sort_by_source,
             )
 
             sortOptions.forEach { (option, labelRes) ->
@@ -302,10 +278,12 @@ internal fun LibraryBottomSheet(
 
             // ── Фильтры ───────────────────────────────────────────────────────
             Text(
-                text = stringResource(id = R.string.filter),
+                text = stringResource(id = R.string.filter).uppercase(),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.4.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             PosNegCheckbox(
                 text = stringResource(id = R.string.read),
@@ -322,11 +300,13 @@ internal fun LibraryBottomSheet(
                         .alpha(0.4f)
                 )
                 Text(
-                    text = stringResource(id = R.string.genres),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.titleMedium
-                )
+                text = stringResource(id = R.string.genres).uppercase(),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.4.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -334,34 +314,16 @@ internal fun LibraryBottomSheet(
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp)
                 ) {
-                    FilterChip(
+                    NovelaFilterChip(
                         selected = selectedGenres.isEmpty(),
                         onClick = { pageModel.clearGenreFilters() },
-                        label = { Text(stringResource(R.string.all_genres)) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                            selectedLabelColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = selectedGenres.isEmpty(),
-                            selectedBorderColor = MaterialTheme.colorScheme.primary,
-                        )
+                        label = stringResource(R.string.all_genres),
                     )
                     availableGenres.forEach { genre ->
-                        FilterChip(
+                        NovelaFilterChip(
                             selected = genre in selectedGenres,
                             onClick = { pageModel.toggleGenreFilter(genre) },
-                            label = { Text(genre, style = MaterialTheme.typography.labelMedium) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                selectedLabelColor = MaterialTheme.colorScheme.primary,
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = genre in selectedGenres,
-                                selectedBorderColor = MaterialTheme.colorScheme.primary,
-                            )
+                            label = genre,
                         )
                     }
                 }
@@ -375,11 +337,13 @@ internal fun LibraryBottomSheet(
                         .alpha(0.4f)
                 )
                 Text(
-                    text = stringResource(id = R.string.sources),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.titleMedium
-                )
+                text = stringResource(id = R.string.sources).uppercase(),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.4.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -387,34 +351,16 @@ internal fun LibraryBottomSheet(
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp)
                 ) {
-                    FilterChip(
+                    NovelaFilterChip(
                         selected = selectedSources.isEmpty(),
                         onClick = { pageModel.clearSourceFilters() },
-                        label = { Text(stringResource(R.string.all_sources)) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                            selectedLabelColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = selectedSources.isEmpty(),
-                            selectedBorderColor = MaterialTheme.colorScheme.primary,
-                        )
+                        label = stringResource(R.string.all_sources),
                     )
                     availableSources.forEach { sourceName ->
-                        FilterChip(
+                        NovelaFilterChip(
                             selected = sourceName in selectedSources,
                             onClick = { pageModel.toggleSourceFilter(sourceName) },
-                            label = { Text(sourceName, style = MaterialTheme.typography.labelMedium) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                selectedLabelColor = MaterialTheme.colorScheme.primary,
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = sourceName in selectedSources,
-                                selectedBorderColor = MaterialTheme.colorScheme.primary,
-                            )
+                            label = sourceName,
                         )
                     }
                 }
