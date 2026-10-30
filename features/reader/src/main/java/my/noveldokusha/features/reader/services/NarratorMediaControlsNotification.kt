@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,6 +59,7 @@ import my.noveldokusha.reader.R
 import timber.log.Timber
 import javax.inject.Inject
 
+@OptIn(FlowPreview::class)
 internal class NarratorMediaControlsNotification @Inject constructor(
     @ApplicationContext private val context: Context,
     private val notificationsCenter: NotificationsCenter,

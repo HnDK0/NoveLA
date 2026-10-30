@@ -193,7 +193,7 @@ internal class CatalogExplorerViewModel @Inject constructor(
                         // Add delay after complete book loading if needed and not the last book
                         if (shouldAddDelay && index < sourceUrls.size - 1) {
                             val delayMs = appPreferences.MASS_ADD_DELAY_MS.value
-                            delay(delayMs.toLong())
+                            delay(delayMs)
                         }
 
                     } catch (e: Exception) {

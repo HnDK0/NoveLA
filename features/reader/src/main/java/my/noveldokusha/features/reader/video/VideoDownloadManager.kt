@@ -7,7 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.database.ExoDatabaseProvider
+import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.NoOpCacheEvictor
@@ -71,7 +71,7 @@ class VideoDownloadManager @Inject constructor(
     @MediaHttpClient private val client: OkHttpClient,
     private val notificationsCenter: NotificationsCenter,
 ) : OfflineVideoCleaner {
-    private val databaseProvider = ExoDatabaseProvider(context)
+    private val databaseProvider = StandaloneDatabaseProvider(context)
 
     private val downloadCache = SimpleCache(
         File(context.filesDir, "video_downloads"),
@@ -689,7 +689,7 @@ private class HeaderAwareDownloaderFactory(
             .setUpstreamDataSourceFactory(upstream)
         val mediaItem = request.toMediaItem()
         return if (request.mimeType == MimeTypes.APPLICATION_M3U8) {
-            HlsDownloader(mediaItem, dataSourceFactory)
+            HlsDownloader.Factory(dataSourceFactory).create(mediaItem)
         } else {
             ProgressiveDownloader(mediaItem, dataSourceFactory)
         }

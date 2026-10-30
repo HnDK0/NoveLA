@@ -37,7 +37,7 @@ class DownloaderRepository @Inject constructor(
         this is Response.Error && exception is my.noveldokusha.scraper.domain.PluginShowErrorException -> {
             val e = exception as my.noveldokusha.scraper.domain.PluginShowErrorException
             Response.Error(
-                message = e.message ?: "Error",
+                message = e.message,
                 exception = e,
                 pluginErrorTitle = e.errorTitle,
                 pluginErrorMessage = e.message,
@@ -196,10 +196,38 @@ class DownloaderRepository @Inject constructor(
             }
 
             val result = my.noveldokusha.network.tryFlatConnect {
-                    val request = my.noveldokusha.network.getRequest(chapterUrl)
-                    val realUrl = networkClient
-                        .call(request, followRedirects = true)
-                        .use { it.request.url.toString() }
+                    // Optimasi Networking: Cek apakah chapterUrl langsung cocok dengan sumber scraper yang ada.
+                    // Jika cocok, kita langsung kirim request dengan header & tag yang sesuai tanpa perlu
+                    // melakukan request probing awal yang membuang kuota/bandwidth dan menduplikasi latensi.
+                    val directSource = scraper.getCompatibleSource(chapterUrl)
+                    val matchingSource: SourceInterface?
+                    val realUrl: String
+                    val docFromDirectFetch: Document?
+
+                    if (directSource != null) {
+                        matchingSource = directSource
+                        val chapterPageUrl = directSource.transformChapterUrl(chapterUrl)
+                        val headers = buildChapterHeaders(chapterPageUrl)
+                        Timber.d("bookChapter: direct match source=${directSource.id} for url=$chapterPageUrl")
+                        val response = networkClient.call(
+                            getRequest(chapterPageUrl).apply {
+                                headers.forEach { (k, v) -> header(k, v) }
+                                cacheControl(CacheControl.FORCE_NETWORK)
+                                tag(String::class.java, "source:${directSource.id}")
+                            },
+                            followRedirects = true
+                        )
+                        realUrl = response.request.url.toString()
+                        docFromDirectFetch = response.use { it.toDocument(directSource.charset) }
+                    } else {
+                        // Fallback probing: hanya dijalankan jika URL awal belum diketahui sumbernya (misal aggregator/shortlink)
+                        val request = my.noveldokusha.network.getRequest(chapterUrl)
+                        realUrl = networkClient
+                            .call(request, followRedirects = true)
+                            .use { it.request.url.toString() }
+                        matchingSource = scraper.getCompatibleSource(realUrl)
+                        docFromDirectFetch = null
+                    }
 
                     val error by lazy {
                         """
@@ -213,14 +241,24 @@ class DownloaderRepository @Inject constructor(
 				""".trimIndent()
                     }
 
-                    val matchingSource = scraper.getCompatibleSource(realUrl)
-                    matchingSource?.also { source ->
+                    // Validasi cross-domain redirect: jika terjadi redirect ke domain/sumber lain,
+                    // perbarui source dan hindari menggunakan doc hasil directSource lama.
+                    val effectiveSource = if (directSource != null && matchingSource != null) {
+                        val redirectedSource = scraper.getCompatibleSource(realUrl)
+                        redirectedSource ?: matchingSource
+                    } else {
+                        matchingSource
+                    }
+                    val canReuseDoc = docFromDirectFetch != null && effectiveSource?.id == directSource?.id
+
+                    effectiveSource?.also { source ->
                         val chapterPageUrl = source.transformChapterUrl(realUrl)
 
                         val headers = buildChapterHeaders(chapterPageUrl)
 
-                        Timber.d("bookChapter: setting tag=source:${source.id} for url=$chapterPageUrl")
-                        val doc = networkClient.call(
+                        Timber.d("bookChapter: setting tag=source:${source.id} for url=$chapterPageUrl (reusedDoc=$canReuseDoc)")
+                        // Gunakan doc yang sudah diunduh jika direct match valid, jika tidak baru fetch chapterPageUrl
+                        val doc = if (canReuseDoc) docFromDirectFetch else networkClient.call(
                             getRequest(chapterPageUrl).apply {
                                 headers.forEach { (k, v) -> header(k, v) }
                                 cacheControl(CacheControl.FORCE_NETWORK)
@@ -316,7 +354,7 @@ class DownloaderRepository @Inject constructor(
             val finalResult = if (result is Response.Error && result.exception is my.noveldokusha.scraper.domain.PluginShowErrorException) {
                 val e = result.exception as my.noveldokusha.scraper.domain.PluginShowErrorException
                 Response.Error(
-                    message = e.message ?: "Error",
+                    message = e.message,
                     exception = e,
                     pluginErrorTitle = e.errorTitle,
                     pluginErrorMessage = e.message,

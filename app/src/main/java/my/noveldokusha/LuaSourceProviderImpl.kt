@@ -69,6 +69,11 @@ class LuaSourceProviderImpl @Inject constructor(
         cacheFile().delete()
     }
 
+    override fun trimMemory() {
+        // Panggil trimMemory pada loader untuk membebaskan LRU cache dan HTTP cache
+        luaSourceLoader.trimMemory()
+    }
+
     private fun cacheFile(): File = File(context.filesDir, "source_cache.json")
 
     private fun loadCache(): List<SourceInterface> {

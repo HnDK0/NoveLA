@@ -160,13 +160,36 @@ class ScraperNetworkClient @Inject constructor(
             .build()
     }
 
+    // Pre-built clients untuk setiap fase percobaan timeout.
+    // Menghindari alokasi berulang baseClient.newBuilder().build() pada hot path networking retry loop.
+    private val redirectAttemptClients by lazy {
+        attemptTimeoutsMs.map { timeoutMs ->
+            clientWithRedirects.newBuilder()
+                .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .writeTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .build()
+        }
+    }
+
+    private val noRedirectAttemptClients by lazy {
+        attemptTimeoutsMs.map { timeoutMs ->
+            clientNoRedirects.newBuilder()
+                .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .writeTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .build()
+        }
+    }
+
     override suspend fun call(request: Request.Builder, followRedirects: Boolean): Response {
         val built = request.build()
         val baseClient = if (followRedirects) clientWithRedirects else clientNoRedirects
+        val attemptClients = if (followRedirects) redirectAttemptClients else noRedirectAttemptClients
         // Тело отдаём сырым вызывающему — буферизация здесь удваивала бы память
         // на горячем пути загрузки картинок (caller читает body повторно). Ретрай
         // ловит сетевые/таймаут-сбои уровня соединения; сбой дочитки тела
-        // (RST CANCEL на h2-edge) всплывёт в caller'е как ошибка — приемлемо.
+        // (RST CANCEL на h2-edge) всплывёт в caller'e как ошибка — приемлемо.
         // Только идемпотентный GET — не дублируем POST.
         //
         // Таймауты попытки — OkHttp-native (connect/read/write), НЕ корутинный
@@ -180,13 +203,8 @@ class ScraperNetworkClient @Inject constructor(
         withTimeout(TOTAL_TIMEOUT_MS) { // жёсткий потолок на весь цикл ретраев (п.8)
             for (attempt in attemptTimeoutsMs.indices) {
                 var response: Response? = null
-                // Per-attempt OkHttp-таймауты на свежем клиенте, делящем тот же
-                // cfConnectionPool, — evictAll ниже очищает пул базового клиента.
-                val attemptClient = baseClient.newBuilder()
-                    .connectTimeout(attemptTimeoutsMs[attempt], TimeUnit.MILLISECONDS)
-                    .readTimeout(attemptTimeoutsMs[attempt], TimeUnit.MILLISECONDS)
-                    .writeTimeout(attemptTimeoutsMs[attempt], TimeUnit.MILLISECONDS)
-                    .build()
+                // Gunakan client pre-built alih-alih alokasi newBuilder() baru per percobaan
+                val attemptClient = attemptClients[attempt]
                 try {
                     response = attemptClient.call(built.newBuilder())
                     result = response

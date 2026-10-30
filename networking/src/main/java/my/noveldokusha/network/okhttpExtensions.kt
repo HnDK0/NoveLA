@@ -35,16 +35,28 @@ private suspend fun Call.await(): Response = withContext(Dispatchers.IO) {
 
 suspend fun OkHttpClient.call(builder: Request.Builder) = newCall(builder.build()).await()
 
+/**
+ * Konversi Response OkHttp ke Jsoup Document menggunakan streaming (byteStream).
+ * Menghindari alokasi intermediate String raksasa di heap JVM Android (ramah memori).
+ * Menggunakan charset dari HTTP Content-Type jika tersedia, atau auto-detect Jsoup jika null.
+ */
 fun Response.toDocument(): Document {
-    val html = body.string()
-    return Jsoup.parse(html, request.url.toString())
+    val baseUrl = request.url.toString()
+    val charsetName = body.contentType()?.charset()?.name()
+    return body.byteStream().use { stream ->
+        Jsoup.parse(stream, charsetName, baseUrl)
+    }
 }
 
+/**
+ * Konversi Response OkHttp ke Jsoup Document dengan charset khusus via streaming.
+ * Menghindari alokasi ByteArray ganda dan intermediate String di heap.
+ */
 fun Response.toDocument(charset: String): Document {
-    val bytes = body.bytes()
-    val html = String(bytes, Charset.forName(charset))
     val baseUrl = request.url.toString()
-    return Jsoup.parse(html, baseUrl)
+    return body.byteStream().use { stream ->
+        Jsoup.parse(stream, charset, baseUrl)
+    }
 }
 
 private val lenientGson: Gson by lazy {

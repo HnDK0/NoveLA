@@ -13,11 +13,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import android.content.ClipData
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
+import kotlinx.coroutines.launch
 import my.noveldokusha.coreui.components.SlimListItem
 import my.noveldokusha.coreui.theme.colorAccent
 import my.noveldokusha.coreui.theme.textPadding
@@ -31,7 +34,8 @@ internal fun SettingsAbout(
     appVersion: String,
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     val copiedMessage = stringResource(R.string.copied_to_clipboard)
 
     Text(
@@ -51,7 +55,10 @@ internal fun SettingsAbout(
         modifier = Modifier.combinedClickable(
             onClick = {},
             onLongClick = {
-                clipboardManager.setText(AnnotatedString(appVersion))
+                scope.launch {
+                    val clipData = ClipData.newPlainText("version", appVersion)
+                    clipboard.setClipEntry(clipData.toClipEntry())
+                }
                 Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
             }
         )

@@ -156,9 +156,9 @@ internal class ReaderSession(
 
     private var ttsCurrentChapterIndex: Int = -1
 
-    lateinit var readerTextToSpeech: ReaderTextToSpeech
+    val readerTextToSpeech: ReaderTextToSpeech
 
-    lateinit var readerManualHighlight: ReaderManualHighlight
+    val readerManualHighlight: ReaderManualHighlight
 
     init {
         readerTextToSpeech = ReaderTextToSpeech(

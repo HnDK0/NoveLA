@@ -128,6 +128,13 @@ class LuaEngine @Inject constructor(
     }
 
     /**
+     * Membersihkan cache memori respon HTTP Lua saat sistem Android menerima sinyal low memory / trim memory.
+     */
+    fun clearMemoryCache() {
+        httpGetCache.clear()
+    }
+
+    /**
      * Каталог кэша скомпилированного байткода. Загрузка .lbc вместо текстовой
      * компиляции — главный выигрыш холодного старта: ~1.5-2с на все плагины
      * превращаются в чтение десятков КБ с диска.
@@ -435,7 +442,7 @@ class LuaEngine @Inject constructor(
             // sourceId читается на вызывающем потоке: ThreadLocal не переживает переключение диспетчера.
             val sourceId      = currentSourceId.get()
             // Force-network flag is captured here for the same reason, before withContext(IO).
-            val forceNetwork  = forceNetworkFlag.get()
+            val forceNetwork  = forceNetworkFlag.get() == true
             val params = HttpGetParams(
                 url = url,
                 pluginHeaders = pluginHeaders,
@@ -474,7 +481,7 @@ class LuaEngine @Inject constructor(
             val headers       = defaultHeaders(url) + pluginHeaders
             val sourceId      = currentSourceId.get()
             // Force-network flag is captured here for the same reason, before withContext(IO).
-            val forceNetwork  = forceNetworkFlag.get()
+            val forceNetwork  = forceNetworkFlag.get() == true
             try {
                 withContext(Dispatchers.IO) {
                     val mediaType = (headers["Content-Type"] ?: detectContentType(bodyStr)).toMediaType()
@@ -509,6 +516,23 @@ class LuaEngine @Inject constructor(
             h.set(k.lowercase(), vt)
         }
         t.set("headers", h)
+
+        // Gaya OOP Shosetsu: memungkinkan pemanggilan berantai res:toHtml() atau res:to_html() langsung dari respons HTTP
+        val toHtmlFn = object : VarArgFunction() {
+            override fun invoke(args: Varargs): Varargs {
+                val rawBody = if (args.narg() >= 1 && args.arg(1).istable()) {
+                    args.arg(1).checktable().get("body").optjstring(body)
+                } else body
+                return try {
+                    parseHtmlToDocumentTable(rawBody)
+                } catch (e: Exception) {
+                    Timber.e(e, "res:toHtml gagal mem-parsing HTML")
+                    LuaValue.NIL
+                }
+            }
+        }
+        t.set("toHtml", toHtmlFn)
+        t.set("to_html", toHtmlFn)
     }
 
     /**
@@ -670,7 +694,7 @@ class LuaEngine @Inject constructor(
 
             val sourceId = currentSourceId.get()
             // Force-network flag: captured before async(Dispatchers.IO) hops threads.
-            val forceNetwork = forceNetworkFlag.get()
+            val forceNetwork = forceNetworkFlag.get() == true
 
             val results = runBlocking {
                 items.map { params ->
@@ -853,23 +877,34 @@ class LuaEngine @Inject constructor(
     // ── HTML ──────────────────────────────────────────────────────────────────
 
     /**
-     * html_parse(html) → { text, html, title, body }
+     * html_parse(html) → Document LuaTable (mewarisi sharedElementMetatable agar mendukung OOP methods ala Shosetsu)
      */
     private inner class HtmlParseFunction : OneArgFunction() {
         override fun call(arg: LuaValue): LuaValue = try {
-            val doc = Jsoup.parse(arg.checkjstring())
-            LuaTable().also { t ->
-                t.set("text",  LuaValue.valueOf(doc.text()))
-                t.set("html",  LuaValue.valueOf(doc.html()))
-                t.set("title", LuaValue.valueOf(doc.title()))
-                t.set("body", elementToTable(doc.body()))
-            }
+            parseHtmlToDocumentTable(arg.checkjstring())
         } catch (e: Exception) { Timber.e(e, "html_parse"); LuaValue.NIL }
     }
 
     /**
+     * Mem-parsing string HTML menjadi LuaTable Document yang dibungkus dengan sharedElementMetatable.
+     * Kompatibel dengan akses properti lama (doc.text, doc.html, doc.title, doc.body)
+     * sekaligus mendukung OOP method call langsung: doc:select(...), doc:selectFirst(...), dll.
+     */
+    private fun parseHtmlToDocumentTable(html: String): LuaTable {
+        val doc = Jsoup.parse(html)
+        // elementToTable membungkus doc dengan sharedElementMetatable
+        return elementToTable(doc).also { t ->
+            t.set("text",  LuaValue.valueOf(doc.text()))
+            t.set("html",  LuaValue.valueOf(doc.html()))
+            t.set("title", LuaValue.valueOf(doc.title()))
+            t.set("body",  elementToTable(doc.body()))
+        }
+    }
+
+    /**
      * html_select(html_or_element, css_selector) → array of element tables
-     * Each element: { text, html, href, src, title, class, id, attr(name), remove() }
+     * Mengembalikan LuaTable yang dibungkus dengan sharedElementsListMetatable
+     * sehingga mendukung pemanggilan berantai ala Shosetsu (:first(), :last(), :size(), :attr(), :text(), :select(), :forEach()).
      */
     private inner class HtmlSelectFunction : TwoArgFunction() {
         override fun call(a1: LuaValue, a2: LuaValue): LuaValue = try {
@@ -879,8 +914,8 @@ class LuaEngine @Inject constructor(
             } else {
                 Jsoup.parse(a1.checkjstring()).select(a2.checkjstring())
             }
-            LuaTable().also { t -> elems.forEachIndexed { i, e -> t.set(i + 1, elementToTable(e)) } }
-        } catch (e: Exception) { Timber.e(e, "html_select"); LuaTable() }
+            elementsToTableList(elems)
+        } catch (e: Exception) { Timber.e(e, "html_select"); elementsToTableList(emptyList()) }
     }
 
     /**
@@ -991,16 +1026,136 @@ class LuaEngine @Inject constructor(
         return null
     }
 
-    // Converts a Jsoup Element to a LuaTable lazily using Lua metatables.
-    // Eagerly extracting text/html for all elements on every select call created severe GC pressure
-    // and slow JVM execution. Now properties are evaluated on-demand and cached in the table.
-    private fun elementToTable(el: Element): LuaTable {
-        val t = LuaTable()
-        t.set("__element", org.luaj.vm2.LuaUserdata(el))
-
+    // Shared singleton metatable untuk koleksi Element Jsoup (gaya OOP Shosetsu: :first(), :last(), :size(), :text(), :attr(), :select(), :forEach()).
+    // Menggunakan singleton metatable tanpa alokasi objek per pemanggilan sehingga sangat hemat GC heap Android.
+    private val sharedElementsListMetatable: LuaTable by lazy {
         val mt = LuaTable()
         mt.set(LuaValue.INDEX, object : TwoArgFunction() {
             override fun call(table: LuaValue, key: LuaValue): LuaValue {
+                val keyStr = key.optjstring(null) ?: return LuaValue.NIL
+                return when (keyStr) {
+                    // Mengambil elemen pertama: list:first()
+                    "first" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val self = if (args.narg() >= 1 && args.arg(1).istable()) args.arg(1).checktable() else table.checktable()
+                            return self.get(1)
+                        }
+                    }
+                    // Mengambil elemen terakhir: list:last()
+                    "last" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val self = if (args.narg() >= 1 && args.arg(1).istable()) args.arg(1).checktable() else table.checktable()
+                            val len = self.length()
+                            return if (len > 0) self.get(len) else LuaValue.NIL
+                        }
+                    }
+                    // Jumlah elemen dalam list: list:size() atau list:length()
+                    "size", "length" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val self = if (args.narg() >= 1 && args.arg(1).istable()) args.arg(1).checktable() else table.checktable()
+                            return LuaValue.valueOf(self.length())
+                        }
+                    }
+                    // Cek apakah list kosong: list:isEmpty() atau list:is_empty()
+                    "isEmpty", "is_empty" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val self = if (args.narg() >= 1 && args.arg(1).istable()) args.arg(1).checktable() else table.checktable()
+                            return LuaValue.valueOf(self.length() == 0)
+                        }
+                    }
+                    // Mengambil elemen ke-i (1-based index): list:get(i)
+                    "get" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val self = if (args.narg() >= 2 && args.arg(1).istable()) args.arg(1).checktable() else table.checktable()
+                            val idx = if (args.narg() >= 2) args.arg(2).checkint() else args.arg(1).checkint()
+                            return self.get(idx)
+                        }
+                    }
+                    // Mengambil atribut dari elemen pertama (perilaku standar Jsoup Elements.attr): list:attr("href")
+                    "attr" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val self = if (args.narg() >= 2 && args.arg(1).istable()) args.arg(1).checktable() else table.checktable()
+                            val attrName = if (args.narg() >= 2) args.arg(2).checkjstring() else args.arg(1).checkjstring()
+                            val first = self.get(1)
+                            if (first.istable()) {
+                                val el = elementFromValue(first)
+                                if (el != null) return LuaValue.valueOf(el.attr(attrName))
+                            }
+                            return LuaValue.valueOf("")
+                        }
+                    }
+                    // Menggabungkan teks semua elemen (perilaku standar Jsoup Elements.text): list:text()
+                    "text" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val self = if (args.narg() >= 1 && args.arg(1).istable()) args.arg(1).checktable() else table.checktable()
+                            val sb = StringBuilder()
+                            for (i in 1..self.length()) {
+                                val item = self.get(i)
+                                val el = elementFromValue(item)
+                                if (el != null) {
+                                    val t = el.text()
+                                    if (t.isNotEmpty()) {
+                                        if (sb.isNotEmpty()) sb.append(" ")
+                                        sb.append(t)
+                                    }
+                                }
+                            }
+                            return LuaValue.valueOf(sb.toString())
+                        }
+                    }
+                    // Query turunan pada seluruh elemen dalam list: list:select("a")
+                    "select" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val self = if (args.narg() >= 2 && args.arg(1).istable()) args.arg(1).checktable() else table.checktable()
+                            val selector = if (args.narg() >= 2) args.arg(2) else args.arg(1)
+                            val allMatched = mutableListOf<Element>()
+                            for (i in 1..self.length()) {
+                                val item = self.get(i)
+                                val el = elementFromValue(item)
+                                if (el != null) {
+                                    allMatched.addAll(el.select(selector.checkjstring()))
+                                }
+                            }
+                            return elementsToTableList(allMatched)
+                        }
+                    }
+                    // Iterasi fungsional elemen: list:forEach(function(el, i) ... end)
+                    "forEach", "each" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val self = if (args.narg() >= 2 && args.arg(1).istable()) args.arg(1).checktable() else table.checktable()
+                            val callback = if (args.narg() >= 2) args.arg(2) else args.arg(1)
+                            if (callback.isfunction()) {
+                                for (i in 1..self.length()) {
+                                    callback.call(self.get(i), LuaValue.valueOf(i))
+                                }
+                            }
+                            return LuaValue.NIL
+                        }
+                    }
+                    else -> LuaValue.NIL
+                }
+            }
+        })
+        mt
+    }
+
+    // Mengubah koleksi Element Jsoup menjadi LuaTable ber-metatable sharedElementsListMetatable
+    private fun elementsToTableList(elems: Collection<Element>): LuaTable {
+        val t = LuaTable()
+        elems.forEachIndexed { i, e -> t.set(i + 1, elementToTable(e)) }
+        t.setmetatable(sharedElementsListMetatable)
+        return t
+    }
+
+    // Shared singleton metatable for Jsoup Element LuaTable.
+    // Mengurangi alokasi heap secara drastis: menghilangkan pembuatan tabel metatable dan closure baru
+    // untuk setiap node/elemen HTML yang diproses oleh Lua.
+    // Mendukung pemanggilan properti (el.text, el.href) dan metode OOP ala Shosetsu (el:selectFirst(), el:ownText(), dll).
+    private val sharedElementMetatable: LuaTable by lazy {
+        val mt = LuaTable()
+        mt.set(LuaValue.INDEX, object : TwoArgFunction() {
+            override fun call(table: LuaValue, key: LuaValue): LuaValue {
+                val el = elementFromValue(table) ?: return LuaValue.NIL
                 val keyStr = key.optjstring(null) ?: return LuaValue.NIL
                 val value = when (keyStr) {
                     "text" -> LuaValue.valueOf(el.text())
@@ -1012,26 +1167,107 @@ class LuaEngine @Inject constructor(
                     "id" -> LuaValue.valueOf(el.attr("id"))
                     "get_text" -> object : ZeroArgFunction() { override fun call() = LuaValue.valueOf(el.text()) }
                     "get_html" -> object : ZeroArgFunction() { override fun call() = LuaValue.valueOf(el.html()) }
-                    // Lua `el:attr("x")` == `el.attr(el, "x")` — колонический вызов добавляет self
-                    // первым аргументом. Берём последний аргумент, чтобы поддерживать оба стиля.
+                    // Lua `el:attr("x")` == `el.attr(el, "x")` — kolonisasi menambahkan self sebagai argumen pertama
                     "attr" -> object : VarArgFunction() {
                         override fun invoke(args: Varargs): Varargs {
+                            val targetEl = (if (args.narg() >= 2) elementFromValue(args.arg(1)) else null) ?: el
                             val name = if (args.narg() >= 2) args.arg(2) else args.arg(1)
                             return try {
-                                LuaValue.valueOf(el.attr(name.checkjstring()))
+                                LuaValue.valueOf(targetEl.attr(name.checkjstring()))
                             } catch (_: Exception) { LuaValue.valueOf("") }
                         }
                     }
                     "remove" -> object : ZeroArgFunction() {
                         override fun call(): LuaValue { el.remove(); return LuaValue.NIL }
                     }
+                    // Gaya OOP Shosetsu: el:select(selector) mengembalikan list elements berantai
                     "select" -> object : VarArgFunction() {
                         override fun invoke(args: Varargs): Varargs {
+                            val targetEl = (if (args.narg() >= 2) elementFromValue(args.arg(1)) else null) ?: el
                             val selector = if (args.narg() >= 2) args.arg(2) else args.arg(1)
                             return try {
-                                val elems = el.select(selector.checkjstring())
-                                LuaTable().also { t2 -> elems.forEachIndexed { i, e -> t2.set(i + 1, elementToTable(e)) } }
-                            } catch (_: Exception) { LuaTable() }
+                                val elems = targetEl.select(selector.checkjstring())
+                                elementsToTableList(elems)
+                            } catch (_: Exception) { elementsToTableList(emptyList()) }
+                        }
+                    }
+                    // Gaya OOP Shosetsu: el:selectFirst(selector) mengembalikan elemen pertama atau nil
+                    "select_first", "selectFirst" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val targetEl = (if (args.narg() >= 2) elementFromValue(args.arg(1)) else null) ?: el
+                            val selector = if (args.narg() >= 2) args.arg(2) else args.arg(1)
+                            return try {
+                                val first = targetEl.selectFirst(selector.checkjstring())
+                                if (first != null) elementToTable(first) else LuaValue.NIL
+                            } catch (_: Exception) { LuaValue.NIL }
+                        }
+                    }
+                    // Gaya OOP Shosetsu: el:ownText() mengambil teks langsung tanpa teks anak elemen
+                    "own_text", "ownText" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val targetEl = (if (args.narg() >= 1) elementFromValue(args.arg(1)) else null) ?: el
+                            return LuaValue.valueOf(targetEl.ownText())
+                        }
+                    }
+                    // Gaya OOP Shosetsu: el:parent() mengambil elemen induk
+                    "parent" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val targetEl = (if (args.narg() >= 1) elementFromValue(args.arg(1)) else null) ?: el
+                            val p = targetEl.parent()
+                            return if (p != null) elementToTable(p) else LuaValue.NIL
+                        }
+                    }
+                    // Gaya OOP Shosetsu: el:children() mengambil seluruh anak elemen
+                    "children" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val targetEl = (if (args.narg() >= 1) elementFromValue(args.arg(1)) else null) ?: el
+                            return elementsToTableList(targetEl.children())
+                        }
+                    }
+                    // Gaya OOP Shosetsu: el:hasClass("class_name")
+                    "has_class", "hasClass" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val targetEl = (if (args.narg() >= 2) elementFromValue(args.arg(1)) else null) ?: el
+                            val className = if (args.narg() >= 2) args.arg(2) else args.arg(1)
+                            return LuaValue.valueOf(targetEl.hasClass(className.checkjstring()))
+                        }
+                    }
+                    // Gaya OOP Shosetsu: el:hasAttr("attr_name")
+                    "has_attr", "hasAttr" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val targetEl = (if (args.narg() >= 2) elementFromValue(args.arg(1)) else null) ?: el
+                            val attrName = if (args.narg() >= 2) args.arg(2) else args.arg(1)
+                            return LuaValue.valueOf(targetEl.hasAttr(attrName.checkjstring()))
+                        }
+                    }
+                    // Gaya OOP Shosetsu: el:outerHtml()
+                    "outer_html", "outerHtml" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val targetEl = (if (args.narg() >= 1) elementFromValue(args.arg(1)) else null) ?: el
+                            return LuaValue.valueOf(targetEl.outerHtml())
+                        }
+                    }
+                    // Gaya OOP Shosetsu: el:tagName()
+                    "tag_name", "tagName" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val targetEl = (if (args.narg() >= 1) elementFromValue(args.arg(1)) else null) ?: el
+                            return LuaValue.valueOf(targetEl.tagName())
+                        }
+                    }
+                    // Gaya OOP Shosetsu: el:nextSibling() / el:nextElementSibling()
+                    "nextElementSibling", "next_sibling" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val targetEl = (if (args.narg() >= 1) elementFromValue(args.arg(1)) else null) ?: el
+                            val sibling = targetEl.nextElementSibling()
+                            return if (sibling != null) elementToTable(sibling) else LuaValue.NIL
+                        }
+                    }
+                    // Gaya OOP Shosetsu: el:previousSibling() / el:previousElementSibling()
+                    "previousElementSibling", "prev_sibling" -> object : VarArgFunction() {
+                        override fun invoke(args: Varargs): Varargs {
+                            val targetEl = (if (args.narg() >= 1) elementFromValue(args.arg(1)) else null) ?: el
+                            val sibling = targetEl.previousElementSibling()
+                            return if (sibling != null) elementToTable(sibling) else LuaValue.NIL
                         }
                     }
                     else -> LuaValue.NIL
@@ -1042,7 +1278,15 @@ class LuaEngine @Inject constructor(
                 return value
             }
         })
-        t.setmetatable(mt)
+        mt
+    }
+
+    // Converts a Jsoup Element to a LuaTable lazily using the shared singleton Lua metatable.
+    // Menghilangkan alokasi ganda metatable per elemen yang sebelumnya memicu GC churn parah.
+    private fun elementToTable(el: Element): LuaTable {
+        val t = LuaTable()
+        t.set("__element", org.luaj.vm2.LuaUserdata(el))
+        t.setmetatable(sharedElementMetatable)
         return t
     }
 
@@ -1269,6 +1513,15 @@ internal fun createLuaSandboxGlobals(): Globals {
         set("remove", LuaValue.NIL)
         set("tmpname", LuaValue.NIL)
     }
+
+    // Gaya OOP Shosetsu: Memungkinkan string Lua dipanggil sebagai fungsi/getter (misal: el:text(), el:html(), doc:title())
+    // tanpa merusak akses properti biasa (el.text, doc.title).
+    // Metamethod __call pada s_metatable LuaString mengembalikan string itu sendiri saat di-invoke.
+    if (LuaString.s_metatable != null) {
+        LuaString.s_metatable.set(LuaValue.CALL, object : VarArgFunction() {
+            override fun invoke(args: Varargs): Varargs = args.arg1()
+        })
+    }
     return globals
 }
 
@@ -1310,6 +1563,15 @@ class LuaSourceLoader @Inject constructor(
         cache.evictAll()
         luaEngine.clearBytecodeCache()
         Timber.d("Lua source cache cleared")
+    }
+
+    /**
+     * Membebaskan referensi cache skrip dan respon Lua saat sistem Android kekurangan memori (onTrimMemory).
+     */
+    fun trimMemory() {
+        cache.evictAll()
+        luaEngine.clearMemoryCache()
+        Timber.d("LuaSourceLoader: memory trimmed via onTrimMemory")
     }
 
     fun scriptFile(id: String): File = luaFile(id)

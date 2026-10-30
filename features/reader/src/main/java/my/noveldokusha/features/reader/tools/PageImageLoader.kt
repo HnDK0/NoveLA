@@ -368,7 +368,7 @@ class PageImageLoader @Inject constructor(
                     Timber.w("PageImageLoader: HTTP ${response.code} for $url")
                     return@withContext null
                 }
-                val bytes = response.body?.bytes() ?: return@withContext null
+                val bytes = response.body.bytes()
                 if (bytes.isEmpty()) return@withContext null
                 mutex.withLock {
                     cacheDir.mkdirs()

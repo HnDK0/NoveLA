@@ -5,6 +5,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -32,6 +33,7 @@ import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@OptIn(FlowPreview::class)
 @Singleton
 internal class ChaptersRepository @Inject constructor(
     @ApplicationContext private val context: Context,

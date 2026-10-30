@@ -266,7 +266,7 @@ class MigrationActivity : BaseActivity() {
                                             title = result.book.title,
                                             coverImageModel = rememberResolvedBookImagePath(
                                                 bookUrl = result.book.url,
-                                                imagePath = result.book.coverImageUrl ?: "",
+                                                imagePath = result.book.coverImageUrl,
                                             ),
                                             onClick = { onResultPicked(flatIndex) },
                                             onLongClick = {},
