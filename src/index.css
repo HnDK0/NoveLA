@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+}
+
+/* Custom scrollbars for reader & lists */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(150, 150, 150, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(150, 150, 150, 0.4);
+}
+
+/* Fonts */
+.font-inter { font-family: 'Inter', sans-serif; }
+.font-lora { font-family: 'Lora', serif; }
+.font-merriweather { font-family: 'Merriweather', serif; }
+.font-source-sans { font-family: 'Source Sans 3', sans-serif; }
+.font-mono-reader { font-family: 'Fira Code', monospace; }
+
+/* Themes for Reader */
+.theme-amoled {
+  background-color: #000000 !important;
+  color: #e4e4e7 !important;
+}
+
+.theme-dark {
+  background-color: #18181b !important;
+  color: #e4e4e7 !important;
+}
+
+.theme-sepia {
+  background-color: #f6f1e8 !important;
+  color: #382c1f !important;
+}
+
+.theme-light {
+  background-color: #fafafa !important;
+  color: #18181b !important;
+}
+
+.theme-catppuccin {
+  background-color: #1e1e2e !important;
+  color: #cdd6f4 !important;
+}
+
+.theme-nord {
+  background-color: #2e3440 !important;
+  color: #eceff4 !important;
+}
+
+.theme-lavender {
+  background-color: #f7f5fb !important;
+  color: #2e283b !important;
+}

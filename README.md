@@ -1,120 +1,68 @@
-<!--
-  android novel reader, web novel app, light novel reader android, epub reader android, ranobe reader, wuxiaworld, royal road, scribble hub, free novel reader, open source novel app
-  андроид читалка ранобэ, читалка веб новелл андроид, ранобэ приложение, epub читалка андроид, бесплатная читалка новелл, jaomix, ranobelib
-  安卓小说阅读器, 网络小说APP, 轻小说阅读器, 免费小说阅读, epub阅读器安卓, 开源小说应用
--->
-
 <div align="center">
 
-<img src="https://github.com/HnDK0/NoveLA/raw/default/screenshots/NoveLA.png" width="88" height="88" alt="NoveLA"/>
+<img src="/ic_logo-playstore.png" width="88" height="88" alt="NoveLA"/>
 
-# NoveLA
+# NoveLA (Web Edition)
 
-Free and open source web novel reader for Android.
+Free and open-source web novel, light novel, and comic reader rewritten as a modern React application.
 
-🇬🇧 English · [🇷🇺 Русский](README_RU.md)
-
-[![Release](https://img.shields.io/github/v/release/HnDK0/NoveLA?style=flat-square&labelColor=27303D&color=0D1117)](https://github.com/HnDK0/NoveLA/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/HnDK0/NoveLA/total?style=flat-square&labelColor=27303D&color=0D1117)](https://github.com/HnDK0/NoveLA/releases)
-[![License: GPL-3.0](https://img.shields.io/github/license/HnDK0/NoveLA?style=flat-square&labelColor=27303D&color=0D1117)](LICENSE)
-[![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-brightgreen?style=flat-square&labelColor=27303D&color=3DDC84&logo=android&logoColor=white)](https://github.com/HnDK0/NoveLA/releases/latest)
-
-> **I am temporarily not creating new plugins or considering new features. Right now, I am focusing on refactoring the scraper and the plugin system.
-
-> ⭐️ **If you find NoveLA useful, please consider giving it a star!** It helps the project grow and stay motivated to fix bugs and improve performance.
-
-<br/>
-
-<img src="preview_v2.png" alt="NoveLA preview" width="100%"/>
+[![Version: 1.6.1](https://img.shields.io/badge/version-1.6.1-amber.svg)](package.json)
+[![React: 19](https://img.shields.io/badge/React-19-blue.svg)](package.json)
+[![Tailwind: v4](https://img.shields.io/badge/TailwindCSS-v4-38bdf8.svg)](package.json)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-green.svg)](LICENSE)
 
 </div>
 
 ---
 
-## Download
+## Overview
 
-**[Get the latest APK](https://github.com/HnDK0/NoveLA/releases/latest)** — requires Android 8.0+
-
-Or build from source:
-
-```bash
-git clone https://github.com/HnDK0/NoveLA
-# Open in Android Studio and run on a device or emulator
-```
+**NoveLA** is a cross-platform web novel reader rewritten from the original Android application into a high-performance React + TypeScript SPA. It brings all core features of the original app directly to modern browsers.
 
 ---
 
 ## Features
 
-- 35+ sources (built-in + Lua plugins)
-- Global multi-source search; add any novel by URL
-- In-reader translation with parallel mode and novel-specific prompts — no copy-paste, no app switching
-- Infinite chapter scrolling with offline caching
-- Custom fonts, text size, light/dark themes (Material 3)
-- Text-to-speech with floating mini-player, background playback, speed/pitch control, Bluetooth support, and multiple engine support
-- Local EPUB and FB2 library with bulk import
-- Backup & restore with granular selection and auto backup
-- Regex text cleanup (strip ads and injected text)
-- Automatic Cloudflare Turnstile bypass
-- Novel migration between sources
-- Library filters by genre, source, and category
-- Download all chapters
-- TTS reading timer
-- 20 interface languages
-- Manga reader for image-based novels, with tap-to-open menu and a size-capped per-page image cache
-- Export any book to EPUB directly from the chapters screen
-- Book ratings with localized labels
-- In-reader webpage translation via a JS bridge (translate any page inside the reader)
-- Per-novel translation settings — enable/disable and choose a language pair independently for each book, included in backups
-- Reader polish: custom font color, letter spacing, auto-scroll, manual paragraph highlighting, and quick reader toggles
-- Library: source strip on book cards (on-cover or below-cover) and redesigned cover badges
-- Translate or clear translation for local books and selected chapters; batch-download the next 100 chapters
+- **Multi-Source Catalog Browsing**: Explore popular web novel repositories (Royal Road, Wuxiaworld, Scribble Hub, Ranobes, NovelFull, MTLNovel, MangaDex, and Local Books).
+- **Global Search**: Search across all enabled sources simultaneously with aggregated results.
+- **In-Reader Parallel Live Translation**:
+  - Side-by-side (parallel) or in-place replacement mode.
+  - Multi-engine support: Free Google Translate endpoint, Google Gemini API, and custom OpenAI-compatible endpoints.
+  - Per-novel language pair settings and custom glossary prompts.
+- **Text-to-Speech (TTS) Narration**:
+  - Integrated with browser Web Speech API.
+  - Floating draggable mini-player with speed (0.5x–2.5x) and pitch controls.
+  - Live sentence/paragraph highlighting as audio plays.
+  - Auto-advance to the next chapter upon finishing narration.
+- **Manga & Comic Reader**:
+  - Vertical continuous Webtoon scroll mode.
+  - Horizontal paged reader mode with zoom and fit controls.
+- **Reader Customization**:
+  - 6 color theme presets: Dark, OLED Black, Warm Sepia, Light, Catppuccin Mocha, and Nord Polar.
+  - Font choices: Inter, Lora Serif, Merriweather, Source Sans, Monospace.
+  - Configurable font size, line height, letter spacing, text alignment, and auto-scroll.
+- **Local EPUB & File Import**:
+  - Direct in-browser EPUB parsing and chapter extraction.
+  - Export any book from the library to EPUB or TXT format.
+- **Regex Text Cleanup**:
+  - Live rule engine to strip site watermarks, ads, Discord invitations, and translator plugs.
+  - Interactive test sandbox with real-time preview.
+- **Novel Migration**:
+  - Switch source provider for any book while matching chapter sequences and preserving reading bookmarks.
+- **Backup & Restore**:
+  - Complete JSON backup export and restore for library, reading history, custom categories, settings, and regex rules.
 
 ---
 
-## Translation
+## Development
 
-Four backends supported. Multiple API keys are rotated round-robin on rate limits.
+```bash
+# Install dependencies
+npm install
 
-| Backend | Cost | API key |
-|---|---|---|
-| Google Translate (Enhanced) | Free | Not required |
-| Google Translate (Simple) | Free | Not required |
-| Google Gemini | Free tier | Required |
-| OpenAI-compatible | Varies | Required |
+# Start Vite dev server on port 3000
+npm run dev
 
-OpenAI-compatible accepts OpenAI, OpenRouter, DeepSeek, Ollama, Mistral, and any compatible endpoint.
-
-Parallel mode displays original and translated text side by side. Novel-specific prompts let you customize translation behavior per book.
-
----
-
-### Plugins
-
-NoveLA supports external Lua-based source plugins installable directly from the app.
-
-Official plugin repo: [`HnDK0/external-sources`](https://github.com/HnDK0/external-sources)
-
-To add: **Finder → Extensions → ⚙️ → paste repo URL**
-
----
-
-## Contributing
-
-Contributions are always welcome! You can help the project in several ways:
-
-- ⭐️ **Star the repository** — the simplest way to support development and boost visibility.
-- 🐛 **Report bugs or suggest improvements** by opening an [Issue](https://github.com/HnDK0/NoveLA/issues).
-- 🧩 **Fix bugs or add source parsers** via Pull Requests (check the [external-sources](https://github.com/HnDK0/external-sources) repo for Lua plugins).
-
----
-
-## Tech stack
-
-Kotlin · Coroutines · Jetpack Compose · Material 3 · Room · Jsoup · OkHttp · Coil 3 · LuaJ · Hilt · WorkManager · Android TTS & Media APIs
-
----
-
-## License
-
-[GPL-3.0](LICENSE)
+# Build for production
+npm run build
+```
