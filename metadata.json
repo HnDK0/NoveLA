@@ -1,0 +1,8 @@
+{
+  "name": "NoveLA",
+  "description": "Free and open-source web novel and light novel reader featuring multi-source catalog browsing, global search, parallel translation, text-to-speech narration, EPUB import/export, and rich reading customization.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
