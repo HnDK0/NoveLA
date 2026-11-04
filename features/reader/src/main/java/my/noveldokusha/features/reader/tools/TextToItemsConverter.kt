@@ -6,10 +6,13 @@ import my.noveldokusha.core.models.RegexRule
 import my.noveldokusha.core.utils.STRIP_HTML_TAGS
 import my.noveldokusha.features.reader.domain.ImgEntry
 import my.noveldokusha.features.reader.domain.ReaderItem
-import org.jsoup.Jsoup
 import timber.log.Timber
 
+// Optimasi memori: Ekstraksi atribut tag <img> menggunakan Regex ringan tanpa menginisialisasi parser DOM Jsoup
 private val IMG_TAG_REGEX = Regex("<img\\b", RegexOption.IGNORE_CASE)
+private val ATTR_SRC_REGEX = Regex("""(?i)\bsrc\s*=\s*["']?([^"'\s>]+)["']?""")
+private val ATTR_DATA_SRC_REGEX = Regex("""(?i)\bdata-src\s*=\s*["']?([^"'\s>]+)["']?""")
+private val ATTR_YREL_REGEX = Regex("""(?i)\byrel\s*=\s*["']?([^"'\s>]+)["']?""")
 private val COLLAPSE_SPACES = Regex("[ ]+")
 private val PARAGRAPH_BREAK = Regex("\\n\\s*\\n")
 
@@ -114,9 +117,11 @@ private fun extractImgTag(text: String): Pair<String, Float>? {
     if (endIdx < 0) return null
     val tag = text.substring(0, endIdx + 1)
     return try {
-        val img = Jsoup.parse(tag).selectFirst("img") ?: return null
-        val src = (img.attr("src").ifBlank { img.attr("data-src") }).takeIf { it.isNotBlank() } ?: return null
-        val yrel = img.attr("yrel").toFloatOrNull()?.takeIf { it >= 0.01f } ?: 1.45f
+        // Prioritaskan src, jika kosong fallback ke data-src (identik dengan img.attr("src").ifBlank { img.attr("data-src") })
+        val src = ATTR_SRC_REGEX.find(tag)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotBlank() }
+            ?: ATTR_DATA_SRC_REGEX.find(tag)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotBlank() }
+            ?: return null
+        val yrel = ATTR_YREL_REGEX.find(tag)?.groupValues?.get(1)?.toFloatOrNull()?.takeIf { it >= 0.01f } ?: 1.45f
         Pair(src, yrel)
     } catch (_: Exception) {
         null

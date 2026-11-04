@@ -175,7 +175,8 @@ class DnsOverHttps : Dns {
                 return null
             }
 
-            val body = response.body?.string() ?: run {
+            val body = response.body.string()
+            if (body.isEmpty()) {
                 response.close()
                 Timber.tag(TAG).d("DoH %s: empty body for %s", provider.name, hostname)
                 return null

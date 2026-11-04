@@ -180,7 +180,7 @@ fun SelectorRule.extractMetadata(): SelectorRule = withContext { _, doc, text ->
 
     // Try to extract common metadata
     doc.select("meta[name], meta[property]").forEach { meta ->
-        val name = meta.attr("name") ?: meta.attr("property")
+        val name = meta.attr("name").ifBlank { meta.attr("property") }
         val content = meta.attr("content")
         if (name.isNotBlank() && content.isNotBlank()) {
             metadata[name] = content

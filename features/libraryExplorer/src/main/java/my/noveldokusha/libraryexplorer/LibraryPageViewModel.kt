@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -145,6 +146,7 @@ private fun Sequence<BookWithContext>.applyCategoryFilter(
     }
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 internal class LibraryPageViewModel @Inject constructor(
     private val appRepository: AppRepository,
@@ -444,7 +446,7 @@ internal class LibraryPageViewModel @Inject constructor(
     // Built from preCategoryFilteredBooks so counts are unaffected by which category is selected
     val categoryCounts = preCategoryFilteredBooks
         .map { list ->
-            list.groupBy { it.book.category ?: "" }
+            list.groupBy { it.book.category }
                 .mapValues { it.value.size }
         }
         .toState(viewModelScope, emptyMap<String, Int>())

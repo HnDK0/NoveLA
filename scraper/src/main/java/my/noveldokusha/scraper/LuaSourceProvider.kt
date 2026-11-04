@@ -23,4 +23,7 @@ interface LuaSourceProvider {
 
     /** Очистить кэш скомпилированных скриптов */
     fun clearCache()
+
+    /** Membersihkan cache memori saat sistem Android mengirim sinyal onTrimMemory */
+    fun trimMemory()
 }

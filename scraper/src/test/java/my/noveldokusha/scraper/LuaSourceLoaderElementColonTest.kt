@@ -122,4 +122,84 @@ class LuaSourceLoaderElementColonTest {
             probe(g, "probe_cover", cardHtml)
         )
     }
+
+    @Test
+    fun `shosetsu style doc selectFirst and text chaining works`() {
+        val g = globals()
+        val html = """
+            <html><head><title>My Novel</title></head>
+            <body>
+                <h1 class="novel-title">Solo Leveling</h1>
+                <div class="summary">A hunter's journey <span>extra note</span></div>
+                <ul class="chapters">
+                    <li><a href="/chap1" id="c1">Chapter 1</a></li>
+                    <li><a href="/chap2" id="c2">Chapter 2</a></li>
+                    <li><a href="/chap3" id="c3">Chapter 3</a></li>
+                </ul>
+            </body></html>
+        """.trimIndent()
+
+        // 1. Uji doc:selectFirst, :text(), dan properti doc:title()
+        val script = """
+            function probe_shosetsu_doc(h)
+                local doc = html_parse(h)
+                local title = doc:selectFirst('.novel-title'):text()
+                local docTitle = doc:title()
+                return title .. '|' .. docTitle
+            end
+        """
+        runBlocking { g.load(script).call() }
+        assertEquals("Solo Leveling|My Novel", probe(g, "probe_shosetsu_doc", html))
+    }
+
+    @Test
+    fun `shosetsu style list methods first last size and attr work`() {
+        val g = globals()
+        val html = """
+            <ul class="chapters">
+                <li><a href="/chap1" id="c1">Chapter 1</a></li>
+                <li><a href="/chap2" id="c2">Chapter 2</a></li>
+                <li><a href="/chap3" id="c3">Chapter 3</a></li>
+            </ul>
+        """.trimIndent()
+
+        val script = """
+            function probe_shosetsu_list(h)
+                local doc = html_parse(h)
+                local list = doc:select('.chapters li a')
+                local firstHref = list:first():attr('href')
+                local lastId = list:last():attr('id')
+                local total = list:size()
+                return firstHref .. '|' .. lastId .. '|' .. total
+            end
+        """
+        runBlocking { g.load(script).call() }
+        assertEquals("/chap1|c3|3", probe(g, "probe_shosetsu_list", html))
+    }
+
+    @Test
+    fun `shosetsu style element traversal parent children ownText hasClass work`() {
+        val g = globals()
+        val html = """
+            <div class="card active">
+                <span class="badge">Hot</span>
+                <p class="desc">Main text <b>bold child</b></p>
+            </div>
+        """.trimIndent()
+
+        val script = """
+            function probe_traversal(h)
+                local doc = html_parse(h)
+                local card = doc:selectFirst('.card')
+                local hasActive = card:hasClass('active')
+                local desc = card:selectFirst('.desc')
+                local own = desc:ownText()
+                local tag = card:parent():tagName()
+                local childCount = card:children():size()
+                return tostring(hasActive) .. '|' .. own .. '|' .. tag .. '|' .. tostring(childCount)
+            end
+        """
+        runBlocking { g.load(script).call() }
+        assertEquals("true|Main text|body|2", probe(g, "probe_traversal", html))
+    }
 }

@@ -33,8 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -201,14 +200,13 @@ fun CatalogExplorerScreen(
                     R.string.title_extensions to Icons.Outlined.Extension,
                     R.string.migration_tab to Icons.AutoMirrored.Outlined.AltRoute,
                 )
-                TabRow(
+                PrimaryTabRow(
                     selectedTabIndex = uiState.selectedTabIndex,
                     containerColor = MaterialTheme.colorScheme.background,
                     indicator = {
-                        val tabPos = it[uiState.selectedTabIndex]
                         Box(
                             modifier = Modifier
-                                .tabIndicatorOffset(tabPos)
+                                .tabIndicatorOffset(uiState.selectedTabIndex, matchContentSize = false)
                                 .fillMaxSize()
                                 .padding(4.dp)
                                 .background(

@@ -224,7 +224,11 @@ internal val LUA_BUILTIN_FUNCTIONS = setOf(
     "regex_match", "regex_replace",
     "string_normalize", "string_split", "string_trim", "string_starts_with", "string_ends_with", "string_clean", "unescape_unicode",
     "json_parse", "json_stringify",
-    "detect_pagination", "sleep", "log_info", "log_error", "os_time"
+    "detect_pagination", "sleep", "log_info", "log_error", "os_time",
+    // Metode OOP Jsoup ala Shosetsu untuk elemen dan koleksi DOM
+    "toHtml", "to_html", "selectFirst", "select_first", "ownText", "own_text",
+    "hasClass", "has_class", "hasAttr", "has_attr", "outerHtml", "outer_html",
+    "tagName", "tag_name", "nextSibling", "nextElementSibling", "previousSibling", "previousElementSibling"
 )
 
 internal val NOVELA_LUA_HOOKS = setOf(

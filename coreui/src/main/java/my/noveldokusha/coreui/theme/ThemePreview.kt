@@ -53,7 +53,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -261,7 +261,8 @@ private fun PreviewMiscellaneous() {
                 navigationIcon = { Icon(Icons.Filled.Menu, null) },
                 actions = { Icon(Icons.Filled.Person, null) }
             )
-            TabRow(selectedTabIndex = 1) {
+            // Menggunakan PrimaryTabRow menggantikan TabRow yang deprecated
+            PrimaryTabRow(selectedTabIndex = 1) {
                 Tab(selected = true, onClick = {}) { Text(text = "1") }
                 Tab(selected = false, onClick = {}) { Text(text = "2") }
                 Tab(selected = false, onClick = {}) { Text(text = "3") }

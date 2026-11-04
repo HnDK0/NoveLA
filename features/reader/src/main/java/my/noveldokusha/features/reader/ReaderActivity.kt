@@ -40,6 +40,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -88,6 +89,7 @@ import my.noveldokusha.reader.databinding.ActivityReaderBinding
 import my.noveldokusha.text_to_speech.Utterance
 import javax.inject.Inject
 
+@OptIn(FlowPreview::class)
 @AndroidEntryPoint
 class ReaderActivity : BaseActivity() {
     class IntentData : Intent, ReaderStateBundle {
