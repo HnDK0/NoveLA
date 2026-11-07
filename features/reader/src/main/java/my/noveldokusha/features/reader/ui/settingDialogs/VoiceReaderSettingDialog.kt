@@ -36,6 +36,8 @@ import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.CenterFocusWeak
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.StarRate
 import androidx.compose.material.icons.outlined.Save
@@ -51,6 +53,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -71,6 +74,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -166,6 +173,9 @@ internal fun VoiceReaderSettingDialog(
                     onValueChangeFinished = { state.setVoiceSpeed(localSpeed) },
                 )
 
+                val sleepRemaining = state.sleepTimerRemainingSeconds.value
+                var sleepMenuExpanded by remember { mutableStateOf(false) }
+
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -229,6 +239,66 @@ internal fun VoiceReaderSettingDialog(
                             leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             disabledLeadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
+                    )
+                    Box {
+                        AssistChip(
+                            label = {
+                                Text(
+                                    if (sleepRemaining > 0) {
+                                        val mins = sleepRemaining / 60
+                                        val secs = sleepRemaining % 60
+                                        "Uyku %02d:%02d".format(mins, secs)
+                                    } else "Uyku"
+                                )
+                            },
+                            onClick = { sleepMenuExpanded = true },
+                            leadingIcon = { Icon(Icons.Filled.NightsStay, null, Modifier.size(14.dp)) },
+                            modifier = Modifier.heightIn(min = 30.dp),
+                            colors = AssistChipDefaults.assistChipColors(
+                                leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                        DropdownMenu(
+                            expanded = sleepMenuExpanded,
+                            onDismissRequest = { sleepMenuExpanded = false }
+                        ) {
+                            listOf(15, 30, 45, 60, 90, 120).forEach { minutes ->
+                                DropdownMenuItem(
+                                    text = { Text("$minutes dakika") },
+                                    onClick = {
+                                        state.setSleepTimer(minutes)
+                                        sleepMenuExpanded = false
+                                    }
+                                )
+                            }
+                            if (sleepRemaining > 0) {
+                                DropdownMenuItem(
+                                    text = { Text("Zamanlayıcıyı iptal et") },
+                                    onClick = {
+                                        state.setSleepTimer(0)
+                                        sleepMenuExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    AssistChip(
+                        label = { Text("Diğer sesleri kıs") },
+                        onClick = { state.setMusicDuckingEnabled(!state.musicDuckingEnabled.value) },
+                        leadingIcon = {
+                            Icon(
+                                if (state.musicDuckingEnabled.value) Icons.Filled.Check else Icons.Filled.VolumeDown,
+                                null,
+                                Modifier.size(14.dp)
+                            )
+                        },
+                        modifier = Modifier.heightIn(min = 30.dp),
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = if (state.musicDuckingEnabled.value)
+                                MaterialTheme.colorScheme.secondaryContainer
+                            else MaterialTheme.colorScheme.surface,
+                            leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     )
                     Box {
                         DropdownCustomSavedVoices(
@@ -435,15 +505,19 @@ private fun VoiceSelectorDialog(
     val voicesFiltered = remember { mutableStateListOf<VoiceData>() }
 
     LaunchedEffect(availableVoices) {
-        val sorted = withContext(Dispatchers.Default) {
-            availableVoices.sortedWith(
-                compareBy<VoiceData> { it.language }
-                    .thenByDescending { it.quality }
-                    .thenBy { it.needsInternet }
-            )
+        // SnapshotStateList is mutated in place as Android engines finish loading.
+        // A LaunchedEffect keyed only on the list object does not rerun on those changes.
+        snapshotFlow { availableVoices.toList() }.collectLatest { voices ->
+            val sorted = withContext(Dispatchers.Default) {
+                voices.sortedWith(
+                    compareBy<VoiceData> { it.language }
+                        .thenByDescending { it.quality }
+                        .thenBy { it.needsInternet }
+                )
+            }
+            voicesSorted.clear()
+            voicesSorted.addAll(sorted)
         }
-        voicesSorted.clear()
-        voicesSorted.addAll(sorted)
     }
 
     LaunchedEffect(Unit) {
@@ -452,7 +526,11 @@ private fun VoiceSelectorDialog(
             .collectLatest { (filter, sorted) ->
                 val items = withContext(Dispatchers.Default) {
                     if (filter.isEmpty()) sorted
-                    else sorted.filter { it.language.contains(filter, ignoreCase = true) }
+                    else sorted.filter {
+                        it.language.contains(filter, ignoreCase = true) ||
+                            it.id.contains(filter, ignoreCase = true) ||
+                            it.enginePackage.contains(filter, ignoreCase = true)
+                    }
                 }
                 voicesFiltered.clear()
                 voicesFiltered.addAll(items)

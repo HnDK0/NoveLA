@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -61,6 +62,7 @@ internal fun LibraryScreenBody(
     onBookClick: (BookWithContext) -> Unit,
     onBookLongClick: (BookWithContext) -> Unit,
     gridColumns: Int = 3,
+    gridState: LazyGridState = rememberLazyGridState(),
     // Позиция полосы источника на карточке книги (кромка обложки / плашка под обложкой)
     sourceStripPosition: SourceStripPosition = SourceStripPosition.BelowCover,
     selectedBooks: Map<String, Boolean> = emptyMap(),
@@ -73,7 +75,6 @@ internal fun LibraryScreenBody(
     viewModel: LibraryPageViewModel = viewModel(),
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
-    val gridState = rememberLazyGridState()
     var showDeleteCategoryPicker by remember { mutableStateOf(false) }
     var showDeleteCategoryConfirm by remember { mutableStateOf<String?>(null) }
 

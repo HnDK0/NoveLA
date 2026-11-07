@@ -220,7 +220,7 @@ class TextToSpeechManager<T : Utterance<T>>(
     val spokenWordRange = mutableStateOf<IntRange?>(null)
 
     private val auxiliaryServices = mutableListOf<TextToSpeech>()
-
+    private val voiceScanGeneration = java.util.concurrent.atomic.AtomicInteger(0)
     // Храним enginePackage сами — service.defaultEngine всегда возвращает системный дефолт,
     // независимо от того с каким enginePackage был создан этот конкретный service объект.
     private var currentEnginePackage: String = ""
@@ -231,9 +231,10 @@ class TextToSpeechManager<T : Utterance<T>>(
     val currentActiveItemState = mutableStateOf(initialItemState)
 
     fun init() {
-        service = appTtsEngine.getOrCreate(onReady = ::onServiceReady)
+        service = appTtsEngine.getOrCreate()
         currentEnginePackage = appTtsEngine.getBoundEnginePackage() ?: (service.defaultEngine ?: "")
-        onServiceReady()
+        // Register only after service assignment; an already-ready engine can call back synchronously.
+        appTtsEngine.whenReady(::onServiceReady)
     }
 
     private fun onServiceReady() {
@@ -276,46 +277,43 @@ class TextToSpeechManager<T : Utterance<T>>(
     }
 
     private fun collectVoicesFromAllEngines() {
-        val engines = service.engines
-        var pending = engines.size
-
-        if (engines.isEmpty()) {
-            return
+        val scan = voiceScanGeneration.incrementAndGet()
+        val installedEngines = service.engines.toList()
+        val remaining = java.util.concurrent.atomic.AtomicInteger(installedEngines.size)
+        val discovered = java.util.Collections.synchronizedList(mutableListOf<VoiceData>())
+        fun finishIfComplete() {
+            if (remaining.get() != 0) return
+            val stableVoices = synchronized(discovered) { discovered.toList() }
+                .distinctBy { it.enginePackage to it.id }
+            scope.launch(Dispatchers.Main) {
+                if (scan != voiceScanGeneration.get()) return@launch
+                availableVoices.clear()
+                availableVoices.addAll(stableVoices)
+                serviceLoadedFlow.emit(Unit)
+            }
         }
 
-        // onServiceReady вызывается дважды (синхронно и из onInit движка) —
-        // сбрасываем, чтобы голоса не дублировались в списке.
-        availableVoices.clear()
-        engines.forEach { engineInfo ->
-            if (engineInfo.name == currentEnginePackage) {
-                val voices = service.voices
-                    ?.map { it.toVoiceData(engineInfo.name) }
-                    ?: emptyList()
-                availableVoices.addAll(voices)
-                // Эмитим «голоса собраны» при завершении сбора (даже пустой список):
-                // стартовый восстановитель в ReaderTextToSpeech применяет speed/pitch на
-                // первой эмиссии, а голос — на последующей наполненной. Если эмитить
-                // только при непустом списке, при сбое инициализации движка take(1)-подписка
-                // зависла бы навсегда и speed/pitch не применились.
-                if (--pending == 0) {
-                    scope.launch { serviceLoadedFlow.emit(Unit) }
-                }
+        if (installedEngines.isEmpty()) {
+            finishIfComplete()
+            return
+        }
+        installedEngines.forEach { info ->
+            if (info.name == currentEnginePackage) {
+                discovered.addAll(service.voices.orEmpty().map { it.toVoiceData(info.name) })
+                remaining.decrementAndGet()
+                finishIfComplete()
             } else {
-                var aux: TextToSpeech? = null
-                aux = TextToSpeech(context, { auxStatus ->
-                    if (auxStatus == TextToSpeech.SUCCESS) {
-                        val voices = aux?.voices
-                            ?.map { it.toVoiceData(engineInfo.name) }
-                            ?: emptyList()
-                        availableVoices.addAll(voices)
+                var auxiliary: TextToSpeech? = null
+                auxiliary = TextToSpeech(context, { status ->
+                    if (scan == voiceScanGeneration.get() && status == TextToSpeech.SUCCESS) {
+                        discovered.addAll(auxiliary?.voices.orEmpty().map { it.toVoiceData(info.name) })
                     }
-                    runCatching { aux?.shutdown() }
-                    auxiliaryServices.remove(aux)
-                    if (--pending == 0) {
-                        scope.launch { serviceLoadedFlow.emit(Unit) }
-                    }
-                }, engineInfo.name)
-                auxiliaryServices.add(aux)
+                    runCatching { auxiliary?.shutdown() }
+                    synchronized(auxiliaryServices) { auxiliaryServices.remove(auxiliary) }
+                    remaining.decrementAndGet()
+                    finishIfComplete()
+                }, info.name)
+                synchronized(auxiliaryServices) { auxiliaryServices.add(auxiliary) }
             }
         }
     }
@@ -363,8 +361,13 @@ class TextToSpeechManager<T : Utterance<T>>(
     }
 
     fun speak(text: String, textSynthesis: T, leadingOffset: Int = 0) {
+        // Preserve UTF-16 offsets for Android's onRangeStart highlighting.
+        // Replace symbols/emoji/control code points with equal-width spaces.
+        val speechText = text.replace(Regex("[\\p{S}\\p{C}]")) { match ->
+            " ".repeat(match.value.length)
+        }
         val subItems = delimiterAwareTextSplitter(
-            fullText = text,
+            fullText = speechText,
             maxSliceLength = maxStringLengthPerTextUnit(),
             charDelimiter = '.'
         )
