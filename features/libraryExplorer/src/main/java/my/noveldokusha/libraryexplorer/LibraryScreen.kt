@@ -19,6 +19,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -56,12 +67,17 @@ fun LibraryScreen(
     val pageViewModel: LibraryPageViewModel = viewModel()
     
     val uiState by libraryModel.uiState.collectAsStateWithLifecycle()
+    val latestReading by libraryModel.latestReading.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val showDropdownMenu = remember { mutableStateOf(false) }
     val lastClickTime = remember { mutableStateOf(0L) }
 
     val gridColumns = uiState.gridColumns
+    val libraryGridState = rememberLazyGridState()
+    val showResumeLabel by remember(libraryGridState) {
+        derivedStateOf { libraryGridState.firstVisibleItemIndex == 0 && libraryGridState.firstVisibleItemScrollOffset < 100 }
+    }
 
     // Dialog states
     var showCreateCategoryDialog by remember { mutableStateOf(false) }
@@ -258,6 +274,39 @@ fun LibraryScreen(
                 }
             }
         },
+        floatingActionButton = {
+            if (!uiState.isSelectionMode) {
+                latestReading?.let { last ->
+                    FloatingActionButton(
+                        modifier = Modifier.offset(y = (-96).dp),
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        onClick = {
+                            last.lastReadChapterUrl?.takeIf { it.isNotBlank() }?.let { chapter ->
+                                context.startActivity(
+                                    navigationRouteViewModel.reader(
+                                        context = context,
+                                        bookUrl = last.bookUrl,
+                                        chapterUrl = chapter
+                                    )
+                                )
+                            }
+                        }
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        ) {
+                            Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                            AnimatedVisibility(visible = showResumeLabel) {
+                                Text(stringResource(id = my.noveldokusha.coreui.R.string.resume_reading))
+                            }
+                        }
+                    }
+                }
+            }
+        },
         content = { innerPadding ->
             LibraryScreenBody(
                 innerPadding = innerPadding,
@@ -265,6 +314,7 @@ fun LibraryScreen(
                 onBookClick = handleBookClick,
                 onBookLongClick = handleBookLongClick,
                 gridColumns = gridColumns,
+                gridState = libraryGridState,
                 sourceStripPosition = uiState.sourceStripPosition,
                 selectedBooks = libraryModel.selectedBooks,
                 isSelectionMode = uiState.isSelectionMode,
