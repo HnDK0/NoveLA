@@ -22,7 +22,7 @@ Free and open source web novel reader for Android.
 </div>
 
 > [!TIP]
-> **The current app is now located here: https://github.com**
+> **The current app is now located here: https://github.com/HnDK0/MiruTime**
 > All active development, updates, and issue tracking have moved to this repository.
 
 > ⭐️ **If you find NoveLA useful, please consider giving it a star!** It helps the project grow and stay motivated to fix bugs and improve performance.
