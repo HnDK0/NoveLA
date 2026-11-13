@@ -94,7 +94,7 @@ Parallel mode displays original and translated text side by side. Novel-specific
 
 NoveLA supports external Lua-based source plugins installable directly from the app.
 
-Official plugin repo: [`HnDK0/external-sources`](https://github.com/HnDK0/external-sources)
+Official plugin repo: [`HnDK0/external-sources`](https://github.com/HnDK0/external-sources/tree/main)
 
 To add: **Finder → Extensions → ⚙️ → paste repo URL**
 
@@ -106,7 +106,7 @@ Contributions are always welcome! You can help the project in several ways:
 
 - ⭐️ **Star the repository** — the simplest way to support development and boost visibility.
 - 🐛 **Report bugs or suggest improvements** by opening an [Issue](https://github.com/HnDK0/NoveLA/issues).
-- 🧩 **Fix bugs or add source parsers** via Pull Requests (check the [external-sources](https://github.com/HnDK0/external-sources) repo for Lua plugins).
+- 🧩 **Fix bugs or add source parsers** via Pull Requests (check the [external-sources](https://github.com/HnDK0/external-sources/tree/main) repo for Lua plugins).
 
 ---
 
