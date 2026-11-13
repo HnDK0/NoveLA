@@ -19,12 +19,15 @@ Free and open source web novel reader for Android.
 [![License: GPL-3.0](https://img.shields.io/github/license/HnDK0/NoveLA?style=flat-square&labelColor=27303D&color=0D1117)](LICENSE)
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-brightgreen?style=flat-square&labelColor=27303D&color=3DDC84&logo=android&logoColor=white)](https://github.com/HnDK0/NoveLA/releases/latest)
 
-> **Active development of the new app is happening here: https://github.com/HnDK0/MiruTime
-It’s still pretty rough and far from release, but feel free to check it out if you're interested. All issues will be tracked and addressed over there.
+</div>
+
+> [!TIP]
+> **The current app is now located here: https://github.com**
+> All active development, updates, and issue tracking have moved to this repository.
 
 > ⭐️ **If you find NoveLA useful, please consider giving it a star!** It helps the project grow and stay motivated to fix bugs and improve performance.
 
-<br/>
+<div align="center">
 
 <img src="preview_v2.png" alt="NoveLA preview" width="100%"/>
 
