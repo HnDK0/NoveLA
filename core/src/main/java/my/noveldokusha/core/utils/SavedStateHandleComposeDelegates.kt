@@ -37,6 +37,8 @@ fun <T : Any, A : SnapshotStateList<T>> SavedStateHandle.asMutableListStateOf(
     val value = get<Bundle?>(key)?.get("value")?.let(saver::restore) ?: default()
 
     // Hook up saving the state to the SavedStateHandle
+    // Suppress deprecation untuk bundleOf pada versi AndroidX terbaru
+    @Suppress("DEPRECATION")
     setSavedStateProvider(key) {
         bundleOf("value" to with(saver) {
             SaverScope(Validators::validateValue).save(value)

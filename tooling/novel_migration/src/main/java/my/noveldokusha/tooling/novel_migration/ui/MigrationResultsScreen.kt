@@ -221,19 +221,19 @@ private fun MigrationResultItem(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        migratingBook.result!!.book.title,
+                        migratingBook.result.book.title,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        migratingBook.result!!.source.resolveName(context),
+                        migratingBook.result.source.resolveName(context),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        stringResource(R.string.migration_chapters_count, migratingBook.result!!.chapters.size),
+                        stringResource(R.string.migration_chapters_count, migratingBook.result.chapters.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

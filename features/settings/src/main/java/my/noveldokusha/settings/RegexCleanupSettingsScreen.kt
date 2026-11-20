@@ -17,7 +17,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Rule
+import androidx.compose.material.icons.automirrored.outlined.Rule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -89,7 +89,7 @@ fun RegexCleanupSettingsScreen(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Outlined.Rule,
+                                imageVector = Icons.AutoMirrored.Outlined.Rule,
                                 contentDescription = stringResource(
                                     id = if (viewModel.isGlobal) R.string.regex_cleanup_title
                                     else R.string.regex_cleanup_novel_rules

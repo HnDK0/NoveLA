@@ -237,7 +237,7 @@ internal fun CatalogList(
                                 Icon(
                                     Icons.Filled.Translate,
                                     contentDescription = stringResource(my.noveldokusha.strings.R.string.extension_translation_settings),
-                                    tint = if (extensionId != null && pluginEnabledMap[extensionId] == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = if (pluginEnabledMap[extensionId] == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }

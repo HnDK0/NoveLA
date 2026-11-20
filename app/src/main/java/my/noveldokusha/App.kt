@@ -51,14 +51,42 @@ class App : Application(), SingletonImageLoader.Factory, WorkConfiguration.Provi
     @Inject
     lateinit var networkClient: NetworkClient
 
-    // Eager singleton: форсирует создание DownloadManager при старте приложения,
-    // чтобы restoreTasksFromDatabase() запустился сразу, а не при первом открытии книги.
     @Inject
     lateinit var downloadManager: DownloadManager
+
+    // Injeksi provider Lua untuk pembersihan memori reaktif saat onTrimMemory
+    @Inject
+    lateinit var luaSourceProvider: my.noveldokusha.scraper.LuaSourceProvider
 
     override fun attachBaseContext(newBase: Context?) {
         val base = newBase ?: return super.attachBaseContext(null)
         super.attachBaseContext(LocaleManager.createAppLocaleContext(base))
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        Timber.d("App: onTrimMemory level=$level")
+        runCatching {
+            // Membebaskan alokasi memori Coil saat background atau memori kritis
+            if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+                SingletonImageLoader.get(this).memoryCache?.clear()
+            }
+        }
+        // Pangkas LRU cache sumber dan respons Lua
+        if (::luaSourceProvider.isInitialized) {
+            runCatching { luaSourceProvider.trimMemory() }
+        }
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        Timber.w("App: onLowMemory received")
+        runCatching {
+            SingletonImageLoader.get(this).memoryCache?.clear()
+        }
+        if (::luaSourceProvider.isInitialized) {
+            runCatching { luaSourceProvider.trimMemory() }
+        }
     }
 
     override fun onCreate() {
@@ -106,22 +134,26 @@ class App : Application(), SingletonImageLoader.Factory, WorkConfiguration.Provi
         }
     }
 
+    @OptIn(ExperimentalCoilApi::class)
     override fun newImageLoader(context: Context): ImageLoader {
         val diskCache = coil3.disk.DiskCache.Builder()
             .directory("${context.cacheDir.absolutePath}/${AppCacheConfig.IMAGE_DISK_CACHE_DIR}".toPath())
             .maxSizeBytes(AppCacheConfig.IMAGE_DISK_CACHE_BYTES)
             .build()
 
-        val memoryCache = coil3.memory.MemoryCache.Builder()
-            .maxSizePercent(context, AppCacheConfig.IMAGE_MEMORY_CACHE_PERCENT) // ponytail: 25% — стандарт для сетевых грид-приложений (Mihon=20%, Coil Sample=25%)
-            .build()
-
-        val animatorDurationScale = Settings.System.getFloat(
-            contentResolver, Settings.System.ANIMATOR_DURATION_SCALE, 1f
-        )
-
         val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val isLowRamDevice = activityManager.isLowRamDevice
+
+        // Alokasi memori ketat: Gunakan hanya 12% heap untuk low-RAM device guna mencegah OOM
+        val memPercent = if (isLowRamDevice) 0.12 else AppCacheConfig.IMAGE_MEMORY_CACHE_PERCENT
+
+        val memoryCache = coil3.memory.MemoryCache.Builder()
+            .maxSizePercent(context, memPercent)
+            .build()
+
+        val animatorDurationScale = Settings.Global.getFloat(
+            contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f
+        )
 
         val sharedBuilder = ImageLoader.Builder(context)
             .fetcherCoroutineContext(Dispatchers.IO.limitedParallelism(8))

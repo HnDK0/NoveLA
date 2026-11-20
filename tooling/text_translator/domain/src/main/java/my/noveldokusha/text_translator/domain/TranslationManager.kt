@@ -14,7 +14,8 @@ data class TranslationModelState(
     val locale: Locale = try {
         Locale.forLanguageTag(language)
     } catch (_: Exception) {
-        try { Locale(language) } catch (_: Exception) { Locale("en") }
+        // Fallback jika parsing language tag gagal tanpa menggunakan konstruktor Locale yang deprecated
+        try { Locale.Builder().setLanguage(language).build() } catch (_: Exception) { Locale.ENGLISH }
     }
 
     val displayName: String
@@ -33,8 +34,9 @@ data class TranslatorState(
     val target: String,
     val translate: suspend (input: String) -> String,
 ) {
-    val sourceLocale = Locale(source)
-    val targetLocale = Locale(target)
+    // Menggunakan Locale.forLanguageTag menggantikan konstruktor Locale yang deprecated di Java 19+
+    val sourceLocale: Locale = Locale.forLanguageTag(source)
+    val targetLocale: Locale = Locale.forLanguageTag(target)
 }
 
 interface TranslationManager {

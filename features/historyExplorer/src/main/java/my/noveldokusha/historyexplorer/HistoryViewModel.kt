@@ -43,6 +43,7 @@ sealed interface HistoryUiState {
     data object Empty : HistoryUiState
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val readingHistoryDao: ReadingHistoryDao,

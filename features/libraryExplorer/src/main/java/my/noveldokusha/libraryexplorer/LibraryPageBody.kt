@@ -189,7 +189,7 @@ internal fun LibraryPageBody(
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .apply {
                             val url = book.book.coverImageUrl
-                            val referer = url?.takeIf { it.startsWith("http://") || it.startsWith("https://") }?.let(::refererFor)
+                            val referer = url.takeIf { it.startsWith("http://") || it.startsWith("https://") }?.let(::refererFor)
                             if (!referer.isNullOrEmpty()) {
                                 httpHeaders(
                                     NetworkHeaders.Builder()

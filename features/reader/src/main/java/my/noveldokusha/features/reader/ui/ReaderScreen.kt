@@ -44,7 +44,7 @@ import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Rule
+import androidx.compose.material.icons.automirrored.outlined.Rule
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
@@ -275,7 +275,7 @@ internal fun ReaderScreen(
                                     Icon(Icons.Outlined.ColorLens, stringResource(R.string.style), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.Style) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                                 }
                                 IconButton(onClick = { toggleOrSet(Type.RegexRules) }, modifier = Modifier.size(36.dp)) {
-                                    Icon(Icons.Outlined.Rule, stringResource(R.string.regex_cleanup_novel_rules), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.RegexRules) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                    Icon(Icons.AutoMirrored.Outlined.Rule, stringResource(R.string.regex_cleanup_novel_rules), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.RegexRules) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                                 }
                                 IconButton(onClick = { toggleOrSet(Type.More) }, modifier = Modifier.size(36.dp)) {
                                     Icon(Icons.Filled.Build, stringResource(R.string.more), modifier = Modifier.size(20.dp), tint = if (selectedSetting == Type.More) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)

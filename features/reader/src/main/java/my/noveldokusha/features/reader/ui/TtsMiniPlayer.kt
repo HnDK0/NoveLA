@@ -630,7 +630,7 @@ private fun FloatingTtsMiniPlayer(
 
                                         if (firstPos == null) {
                                             firstPos = pressed.first().position
-                                        } else if ((pressed.first().position - firstPos!!).getDistance() > 20f) {
+                                        } else if ((pressed.first().position - firstPos).getDistance() > 20f) {
                                             wasDrag = true
                                             break
                                         }

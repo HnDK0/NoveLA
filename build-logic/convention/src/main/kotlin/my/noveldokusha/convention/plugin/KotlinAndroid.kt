@@ -50,7 +50,8 @@ private fun Project.configureKotlin() {
             jvmTarget.set(JvmTarget.JVM_21)
             freeCompilerArgs.addAll(
                 "-opt-in=kotlin.RequiresOptIn",
-                "-Xjvm-default=all-compatibility",
+                // Kotlin 2.2+: -jvm-default menggunakan 'enable' (menggantikan nilai lama 'all-compatibility')
+                "-jvm-default=enable",
             )
         }
     }

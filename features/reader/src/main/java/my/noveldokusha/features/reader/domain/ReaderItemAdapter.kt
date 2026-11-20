@@ -232,8 +232,8 @@ internal class ReaderItemAdapter(
         if (parallelEnabled) {
             val orderTranslationFirst = currentParallelOrder() == "TRANSLATION_FIRST"
 
-            val primaryText = if (orderTranslationFirst) item.textTranslated ?: item.text else item.text
-            val secondaryText = if (orderTranslationFirst) item.text else item.textTranslated ?: item.text
+            val primaryText = if (orderTranslationFirst) item.textTranslated else item.text
+            val secondaryText = if (orderTranslationFirst) item.text else item.textTranslated
 
             val displayPrimary = if (isTtsActiveItem && currentTtsHighlightEnabled()) {
                 applyWordHighlight(primaryText, currentTtsHighlightColor())
