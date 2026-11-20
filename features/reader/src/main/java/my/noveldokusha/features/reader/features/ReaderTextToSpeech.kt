@@ -2,9 +2,10 @@ package my.noveldokusha.features.reader.features
 
 import android.content.Context
 import android.media.AudioAttributes
-import android.media.AudioFormat
+import android.media.AudioFocusRequest
 import android.media.AudioManager
-import android.media.AudioTrack
+import android.os.Build
+import android.os.SystemClock
 import my.noveldokusha.features.reader.services.NarratorMediaControlsService
 import timber.log.Timber
 import androidx.compose.runtime.MutableState
@@ -23,7 +24,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import my.noveldokusha.core.appPreferences.VoicePredefineState
 import my.noveldokusha.features.reader.domain.ChapterIndex
@@ -68,6 +68,10 @@ internal data class TextToSpeechSettingData(
     val originalVoiceId: State<String>,
     val setOriginalVoiceId: (String) -> Unit,
     val spokenWordRange: State<IntRange?>,
+    val sleepTimerRemainingSeconds: State<Int> = mutableStateOf(0),
+    val setSleepTimer: (Int) -> Unit = {},
+    val musicDuckingEnabled: State<Boolean> = mutableStateOf(false),
+    val setMusicDuckingEnabled: (Boolean) -> Unit = {},
 )
 
 internal data class TextSynthesis(
@@ -136,6 +140,86 @@ internal class ReaderTextToSpeech(
             playState = Utterance.PlayState.FINISHED
         )
     )
+
+    // Request focus once per narration session, not once per paragraph.
+    // Android and the external music player ultimately control the attenuation.
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private val musicDucking = mutableStateOf(
+        context.getSharedPreferences("tts_audio", Context.MODE_PRIVATE)
+            .getBoolean("music_ducking", false)
+    )
+    private val focusListener = AudioManager.OnAudioFocusChangeListener { }
+    private var focusRequest: AudioFocusRequest? = null
+    private var legacyFocusHeld = false
+
+    private fun acquireMusicFocus() {
+        if (!musicDucking.value || focusRequest != null || legacyFocusHeld) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                .setAudioAttributes(
+                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
+                )
+                .setOnAudioFocusChangeListener(focusListener)
+                .build()
+            if (audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                focusRequest = request
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            val result = audioManager.requestAudioFocus(
+                focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+            )
+            legacyFocusHeld = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+    }
+
+    private fun releaseMusicFocus() {
+        focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        focusRequest = null
+        if (legacyFocusHeld) {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(focusListener)
+            legacyFocusHeld = false
+        }
+    }
+
+    private fun setMusicDuckingEnabled(enabled: Boolean) {
+        musicDucking.value = enabled
+        context.getSharedPreferences("tts_audio", Context.MODE_PRIVATE)
+            .edit().putBoolean("music_ducking", enabled).apply()
+        if (enabled && state.isPlaying.value) acquireMusicFocus() else releaseMusicFocus()
+    }
+
+    private val sleepTimerSeconds = mutableStateOf(0)
+    private var sleepTimerJob: Job? = null
+
+    private fun setSleepTimer(minutes: Int) {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        if (minutes <= 0) {
+            sleepTimerSeconds.value = 0
+            return
+        }
+        sleepTimerSeconds.value = minutes * 60
+        sleepTimerJob = coroutineScope.launch {
+            while (sleepTimerSeconds.value > 0) {
+                // The countdown only advances while narration is actively playing.
+                if (!state.isPlaying.value) {
+                    delay(250L)
+                    continue
+                }
+                val startedAt = SystemClock.elapsedRealtime()
+                delay(1000L)
+                if (!state.isPlaying.value) continue
+                val elapsed = ((SystemClock.elapsedRealtime() - startedAt) / 1000L)
+                    .coerceAtLeast(1L).toInt()
+                sleepTimerSeconds.value = (sleepTimerSeconds.value - elapsed).coerceAtLeast(0)
+            }
+            sleepTimerJob = null
+            if (state.isPlaying.value) setPlaying(false)
+        }
+    }
 
     val scrolledToTheTop = MutableSharedFlow<Unit>()
     val scrolledToTheBottom = MutableSharedFlow<Unit>()
@@ -274,6 +358,10 @@ internal class ReaderTextToSpeech(
             onOriginalVoiceChanged()
         },
         spokenWordRange = manager.spokenWordRange,
+        sleepTimerRemainingSeconds = sleepTimerSeconds,
+        setSleepTimer = ::setSleepTimer,
+        musicDuckingEnabled = musicDucking,
+        setMusicDuckingEnabled = ::setMusicDuckingEnabled,
     )
 
     val isActive = derivedStateOf { state.isThereActiveItem.value || state.isPlaying.value }
@@ -379,63 +467,15 @@ internal class ReaderTextToSpeech(
         }
     }
 
-    @Volatile
-    private var activeClaimTrack: AudioTrack? = null
-
     private val lifecycleLock = java.util.concurrent.locks.ReentrantLock()
-
-    private fun claimMediaSession() {
-        try {
-            // Освобождаем предыдущий трек, если он ещё не был релизнут
-            // (защита от утечки при множественных вызовах start())
-            activeClaimTrack?.let { runCatching { it.release() } }
-            activeClaimTrack = null
-
-            val sampleRate = 44100
-            val durationSec = 0.1
-            val bufferSize = (sampleRate * durationSec).toInt()
-            val audioTrack = AudioTrack(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build(),
-                AudioFormat.Builder()
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setSampleRate(sampleRate)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                    .build(),
-                bufferSize * 2,
-                AudioTrack.MODE_STATIC,
-                AudioManager.AUDIO_SESSION_ID_GENERATE
-            )
-            activeClaimTrack = audioTrack
-            val silence = ShortArray(bufferSize)
-            audioTrack.write(silence, 0, silence.size)
-            audioTrack.play()
-            // NonCancellable гарантирует, что release() выполнится даже при отмене coroutineScope
-            coroutineScope.launch(NonCancellable) {
-                try {
-                    delay(200)
-                } finally {
-                    runCatching { audioTrack.stop() }
-                    runCatching { audioTrack.release() }
-                    if (activeClaimTrack === audioTrack) activeClaimTrack = null
-                }
-            }
-            Timber.v("claimMediaSession OK")
-        } catch (e: Exception) {
-            Timber.w(e, "claimMediaSession failed")
-        }
-    }
 
     fun start() {
         lifecycleLock.lock()
         try {
             Timber.d("start()")
-            claimMediaSession()
-            NarratorMediaControlsService.reacquireFocus()
             switchVoiceForMode()
             state.isPlaying.value = true
+            acquireMusicFocus()
             updateJob?.cancel()
             updateJob = coroutineScope.launch {
                 manager
@@ -479,6 +519,7 @@ internal class ReaderTextToSpeech(
         try {
             Timber.d("stop()")
             state.isPlaying.value = false
+            releaseMusicFocus()
             updateJob?.cancel()
             manager.stop()
         } finally {
@@ -501,6 +542,7 @@ internal class ReaderTextToSpeech(
     }
 
     fun shutdownTts() {
+        releaseMusicFocus()
         runCatching { manager.shutdown() }
     }
 
@@ -973,7 +1015,9 @@ internal class ReaderTextToSpeech(
             chapterIndex = chapterIndex,
             quantity = quantity
         )
-        if (nextItems.isEmpty()) return
+        if (nextItems.isEmpty()) {
+            return
+        }
         nextItems.forEach(::speakItem)
     }
 

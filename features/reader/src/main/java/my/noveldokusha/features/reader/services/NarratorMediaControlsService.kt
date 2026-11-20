@@ -6,8 +6,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.IBinder
 import androidx.core.content.ContextCompat
@@ -37,10 +35,6 @@ internal class NarratorMediaControlsService : Service() {
             ctx.stopService(Intent(ctx, NarratorMediaControlsService::class.java))
         }
 
-        fun reacquireFocus() {
-            serviceInstance?.requestAudioFocus()
-        }
-
         fun reassertActive() {
             serviceInstance?.narratorNotification?.reassertActive()
         }
@@ -59,13 +53,9 @@ internal class NarratorMediaControlsService : Service() {
     @Inject
     lateinit var readerManager: ReaderManager
 
-    private var audioFocusRequest: AudioFocusRequest? = null
-    private var wasPausedByFocusLoss = false
-
     private val becomingNoisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             Timber.d("ACTION_AUDIO_BECOMING_NOISY received")
-            wasPausedByFocusLoss = true
             ReaderTextToSpeech.isSystemPauseTrigger = true
             ReaderTextToSpeech.pausedBySystem = true
             narratorNotification.pause()
@@ -82,71 +72,10 @@ internal class NarratorMediaControlsService : Service() {
         }
     }
 
-    private fun requestAudioFocus() {
-        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (audioFocusRequest == null) {
-            val attrs = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                .build()
-            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(attrs)
-                .setAcceptsDelayedFocusGain(true)
-                // Речь (TTS): при запросе фокуса с duck'ом ставим паузу,
-                // а не понижаем громкость (чинит паузу для Telegram-голосовых).
-                .setWillPauseWhenDucked(true)
-                .setOnAudioFocusChangeListener { focusChange ->
-                    when (focusChange) {
-                        AudioManager.AUDIOFOCUS_LOSS,
-                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                            // Любая потеря фокуса -> пауза.
-                            // - Постоянная (LOSS): нас выкинуло из стека фокуса.
-                            //   НЕ перезапрашиваем здесь — правило "последний запрос
-                            //   побеждает" заставило бы нас мгновенно украсть фокус
-                            //   обратно у только что взявшего его приложения
-                            //   (борьба за фокус). Перехват делается позже, по воле
-                            //   пользователя: при onPlay()/возврате в приложение
-                            //   (onResume), где setAcceptsDelayedFocusGain даёт DELAYED
-                            //   и корректное ожидание GAIN без кражи.
-                            // - Временная (TRANSIENT / CAN_DUCK): система сама вернёт
-                            //   фокус через стек при релизе захватившего приложения,
-                            //   перезапрос не нужен. setWillPauseWhenDucked(true) =>
-                            //   при duck тоже пауза, а не понижение громкости.
-                            wasPausedByFocusLoss = true
-                            ReaderTextToSpeech.isSystemPauseTrigger = true
-                            ReaderTextToSpeech.pausedBySystem = true
-                            narratorNotification.pause()
-                        }
-                        AudioManager.AUDIOFOCUS_GAIN -> onFocusGained()
-                    }
-                }
-                .build()
-            audioFocusRequest = request
-        }
-        audioManager.requestAudioFocus(audioFocusRequest!!)
-        Timber.d("AudioFocus requested AUDIOFOCUS_GAIN")
-    }
-
-    private fun onFocusGained() {
-        narratorNotification.reassertActive()
-        if (wasPausedByFocusLoss && ReaderTextToSpeech.pausedBySystem && !ReaderTextToSpeech.userPaused) {
-            wasPausedByFocusLoss = false
-            ReaderTextToSpeech.pausedBySystem = false
-            narratorNotification.play()
-        } else {
-            wasPausedByFocusLoss = false
-        }
-    }
-
-    private fun abandonAudioFocus() {
-        audioFocusRequest?.let {
-            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            audioManager.abandonAudioFocusRequest(it)
-            audioFocusRequest = null
-            Timber.d("AudioFocus abandoned")
-        }
-    }
+    // Coexistence mode: the narrator never requests exclusive or ducking audio
+    // focus. This keeps music apps playing at their own selected volume.
+    // Android system TTS engines may have independent focus policies.
+    // Headphone-disconnect handling (ACTION_AUDIO_BECOMING_NOISY) is preserved.
 
     override fun onCreate() {
         super.onCreate()
@@ -165,14 +94,12 @@ internal class NarratorMediaControlsService : Service() {
             IntentFilter(ACTION_STOP_NARRATOR),
             Context.RECEIVER_NOT_EXPORTED
         )
-        requestAudioFocus()
     }
 
     override fun onDestroy() {
         serviceInstance = null
         runCatching { unregisterReceiver(becomingNoisyReceiver) }
         runCatching { unregisterReceiver(dismissReceiver) }
-        abandonAudioFocus()
         narratorNotification.close()
         super.onDestroy()
     }

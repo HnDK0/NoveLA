@@ -95,7 +95,6 @@ internal class NarratorMediaControlsCallback(
         Timber.d("onPlay()")
         throttled("play") {
             ReaderTextToSpeech.pausedBySystem = false
-            NarratorMediaControlsService.reacquireFocus()
             NarratorMediaControlsService.reassertActive()
             readerTextToSpeech.state.setPlaying(true)
         }

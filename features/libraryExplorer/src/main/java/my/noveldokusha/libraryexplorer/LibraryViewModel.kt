@@ -19,6 +19,9 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import my.noveldokusha.core.appPreferences.AppPreferences
@@ -72,6 +75,10 @@ internal class LibraryViewModel @Inject constructor(
     private val readingHistoryDao: ReadingHistoryDao,
     stateHandle: SavedStateHandle,
 ) : ViewModel() {
+
+    val latestReading = readingHistoryDao.getAllFlow()
+        .map { histories -> histories.firstOrNull { !it.lastReadChapterUrl.isNullOrBlank() } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
